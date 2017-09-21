@@ -1,6 +1,11 @@
 'use strict';
 
 var sodium = require('sodium').api;
+
+var mnemonic = require('bitcore-mnemonic');
+
+var crypto = require('crypto');
+
 /**
  * Crypto functions that implements sodium.
  * @memberof module:helpers
@@ -8,6 +13,18 @@ var sodium = require('sodium').api;
  * @namespace
  */
 var ed = {};
+
+/**
+ * Creates a hash based on a passphrase.
+ * @param {string} passPhrase
+ * @return {string} hash
+ */
+
+ed.createPassPhraseHash = function (passPhrase) {
+    var secretMnemonic=new mnemonic(passPhrase,mnemonic.Words.ENGLISH);
+    return crypto.createHash('sha256').update(secretMnemonic.toSeed().toString('hex'), 'hex').digest();
+};
+
 
 /**
  * Creates a keypar based on a hash.
