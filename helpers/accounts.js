@@ -22,8 +22,7 @@ accounts.getAddressByPublicKey = function (publicKey) {
         temp[i] = publicKeyHash[9 - i];
     }
 
-    var address = 'U' + bignum.fromBuffer(temp).toString();
-    return address;
+    return 'U' + bignum.fromBuffer(temp).toString();
 };
 
 module.exports = accounts;
