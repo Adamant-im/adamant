@@ -12,7 +12,7 @@ CREATE TYPE blockRewards AS (supply bigint, start int, distance bigint, mileston
 CREATE FUNCTION getBlockRewards() RETURNS blockRewards LANGUAGE PLPGSQL IMMUTABLE AS $$
 	DECLARE
 		res        blockRewards;
-		supply     bigint     = 10000000000000000; -- Initial supply
+		supply     bigint     = 9800000000000000; -- Initial supply
 		start      int        = 1451520; -- Start rewards at block (n)
 		distance   bigint     = 3000000; -- Distance between each milestone
 		milestones bigint[][] = ARRAY[   -- Milestones [number, reward]
