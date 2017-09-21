@@ -1055,7 +1055,7 @@ DApps.prototype.isLoaded = function () {
  */
 DApps.prototype.internal = {
 	put: function (dapp, cb) {
-		var hash = crypto.createHash('sha256').update(dapp.secret, 'utf8').digest();
+        var hash = library.ed.createPassPhraseHash(dapp.secret);
 		var keypair = library.ed.makeKeypair(hash);
 
 		if (dapp.publicKey) {
@@ -1081,7 +1081,7 @@ DApps.prototype.internal = {
 				var secondKeypair = null;
 
 				if (account.secondSignature) {
-					var secondHash = crypto.createHash('sha256').update(dapp.secondSecret, 'utf8').digest();
+                    var secondHash = library.ed.createPassPhraseHash(dapp.secondSecret);
 					secondKeypair = library.ed.makeKeypair(secondHash);
 				}
 
@@ -1449,7 +1449,7 @@ DApps.prototype.internal = {
 				return setImmediate(cb, err[0].message);
 			}
 
-			var hash = crypto.createHash('sha256').update(req.body.secret, 'utf8').digest();
+            var hash = library.ed.createPassPhraseHash(req.body.secret);
 			var keypair = library.ed.makeKeypair(hash);
 
 			if (req.body.publicKey) {
@@ -1499,7 +1499,7 @@ DApps.prototype.internal = {
 							var secondKeypair = null;
 
 							if (requester.secondSignature) {
-								var secondHash = crypto.createHash('sha256').update(req.body.secondSecret, 'utf8').digest();
+                                var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
 								secondKeypair = library.ed.makeKeypair(secondHash);
 							}
 
@@ -1539,7 +1539,7 @@ DApps.prototype.internal = {
 						var secondKeypair = null;
 
 						if (account.secondSignature) {
-							var secondHash = crypto.createHash('sha256').update(req.body.secondSecret, 'utf8').digest();
+                            var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
 							secondKeypair = library.ed.makeKeypair(secondHash);
 						}
 
@@ -1578,7 +1578,7 @@ DApps.prototype.internal = {
 				return setImmediate(cb, err[0].message);
 			}
 
-			var hash = crypto.createHash('sha256').update(req.body.secret, 'utf8').digest();
+            var hash = library.ed.createPassPhraseHash(req.body.secret);
 			var keypair = library.ed.makeKeypair(hash);
 			var query = {};
 
@@ -1621,7 +1621,7 @@ DApps.prototype.internal = {
 							var secondKeypair = null;
 
 							if (requester.secondSignature) {
-								var secondHash = crypto.createHash('sha256').update(req.body.secondSecret, 'utf8').digest();
+                                var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
 								secondKeypair = library.ed.makeKeypair(secondHash);
 							}
 
@@ -1663,7 +1663,7 @@ DApps.prototype.internal = {
 						var secondKeypair = null;
 
 						if (account.secondSignature) {
-							var secondHash = crypto.createHash('sha256').update(req.body.secondSecret, 'utf8').digest();
+                            var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
 							secondKeypair = library.ed.makeKeypair(secondHash);
 						}
 

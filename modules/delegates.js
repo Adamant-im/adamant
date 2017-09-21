@@ -312,7 +312,8 @@ __private.loadDelegates = function (cb) {
 	}
 
 	async.eachSeries(secrets, function (secret, cb) {
-		var keypair = library.ed.makeKeypair(crypto.createHash('sha256').update(secret, 'utf8').digest());
+		var hash = library.ed.createPassPhraseHash(secret);
+		var keypair = library.ed.makeKeypair(hash);
 
 		modules.accounts.getAccount({
 			publicKey: keypair.publicKey.toString('hex')
@@ -595,7 +596,8 @@ Delegates.prototype.internal = {
 				return setImmediate(cb, err[0].message);
 			}
 
-			var keypair = library.ed.makeKeypair(crypto.createHash('sha256').update(req.body.secret, 'utf8').digest());
+            var hash = library.ed.createPassPhraseHash(req.body.secret);
+            var keypair = library.ed.makeKeypair(hash);
 
 			if (req.body.publicKey) {
 				if (keypair.publicKey.toString('hex') !== req.body.publicKey) {
@@ -628,7 +630,8 @@ Delegates.prototype.internal = {
 				return setImmediate(cb, err[0].message);
 			}
 
-			var keypair = library.ed.makeKeypair(crypto.createHash('sha256').update(req.body.secret, 'utf8').digest());
+            var hash = library.ed.createPassPhraseHash(req.body.secret);
+            var keypair = library.ed.makeKeypair(hash);
 
 			if (req.body.publicKey) {
 				if (keypair.publicKey.toString('hex') !== req.body.publicKey) {
@@ -907,7 +910,7 @@ Delegates.prototype.shared = {
 				return setImmediate(cb, err[0].message);
 			}
 
-			var hash = crypto.createHash('sha256').update(req.body.secret, 'utf8').digest();
+            var hash = library.ed.createPassPhraseHash(req.body.secret);
 			var keypair = library.ed.makeKeypair(hash);
 
 			if (req.body.publicKey) {
@@ -955,7 +958,7 @@ Delegates.prototype.shared = {
 							var secondKeypair = null;
 
 							if (requester.secondSignature) {
-								var secondHash = crypto.createHash('sha256').update(req.body.secondSecret, 'utf8').digest();
+                                var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
 								secondKeypair = library.ed.makeKeypair(secondHash);
 							}
 
@@ -993,7 +996,7 @@ Delegates.prototype.shared = {
 						var secondKeypair = null;
 
 						if (account.secondSignature) {
-							var secondHash = crypto.createHash('sha256').update(req.body.secondSecret, 'utf8').digest();
+                            var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
 							secondKeypair = library.ed.makeKeypair(secondHash);
 						}
 
