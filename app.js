@@ -407,7 +407,9 @@ d.run(function () {
 		ed: function (cb) {
 			cb(null, require('./helpers/ed.js'));
 		},
-
+        accounts: function (cb) {
+            cb(null, require('./helpers/accounts.js'));
+        },
 		bus: ['ed', function (scope, cb) {
 			var changeCase = require('change-case');
 			var bus = function () {
