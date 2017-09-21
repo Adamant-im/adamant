@@ -2,12 +2,11 @@
 
 Secu is decentralized chat platform based on Lisk codebase and written in javascript.  For more information please refer to our website: TBA.
 
-[![Build Status](https://travis-ci.org/LiskHQ/lisk.svg?branch=development)](https://travis-ci.org/LiskHQ/lisk)
-[![Coverage Status](https://coveralls.io/repos/github/LiskHQ/lisk/badge.svg?branch=development)](https://coveralls.io/github/LiskHQ/lisk?branch=development)
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
-[![Join the chat at https://gitter.im/LiskHQ/lisk](https://badges.gitter.im/LiskHQ/lisk.svg)](https://gitter.im/LiskHQ/lisk?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-**NOTE:** The following information is applicable to: **Ubuntu 14.04, 16.04 (LTS) or 16.10 - x86_64**.
+**NOTE:** The following information is applicable to: **Ubuntu 16.04 (LTS) or 16.10 - x86_64**.
+
+For making process simple you can use tools/install_ubuntu_dependencies.sh script.
 
 ## Prerequisites - In order
 
@@ -24,7 +23,7 @@ Secu is decentralized chat platform based on Lisk codebase and written in javasc
   System wide via package manager:
 
   ```
-  curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
+  curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
   sudo apt-get install -y nodejs
   ```
 
@@ -60,68 +59,44 @@ Secu is decentralized chat platform based on Lisk codebase and written in javasc
 
 ## Installation Steps
 
-Clone the Lisk repository using Git and initialize the modules.
+Clone the Secu repository using Git and initialize the modules.
 
 ```
-git clone https://github.com/LiskHQ/lisk.git
-cd lisk
+git clone https://github.com/zyuhel/secu
+cd secu
 npm install
 ```
 
-Install Lisk Node, a specialized version of Node.js used to execute dapps within a virtual machine:
 
-```
-wget https://downloads.lisk.io/lisk-node/lisk-node-Linux-x86_64.tar.gz
-tar -zxvf lisk-node-Linux-x86_64.tar.gz
-```
+## Managing Secu
 
-Lisk Node has to be in `[LISK_DIR]/nodejs/node`.
-
-Load git submodules ([lisk-ui](https://github.com/LiskHQ/lisk-ui) and [lisk-js](https://github.com/LiskHQ/lisk-js)):
-
-```
-git submodule init
-git submodule update
-```
-
-Build the user-interface:
-
-```
-cd public
-npm install
-bower install
-grunt release
-```
-
-## Managing Lisk
-
-To test that Lisk is built and configured correctly, run the following command:
+To test that Secu is built and configured correctly, run the following command:
 
 `node app.js`
 
-In a browser navigate to: <http://localhost:8000> (for the mainnet) or <http://localhost:7000> (for the testnet). If Lisk is running on a remote system, switch `localhost` for the external IP Address of the machine.
+In a browser navigate to: <http://localhost:36666> (for the mainnet) or <http://localhost:36667> (for the testnet). If Lisk is running on a remote system, switch `localhost` for the external IP Address of the machine.
 
 Once the process is verified as running correctly, `CTRL+C` and start the process with `pm2`. This will fork the process into the background and automatically recover the process if it fails.
 
-`pm2 start --name lisk app.js`
+`pm2 start --name secu app.js`
 
 After the process is started, its runtime status and log location can be retrieved by issuing the following command:
 
-`pm2 show lisk`
+`pm2 show secu`
 
 To stop Lisk after it has been started with `pm2`, issue the following command:
 
-`pm2 stop lisk`
+`pm2 stop secu`
 
 **NOTE:** The **port**, **address** and **config-path** can be overridden by providing the relevant command switch:
 
 ```
-pm2 start --name lisk app.js -- -p [port] -a [address] -c [config-path]
+pm2 start --name secu app.js -- -p [port] -a [address] -c [config-path]
 ```
 
 ## Tests
 
-Before running any tests, please ensure Lisk is configured to run on the same testnet that is used by the test-suite.
+Before running any tests, please ensure Secu is configured to run on the same testnet that is used by the test-suite.
 
 Replace **config.json** and **genesisBlock.json** with the corresponding files under the **test** directory:
 
@@ -132,8 +107,8 @@ cp test/config.json test/genesisBlock.json .
 **NOTE:** If the node was started with a different genesis block previous, trauncate the database before running tests.
 
 ```
-dropdb lisk_test
-createdb lisk_test
+dropdb secu_test
+createdb secu_test
 ```
 
 **NOTE:** The master passphrase for this genesis block is as follows:
@@ -142,7 +117,7 @@ createdb lisk_test
 wagon stock borrow episode laundry kitten salute link globe zero feed marble
 ```
 
-Launch Lisk (runs on port 4000):
+Launch Secu (runs on port 4000):
 
 ```
 node app.js
