@@ -6,7 +6,7 @@ var constants = require('./constants.js');
  * @module helpers/slots
  */
 /**
- * Gets constant time from Lisk epoch.
+ * Gets constant time from Secu epoch.
  * @returns {number} epochTime from constants.
  */
 function beginEpochTime () {
@@ -16,9 +16,9 @@ function beginEpochTime () {
 }
 
 /**
- * Calculates time since Lisk epoch.
+ * Calculates time since Secu epoch.
  * @param {number|undefined} time - Time in unix seconds.
- * @returns {number} current time - lisk epoch time.
+ * @returns {number} current time - secu epoch time.
  */
 function getEpochTime (time) {
 	if (time === undefined) {
@@ -37,7 +37,7 @@ module.exports = {
 	/**
 	 * @property {number} interval - Slot time interval in seconds.
 	 */
-	interval: 10,
+	interval: 5,
 
 	/**
 	 * @property {number} delegates - Active delegates from constants.
@@ -47,7 +47,7 @@ module.exports = {
 	/**
 	 * @method
 	 * @param {number} time
-	 * @return {number} lisk epoch time constant.
+	 * @return {number} secu epoch time constant.
 	 */
 	getTime: function (time) {
 		return getEpochTime(time);
@@ -56,7 +56,7 @@ module.exports = {
 	/**
 	 * @method
 	 * @param {number} [epochTime]
-	 * @return {number} constant time from Lisk epoch + input time.
+	 * @return {number} constant time from secu epoch + input time.
 	 */
 	getRealTime: function (epochTime) {
 		if (epochTime === undefined) {
