@@ -16,10 +16,10 @@ var accounts = {};
  */
 accounts.getAddressByPublicKey = function (publicKey) {
     var publicKeyHash = crypto.createHash('sha256').update(publicKey, 'hex').digest();
-    var temp = Buffer.alloc(10);
+    var temp = Buffer.alloc(8);
 
-    for (var i = 0; i < 10; i++) {
-        temp[i] = publicKeyHash[9 - i];
+    for (var i = 0; i < 8; i++) {
+        temp[i] = publicKeyHash[7 - i];
     }
 
     return 'U' + bignum.fromBuffer(temp).toString();
