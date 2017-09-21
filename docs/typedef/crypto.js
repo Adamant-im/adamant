@@ -7,7 +7,7 @@
  * @typedef {string} privateKey
  */
 /**
- * Address obtained from publicKey using bignum function + 'L'.
+ * Address obtained from publicKey using bignum function with 'U' in the beginning.
  * @typedef {string} address
  */
 /**
