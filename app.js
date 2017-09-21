@@ -51,6 +51,7 @@ var lastCommit = '';
 
 if (typeof gc !== 'undefined') {
 	setInterval(function () {
+// eslint-disable-next-line no-undef
 		gc();
 	}, 60000);
 }
