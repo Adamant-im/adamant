@@ -78,6 +78,7 @@ function block_data (data) {
         numberOfTransactions: blockTransactions.length,
         payloadLength: size,
         previousBlock: null,
+        height: 1,
         generatorPublicKey: data.keypair.publicKey.toString('hex'),
         transactions: blockTransactions
     };
