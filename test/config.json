@@ -1,10 +1,10 @@
 {
-    "port": 4000,
+    "port": 36667,
     "address": "0.0.0.0",
     "version": "0.0.0a",
     "minVersion": "0.0.0a",
     "fileLogLevel": "info",
-    "logFileName": "logs/lisk.log",
+    "logFileName": "logs/secu.log",
     "consoleLogLevel": "debug",
     "trustProxy": false,
     "topAccounts": false,
@@ -12,7 +12,7 @@
     "db": {
         "host": "localhost",
         "port": 5432,
-        "database": "lisk_test",
+        "database": "secu_test",
         "user": "",
         "password": "password",
         "poolSize": 95,
@@ -47,7 +47,7 @@
         "enabled": true,
         "list": [{
             "ip": "127.0.0.1",
-            "port": 9999
+            "port": 36667
         }],
         "access": {
             "blackList": []
@@ -201,5 +201,5 @@
         "masterpassword": "",
         "autoexec": []
     },
-    "nethash": "198f2b61a8eb95fbeed58b8216780b68f697f26b849acf00c8c93bb9b24f783d"
+    "nethash": "88d9042d05697dbe51ef8b536f8de60494ad8f7cd6f4634889e5bd0f9025f0e7"
 }

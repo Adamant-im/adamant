@@ -1,10 +1,10 @@
 {
-    "port": 8000,
+    "port": 36666,
     "address": "0.0.0.0",
-    "version": "0.9.9",
-    "minVersion": ">=0.9.5",
+    "version": "0.0.1",
+    "minVersion": ">=0.0.1",
     "fileLogLevel": "info",
-    "logFileName": "logs/lisk.log",
+    "logFileName": "logs/secu.log",
     "consoleLogLevel": "none",
     "trustProxy": false,
     "topAccounts": false,
@@ -12,7 +12,7 @@
     "db": {
         "host": "localhost",
         "port": 5432,
-        "database": "lisk_main",
+        "database": "secu_main",
         "user": "",
         "password": "password",
         "poolSize": 95,
@@ -47,44 +47,16 @@
         "enabled": true,
         "list": [
             {
-                "ip": "83.136.254.92",
-                "port": 8000
+                "ip": "51.15.221.205",
+                "port": 36666
             },
             {
-                "ip": "83.136.249.76",
-                "port": 8000
+                "ip": "51.15.88.53",
+                "port": 36666
             },
             {
-                "ip": "94.237.28.66",
-                "port": 8000
-            },
-            {
-                "ip": "94.237.24.199",
-                "port": 8000
-            },
-            {
-                "ip": "209.50.49.23",
-                "port": 8000
-            },
-            {
-                "ip": "209.50.49.40",
-                "port": 8000
-            },
-            {
-                "ip": "94.237.64.70",
-                "port": 8000
-            },
-            {
-                "ip": "94.237.64.73",
-                "port": 8000
-            },
-            {
-                "ip": "94.237.40.140",
-                "port": 8000
-            },
-            {
-                "ip": "94.237.40.141",
-                "port": 8000
+                "ip": "51.15.217.230",
+                "port": 36666
             }
         ],
         "access": {
@@ -137,5 +109,5 @@
         "masterpassword": "",
         "autoexec": []
     },
-    "nethash": "ed14889723f24ecc54871d058d98ce91ff2f973192075c0155ba2b7b70ad2511"
+    "nethash": "6d7d98c88a97d3b7301ec81388dde77d00594e787f8ee589ce2222655cfb01ed"
 }
