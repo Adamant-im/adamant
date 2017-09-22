@@ -1,6 +1,6 @@
 {
-  "name": "lisk",
-  "version": "0.9.9",
+  "name": "secu",
+  "version": "0.0.1",
   "private": true,
   "scripts": {
     "start": "node app.js",
@@ -11,7 +11,7 @@
     "jsdoc": "jsdoc -c docs/conf.json --verbose --pedantic",
     "server-docs": "npm run jsdoc && http-server docs/jsdoc/"
   },
-  "author": "Lisk Foundation <admin@lisk.io>, lightcurve GmbH <admin@lightcurve.io>",
+  "author": "Lisk Foundation <admin@lisk.io>, lightcurve GmbH <admin@lightcurve.io>, zyuhel <zyuhel@yandex.ru>",
   "license": "GPL-3.0",
   "dependencies": {
     "async": "=2.1.4",
@@ -32,6 +32,7 @@
     "express-rate-limit": "=2.6.0",
     "extend": "=3.0.0",
     "ip": "=1.1.5",
+    "js-nacl": "^1.2.2",
     "json-schema": "=0.2.3",
     "json-sql": "LiskHQ/json-sql#27e1ed1",
     "lisk-sandbox": "LiskHQ/lisk-sandbox#162da38",
