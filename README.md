@@ -39,10 +39,10 @@ For making process simple you can use tools/install_ubuntu_dependencies.sh scrip
   ```
   curl -sL "https://downloads.lisk.io/scripts/setup_postgresql.Linux" | bash -
   sudo -u postgres createuser --createdb $USER
-  createdb lisk_test
-  createdb lisk_main
-  sudo -u postgres psql -d lisk_test -c "alter user "$USER" with password 'password';"
-  sudo -u postgres psql -d lisk_main -c "alter user "$USER" with password 'password';"
+  createdb secu_test
+  createdb secu_main
+  sudo -u postgres psql -d secu_test -c "alter user "$USER" with password 'password';"
+  sudo -u postgres psql -d secu_main -c "alter user "$USER" with password 'password';"
   ```
 
 - Bower (<http://bower.io/>) -- Bower helps to install required JavaScript dependencies.
@@ -57,6 +57,9 @@ For making process simple you can use tools/install_ubuntu_dependencies.sh scrip
 
   `npm install -g pm2`
 
+
+
+
 ## Installation Steps
 
 Clone the Secu repository using Git and initialize the modules.
@@ -67,6 +70,24 @@ cd secu
 npm install
 ```
 
+## Alternative ubuntu install process
+
+Alternative way to install Secu with prerequisites. You need only git installed locally. Or instead of cloning you could download and unpack zip from github.
+
+```
+git clone https://github.com/zyuhel/secu
+cd secu
+sh tools/install_ubuntu_dependencies.sh
+
+sudo -u postgres createuser --createdb $USER
+createdb secu_test
+createdb secu_main
+sudo -u postgres psql -d secu_test -c "alter user "$USER" with password 'password';"
+sudo -u postgres psql -d secu_main -c "alter user "$USER" with password 'password';"
+  
+  
+npm install
+```
 
 ## Managing Secu
 
