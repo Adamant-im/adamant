@@ -72,9 +72,9 @@ module.exports = {
 	minBroadhashConsensus: 51,
 	nethashes: [
 		// Mainnet
-		'6d7d98c88a97d3b7301ec81388dde77d00594e787f8ee589ce2222655cfb01ed',
+		'77265cf40a806763bc1e3ff0d899a1c0582b46e84ce8808b445dd9b95aa86da5',
 		// Testnet
-		'88d9042d05697dbe51ef8b536f8de60494ad8f7cd6f4634889e5bd0f9025f0e7'
+		'38f153a81332dea86751451fd992df26a9249f0834f72f58f84ac31cceb70f43'
 	],
 	numberLength: 100000000,
 	requestLength: 104,

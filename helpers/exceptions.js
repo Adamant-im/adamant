@@ -13,8 +13,8 @@
 module.exports = {
 	blockRewards: [],
 	genesisPublicKey: {
-		mainnet: 'e18d656be87f62da7e938784460bbd2bfe45d6c6c6b43f2dc6b5c162189234ef',
-		testnet: '638523c0c05b8637735b3f2d078186c8f43c6228ab96f7541785f46db6b50b4e'
+		mainnet: '68d0acee2b39ea1010a20caea41e9ccf37cab4a1b6fd2af79d0e6ad2e04f3829',
+		testnet: 'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae'
 	},
 	rounds: {
 		'27040': {rewards_factor: 2, fees_factor: 2, fees_bonus: 10000000}
