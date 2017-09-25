@@ -13,6 +13,17 @@ module.exports = {
 		},
 		required: ['secret']
 	},
+    new: {
+        id: 'accounts.newAccount',
+        type: 'object',
+        properties: {
+            publicKey: {
+                type: 'string',
+                format: 'publicKey'
+            }
+        },
+        required: ['publicKey']
+    },
 	getBalance: {
 		id: 'accounts.getBalance',
 		type: 'object',

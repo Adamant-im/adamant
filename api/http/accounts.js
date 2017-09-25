@@ -9,6 +9,7 @@ var schema = require('../../schema/accounts.js');
  * - End point: `/api/accounts`
  * - Public API:
 	- post 	/open
+ 	- post  /new
 	- get 	/getBalance
 	- get 	/getPublicKey
 	- post 	/generatePublicKey
@@ -32,6 +33,7 @@ function AccountsHttpApi (accountsModule, app) {
 
 	router.map(accountsModule.shared, {
 		'post /open': 'open',
+        'post /new': 'new',
 		'get /getBalance': 'getBalance',
 		'get /getPublicKey': 'getPublickey',
 		'post /generatePublicKey': 'generatePublicKey',
