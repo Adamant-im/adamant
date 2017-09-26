@@ -936,7 +936,7 @@ Transactions.prototype.shared = {
                             var transaction;
 
                             try {
-                                transaction = library.logic.transaction.process(req.body.transaction);
+                                transaction = library.logic.transaction.publish(req.body.transaction);
                             } catch (e) {
                                 return setImmediate(cb, e.toString());
                             }

@@ -104,7 +104,7 @@ Transaction.prototype.create = function (data) {
 
 	return trs;
 };
-Transaction.prototype.process = function (data) {
+Transaction.prototype.publish = function (data) {
     if (!__private.types[data.type]) {
         throw 'Unknown transaction type ' + data.type;
     }
