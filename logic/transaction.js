@@ -104,7 +104,51 @@ Transaction.prototype.create = function (data) {
 
 	return trs;
 };
+Transaction.prototype.process = function (data) {
+    if (!__private.types[data.type]) {
+        throw 'Unknown transaction type ' + data.type;
+    }
 
+    if (!data.senderId) {
+        throw 'Invalid sender';
+    }
+
+    if (!data.signature) {
+        throw 'Invalid signature';
+    }
+
+    var trs = data;
+
+
+
+    trs.id = this.getId(trs);
+
+    trs.fee = __private.types[trs.type].calculateFee.call(this, trs, data.senderId) || false;
+
+    return trs;
+};
+Transaction.prototype.normalize = function (data) {
+    if (!__private.types[data.type]) {
+        throw 'Unknown transaction type ' + data.type;
+    }
+
+    if (!data.sender) {
+        throw 'Invalid sender';
+    }
+
+    var trs = {
+        type: data.type,
+        amount: 0,
+        senderPublicKey: data.sender.publicKey,
+        requesterPublicKey: data.requester ? data.requester.publicKey.toString('hex') : null,
+        timestamp: slots.getTime(),
+        asset: {}
+    };
+
+    trs = __private.types[trs.type].create.call(this, data, trs);
+
+    return trs;
+};
 /**
  * Sets private type based on type id after instance object validation.
  * @param {number} typeId

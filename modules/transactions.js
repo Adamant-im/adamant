@@ -811,7 +811,7 @@ Transactions.prototype.shared = {
                         var transaction;
 
                         try {
-                            transaction = library.logic.transaction.prepare({
+                            transaction = library.logic.transaction.normalize({
                                 type: transactionTypes.SEND,
                                 amount: req.body.amount,
                                 sender: account,
@@ -936,7 +936,7 @@ Transactions.prototype.shared = {
                             var transaction;
 
                             try {
-                                transaction = library.logic.transaction.publish(req.body.transaction);
+                                transaction = library.logic.transaction.process(req.body.transaction);
                             } catch (e) {
                                 return setImmediate(cb, e.toString());
                             }
