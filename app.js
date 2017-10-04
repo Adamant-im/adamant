@@ -493,7 +493,7 @@ d.run(function () {
 				transaction: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'account', 'logger', function (scope, cb) {
 					new Transaction(scope.db, scope.ed, scope.schema, scope.genesisblock, scope.account, scope.logger, cb);
 				}],
-                chat: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'account', 'logger', function (scope, cb) {
+                chat: ['db', 'bus', 'ed', 'schema', 'account', 'logger', function (scope, cb) {
                     new Chat(scope.db, scope.ed, scope.schema, scope.account, scope.logger, cb);
                 }],
 				block: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'account', 'transaction', function (scope, cb) {
