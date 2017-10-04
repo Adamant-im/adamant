@@ -8,5 +8,6 @@ module.exports = {
 	MULTI: 4,
 	DAPP: 5,
 	IN_TRANSFER: 6,
-	OUT_TRANSFER: 7
+	OUT_TRANSFER: 7,
+	CHAT_MESSAGE: 8
 };

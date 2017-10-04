@@ -55,7 +55,8 @@ module.exports = {
 		secondsignature: 500000000,
 		delegate: 2500000000,
 		multisignature: 500000000,
-		dapp: 2500000000
+		dapp: 2500000000,
+        chat_message: 1000000
 	},
 	feeStart: 1,
 	feeStartVolume: 10000 * 100000000,
