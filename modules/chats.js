@@ -171,6 +171,16 @@ __private.list = function (filter, cb) {
     });
 };
 
+
+Chats.prototype.onBind = function (scope) {
+    modules = {
+        transactions: scope.transactions,
+        accounts: scope.accounts,
+        peers: scope.peers,
+        sql: scope.sql,
+    };
+};
+
 /**
  * Checks if `modules` is loaded.
  * @return {boolean} True if `modules` is loaded.
