@@ -494,7 +494,7 @@ d.run(function () {
 					new Transaction(scope.db, scope.ed, scope.schema, scope.genesisblock, scope.account, scope.logger, cb);
 				}],
                 chat: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'account', 'logger', function (scope, cb) {
-                    new Chat(scope.db, scope.ed, scope.schema, scope.genesisblock, scope.account, scope.logger, cb);
+                    new Chat(scope.db, scope.ed, scope.schema, scope.account, scope.logger, cb);
                 }],
 				block: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'account', 'transaction', function (scope, cb) {
 					new Block(scope.ed, scope.schema, scope.transaction, cb);

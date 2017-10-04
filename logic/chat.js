@@ -7,7 +7,7 @@ var valid_url = require('valid-url');
 var slots = require('../helpers/slots.js');
 
 // Private fields
-var library, __private = {};
+var self, library, __private = {};
 
 __private.unconfirmedNames = {};
 __private.unconfirmedLinks = {};
@@ -24,13 +24,18 @@ __private.unconfirmedAscii = {};
  * @param {Object} network
  */
 // Constructor
-function Chat (db, logger, schema, network) {
-    library = {
+function Chat (db, ed, schema, account, logger, cb) {
+    this.scope = {
         db: db,
-        logger: logger,
+        ed: ed,
         schema: schema,
-        network: network,
+        logger: logger,
+        account: account
     };
+    self = this;
+    if (cb) {
+        return setImmediate(cb, null, this);
+    }
 }
 
 // Public methods
@@ -258,7 +263,7 @@ Chat.prototype.objectNormalize = function (trs) {
         }
     }
 
-    var report = library.schema.validate(trs.asset.chat, Chat.prototype.schema);
+    var report = this.scope.schema.validate(trs.asset.chat, Chat.prototype.schema);
 
     if (!report) {
         throw 'Failed to validate chat schema: ' + this.scope.schema.getLastErrors().map(function (err) {
