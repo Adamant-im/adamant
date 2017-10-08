@@ -36,7 +36,7 @@ module.exports = {
                 format: 'publicKey'
             }
         },
-        required: ['amount', 'recipientId', 'publicKey']
+        required: ['message', 'recipientId', 'publicKey']
     },
 	list: {
 		id: 'dapps.list',
