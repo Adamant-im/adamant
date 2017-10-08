@@ -62,6 +62,7 @@ function Chats (cb, scope) {
             scope.network
         )
     );
+    setImmediate(cb, null, self);
 }
 
 // Private methods
