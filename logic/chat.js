@@ -268,31 +268,8 @@ Chat.prototype.objectNormalize = function (trs) {
  * @return {null|dapp} dapp object
  */
 Chat.prototype.dbRead = function (raw) {
-    if (!raw.message) {
-        return null;
-    } else {
-        var chat = {
-            message: raw.message,
-            own_message: raw.own_message,
-            type: raw.type,
-            senderId: raw.senderId,
-            recipientId: raw.recipientId
-        };
-
-        return {chat: chat};
-    }
+    return null;
 };
-
-Chat.prototype.dbTable = 'chats';
-
-Chat.prototype.dbFields = [
-    'type',
-    'message',
-    'own_message',
-    'recipientId',
-    'senderId',
-    'transactionId'
-];
 
 
 Chat.prototype.publish = function (data) {
@@ -349,20 +326,7 @@ Chat.prototype.normalize = function (data) {
  * @return {Object[]} table, fields, values.
  */
 Chat.prototype.dbSave = function (trs) {
-    return {
-        table: this.dbTable,
-        fields: this.dbFields,
-        values: {
-            type: trs.asset.dapp.type,
-            name: trs.asset.dapp.name,
-            description: trs.asset.dapp.description || null,
-            tags: trs.asset.dapp.tags || null,
-            link: trs.asset.dapp.link || null,
-            icon: trs.asset.dapp.icon || null,
-            category: trs.asset.dapp.category,
-            transactionId: trs.id
-        }
-    };
+    return null;
 };
 
 /**
@@ -373,9 +337,6 @@ Chat.prototype.dbSave = function (trs) {
  * @return {setImmediateCallback} cb
  */
 Chat.prototype.afterSave = function (trs, cb) {
-//    if (library) {
-  //      library.network.io.sockets.emit('dapps/change', {});
-    //}
     return setImmediate(cb);
 };
 
