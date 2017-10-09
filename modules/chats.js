@@ -49,6 +49,7 @@ function Chats (cb, scope) {
         balancesSequence: scope.balancesSequence,
         logic: {
             transaction: scope.logic.transaction,
+            chat: scope.logic.chat
         }
     };
     self = this;
@@ -363,7 +364,7 @@ Chats.prototype.internal = {
                         var transaction;
 
                         try {
-                            transaction = library.logic.chat.normalize({
+                            transaction = library.logic.transaction.normalize({
                                 type: transactionTypes.CHAT_MESSAGE,
                                 amount: 0,
                                 sender: account,

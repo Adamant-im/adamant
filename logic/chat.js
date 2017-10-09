@@ -15,9 +15,9 @@ __private.unconfirmedAscii = {};
 
 /**
  * Initializes library.
- * @memberof module:dapps
+ * @memberof module:chats
  * @class
- * @classdesc Main dapp logic.
+ * @classdesc Main chat logic.
  * @param {Database} db
  * @param {Object} logger
  * @param {ZSchema} schema
@@ -52,6 +52,7 @@ Chat.prototype.bind = function () {};
  */
 Chat.prototype.create = function (data, trs) {
     trs.amount = 0;
+    trs.recipientId = data.recipientId;
     trs.asset.chat = {
         message: data.message,
         own_message: data.own_message,
@@ -90,7 +91,6 @@ Chat.prototype.verify = function (trs, sender, cb) {
     if (!trs.asset || !trs.asset.chat) {
         return setImmediate(cb, 'Invalid transaction asset');
     }
-
 
 
     if (trs.asset.chat.type > 1 || trs.asset.chat.type < 0) {
@@ -232,21 +232,9 @@ Chat.prototype.schema = {
         type: {
             type: 'integer',
             minimum: 0
-        },
-        senderId: {
-            type: 'string',
-            format: 'address',
-            minLength: 1,
-            maxLength: 22
-        },
-        recipientId: {
-            type: 'string',
-            format: 'address',
-            minLength: 1,
-            maxLength: 22
         }
     },
-    required: ['type', 'message', 'senderId', 'recipientId']
+    required: ['type', 'message']
 };
 
 /**
@@ -275,7 +263,7 @@ Chat.prototype.objectNormalize = function (trs) {
 };
 
 /**
- * Creates dapp object based on raw data.
+ * Creates chat object based on raw data.
  * @param {Object} raw
  * @return {null|dapp} dapp object
  */
@@ -343,7 +331,8 @@ Chat.prototype.normalize = function (data) {
         type: data.type,
         amount: 0,
         senderPublicKey: data.sender.publicKey,
-        requesterPublicKey: data.requester ? data.requester.publicKey.toString('hex') : null,
+        senderId: data.sender.account,
+        recipientId: data.recipientId,
         timestamp: slots.getTime(),
         asset: {}
     };
