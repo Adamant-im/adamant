@@ -38,6 +38,17 @@ module.exports = {
         },
         required: ['message', 'recipientId', 'publicKey']
     },
+    process: {
+        id: 'chats.process',
+        type: 'object',
+        properties: {
+            signature: {
+                type: 'string',
+                format: 'signature'
+            }
+        },
+        required: ['signature']
+    },
 	list: {
 		id: 'dapps.list',
 		type: 'object',
