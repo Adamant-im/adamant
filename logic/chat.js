@@ -102,8 +102,8 @@ Chat.prototype.verify = function (trs, sender, cb) {
         return setImmediate(cb, 'Message must not be blank');
     }
 
-    if (trs.asset.dapp.chat.message.length > 1024) {
-        return setImmediate(cb, 'Message is too long. Maximum is 1024 characters');
+    if (trs.asset.chat.message.length > 2048) {
+        return setImmediate(cb, 'Message is too long. Maximum is 2048 characters');
     }
 
 
