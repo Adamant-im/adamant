@@ -138,11 +138,11 @@ Chat.prototype.getBytes = function (trs) {
 
     try {
         buf = Buffer.from([]);
-        var messageBuf = Buffer.from(trs.asset.chat.message, 'utf8');
+        var messageBuf = Buffer.from(trs.asset.chat.message, 'hex');
         buf = Buffer.concat([buf, messageBuf]);
 
         if (trs.asset.chat.own_message) {
-            var ownMessageBuf = Buffer.from(trs.asset.chat.own_message, 'utf8');
+            var ownMessageBuf = Buffer.from(trs.asset.chat.own_message, 'hex');
             buf = Buffer.concat([buf, ownMessageBuf]);
         }
 
