@@ -491,7 +491,7 @@ Chats.prototype.internal = {
                             var transaction;
 
                             try {
-                                transaction = library.logic.chat.publish(req.body.transaction);
+                                transaction = library.logic.transaction.publish(req.body.transaction);
                             } catch (e) {
                                 return setImmediate(cb, e.toString());
                             }
