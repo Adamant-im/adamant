@@ -282,9 +282,9 @@ Chat.prototype.dbRead = function (raw) {
     return null;
 };
 
-Vote.prototype.dbTable = 'chats';
+Chat.prototype.dbTable = 'chats';
 
-Vote.prototype.dbFields = [
+Chat.prototype.dbFields = [
     'message',
     'own_message',
     'type',
