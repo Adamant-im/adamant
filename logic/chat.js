@@ -204,6 +204,8 @@ Chat.prototype.undoUnconfirmed = function (trs, sender, cb) {
     return setImmediate(cb);
 };
 
+
+
 /**
  * @typedef {Object} chat
  * @property {dappCategory} category - Number between 0 and 8
@@ -222,12 +224,12 @@ Chat.prototype.schema = {
         message: {
             type: 'string',
             minLength: 1,
-            maxLength: 1024
+            maxLength: 2048
         },
         own_message: {
             type: 'string',
             minLength: 0,
-            maxLength: 1024
+            maxLength: 2048
         },
         type: {
             type: 'integer',
@@ -268,10 +270,26 @@ Chat.prototype.objectNormalize = function (trs) {
  * @return {null|dapp} dapp object
  */
 Chat.prototype.dbRead = function (raw) {
+    if (!raw.c_message) {
+        return null;
+    } else {
+        return {chat: {
+            message: raw.c_message,
+            own_message: raw.c_ownmessage,
+            type: raw.c_type
+        }};
+    }
     return null;
 };
 
+Vote.prototype.dbTable = 'chats';
 
+Vote.prototype.dbFields = [
+    'message',
+    'own_message',
+    'type',
+    'transactionId'
+];
 Chat.prototype.publish = function (data) {
     if (!__private.types[data.type]) {
         throw 'Unknown transaction type ' + data.type;
@@ -326,7 +344,16 @@ Chat.prototype.normalize = function (data) {
  * @return {Object[]} table, fields, values.
  */
 Chat.prototype.dbSave = function (trs) {
-    return null;
+    return {
+        table: this.dbTable,
+        fields: this.dbFields,
+        values: {
+            message: trs.asset.chat.message,
+            own_message: trs.asset.chat.own_message,
+            type: trs.asset.chat.type,
+            transactionId: trs.id
+        }
+    };
 };
 
 /**
