@@ -57,4 +57,6 @@ CREATE VIEW full_blocks_list AS
     LEFT OUTER JOIN multisignatures AS m ON m."transactionId" = t."id"
     LEFT OUTER JOIN dapps AS dapp ON dapp."transactionId" = t."id"
     LEFT OUTER JOIN intransfer AS it ON it."transactionId" = t."id"
-    LEFT OUTER JOIN outtransfer AS ot ON ot."transactionId" = t."id";
+    LEFT OUTER JOIN outtransfer AS ot ON ot."transactionId" = t."id"
+    LEFT OUTER JOIN chats AS c ON c."transactionId" = t."id";
+
