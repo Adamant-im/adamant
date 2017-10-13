@@ -46,7 +46,7 @@ CREATE VIEW full_blocks_list AS
          t."signatures" AS "t_signatures",
          c."message" AS "c_message",
          c."own_message" AS "c_own_message",
-         c."type" AS "c_type",
+         c."type" AS "c_type"
 
   FROM blocks b
 

@@ -6,7 +6,7 @@
   "rules": {
     "semi": "error",
     "no-eq-null": "off",
-    "indent": ["error", "tab"],
+    "indent": ["off", 4],
     "eqeqeq": "off",
     "curly": "error",
     "no-undef": "error",
