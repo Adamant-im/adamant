@@ -22,7 +22,7 @@ var ChatsSql = {
   // Need to fix "or" or "and" in query
 	list: function (params) {
 		return [
-			'SELECT "message", "own_message",  "type","senderId","recipientId",  "transactionId" FROM chats',
+			'SELECT "c_message", "c_own_message", "c_type", "t_senderId" as "senderId", "t_recipientId" as "recipientId", "t_id" as "transactionId" FROM full_blocks_list',
       (params.where.length ? 'WHERE ' + params.where.join(' OR ') : ''),
       (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
 			'LIMIT ${limit} OFFSET ${offset}'

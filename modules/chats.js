@@ -121,6 +121,7 @@ __private.list = function (filter, cb) {
         where.push('"type" = ${type}');
         params.type = filter.type;
     }
+    where.push('"t.type" = '+ transactionTypes.CHAT_MESSAGE);
 
     if (filter.senderId) {
         where.push('"senderId" = ${name}');
@@ -199,6 +200,44 @@ Chats.prototype.isLoaded = function () {
  * @see {@link http://apidocjs.com/}
  */
 Chats.prototype.internal = {
+    getTransactions: function (req, cb) {
+        async.waterfall([
+            function (waterCb) {
+                var params = {};
+                var pattern = /(and|or){1}:/i;
+
+                // Filter out 'and:'/'or:' from params to perform schema validation
+                _.each(req.body, function (value, key) {
+                    var param = String(key).replace(pattern, '');
+                    // Dealing with array-like parameters (csv comma separated)
+                    if (_.includes(['senderIds', 'recipientIds', 'senderPublicKeys', 'recipientPublicKeys'], param)) {
+                        value = String(value).split(',');
+                        req.body[key] = value;
+                    }
+                    params[param] = value;
+                });
+
+                library.schema.validate(params, schema.getTransactions, function (err) {
+                    if (err) {
+                        return setImmediate(waterCb, err[0].message);
+                    } else {
+                        return setImmediate(waterCb, null);
+                    }
+                });
+            },
+            function (waterCb) {
+                __private.list(req.body, function (err, data) {
+                    if (err) {
+                        return setImmediate(waterCb, 'Failed to get transactions: ' + err);
+                    } else {
+                        return setImmediate(waterCb, null, {transactions: data.transactions, count: data.count});
+                    }
+                });
+            }
+        ], function (err, res) {
+            return setImmediate(cb, err, res);
+        });
+    },
     put: function (chat, cb) {
         var hash = library.ed.createPassPhraseHash(chat.secret);
         var keypair = library.ed.makeKeypair(hash);
