@@ -1,6 +1,6 @@
-# Secu
+# Adamant
 
-Secu is decentralized chat platform based on Lisk codebase and written in javascript.  For more information please refer to our website: TBA.
+Adamant is decentralized chat platform based on Lisk codebase and written in javascript.  For more information please refer to our website: TBA.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
 
@@ -39,10 +39,10 @@ For making process simple you can use tools/install_ubuntu_dependencies.sh scrip
   ```
   curl -sL "https://downloads.lisk.io/scripts/setup_postgresql.Linux" | bash -
   sudo -u postgres createuser --createdb $USER
-  createdb secu_test
-  createdb secu_main
-  sudo -u postgres psql -d secu_test -c "alter user "$USER" with password 'password';"
-  sudo -u postgres psql -d secu_main -c "alter user "$USER" with password 'password';"
+  createdb adamant_test
+  createdb adamant_main
+  sudo -u postgres psql -d adamant_test -c "alter user "$USER" with password 'password';"
+  sudo -u postgres psql -d adamant_main -c "alter user "$USER" with password 'password';"
   ```
 
 - Bower (<http://bower.io/>) -- Bower helps to install required JavaScript dependencies.
@@ -65,8 +65,8 @@ For making process simple you can use tools/install_ubuntu_dependencies.sh scrip
 Clone the Secu repository using Git and initialize the modules.
 
 ```
-git clone https://github.com/zyuhel/secu
-cd secu
+git clone https://github.com/zyuhel/adamant
+cd adamant
 npm install
 ```
 
@@ -75,15 +75,15 @@ npm install
 Alternative way to install Secu with prerequisites. You need only git installed locally. Or instead of cloning you could download and unpack zip from github.
 
 ```
-git clone https://github.com/zyuhel/secu
-cd secu
+git clone https://github.com/zyuhel/adamant
+cd adamant
 sh tools/install_ubuntu_dependencies.sh
 
 sudo -u postgres createuser --createdb $USER
-createdb secu_test
-createdb secu_main
-sudo -u postgres psql -d secu_test -c "alter user "$USER" with password 'password';"
-sudo -u postgres psql -d secu_main -c "alter user "$USER" with password 'password';"
+createdb adamant_test
+createdb adamant_main
+sudo -u postgres psql -d adamant_test -c "alter user "$USER" with password 'password';"
+sudo -u postgres psql -d adamant_main -c "alter user "$USER" with password 'password';"
   
   
 npm install
@@ -99,20 +99,20 @@ In a browser navigate to: <http://localhost:36666> (for the mainnet) or <http://
 
 Once the process is verified as running correctly, `CTRL+C` and start the process with `pm2`. This will fork the process into the background and automatically recover the process if it fails.
 
-`pm2 start --name secu app.js`
+`pm2 start --name adamant app.js`
 
 After the process is started, its runtime status and log location can be retrieved by issuing the following command:
 
-`pm2 show secu`
+`pm2 show adamant`
 
 To stop Lisk after it has been started with `pm2`, issue the following command:
 
-`pm2 stop secu`
+`pm2 stop adamant`
 
 **NOTE:** The **port**, **address** and **config-path** can be overridden by providing the relevant command switch:
 
 ```
-pm2 start --name secu app.js -- -p [port] -a [address] -c [config-path]
+pm2 start --name adamant app.js -- -p [port] -a [address] -c [config-path]
 ```
 
 ## Tests
@@ -128,8 +128,8 @@ cp test/config.json test/genesisBlock.json .
 **NOTE:** If the node was started with a different genesis block previous, trauncate the database before running tests.
 
 ```
-dropdb secu_test
-createdb secu_test
+dropdb adamant_test
+createdb adamant_test
 ```
 
 **NOTE:** The master passphrase for this genesis block is as follows:
@@ -138,7 +138,7 @@ createdb secu_test
 wagon stock borrow episode laundry kitten salute link globe zero feed marble
 ```
 
-Launch Secu (runs on port 4000):
+Launch Adamant (runs on port 4000):
 
 ```
 node app.js
