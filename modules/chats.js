@@ -121,18 +121,18 @@ __private.list = function (filter, cb) {
         where.push('"type" = ${type}');
         params.type = filter.type;
     }
-    where.push('"t.type" = '+ transactionTypes.CHAT_MESSAGE);
+    where.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
 
     if (filter.senderId) {
-        where.push('"senderId" = ${name}');
+        where.push('"t_senderId" = ${name}');
         params.name = filter.senderId;
     }
     if (filter.recipientId) {
-        where.push('"recipientId" = ${name}');
+        where.push('"t_recipientId" = ${name}');
         params.name = filter.recipientId;
     }
     if (filter.isIn) {
-        where.push('"recipientId" = ${name} OR "senderId" = ${name}');
+        where.push('"t_recipientId" = ${name} OR "t_senderId" = ${name}');
         params.name = filter.isIn;
     }
 
@@ -167,7 +167,17 @@ __private.list = function (filter, cb) {
         sortField: orderBy.sortField,
         sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {
-        return setImmediate(cb, null, rows);
+        var transactions = [];
+
+        for (var i = 0; i < rows.length; i++) {
+            transactions.push(library.logic.transaction.dbRead(rows[i]));
+        }
+
+        var data = {
+            transactions: transactions
+        };
+
+        return setImmediate(cb, null, data);
     }).catch(function (err) {
         library.logger.error(err.stack);
         return setImmediate(cb, err);
