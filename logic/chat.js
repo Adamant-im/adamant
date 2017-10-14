@@ -275,7 +275,7 @@ Chat.prototype.dbRead = function (raw) {
     } else {
         return {chat: {
             message: raw.c_message,
-            own_message: raw.c_ownmessage,
+            own_message: raw.c_own_message,
             type: raw.c_type
         }};
     }
