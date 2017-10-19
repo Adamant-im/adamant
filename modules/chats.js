@@ -135,7 +135,10 @@ __private.list = function (filter, cb) {
         where.push('"t_recipientId" = ${name} OR "t_senderId" = ${name}');
         params.name = filter.isIn;
     }
-
+    if (filter.fromHeight) {
+        where.push('"b_height" > ${height}');
+        params.height = filter.fromHeight;
+    }
     if (!filter.limit) {
         params.limit = 100;
     } else {
