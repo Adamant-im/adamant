@@ -23,7 +23,7 @@ var ChatsSql = {
 	list: function (params) {
 		return [
 
-			'SELECT "t_id", "b_height", "t_blockId", "t_type", "t_timestamp", "t_senderId", "t_recipientId", "t_amount", "t_fee", "t_signature", "t_SignSignature", "t_signatures", "confirmations","c_message", "c_own_message", "c_type", "t_senderId" as "senderId", "t_recipientId" as "recipientId", "t_id" as "transactionId" FROM full_blocks_list',
+			'SELECT "t_id", "b_height", "b_id", "t_type", "t_timestamp", "t_senderId", "t_recipientId", "t_amount", "t_fee", "t_signature", "t_signSignature", "t_signatures", "c_message", "c_own_message", "c_type", "t_senderId" as "senderId", "t_recipientId" as "recipientId", "t_id" as "transactionId" FROM full_blocks_list',
       (params.where.length ? 'WHERE ' + params.where.join(' OR ') : ''),
       (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
 			'LIMIT ${limit} OFFSET ${offset}'
