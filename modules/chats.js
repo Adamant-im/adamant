@@ -132,7 +132,7 @@ __private.list = function (filter, cb) {
         params.name = filter.recipientId;
     }
     if (filter.isIn) {
-        where.push('"t_recipientId" = ${name} OR "t_senderId" = ${name}');
+        where.push('("t_recipientId" = ${name} OR "t_senderId" = ${name})');
         params.name = filter.isIn;
     }
     if (filter.fromHeight) {
