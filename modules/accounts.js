@@ -60,7 +60,7 @@ function Accounts (cb, scope) {
  * @returns {setImmediateCallback} As per logic new|current account data object.
  */
 __private.newAccount = function (publicKey, cb) {
-    self.getAccount({publicKey: publicKey}, function (err, account) {
+    self.setAccountAndGet({publicKey: publicKey}, function (err, account) {
         if (err) {
             return setImmediate(cb, err);
         }
