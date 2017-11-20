@@ -50,19 +50,21 @@ module.exports = {
 	confirmationLength: 77,
 	epochTime: new Date(Date.UTC(2017, 8, 2, 17, 0, 0, 0)),
 	fees: {
-		send: 10000000,
+		send: 50000000,
 		vote: 100000000,
 		secondsignature: 500000000,
-		delegate: 2500000000,
+		delegate: 30000000000,
 		multisignature: 500000000,
 		dapp: 2500000000,
-        chat_message: 1000000
+        chat_message: 500000,
+    	profile_update:  5000000,
+		avatar_upload: 10000000
 	},
 	feeStart: 1,
 	feeStartVolume: 10000 * 100000000,
 	fixedPoint: Math.pow(10, 8),
 	maxAddressesLength: 208 * 128,
-	maxAmount: 100000000,
+	maxAmount: 20000000000000000,
 	maxConfirmations: 77 * 100,
 	maxPayloadLength: 1024 * 1024,
 	maxPeers: 100,
@@ -82,14 +84,29 @@ module.exports = {
 	// WARNING: When changing rewards you also need to change getBlockRewards(int) SQL function!
 	rewards: {
 		milestones: [
-			500000000, // Initial Reward
-			400000000, // Milestone 1
-			300000000, // Milestone 2
-			200000000, // Milestone 3
-			100000000  // Milestone 4
+            100000000, // Initial Reward
+             95000000, // Milestone 1
+             90000000, // Milestone 2
+             85000000, // Milestone 3
+             80000000,  // Milestone 4
+             75000000,  // Milestone 5
+             70000000,  // Milestone 6
+             65000000,  // Milestone 7
+             60000000,  // Milestone 8
+             55000000,  // Milestone 9
+             50000000,  // Milestone 10
+             45000000,  // Milestone 11
+             40000000,  // Milestone 12
+             35000000,  // Milestone 13
+             30000000,  // Milestone 14
+             25000000,  // Milestone 15
+             20000000,  // Milestone 16
+             15000000,  // Milestone 17
+             10000000,  // Milestone 18
+             10000000  // Milestone 19
 		],
-		offset: 1451520,   // Start rewards at block (n)
-		distance: 3000000, // Distance between each milestone
+		offset: 1500000,   // Start rewards at block (n)
+		distance: 6300000, // Distance between each milestone
 	},
 	signatureLength: 196,
 	// WARNING: When changing totalAmount you also need to change getBlockRewards(int) SQL function!
