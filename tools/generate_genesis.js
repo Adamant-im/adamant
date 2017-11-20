@@ -305,9 +305,12 @@ genesis.address=accounts.getAddressByPublicKey(genesis.publicKey);
 
 //wallets to generate with corresponding amount 
 var transfer = {
-     'investors': 1960000000000000,
-     'bounty': 490000000000000,
+     'investors': 882000000000000,
+     'bounty': 784000000000000,
+     'infrastructure_reserve': 392000000000000,
+     'marketing_reserve': 392000000000000,
      'ico': 7350000000000000
+
 };
 
 
@@ -317,7 +320,8 @@ var block = {
         'totalFee': 0,
         'reward': 0,
         'previousBlock': null,
-        'timestamp':0
+        'timestamp':0,
+        'height': 1
 };
 
 var transfer_addresses=[];
