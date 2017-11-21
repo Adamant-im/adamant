@@ -69,7 +69,9 @@ Chat.prototype.create = function (data, trs) {
  * @return {number} fee
  */
 Chat.prototype.calculateFee = function (trs, sender) {
-    return constants.fees.chat_message;
+    var length = Buffer.from(trs.asset.chat.message, 'hex').length;
+    return Math.floor((length * 100 / 150)/255) * constants.fees.chat_message;
+//    return constants.fees.chat_message;
 };
 
 /**
@@ -102,8 +104,8 @@ Chat.prototype.verify = function (trs, sender, cb) {
         return setImmediate(cb, 'Message must not be blank');
     }
 
-    if (trs.asset.chat.message.length > 2048) {
-        return setImmediate(cb, 'Message is too long. Maximum is 2048 characters');
+    if (trs.asset.chat.message.length > 20480) {
+        return setImmediate(cb, 'Message is too long. Maximum is 20480 characters');
     }
 
 
@@ -224,12 +226,12 @@ Chat.prototype.schema = {
         message: {
             type: 'string',
             minLength: 1,
-            maxLength: 2048
+            maxLength: 20480
         },
         own_message: {
             type: 'string',
             minLength: 0,
-            maxLength: 2048
+            maxLength: 20480
         },
         type: {
             type: 'integer',
