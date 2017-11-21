@@ -70,8 +70,10 @@ Chat.prototype.create = function (data, trs) {
  */
 Chat.prototype.calculateFee = function (trs, sender) {
     var length = Buffer.from(trs.asset.chat.message, 'hex').length;
-    return Math.floor((length * 100 / 150)/255) * constants.fees.chat_message;
-//    return constants.fees.chat_message;
+    var char_length= Math.floor((length * 100 / 150)/255);
+    if (char_length==0)
+        char_length=1;
+    return char_length * constants.fees.chat_message;
 };
 
 /**
