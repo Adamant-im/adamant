@@ -81,6 +81,7 @@ __private.list = function (filter, cb) {
         recipientPublicKey:  '"m_recipientPublicKey" = DECODE (${recipientPublicKey}, \'hex\')',
         senderId:            '"t_senderId" = ${senderId}',
         recipientId:         '"t_recipientId" = ${recipientId}',
+        inId:                '("t_recipientId" = ${inId} OR "t_senderId" = ${inId})',
         fromHeight:          '"b_height" >= ${fromHeight}',
         toHeight:            '"b_height" <= ${toHeight}',
         fromTimestamp:       '"t_timestamp" >= ${fromTimestamp}',

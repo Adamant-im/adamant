@@ -18,6 +18,12 @@ module.exports = {
 				minimum: 0,
 				maximum: 10
 			},
+            inId: {
+                type: 'string',
+                format: 'address',
+                minLength: 1,
+                maxLength: 22
+			},
 			senderId: {
 				type: 'string',
 				format: 'address',
