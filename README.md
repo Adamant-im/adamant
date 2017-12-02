@@ -42,7 +42,13 @@ For making process simple you can use tools/install_ubuntu_dependencies.sh scrip
   wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | sudo apt-key add -
   sudo apt-get update
   sudo apt-get install -y postgresql postgresql-contrib libpq-dev
-
+  
+  # Create user 
+  adduser adamant
+  sudo usermod -aG sudo adamant
+  su - adamant
+  
+  # Create db
   sudo -u postgres createuser --createdb $USER
   createdb adamant_test
   createdb adamant_main
@@ -50,36 +56,33 @@ For making process simple you can use tools/install_ubuntu_dependencies.sh scrip
   sudo -u postgres psql -d adamant_main -c "alter user "$USER" with password 'password';"
   ```
 
-- Bower (<http://bower.io/>) -- Bower helps to install required JavaScript dependencies.
+- PM2 (<https://github.com/Unitech/pm2>) -- PM2 manages the node process for Adamant (Optional)
 
-  `npm install -g bower`
-
-- Grunt.js (<http://gruntjs.com/>) -- Grunt is used to compile the frontend code and serves other functions.
-
-  `npm install -g grunt-cli`
-
-- PM2 (<https://github.com/Unitech/pm2>) -- PM2 manages the node process for Lisk (Optional)
-
-  `npm install -g pm2`
+  `sudo npm install -g pm2`
 
 
 
 
 ## Installation Steps
 
-Clone the Secu repository using Git and initialize the modules.
+Clone the Adamant repository using Git and initialize the modules.
 
 ```
-git clone https://github.com/zyuhel/adamant
+git clone https://github.com/Adamant-im/adamant
 cd adamant
 npm install
 ```
 
 ## Alternative ubuntu install process
 
-Alternative way to install Secu with prerequisites. You need only git installed locally. Or instead of cloning you could download and unpack zip from github.
+Alternative way to install Adamant with prerequisites. You need only git installed locally. Or instead of cloning you could download and unpack zip from github.
 
 ```
+# Create user 
+adduser adamant
+sudo usermod -aG sudo adamant
+su - adamant
+
 git clone https://github.com/zyuhel/adamant
 cd adamant
 sh tools/install_ubuntu_dependencies.sh
@@ -94,9 +97,9 @@ sudo -u postgres psql -d adamant_main -c "alter user "$USER" with password 'pass
 npm install
 ```
 
-## Managing Secu
+## Managing Adamant
 
-To test that Secu is built and configured correctly, run the following command:
+To test that Adamant is built and configured correctly, run the following command:
 
 `node app.js`
 
@@ -171,6 +174,8 @@ npm test -- test/lib/transactions.js
 - Isabella Dell <isabella@lightcurve.io>
 - Marius Serek <mariusz@serek.net>
 - Maciej Baj <maciej@lightcurve.io>
+- Dmitriy Soloduhin <zyuhel@yandex.ru>
+
 
 ## License
 
