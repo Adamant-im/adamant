@@ -37,7 +37,12 @@ For making process simple you can use tools/install_ubuntu_dependencies.sh scrip
 - Install PostgreSQL (version 9.6.2):
 
   ```
-  curl -sL "https://downloads.lisk.io/scripts/setup_postgresql.Linux" | bash -
+  sudo apt-get purge -y postgres*
+  sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+  wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | sudo apt-key add -
+  sudo apt-get update
+  sudo apt-get install -y postgresql postgresql-contrib libpq-dev
+
   sudo -u postgres createuser --createdb $USER
   createdb adamant_test
   createdb adamant_main
