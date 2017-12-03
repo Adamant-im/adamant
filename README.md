@@ -43,7 +43,7 @@ For making process simple you can use tools/install_ubuntu_dependencies.sh scrip
   sudo apt-get update
   sudo apt-get install -y postgresql postgresql-contrib libpq-dev
   
-  # Create user 
+  # Create user if you are working from superuser
   adduser adamant
   sudo usermod -aG sudo adamant
   su - adamant
