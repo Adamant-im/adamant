@@ -51,7 +51,7 @@ module.exports = {
 	epochTime: new Date(Date.UTC(2017, 8, 2, 17, 0, 0, 0)),
 	fees: {
 		send: 50000000,
-		vote: 100000000,
+		vote: 1000000000,
 		secondsignature: 500000000,
 		delegate: 30000000000,
 		multisignature: 500000000,
