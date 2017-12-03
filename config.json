@@ -1,10 +1,10 @@
 {
     "port": 36666,
     "address": "0.0.0.0",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "minVersion": ">=0.0.1",
     "fileLogLevel": "info",
-    "logFileName": "logs/secu.log",
+    "logFileName": "logs/adamant.log",
     "consoleLogLevel": "none",
     "trustProxy": false,
     "topAccounts": false,
@@ -12,8 +12,8 @@
     "db": {
         "host": "localhost",
         "port": 5432,
-        "database": "secu_main",
-        "user": "",
+        "database": "adamant_main",
+        "user": "adamant",
         "password": "password",
         "poolSize": 95,
         "poolIdleTimeout": 30000,
