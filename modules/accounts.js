@@ -585,7 +585,10 @@ Accounts.prototype.shared = {
                 if (!account) {
                     return setImmediate(cb, 'Account not found');
                 }
-
+                if (req.body.publicKey && !account.publicKey) {
+                    account.publicKey = req.body.publicKey;
+                    library.logic.account.set(account.address, {publicKey: account.publicKey}, function () {});
+                }
                 return setImmediate(cb, null, {
                     account: {
                         address: account.address,
