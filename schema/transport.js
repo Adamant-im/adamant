@@ -74,7 +74,7 @@ module.exports = {
 			transactions: {
 				type: 'array',
 				minItems: 1,
-				maxItems: 25
+				maxItems: 1000
 			}
 		},
 		required: ['transactions']
