@@ -14,7 +14,7 @@ For making process simple you can use tools/install_ubuntu_dependencies.sh scrip
 
   `sudo apt-get install -y python build-essential curl automake autoconf libtool`
 
-- Git (<https://github.com/git/git>) -- Used for cloning and updating Lisk
+- Git (<https://github.com/git/git>) -- Used for cloning and updating Adamant
 
   `sudo apt-get install -y git`
 
@@ -103,8 +103,6 @@ To test that Adamant is built and configured correctly, run the following comman
 
 `node app.js`
 
-In a browser navigate to: <http://localhost:36666> (for the mainnet) or <http://localhost:36667> (for the testnet). If Lisk is running on a remote system, switch `localhost` for the external IP Address of the machine.
-
 Once the process is verified as running correctly, `CTRL+C` and start the process with `pm2`. This will fork the process into the background and automatically recover the process if it fails.
 
 `pm2 start --name adamant app.js`
@@ -113,7 +111,7 @@ After the process is started, its runtime status and log location can be retriev
 
 `pm2 show adamant`
 
-To stop Lisk after it has been started with `pm2`, issue the following command:
+To stop Adamant after it has been started with `pm2`, issue the following command:
 
 `pm2 stop adamant`
 
@@ -146,7 +144,7 @@ createdb adamant_test
 wagon stock borrow episode laundry kitten salute link globe zero feed marble
 ```
 
-Launch Adamant (runs on port 4000):
+Launch Adamant (runs on port 36667):
 
 ```
 node app.js
