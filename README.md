@@ -83,7 +83,7 @@ adduser adamant
 sudo usermod -aG sudo adamant
 su - adamant
 
-git clone https://github.com/zyuhel/adamant
+git clone https://github.com/Adamant-im/adamant
 cd adamant
 sh tools/install_ubuntu_dependencies.sh
 
