@@ -1,7 +1,7 @@
 'use strict';
 
 var ChatsSql = {
-	sortFields: ['type'],
+	sortFields: ['type','timestamp'],
 
 	countByTransactionId: 'SELECT COUNT(*)::int AS "count" FROM chats WHERE "transactionId" = ${id}',
 
