@@ -84,28 +84,28 @@ module.exports = {
 	// WARNING: When changing rewards you also need to change getBlockRewards(int) SQL function!
 	rewards: {
 		milestones: [
-            100000000, // Initial Reward
-             95000000, // Milestone 1
-             90000000, // Milestone 2
-             85000000, // Milestone 3
-             80000000,  // Milestone 4
-             75000000,  // Milestone 5
-             70000000,  // Milestone 6
-             65000000,  // Milestone 7
-             60000000,  // Milestone 8
-             55000000,  // Milestone 9
-             50000000,  // Milestone 10
-             45000000,  // Milestone 11
-             40000000,  // Milestone 12
-             35000000,  // Milestone 13
-             30000000,  // Milestone 14
-             25000000,  // Milestone 15
-             20000000,  // Milestone 16
-             15000000,  // Milestone 17
-             10000000,  // Milestone 18
-             10000000  // Milestone 19
+            10000000, // Initial Reward
+             9500000, // Milestone 1
+             9000000, // Milestone 2
+             8500000, // Milestone 3
+             8000000,  // Milestone 4
+             7500000,  // Milestone 5
+             7000000,  // Milestone 6
+             6500000,  // Milestone 7
+             6000000,  // Milestone 8
+             5500000,  // Milestone 9
+             5000000,  // Milestone 10
+             4500000,  // Milestone 11
+             4000000,  // Milestone 12
+             3500000,  // Milestone 13
+             3000000,  // Milestone 14
+             2500000,  // Milestone 15
+             2000000,  // Milestone 16
+             1500000,  // Milestone 17
+             1000000,  // Milestone 18
+             1000000  // Milestone 19
 		],
-		offset: 1500000,   // Start rewards at block (n)
+		offset: 2000000,   // Start rewards at block (n)
 		distance: 6300000, // Distance between each milestone
 	},
 	signatureLength: 196,
