@@ -1,7 +1,6 @@
 /*
  * - Recreate blockRewards data type and function getBlockRewards (simplify milestones)
  * - Recreate calcBlockReward function, improved performance
- * - Create calcSupply_test function - for testing calcSupply
  * - Recreate calcSupply, improved performance, change type to IMMUTABLE
  */
 
@@ -129,33 +128,5 @@ END LOOP;
 RETURN r.supply;
 END $$;
 
--- Create function for testing calcSupply(int) function
--- @IMMUTABLE - always returns the same result for the same arguments
-CREATE FUNCTION calcSupply_test(height_start int, height_end int, expected_reward bigint) RETURNS boolean LANGUAGE PLPGSQL IMMUTABLE AS $$
-  DECLARE
-  supply bigint;
-prev_supply bigint;
-BEGIN
--- Calculate supply for previous height
-SELECT calcSupply(height_start-1) INTO prev_supply;
-
--- Iteratating over heights
-FOR height IN height_start..height_end LOOP
--- Calculate supply for current height
-SELECT calcSupply(height) INTO supply;
-
--- If supply for previous height + expected block reward is different than supply for current height
-IF (prev_supply+expected_reward) <> supply THEN
--- Break and retun false
-RETURN false;
-END IF;
-
--- Update supply for previous height
-prev_supply := supply;
-END LOOP;
-
--- All tests passed - return true
-RETURN true;
-END $$;
 
 COMMIT;
