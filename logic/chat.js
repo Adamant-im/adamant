@@ -58,7 +58,9 @@ Chat.prototype.create = function (data, trs) {
         own_message: data.own_message,
         type: 0
     };
-
+    if (data.message_type) {
+        trs.asset.chat.type = data.message_type;
+    }
     return trs;
 };
 
@@ -73,6 +75,9 @@ Chat.prototype.calculateFee = function (trs, sender) {
     var char_length= Math.floor((length * 100 / 150)/255);
     if (char_length==0) {
         char_length = 1;
+    }
+    if (trs.asset.chat.type === 0) {
+        return char_length * constants.fees.old_chat_message;
     }
     return char_length * constants.fees.chat_message;
 };
