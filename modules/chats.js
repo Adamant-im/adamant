@@ -423,6 +423,7 @@ Chats.prototype.internal = {
                                 recipientId: recipientId,
                                 message: req.body.message,
                                 own_message: req.body.own_message,
+                                message_type: req.body.message_type,
                                 keypair: keypair,
                                 secondKeypair: secondKeypair
                             });
