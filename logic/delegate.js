@@ -113,7 +113,7 @@ Delegate.prototype.verify = function (trs, sender, cb) {
 		return setImmediate(cb, 'Username must be lowercase');
 	}
 
-	var isAddress = /^[0-9]{1,21}[L|l]$/g;
+	var isAddress = /^U[0-9]{1,21}$/g;
 	var allowSymbols = /^[a-z0-9!@$&_.]+$/g;
 
 	var username = String(trs.asset.delegate.username).toLowerCase().trim();
