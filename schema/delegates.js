@@ -149,5 +149,20 @@ module.exports = {
 			}
 		},
 		required: ['secret']
-	}
+	},
+    registerDelegate: {
+        id: 'delegates.registerDelegate',
+        type: 'object',
+        properties: {
+            publicKey: {
+                type: 'string',
+                format: 'publicKey'
+            },
+            signature: {
+                type: 'string',
+                format: 'signature'
+            }
+        },
+        required: ['publicKey', 'signature']
+    }
 };

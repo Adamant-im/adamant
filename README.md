@@ -1,6 +1,6 @@
 # Adamant
 
-Adamant is decentralized chat platform based on Lisk codebase and written in javascript.  For more information please refer to our website: TBA.
+Adamant is decentralized chat platform based on Lisk codebase and written in javascript.  For more information please refer to our website: <https://adamant.im/> .
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
 

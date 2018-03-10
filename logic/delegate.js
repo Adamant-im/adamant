@@ -50,6 +50,25 @@ Delegate.prototype.create = function (data, trs) {
 	return trs;
 };
 
+Delegate.prototype.publish = function (data) {
+
+    if (!data.senderId) {
+        throw 'Invalid sender';
+    }
+
+    if (!data.signature) {
+        throw 'Invalid signature';
+    }
+
+    var trs = data;
+
+    trs.id = this.getId(trs);
+
+    trs.fee = this.calculateFee.call(this, trs, data.senderId) || false;
+
+    return trs;
+};
+
 /**
  * Obtains constant fee delegate.
  * @see {@link module:helpers/constants}
