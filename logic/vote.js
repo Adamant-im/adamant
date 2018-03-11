@@ -57,6 +57,31 @@ Vote.prototype.create = function (data, trs) {
 };
 
 /**
+ * Fullfills transaction data for vote
+ * @param {Object} data
+ * @param {transaction} trs
+ * @return {transaction} trs with new data
+ */
+Vote.prototype.publish = function (data) {
+
+    if (!data.senderId) {
+        throw 'Invalid sender';
+    }
+
+    if (!data.signature) {
+        throw 'Invalid signature';
+    }
+
+    var trs = data;
+
+    trs.id = this.getId(trs);
+
+    trs.fee = this.calculateFee.call(this, trs, data.senderId) || false;
+
+    return trs;
+};
+
+/**
  * Obtains constant fee vote.
  * @see {@link module:helpers/constants}
  * @return {number} fee

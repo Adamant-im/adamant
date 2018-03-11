@@ -16,6 +16,7 @@ var schema = require('../../schema/accounts.js');
 	- get 	/delegates
 	- get 	/delegates/fee
 	- put 	/delegates
+ 	- post 	/delegates
 	- get 	/
  * - Private API:
  * 	- get 	/count
@@ -40,6 +41,7 @@ function AccountsHttpApi (accountsModule, app) {
 		'get /delegates': 'getDelegates',
 		'get /delegates/fee': 'getDelegatesFee',
 		'put /delegates': 'addDelegates',
+        'post /delegates': 'voteForDelegates',
 		'get /': 'getAccount'
 	});
 

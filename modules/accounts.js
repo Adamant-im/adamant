@@ -559,7 +559,57 @@ Accounts.prototype.shared = {
             });
         });
     },
+    voteForDelegates: function (req, cb) {
+        library.schema.validate(req.body, schema.voteForDelegates, function (err) {
+            if (err) {
+                return setImmediate(cb, err[0].message);
+            }
 
+            var keypair = { publicKey: req.body.senderPublicKey };
+
+
+            library.balancesSequence.add(function (cb) {
+
+                    self.setAccountAndGet({ publicKey: keypair.publicKey.toString('hex') }, function (err, account) {
+                        if (err) {
+                            return setImmediate(cb, err);
+                        }
+
+                        if (!account || !account.publicKey) {
+                            return setImmediate(cb, 'Account not found');
+                        }
+
+                        if (account.secondSignature && !req.body.secondSecret) {
+                            return setImmediate(cb, 'Invalid second passphrase');
+                        }
+
+                        var secondKeypair = null;
+
+                        if (account.secondSignature) {
+                            var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
+                            secondKeypair = library.ed.makeKeypair(secondHash);
+                        }
+
+                        var transaction = req.body;
+
+                        try {
+                            transaction = library.logic.transaction.publish(transaction);
+                        } catch (e) {
+                            return setImmediate(cb, e.toString());
+                        }
+
+                        modules.transactions.receiveTransactions([transaction], true, cb);
+                    });
+
+            }, function (err, transaction) {
+                if (err) {
+                    return setImmediate(cb, err);
+                }
+
+                return setImmediate(cb, null, {transaction: transaction[0]});
+            });
+        });
+    },
     getAccount: function (req, cb) {
         library.schema.validate(req.body, schema.getAccount, function (err) {
             if (err) {

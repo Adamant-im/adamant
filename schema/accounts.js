@@ -95,6 +95,16 @@ module.exports = {
 			}
 		}
 	},
+    voteForDelegates: {
+        id: 'accounts.voteForDelegates',
+        type: 'object',
+        properties: {
+            senderPublicKey: {
+                type: 'string',
+                format: 'publicKey'
+            }
+        }
+    },
 	getAccount: {
 		id: 'accounts.getAccount',
 		type: 'object',
