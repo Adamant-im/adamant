@@ -156,13 +156,13 @@ module.exports = {
         properties: {
             publicKey: {
                 type: 'string',
-                format: 'publicKey'
+                format: 'senderPublicKey'
             },
             signature: {
                 type: 'string',
                 format: 'signature'
             }
         },
-        required: ['publicKey', 'signature']
+        required: ['senderPublicKey', 'signature']
     }
 };

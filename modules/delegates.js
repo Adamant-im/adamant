@@ -908,14 +908,10 @@ Delegates.prototype.shared = {
             if (err) {
                 return setImmediate(cb, err[0].message);
             }
-
-            var hash = library.ed.createPassPhraseHash(req.body.secret);
-            var keypair = library.ed.makeKeypair(hash);
-            var keypair = { publicKey: req.body.publicKey }
-
+            var keypair = { publicKey: req.body.senderPublicKey };
             library.balancesSequence.add(function (cb) {
                 if (req.body.multisigAccountPublicKey && req.body.multisigAccountPublicKey !== keypair.publicKey.toString('hex')) {
-                    modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey}, function (err, account) {
+                	modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey}, function (err, account) {
                         if (err) {
                             return setImmediate(cb, err);
                         }
@@ -994,7 +990,7 @@ Delegates.prototype.shared = {
                             secondKeypair = library.ed.makeKeypair(secondHash);
                         }
 
-                        var transaction = req.body.transaction;
+                        var transaction = req.body;
 
                         try {
                             transaction = library.logic.transaction.publish(transaction);
