@@ -76,10 +76,16 @@ Chat.prototype.calculateFee = function (trs, sender) {
     if (char_length==0) {
         char_length = 1;
     }
+    var fee = 0;
     if (trs.asset.chat.type === 0) {
-        return char_length * constants.fees.old_chat_message;
+        fee = char_length * constants.fees.old_chat_message;
     }
-    return char_length * constants.fees.chat_message;
+    else {
+        fee = char_length * constants.fees.chat_message;
+    }
+    if (trs.amount > 0) {
+        fee += constants.fees.send;
+    }
 };
 
 /**
@@ -314,7 +320,6 @@ Chat.prototype.publish = function (data) {
     }
 
     var trs = data;
-
 
 
     trs.id = this.getId(trs);
