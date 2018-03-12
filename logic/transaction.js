@@ -612,7 +612,12 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
 	// Calculate fee
 	var fee = __private.types[trs.type].calculateFee.call(this, trs, sender) || false;
 	if (!fee || trs.fee !== fee) {
-		return setImmediate(cb, 'Invalid transaction fee');
+        if (exceptions.fee.indexOf(trs.id) > -1) {
+            this.scope.logger.debug('Invalid transaction fee');
+            this.scope.logger.debug(JSON.stringify(trs));
+        } else {
+            return setImmediate(cb, 'Invalid transaction fee');
+        }
 	}
 
 	// Check amount
