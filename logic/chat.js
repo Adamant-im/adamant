@@ -84,7 +84,11 @@ Chat.prototype.calculateFee = function (trs, sender) {
         fee = char_length * constants.fees.chat_message;
     }
     if (trs.amount > 0) {
-        fee += constants.fees.send;
+        if (constants.fees.chat_message) {
+            fee = constants.fees.send;
+        } else {
+            fee += constants.fees.send;
+        }
     }
 };
 
