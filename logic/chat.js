@@ -90,6 +90,7 @@ Chat.prototype.calculateFee = function (trs, sender) {
             fee += constants.fees.send;
         }
     }
+    return fee;
 };
 
 /**
