@@ -154,9 +154,9 @@ module.exports = {
         id: 'delegates.registerDelegate',
         type: 'object',
         properties: {
-            publicKey: {
+            senderPublicKey: {
                 type: 'string',
-                format: 'senderPublicKey'
+                format: 'publicKey'
             },
             signature: {
                 type: 'string',
