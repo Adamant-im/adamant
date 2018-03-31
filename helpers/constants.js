@@ -58,6 +58,7 @@ module.exports = {
 		dapp: 2500000000,
         old_chat_message: 500000,
 		chat_message: 100000,
+        state_store: 100000,
     	profile_update:  5000000,
 		avatar_upload: 10000000
 	},
