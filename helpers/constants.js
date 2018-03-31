@@ -97,7 +97,7 @@ module.exports = {
             10000000  // Milestone 8
 		],
 		offset: 2000000,   // Start rewards at block (n)
-		distance: 6300000, // Distance between each milestone
+		distance: 6300000 // Distance between each milestone
 	},
 	signatureLength: 196,
 	// WARNING: When changing totalAmount you also need to change getBlockRewards(int) SQL function!
