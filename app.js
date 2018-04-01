@@ -138,6 +138,7 @@ var config = {
 		multisignatures: './modules/multisignatures.js',
 		dapps: './modules/dapps.js',
         chats: './modules/chats.js',
+        states: './modules/states.js',
 		crypto: './modules/crypto.js',
 		sql: './modules/sql.js',
 		cache: './modules/cache.js'
@@ -147,6 +148,7 @@ var config = {
 		blocks: { http: './api/http/blocks.js' },
 		dapps: { http: './api/http/dapps.js' },
         chats: { http: './api/http/chats.js' },
+        states: { http: './api/http/states.js' },
 		delegates: { http: './api/http/delegates.js' },
 		loader: { http: './api/http/loader.js' },
 		multisignatures: { http: './api/http/multisignatures.js' },
