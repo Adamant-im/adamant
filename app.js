@@ -464,6 +464,7 @@ d.run(function () {
 		logic: ['db', 'bus', 'schema', 'genesisblock', function (scope, cb) {
 			var Transaction = require('./logic/transaction.js');
             var Chat = require('./logic/chat.js');
+            var State = require('./logic/state.js');
 			var Block = require('./logic/block.js');
 			var Account = require('./logic/account.js');
 			var Peers = require('./logic/peers.js');
@@ -497,6 +498,9 @@ d.run(function () {
 				}],
                 chat: ['db', 'bus', 'ed', 'schema', 'account', 'logger', function (scope, cb) {
                     new Chat(scope.db, scope.ed, scope.schema, scope.account, scope.logger, cb);
+                }],
+                state: ['db', 'bus', 'ed', 'schema', 'account', 'logger', function (scope, cb) {
+                    new State(scope.db, scope.ed, scope.schema, scope.account, scope.logger, cb);
                 }],
 				block: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'account', 'transaction', function (scope, cb) {
 					new Block(scope.ed, scope.schema, scope.transaction, cb);
