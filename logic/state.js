@@ -93,7 +93,7 @@ State.prototype.verify = function (trs, sender, cb) {
         return setImmediate(cb, 'Invalid transaction asset');
     }
 
-    if (trs.asset.chat.state > 1 || trs.asset.state.type < 0) {
+    if (trs.asset.state.type > 1 || trs.asset.state.type < 0) {
         return setImmediate(cb, 'Invalid state type');
     }
 
@@ -335,8 +335,8 @@ State.prototype.dbSave = function (trs) {
         table: this.dbTable,
         fields: this.dbFields,
         values: {
-            state_key: trs.asset.state.key,
-            state_value: trs.asset.state.value,
+            stored_key: trs.asset.state.key,
+            stored_value: trs.asset.state.value,
             type: trs.asset.state.type,
             transactionId: trs.id
         }
