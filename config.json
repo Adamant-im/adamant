@@ -1,8 +1,8 @@
 {
     "port": 36666,
     "address": "0.0.0.0",
-    "version": "0.1.2",
-    "minVersion": ">=0.1.0",
+    "version": "0.2.0",
+    "minVersion": ">=0.2.0",
     "fileLogLevel": "info",
     "logFileName": "logs/adamant.log",
     "consoleLogLevel": "none",

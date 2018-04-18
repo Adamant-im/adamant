@@ -58,6 +58,7 @@ module.exports = {
 		dapp: 2500000000,
         old_chat_message: 500000,
 		chat_message: 100000,
+        state_store: 100000,
     	profile_update:  5000000,
 		avatar_upload: 10000000
 	},
@@ -96,7 +97,7 @@ module.exports = {
             10000000  // Milestone 8
 		],
 		offset: 2000000,   // Start rewards at block (n)
-		distance: 6300000, // Distance between each milestone
+		distance: 6300000 // Distance between each milestone
 	},
 	signatureLength: 196,
 	// WARNING: When changing totalAmount you also need to change getBlockRewards(int) SQL function!

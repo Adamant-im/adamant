@@ -9,5 +9,6 @@ module.exports = {
 	DAPP: 5,
 	IN_TRANSFER: 6,
 	OUT_TRANSFER: 7,
-	CHAT_MESSAGE: 8
+	CHAT_MESSAGE: 8,
+    STATE: 9
 };
