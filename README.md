@@ -1,24 +1,36 @@
-# Adamant
+# ADAMANT
 
-Adamant is decentralized chat platform based on Lisk codebase and written in javascript.  For more information please refer to our website: <https://adamant.im/> .
+ADAMANT is decentralized messaging platform based on Lisk codebase and written in JavaScript. For more information please refer to our website: <https://adamant.im/>.
+
+ADAMANT is the most secure and anonymous messenger, encrypted with Blockchain.
+
+Highlights:
+
+– The most secure and anonymous messenger (see comparison table)
+– A working product. Try it now: <https://msg.adamant.im/>
+– Trusted. Open-source project.
+– The only one which is Blockchain-powered
+– Integrated token transfer
+
+**Use this repository to run your own ADAMANT node and support true messaging distribution. You can also promote your node to a delegate to forge blocks and receive ADM block rewards**
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
 
-**NOTE:** The following information is applicable to: **Ubuntu 16.04 (LTS) or 16.10 - x86_64**.
+**NOTE:** The following information is applicable to **Ubuntu 16.04 (LTS) or 16.10 — x86_64**.
 
-For making process simple you can use tools/install_ubuntu_dependencies.sh script.
+For making process simplier, you can use tools/install_ubuntu_dependencies.sh script.
 
-## Prerequisites - In order
+## Prerequisites — In order
 
-- Tool chain components -- Used for compiling dependencies
+- Tool chain components — Used for compiling dependencies
 
   `sudo apt-get install -y python build-essential curl automake autoconf libtool`
 
-- Git (<https://github.com/git/git>) -- Used for cloning and updating Adamant
+- Git (<https://github.com/git/git>) — Used for cloning and updating ADAMANT
 
   `sudo apt-get install -y git`
 
-- Node.js (<https://nodejs.org/>) -- Node.js serves as the underlying engine for code execution.
+- Node.js (<https://nodejs.org/>) — Node.js serves as the underlying engine for code execution
 
   System wide via package manager:
 
@@ -56,7 +68,7 @@ For making process simple you can use tools/install_ubuntu_dependencies.sh scrip
   sudo -u postgres psql -d adamant_main -c "alter user "$USER" with password 'password';"
   ```
 
-- PM2 (<https://github.com/Unitech/pm2>) -- PM2 manages the node process for Adamant (Optional)
+- PM2 (<https://github.com/Unitech/pm2>) — PM2 manages the node process for ADAMANT (Optional)
 
   `sudo npm install -g pm2`
 
@@ -65,7 +77,7 @@ For making process simple you can use tools/install_ubuntu_dependencies.sh scrip
 
 ## Installation Steps
 
-Clone the Adamant repository using Git and initialize the modules.
+Clone the ADAMANT repository using Git and initialize the modules.
 
 ```
 git clone https://github.com/Adamant-im/adamant
@@ -73,9 +85,9 @@ cd adamant
 npm install
 ```
 
-## Alternative ubuntu install process
+## Alternative Ubuntu install process
 
-Alternative way to install Adamant with prerequisites. You need only git installed locally. Or instead of cloning you could download and unpack zip from github.
+Alternative way to install ADAMANT with prerequisites. You need only Git installed locally. Or instead of cloning you can download and unpack zip from GitHub.
 
 ```
 # Create user 
@@ -97,9 +109,9 @@ sudo -u postgres psql -d adamant_main -c "alter user "$USER" with password 'pass
 npm install
 ```
 
-## Managing Adamant
+## Managing ADAMANT
 
-To test that Adamant is built and configured correctly, run the following command:
+To test that ADAMANT is built and configured correctly, run the following command:
 
 `node app.js`
 
@@ -111,7 +123,7 @@ After the process is started, its runtime status and log location can be retriev
 
 `pm2 show adamant`
 
-To stop Adamant after it has been started with `pm2`, issue the following command:
+To stop ADAMANT after it has been started with `pm2`, issue the following command:
 
 `pm2 stop adamant`
 
@@ -144,7 +156,7 @@ createdb adamant_test
 wagon stock borrow episode laundry kitten salute link globe zero feed marble
 ```
 
-Launch Adamant (runs on port 36667):
+Launch ADAMANT (runs on port 36667):
 
 ```
 node app.js
