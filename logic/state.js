@@ -132,11 +132,11 @@ State.prototype.getBytes = function (trs) {
 
     try {
         buf = Buffer.from([]);
-        var stateBuf = Buffer.from(trs.asset.state.value, 'hex');
+        var stateBuf = Buffer.from(trs.asset.state.value);
         buf = Buffer.concat([buf, stateBuf]);
 
         if (trs.asset.state.key) {
-            var keyBuf = Buffer.from(trs.asset.state.key, 'hex');
+            var keyBuf = Buffer.from(trs.asset.state.key);
             buf = Buffer.concat([buf, keyBuf]);
         }
 
