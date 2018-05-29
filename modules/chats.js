@@ -106,7 +106,7 @@ __private.getByIds = function (ids, cb) {
 };
 
 /**
- * Gets records from `dapps` table based on filter
+ * Gets records from `chats` table based on filter
  * @private
  * @implements {library.db.query}
  * @param {Object} filter - Could contains type, name, category, link, limit,
@@ -120,6 +120,10 @@ __private.list = function (filter, cb) {
     if (filter.type >= 0) {
         where.push('"type" = ${type}');
         params.type = filter.type;
+    }
+    else {
+        // message type=3 is reserved for system messages, and shouldn't be retrieved without a filter
+        where.push('NOT ("type" = 3)');
     }
     where.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
 
