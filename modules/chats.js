@@ -118,12 +118,12 @@ __private.list = function (filter, cb) {
     var params = {}, where = [];
 
     if (filter.type >= 0) {
-        where.push('"type" = ${type}');
+        where.push('"c_type" = ${type}');
         params.type = filter.type;
     }
     else {
         // message type=3 is reserved for system messages, and shouldn't be retrieved without a filter
-        where.push('NOT ("type" = 3)');
+        where.push('NOT ("c_type" = 3)');
     }
     where.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
 
