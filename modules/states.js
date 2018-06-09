@@ -118,8 +118,12 @@ __private.list = function (filter, cb) {
     var params = {}, where = [];
 
     if (filter.type >= 0) {
-        where.push('"type" = ${type}');
+        where.push('"st_type" = ${type}');
         params.type = filter.type;
+    }
+    if (filter.key) {
+        where.push('"st_stored_key" = ${key}');
+        params.key = filter.key;
     }
     where.push('"t_type" = '+ transactionTypes.STATE);
 
