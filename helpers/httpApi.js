@@ -9,6 +9,7 @@
 
 var extend = require('extend');
 var checkIpInList = require('./checkIpInList');
+var slots = require('./slots');
 
 /**
  * @namespace middleware
@@ -184,9 +185,9 @@ var middleware = {
  */
 function respond (res, err, response) {
 	if (err) {
-		res.json({'success': false, 'error': err});
+		res.json({'success': false, 'nodeTimestamp': slots.getTime(), 'error': err});
 	} else {
-		return res.json(extend({}, {'success': true}, response));
+		return res.json(extend({}, {'success': true, 'nodeTimestamp': slots.getTime()}, response));
 	}
 }
 
