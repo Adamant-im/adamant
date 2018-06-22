@@ -114,7 +114,7 @@ Chat.prototype.verify = function (trs, sender, cb) {
     }
 
 
-    if (trs.asset.chat.type > 1 || trs.asset.chat.type < 0) {
+    if (trs.asset.chat.type > 3 || trs.asset.chat.type < 0) {
         return setImmediate(cb, 'Invalid message type');
     }
 
