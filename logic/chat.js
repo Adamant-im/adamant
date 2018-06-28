@@ -8,6 +8,7 @@ var slots = require('../helpers/slots.js');
 
 // Private fields
 var self, library, __private = {};
+var modules;
 
 __private.unconfirmedNames = {};
 __private.unconfirmedLinks = {};
@@ -42,7 +43,12 @@ function Chat (db, ed, schema, account, logger, cb) {
 /**
  * Binds scope.modules to private variable modules.
  */
-Chat.prototype.bind = function () {};
+Chat.prototype.bind = function (accounts, rounds) {
+    modules = {
+        accounts: accounts,
+        rounds: rounds,
+    };
+};
 
 /**
  * Creates transaction.asset.Chat based on data.
@@ -205,8 +211,9 @@ Chat.prototype.apply = function (trs, block, sender, cb) {
             });
         });
     }
-    else
+    else {
         return setImmediate(cb);
+    }
 };
 
 /**
@@ -234,8 +241,9 @@ Chat.prototype.undo = function (trs, block, sender, cb) {
             });
         });
     }
-    else
+    else {
         return setImmediate(cb);
+    }
 };
 
 /**
