@@ -188,7 +188,25 @@ Chat.prototype.getBytes = function (trs) {
  * @return {setImmediateCallback} cb
  */
 Chat.prototype.apply = function (trs, block, sender, cb) {
-    return setImmediate(cb);
+    if (trs.amount > 0) {
+        modules.accounts.setAccountAndGet({address: trs.recipientId}, function (err, recipient) {
+            if (err) {
+                return setImmediate(cb, err);
+            }
+
+            modules.accounts.mergeAccountAndGet({
+                address: trs.recipientId,
+                balance: trs.amount,
+                u_balance: trs.amount,
+                blockId: block.id,
+                round: modules.rounds.calc(block.height)
+            }, function (err) {
+                return setImmediate(cb, err);
+            });
+        });
+    }
+    else
+        return setImmediate(cb);
 };
 
 /**
