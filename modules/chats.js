@@ -14,6 +14,7 @@ var schema = require('../schema/chats.js');
 var sql = require('../sql/chats.js');
 var TransactionPool = require('../logic/transactionPool.js');
 var transactionTypes = require('../helpers/transactionTypes.js');
+var Transfer = require('../logic/transfer.js');
 
 // Private fields
 var modules, library, self, __private = {}, shared = {};
@@ -62,6 +63,9 @@ function Chats (cb, scope) {
             scope.schema,
             scope.network
         )
+    );
+    __private.assetTypes[transactionTypes.SEND] = library.logic.transaction.attachAssetType(
+        transactionTypes.SEND, new Transfer()
     );
     setImmediate(cb, null, self);
 }
@@ -199,6 +203,10 @@ Chats.prototype.onBind = function (scope) {
         peers: scope.peers,
         sql: scope.sql,
     };
+    __private.assetTypes[transactionTypes.CHAT_MESSAGE].bind(
+        scope.accounts,
+        scope.rounds
+    );
 };
 
 /**

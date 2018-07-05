@@ -8,6 +8,7 @@ var slots = require('../helpers/slots.js');
 
 // Private fields
 var self, library, __private = {};
+var modules;
 
 __private.unconfirmedNames = {};
 __private.unconfirmedLinks = {};
@@ -42,7 +43,12 @@ function Chat (db, ed, schema, account, logger, cb) {
 /**
  * Binds scope.modules to private variable modules.
  */
-Chat.prototype.bind = function () {};
+Chat.prototype.bind = function (accounts, rounds) {
+    modules = {
+        accounts: accounts,
+        rounds: rounds,
+    };
+};
 
 /**
  * Creates transaction.asset.Chat based on data.
@@ -188,7 +194,26 @@ Chat.prototype.getBytes = function (trs) {
  * @return {setImmediateCallback} cb
  */
 Chat.prototype.apply = function (trs, block, sender, cb) {
-    return setImmediate(cb);
+    if (trs.amount > 0) {
+        modules.accounts.setAccountAndGet({address: trs.recipientId}, function (err, recipient) {
+            if (err) {
+                return setImmediate(cb, err);
+            }
+
+            modules.accounts.mergeAccountAndGet({
+                address: trs.recipientId,
+                balance: trs.amount,
+                u_balance: trs.amount,
+                blockId: block.id,
+                round: modules.rounds.calc(block.height)
+            }, function (err) {
+                return setImmediate(cb, err);
+            });
+        });
+    }
+    else {
+        return setImmediate(cb);
+    }
 };
 
 /**
@@ -199,7 +224,26 @@ Chat.prototype.apply = function (trs, block, sender, cb) {
  * @return {setImmediateCallback} cb
  */
 Chat.prototype.undo = function (trs, block, sender, cb) {
-    return setImmediate(cb);
+    if (trs.amount > 0) {
+        modules.accounts.setAccountAndGet({address: trs.recipientId}, function (err, recipient) {
+            if (err) {
+                return setImmediate(cb, err);
+            }
+
+            modules.accounts.mergeAccountAndGet({
+                address: trs.recipientId,
+                balance: -trs.amount,
+                u_balance: -trs.amount,
+                blockId: block.id,
+                round: modules.rounds.calc(block.height)
+            }, function (err) {
+                return setImmediate(cb, err);
+            });
+        });
+    }
+    else {
+        return setImmediate(cb);
+    }
 };
 
 /**
