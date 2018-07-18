@@ -80,7 +80,7 @@ function Delegates (cb, scope) {
 __private.getKeysSortByVote = function (cb) {
 	modules.accounts.getAccounts({
 		isDelegate: 1,
-		sort: {'vote': -1, 'publicKey': 1},
+		sort: {'votesWeight': -1, 'publicKey': 1},
 		limit: slots.delegates
 	}, ['publicKey'], function (err, rows) {
 		if (err) {
@@ -383,8 +383,8 @@ Delegates.prototype.getDelegates = function (query, cb) {
 	}
 	modules.accounts.getAccounts({
 		isDelegate: 1,
-		sort: { 'vote': -1, 'publicKey': 1 }
-	}, ['username', 'address', 'publicKey', 'vote', 'missedblocks', 'producedblocks'], function (err, delegates) {
+		sort: { 'votesWeight': -1, 'publicKey': 1 }
+	}, ['username', 'address', 'publicKey', 'votesWeight', 'vote', 'missedblocks', 'producedblocks'], function (err, delegates) {
 		if (err) {
 			return setImmediate(cb, err);
 		}
@@ -406,6 +406,7 @@ Delegates.prototype.getDelegates = function (query, cb) {
 			// TODO: 'rate' property is deprecated and need to be removed after transitional period
 			delegates[i].rate = i + 1;
 			delegates[i].rank = i + 1;
+            delegates[i].vote = delegates[i].votesWeight;
 			delegates[i].approval = (delegates[i].vote / totalSupply) * 100;
 			delegates[i].approval = Math.round(delegates[i].approval * 1e2) / 1e2;
 
