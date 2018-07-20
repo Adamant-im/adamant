@@ -3,7 +3,7 @@
 var RoundsSql = {
 	flush: 'DELETE FROM mem_round WHERE "round" = (${round})::bigint;',
 
-	reCalcVotes: 'UPDATE "mem_accounts" AS m SET "votesWeight" = vote_weight FROM ( SELECT ma."address", SUM("total_balance"::bigint) as vote_weight, MAX(ma3."divider"),MAX(ma3."total_balance") FROM mem_accounts ma LEFT JOIN mem_accounts2delegates ma2d on ENCODE(ma."publicKey",\'hex\')=ma2d."dependentId" LEFT JOIN (SELECT (SELECT COUNT("accountId") FROM mem_accounts2delegates ma2d WHERE "accountId"=ma2."address") as divider, floor("balance"::bigint/(SELECT COUNT("accountId") FROM mem_accounts2delegates ma2d WHERE "accountId"=ma2."address")) as total_balance, ma2."address" as address  FROM mem_accounts ma2 WHERE (SELECT COUNT("accountId") FROM mem_accounts2delegates ma2d WHERE "accountId"=ma2."address")>0) ma3 ON ma2d."accountId"=ma3."address" WHERE ma."isDelegate"=1 GROUP BY ma."address") as vv WHERE vv."address"=m."address" AND m."isDelegate"=1;',
+	reCalcVotes: 'UPDATE "mem_accounts" AS m SET "votesWeight" = vote_weight FROM ( SELECT ma."address",  SUM("total_balance"::bigint) AS vote_weight FROM mem_accounts ma LEFT JOIN mem_accounts2delegates ma2d ON ENCODE(ma."publicKey", \'hex\')=ma2d."dependentId" LEFT JOIN (SELECT  ma_group.divider, floor("balance"::bigint/ ma_group.divider) AS total_balance,   ma2."address" AS address FROM mem_accounts ma2 LEFT JOIN (SELECT COUNT("accountId") as divider, "accountId" FROM mem_accounts2delegates ma2d  GROUP BY "accountId" ) as ma_group ON ma_group."accountId"=ma2."address" WHERE ma_group.divider>0) ma3 ON ma2d."accountId"=ma3."address" WHERE ma."isDelegate"=1 GROUP BY ma."address") as vv WHERE vv."address"=m."address" AND m."isDelegate"=1;',
 
 	truncateBlocks: 'DELETE FROM blocks WHERE "height" > (${height})::bigint;',
 
