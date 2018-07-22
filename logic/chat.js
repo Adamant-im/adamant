@@ -5,6 +5,7 @@ var constants = require('../helpers/constants.js');
 var sql = require('../sql/chats.js');
 var valid_url = require('valid-url');
 var slots = require('../helpers/slots.js');
+var exceptions = require('../helpers/exceptions.js');
 
 // Private fields
 var self, library, __private = {};
@@ -194,7 +195,7 @@ Chat.prototype.getBytes = function (trs) {
  * @return {setImmediateCallback} cb
  */
 Chat.prototype.apply = function (trs, block, sender, cb) {
-    if (trs.amount > 0) {
+    if (trs.amount > 0 && exceptions.commentTransfers.indexOf(trs.id) === -1) {
         modules.accounts.setAccountAndGet({address: trs.recipientId}, function (err, recipient) {
             if (err) {
                 return setImmediate(cb, err);
@@ -224,7 +225,7 @@ Chat.prototype.apply = function (trs, block, sender, cb) {
  * @return {setImmediateCallback} cb
  */
 Chat.prototype.undo = function (trs, block, sender, cb) {
-    if (trs.amount > 0) {
+    if (trs.amount > 0 && exceptions.commentTransfers.indexOf(trs.id) === -1) {
         modules.accounts.setAccountAndGet({address: trs.recipientId}, function (err, recipient) {
             if (err) {
                 return setImmediate(cb, err);
