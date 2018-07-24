@@ -80,7 +80,7 @@ function Delegates (cb, scope) {
 __private.getKeysSortByVote = function (cb) {
 	modules.accounts.getAccounts({
 		isDelegate: 1,
-		sort: {'votesWeight': -1, 'publicKey': 1},
+		sort: {'vote': -1, 'publicKey': 1},
 		limit: slots.delegates
 	}, ['publicKey'], function (err, rows) {
 		if (err) {
@@ -90,6 +90,27 @@ __private.getKeysSortByVote = function (cb) {
 			return el.publicKey;
 		}));
 	});
+};
+
+/**
+ * Gets delegate public keys sorted by votesWeight descending.
+ * @private
+ * @param {function} cb - Callback function.
+ * @returns {setImmediateCallback}
+ */
+__private.getKeysSortByVotesWeight = function (cb) {
+    modules.accounts.getAccounts({
+        isDelegate: 1,
+        sort: {'votesWeight': -1, 'publicKey': 1},
+        limit: slots.delegates
+    }, ['publicKey'], function (err, rows) {
+        if (err) {
+            return setImmediate(cb, err);
+        }
+        return setImmediate(cb, null, rows.map(function (el) {
+            return el.publicKey;
+        }));
+    });
 };
 
 /**
@@ -347,26 +368,50 @@ __private.loadDelegates = function (cb) {
  * @todo explain seed.
  */
 Delegates.prototype.generateDelegateList = function (height, cb) {
-	__private.getKeysSortByVote(function (err, truncDelegateList) {
-		if (err) {
-			return setImmediate(cb, err);
-		}
+    if (height>2021) {
+        __private.getKeysSortByVotesWeight(function (err, truncDelegateList) {
+            if (err) {
+                return setImmediate(cb, err);
+            }
 
-		var seedSource = modules.rounds.calc(height).toString();
-		var currentSeed = crypto.createHash('sha256').update(seedSource, 'utf8').digest();
+            var seedSource = modules.rounds.calc(height).toString();
+            var currentSeed = crypto.createHash('sha256').update(seedSource, 'utf8').digest();
 
-		for (var i = 0, delCount = truncDelegateList.length; i < delCount; i++) {
-			for (var x = 0; x < 4 && i < delCount; i++, x++) {
-				var newIndex = currentSeed[x] % delCount;
-				var b = truncDelegateList[newIndex];
-				truncDelegateList[newIndex] = truncDelegateList[i];
-				truncDelegateList[i] = b;
-			}
-			currentSeed = crypto.createHash('sha256').update(currentSeed).digest();
-		}
+            for (var i = 0, delCount = truncDelegateList.length; i < delCount; i++) {
+                for (var x = 0; x < 4 && i < delCount; i++, x++) {
+                    var newIndex = currentSeed[x] % delCount;
+                    var b = truncDelegateList[newIndex];
+                    truncDelegateList[newIndex] = truncDelegateList[i];
+                    truncDelegateList[i] = b;
+                }
+                currentSeed = crypto.createHash('sha256').update(currentSeed).digest();
+            }
 
-		return setImmediate(cb, null, truncDelegateList);
-	});
+            return setImmediate(cb, null, truncDelegateList);
+        });
+    }
+    else {
+        __private.getKeysSortByVote(function (err, truncDelegateList) {
+            if (err) {
+                return setImmediate(cb, err);
+            }
+
+            var seedSource = modules.rounds.calc(height).toString();
+            var currentSeed = crypto.createHash('sha256').update(seedSource, 'utf8').digest();
+
+            for (var i = 0, delCount = truncDelegateList.length; i < delCount; i++) {
+                for (var x = 0; x < 4 && i < delCount; i++, x++) {
+                    var newIndex = currentSeed[x] % delCount;
+                    var b = truncDelegateList[newIndex];
+                    truncDelegateList[newIndex] = truncDelegateList[i];
+                    truncDelegateList[i] = b;
+                }
+                currentSeed = crypto.createHash('sha256').update(currentSeed).digest();
+            }
+
+            return setImmediate(cb, null, truncDelegateList);
+        });
+    }
 };
 
 /**
@@ -496,8 +541,6 @@ Delegates.prototype.validateBlockSlot = function (block, cb) {
 
 		var currentSlot = slots.getSlotNumber(block.timestamp);
 		var delegate_id = activeDelegates[currentSlot % slots.delegates];
-		// var nextDelegate_id = activeDelegates[(currentSlot + 1) % slots.delegates];
-		// var previousDelegate_id = activeDelegates[(currentSlot - 1) % slots.delegates];
 
 		if (delegate_id && block.generatorPublicKey === delegate_id) {
 			return setImmediate(cb);
