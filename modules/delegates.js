@@ -368,7 +368,7 @@ __private.loadDelegates = function (cb) {
  * @todo explain seed.
  */
 Delegates.prototype.generateDelegateList = function (height, cb) {
-    if (height>2021) {
+    if (height > constants.fairSystemActivateBlock) {
         __private.getKeysSortByVotesWeight(function (err, truncDelegateList) {
             if (err) {
                 return setImmediate(cb, err);
@@ -426,9 +426,13 @@ Delegates.prototype.getDelegates = function (query, cb) {
 	if (!query) {
 		throw 'Missing query argument';
 	}
+    var sortFilter = { 'votes': -1, 'publicKey': 1 };
+	if (modules.blocks.lastBlock.get().height>constants.fairSystemActivateBlock) {
+        sortFilter = { 'votesWeight': -1, 'publicKey': 1 };
+    }
 	modules.accounts.getAccounts({
 		isDelegate: 1,
-		sort: { 'votesWeight': -1, 'publicKey': 1 }
+		sort: sortFilter
 	}, ['username', 'address', 'publicKey', 'votesWeight', 'vote', 'missedblocks', 'producedblocks'], function (err, delegates) {
 		if (err) {
 			return setImmediate(cb, err);
@@ -451,8 +455,12 @@ Delegates.prototype.getDelegates = function (query, cb) {
 			// TODO: 'rate' property is deprecated and need to be removed after transitional period
 			delegates[i].rate = i + 1;
 			delegates[i].rank = i + 1;
-            delegates[i].vote = delegates[i].votesWeight;
-			delegates[i].approval = (delegates[i].vote / totalSupply) * 100;
+            if (modules.blocks.lastBlock.get().height>constants.fairSystemActivateBlock) {
+                delegates[i].approval = (delegates[i].votesWeight / totalSupply) * 100;
+            }
+            else {
+                delegates[i].approval = (delegates[i].vote / totalSupply) * 100;
+            }
 			delegates[i].approval = Math.round(delegates[i].approval * 1e2) / 1e2;
 
 			var percent = 100 - (delegates[i].missedblocks / ((delegates[i].producedblocks + delegates[i].missedblocks) / 100));
