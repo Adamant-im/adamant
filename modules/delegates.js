@@ -426,7 +426,7 @@ Delegates.prototype.getDelegates = function (query, cb) {
 	if (!query) {
 		throw 'Missing query argument';
 	}
-    var sortFilter = { 'votes': -1, 'publicKey': 1 };
+    var sortFilter = { 'vote': -1, 'publicKey': 1 };
 	if (modules.blocks.lastBlock.get().height>constants.fairSystemActivateBlock) {
         sortFilter = { 'votesWeight': -1, 'publicKey': 1 };
     }
