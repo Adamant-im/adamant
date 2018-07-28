@@ -71,6 +71,7 @@ State.prototype.create = function (data, trs) {
  * @return {number} fee
  */
 State.prototype.calculateFee = function (trs, sender) {
+    logger.debug('calculate fee error', JSON.stringify(trs));
     var length = Buffer.from(trs.asset.state.value, 'hex').length;
     var char_length= Math.floor((length * 100 / 150)/255);
     if (char_length==0) {
