@@ -294,12 +294,12 @@ Transaction.prototype.getBytes = function (trs, skipSignature, skipSecondSignatu
 			}
 		}
 
-		if (!skipSecondSignature && trs.signSignature) {
-			var signSignatureBuffer = Buffer.from(trs.signSignature, 'hex');
-			for (i = 0; i < signSignatureBuffer.length; i++) {
-				bb.writeByte(signSignatureBuffer[i]);
-			}
-		}
+		// if (!skipSecondSignature && trs.signSignature) {
+		// 	var signSignatureBuffer = Buffer.from(trs.signSignature, 'hex');
+		// 	for (i = 0; i < signSignatureBuffer.length; i++) {
+		// 		bb.writeByte(signSignatureBuffer[i]);
+		// 	}
+		// }
 
 		bb.flip();
 	} catch (e) {

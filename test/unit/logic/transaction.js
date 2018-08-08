@@ -27,7 +27,7 @@ var Dapp = require('../../../logic/dapp.js');
 var InTransfer = require('../../../logic/inTransfer.js');
 var OutTransfer = require('../../../logic/outTransfer.js');
 
-var validPassword = 'robust weapon course unknown head trial pencil latin acid';
+var validPassword = 'rally clean ladder crane gadget century timber jealous shine scorpion beauty salon';
 var validKeypair = ed.makeKeypair(crypto.createHash('sha256').update(validPassword, 'utf8').digest());
 
 var senderHash = crypto.createHash('sha256').update(node.gAccount.password, 'utf8').digest();
@@ -37,8 +37,8 @@ var validSender = {
 	username: null,
 	isDelegate: 0,
 	secondSignature: 0,
-	address: '16313739661670634666L',
-	publicKey: 'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f',
+	address: 'U810656636599221322',
+	publicKey: 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0',
 	secondPublicKey: null,
 	balance: 9850458911801508,
 	u_balance: 9850458911801508,
@@ -59,72 +59,92 @@ var validTransactionData = {
 	type: 0,
 	amount: 8067474861277,
 	sender: validSender,
-	senderId: '16313739661670634666L',
-	recipientId: '5649948960790668770L',
+	senderId: 'U810656636599221322',
+	recipientId: 'U7771441689362721578',
 	fee: 10000000,
 	keypair: senderKeypair,
 	publicKey: 'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f',
 };
 
 var validTransaction = {
-	id: '16140284222734558289',
+	id: '15935329205556253322',
 	rowId: 133,
-	blockId: '1462190441827192029',
+	blockId: '6438017970172540087',
 	type: 0,
 	timestamp: 33363661,
-	senderPublicKey: 'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f',
-	senderId: '16313739661670634666L',
-	recipientId: '5649948960790668770L',
-	amount: 8067474861277,
+	senderPublicKey: 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0',
+	senderId: 'U810656636599221322',
+	recipientId: 'U9781760580710719871',
+	amount: 490000000000000,
 	fee: 10000000,
-	signature: '7ff5f0ee2c4d4c83d6980a46efe31befca41f7aa8cda5f7b4c2850e4942d923af058561a6a3312005ddee566244346bdbccf004bc8e2c84e653f9825c20be008',
+	signature: '85dc703a2b82698193ecbd86fd7aff1b057dfeb86e2a390ef42c1998bf1e9269c0048f42285e208a1e14a63843defbabece1bc96730f317f0cc16e23bb1b4d01',
 	signSignature: null,
 	requesterPublicKey: null,
 	signatures: null,
 	asset: {},
 };
 
+var existedTransaction = {
+    id: '16207561138663598511',
+    blockId: '6438017970172540087',
+    type: 0,
+    senderPublicKey: 'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae',
+    senderId: 'U15365455923155964650',
+    recipientId: 'U9781760580710719871',
+    amount: 1960000000000000,
+    fee: 10000000,
+    signature: 'd8db69f6eb1504b5d6a20dfdab8a35d3742a686d9fb0fe526661754e7afbb9ce86604d3be82f1d5a51f6e5f41a93d1cd926179cdbb13d2d54ff3e2c418919105',
+    signSignature: null,
+    requesterPublicKey: null,
+    signatures: null,
+    asset: {},
+};
+
+var genesisAcc = { ...validSender,
+	...{
+        address: 'U15365455923155964650',
+        publicKey: 'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae'
+	}
+};
+
 var rawValidTransaction = {
-	t_id: '16140284222734558289',
+	t_id: '17190511997607511181',
 	b_height: 981,
-	t_blockId: '1462190441827192029',
+	t_blockId: '6438017970172540087',
 	t_type: 0,
 	t_timestamp: 33363661,
 	t_senderPublicKey: 'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f',
 	m_recipientPublicKey: null,
-	t_senderId: '16313739661670634666L',
-	t_recipientId: '5649948960790668770L',
-	t_amount: 8067474861277,
+	t_senderId: 'U810656636599221322',
+	t_recipientId: 'U7771441689362721578',
+	t_amount: 490000000000000,
 	t_fee: 10000000,
-	t_signature: '7ff5f0ee2c4d4c83d6980a46efe31befca41f7aa8cda5f7b4c2850e4942d923af058561a6a3312005ddee566244346bdbccf004bc8e2c84e653f9825c20be008',
+	t_signature: '85dc703a2b82698193ecbd86fd7aff1b057dfeb86e2a390ef42c1998bf1e9269c0048f42285e208a1e14a63843defbabece1bc96730f317f0cc16e23bb1b4d01',
 	confirmations: 8343
 };
 
 var genesisTrs = {
 	type: 0,
-	amount: 10000000000000000,
+	amount: 490000000000000,
 	fee: 0,
 	timestamp: 0,
-	recipientId: '16313739661670634666L',
-	senderId: '1085993630748340485L',
-	senderPublicKey: 'c96dec3595ff6041c3bd28b76b8cf75dce8225173d1bd00241624ee89b50f2a8',
-	signature: 'd8103d0ea2004c3dea8076a6a22c6db8bae95bc0db819240c77fc5335f32920e91b9f41f58b01fc86dfda11019c9fd1c6c3dcbab0a4e478e3c9186ff6090dc05',
-	blockId: '9314232245035524467',
-	id: '1465651642158264047'
+	recipientId: 'U7771441689362721578',
+	senderId: 'U810656636599221322',
+	senderPublicKey: 'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f',
+	signature: '85dc703a2b82698193ecbd86fd7aff1b057dfeb86e2a390ef42c1998bf1e9269c0048f42285e208a1e14a63843defbabece1bc96730f317f0cc16e23bb1b4d01',
+	blockId: '6438017970172540087',
+	id: '17190511997607511181'
 };
 
 var validUnconfirmedTrs = {
 	type: 0,
-	amount: 8067474861277,
-	senderPublicKey: 'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f',
-	senderId: '16313739661670634666L',
-	requesterPublicKey: null,
-	timestamp: 33641482,
+	amount: 100,
+	senderPublicKey: 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0',
+	senderId: 'U810656636599221322',
+	timestamp: 0,
 	asset: {},
-	recipientId: '5649948960790668770L',
-	signature: '24c65ac5562a8ae252aa308926b60342829e82f285e704814d0d3c3954078c946d113aa0bd5388b2c863874e63f71e8e0a284a03274e66c719e69d443d91f309',
+	recipientId: 'U7771441689362721578',
 	fee: 10000000,
-	id: '16580139363949197645' 
 };
 
 
@@ -192,7 +212,7 @@ describe('transaction', function () {
 		});
 
 		it('should return transaction fee based on trs type', function () {
-			expect(transaction.create(validTransactionData).fee).to.equal(10000000);
+			expect(transaction.create(validTransactionData).fee).to.equal(50000000);
 		});
 	});
 
@@ -237,20 +257,20 @@ describe('transaction', function () {
 		});
 
 		it('should sign transaction', function () {
-			expect(transaction.sign(senderKeypair, validTransaction)).to.be.a('string').which.is.equal('8f9c4242dc562599f95f5481469d22567987536112663156761e4b2b3f1142c4f5355a2a7c7b254f40d370bef7e76b4a11c8a1836e0c9b0bcab3e834ca1e7502');
+			expect(transaction.sign(senderKeypair, validTransaction)).to.be.a('string').which.is.equal('f515b02f88a2d4999badddc7424f600b0f1e8a45d3e50bdf6763479cc20076f80a3b6290ca8fb5c114729ea8da13e787bcfef8693ff61df4a810bc7cfacd8e09');
 		});
 	});
 
-	describe('multisign', function () {
-
-		it('should throw an error with no param', function () {
-			expect(transaction.multisign).to.throw();
-		});
-
-		it('should multisign the transaction', function () {
-			expect(transaction.multisign(senderKeypair, validTransaction)).to.equal(validTransaction.signature);
-		});
-	});
+	// describe('multisign', function () {
+	//
+	// 	it('should throw an error with no param', function () {
+	// 		expect(transaction.multisign).to.throw();
+	// 	});
+	//
+	// 	it('should multisign the transaction', function () {
+	// 		expect(transaction.multisign(senderKeypair, validTransaction)).to.equal(validTransaction.signature);
+	// 	});
+	// });
 
 	describe('getId', function () {
 
@@ -278,7 +298,7 @@ describe('transaction', function () {
 
 		it('should return hash for trs', function () {
 			var trs = validTransaction;
-			var expectedHash = '5164ef55fccefddf72360ea6e05f19eed7c8d2653c5069df4db899c47246dd2f';
+			var expectedHash = '8a9216c47ba925dd02fbf36a96f0cab5a3407e3f6d3eb4a5cff556cafc076c70';
 			expect(transaction.getHash(trs).toString('hex')).to.be.a('string').which.is.equal(expectedHash);
 		});
 
@@ -302,11 +322,11 @@ describe('transaction', function () {
 			expect(firstCalculation.equals(secondCalculation)).to.be.ok;
 		});
 
-		it('should return same result of getBytes using /logic/transaction and lisk-js package (without data field)', function () {
-			var trsBytesFromLogic = transaction.getBytes(validTransaction);
-			var trsBytesFromLiskJs = node.lisk.crypto.getBytes(validTransaction);
-			expect(trsBytesFromLogic.equals(trsBytesFromLiskJs)).to.be.ok;
-		});
+		// it('should return same result of getBytes using /logic/transaction and lisk-js package (without data field)', function () {
+		// 	var trsBytesFromLogic = transaction.getBytes(validTransaction);
+		// 	var trsBytesFromLiskJs = node.lisk.crypto.getBytes(validTransaction);
+		// 	expect(trsBytesFromLogic.equals(trsBytesFromLiskJs)).to.be.ok;
+		// });
 
 		it('should skip signature, second signature for getting bytes', function () {
 			var trsBytes = transaction.getBytes(validTransaction, true);
@@ -357,7 +377,7 @@ describe('transaction', function () {
 		it('should return 1 for transaction from genesis block', function (done) {
 			transaction.countById(genesisTrs, function (err, count) {
 				expect(err).to.not.exist;
-				expect(count).to.equal(1);
+				expect(count).to.be.equal(1);
 				done();
 			});
 		});
@@ -379,10 +399,10 @@ describe('transaction', function () {
 
 		it('should return error for transaction which is already confirmed', function (done) {
 			var dummyConfirmedTrs = {
-				id: '1465651642158264047'
+				id: '17190511997607511181'
 			};
 			transaction.checkConfirmed(dummyConfirmedTrs, function (err) {
-				expect(err).to.include('Transaction is already confirmed');
+				expect(err || []).to.include('Transaction is already confirmed');
 				done();
 			});
 		});
@@ -395,11 +415,11 @@ describe('transaction', function () {
 		});
 
 		it('should return error when sender has insufficiant balance', function () {
-			var amount =  '9850458911801509';
+			var amount =  '49000000000000000000000';
 			var balanceKey = 'balance';
-			var res = transaction.checkBalance(amount, balanceKey, validTransaction, validSender);
+			var res = transaction.checkBalance(amount, balanceKey, validUnconfirmedTrs, validSender);
 			expect(res.exceeded).to.equal(true);
-			expect(res.error).to.include('Account does not have enough LSK:');
+			expect(res.error).to.include('Account does not have enough ADM:');
 		});
 
 		it('should be okay if insufficient balance from genesis account', function () {
@@ -488,39 +508,39 @@ describe('transaction', function () {
 			});
 		});
 
-		it('should return error when missing sender second signature', function (done) {
-			var trs = _.cloneDeep(validTransaction);
-			var vs = _.cloneDeep(validSender);
-			vs.secondSignature = '839eba0f811554b9f935e39a68b3078f90bea22c5424d3ad16630f027a48362f78349ddc3948360045d6460404f5bc8e25b662d4fd09e60c89453776962df40d';
+		// it('should return error when missing sender second signature', function (done) {
+		// 	var trs = _.cloneDeep(validTransaction);
+		// 	var vs = _.cloneDeep(validSender);
+		// 	vs.secondSignature = '839eba0f811554b9f935e39a68b3078f90bea22c5424d3ad16630f027a48362f78349ddc3948360045d6460404f5bc8e25b662d4fd09e60c89453776962df40d';
+		//
+		// 	transaction.verify(trs, vs, {}, function (err) {
+		// 		expect(err).to.include('Missing sender second signature');
+		// 		done();
+		// 	});
+		// });
 
-			transaction.verify(trs, vs, {}, function (err) {
-				expect(err).to.include('Missing sender second signature');
-				done();
-			});
-		});
-
-		it('should return error when sender does not have a second signature', function (done) {
-			var trs = _.cloneDeep(validTransaction);
-			trs.signSignature = [transaction.sign(validKeypair, trs)];
-
-			transaction.verify(trs, validSender, {}, function (err) {
-				expect(err).to.include('Sender does not have a second signature');
-				done();
-			});
-		});
-
-		it('should return error when requester does not have a second signature', function (done) {
-			var trs = _.cloneDeep(validTransaction);
-			var dummyRequester = {
-				secondSignature : 'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f'
-			};
-			trs.requesterPublicKey = '839eba0f811554b9f935e39a68b3078f90bea22c5424d3ad16630f027a48362f78349ddc3948360045d6460404f5bc8e25b662d4fd09e60c89453776962df40d';
-
-			transaction.verify(trs, validSender, dummyRequester, function (err) {
-				expect(err).to.include('Missing requester second signature');
-				done();
-			});
-		});
+		// it('should return error when sender does not have a second signature', function (done) {
+		// 	var trs = _.cloneDeep(validTransaction);
+		// 	trs.signSignature = [transaction.sign(validKeypair, trs)];
+		//
+		// 	transaction.verify(trs, validSender, {}, function (err) {
+		// 		expect(err).to.include('Sender does not have a second signature');
+		// 		done();
+		// 	});
+		// });
+		//
+		// it('should return error when requester does not have a second signature', function (done) {
+		// 	var trs = _.cloneDeep(validTransaction);
+		// 	var dummyRequester = {
+		// 		secondSignature : 'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f'
+		// 	};
+		// 	trs.requesterPublicKey = '839eba0f811554b9f935e39a68b3078f90bea22c5424d3ad16630f027a48362f78349ddc3948360045d6460404f5bc8e25b662d4fd09e60c89453776962df40d';
+		//
+		// 	transaction.verify(trs, validSender, dummyRequester, function (err) {
+		// 		expect(err).to.include('Missing requester second signature');
+		// 		done();
+		// 	});
+		// });
 
 		it('should return error when trs sender publicKey and sender public key are different', function (done) {
 			var trs = _.cloneDeep(validTransaction);
@@ -534,12 +554,12 @@ describe('transaction', function () {
 		});
 
 		it('should be impossible to send the money from genesis account', function (done) {
-			var trs = _.cloneDeep(validTransaction);
-			//genesis account info
-			trs.senderPublicKey = 'c96dec3595ff6041c3bd28b76b8cf75dce8225173d1bd00241624ee89b50f2a8';
+            var trs = transaction.create(validTransactionData);
+			trs.senderId = 'U15365455923155964650';
+			trs.senderPublicKey = 'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae';
 			var vs = _.cloneDeep(validSender);
-			vs.publicKey = 'c96dec3595ff6041c3bd28b76b8cf75dce8225173d1bd00241624ee89b50f2a8';
-
+			vs.publicKey = 'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae';
+			vs.address = 'U15365455923155964650';
 			transaction.verify(trs, vs, {}, function (err) {
 				expect(err).to.include('Invalid sender. Can not send from genesis account');
 				done();
@@ -548,118 +568,119 @@ describe('transaction', function () {
 
 		it('should return error on different sender address in trs and sender', function (done) {
 			var trs = _.cloneDeep(validTransaction);
-			trs.senderId = '2581762640681118072L';
+			trs.senderId = 'U2581762640681118072';
 
 			transaction.verify(trs, validSender, {}, function (err) {
-				expect(err).to.include('Invalid sender address');
+				expect(err).to.include('Invalid sender public key');
 				done();
 			});
 		});
 
-		it('should return error when Account does not belong to multisignature group', function (done) {
-			var trs = _.cloneDeep(validTransaction);
-			var vs = _.cloneDeep(validSender);
-			// Different publicKey for multisignature account
-			vs.multisignatures = [node.eAccount.publicKey];
-			trs.requesterPublicKey = validKeypair.publicKey.toString('hex');
-			delete trs.signature;
-			trs.signature = transaction.sign(validKeypair, trs);
-			transaction.verify(trs, vs, {}, function (err) {
-				expect(err).to.equal('Account does not belong to multisignature group');
-				done();
-			});
-		});
+		// it('should return error when Account does not belong to multisignature group', function (done) {
+		// 	var trs = _.cloneDeep(validTransaction);
+		// 	var vs = _.cloneDeep(validSender);
+		// 	// Different publicKey for multisignature account
+		// 	vs.multisignatures = [node.eAccount.publicKey];
+		// 	trs.requesterPublicKey = validKeypair.publicKey.toString('hex');
+		// 	delete trs.signature;
+		// 	trs.signature = transaction.sign(validKeypair, trs);
+		// 	transaction.verify(trs, vs, {}, function (err) {
+		// 		expect(err).to.equal('Account does not belong to multisignature group');
+		// 		done();
+		// 	});
+		// });
 
 		it('should return error when signature is not correct', function (done) {
 			var trs = _.cloneDeep(validTransaction);
 			// valid keypair is a different account
 			trs.signature = transaction.sign(validKeypair, trs);
 			transaction.verify(trs, validSender, {}, function (err) {
-				expect(err).to.equal('Failed to verify signature');
+				expect(err).to.include('Invalid sender public key');
 				done();
 			});
 		});
 
-		it('should return error when duplicate signature in transaction', function (done) {
-			var trs = _.cloneDeep(validTransaction);
-			var vs = _.cloneDeep(validSender);
-			vs.multisignatures = [validKeypair.publicKey.toString('hex')];
-			delete trs.signature;
-			trs.signatures = Array.apply(null, Array(2)).map(function () { return transaction.sign(validKeypair, trs); });
-			trs.signature = transaction.sign(senderKeypair, trs);
-			transaction.verify(trs, vs, {}, function (err) {
-				expect(err).to.equal('Encountered duplicate signature in transaction');
-				done();
-			});
-		});
+		// it('should return error when duplicate signature in transaction', function (done) {
+		// 	var trs = _.cloneDeep(validTransaction);
+		// 	var vs = _.cloneDeep(validSender);
+		// 	vs.multisignatures = [validKeypair.publicKey.toString('hex')];
+		// 	delete trs.signature;
+		// 	trs.signatures = Array.apply(null, Array(2)).map(function () { return transaction.sign(validKeypair, trs); });
+		// 	trs.signature = transaction.sign(senderKeypair, trs);
+		// 	transaction.verify(trs, vs, {}, function (err) {
+		// 		expect(err).to.equal('Encountered duplicate signature in transaction');
+		// 		done();
+		// 	});
+		// });
 
-		it('should return error when failed to verify multisignature', function (done) {
-			var trs = _.cloneDeep(validTransaction);
-			var vs = _.cloneDeep(validSender);
-			vs.multisignatures = [validKeypair.publicKey.toString('hex')];
-			trs.requesterPublicKey = validKeypair.publicKey.toString('hex');
-			delete trs.signature;
-			// using validKeypair as opposed to senderKeypair
-			trs.signatures = [transaction.sign(validKeypair, trs)];
-			trs.signature = transaction.sign(validKeypair, trs);
-			transaction.verify(trs, vs, {}, function (err) {
-				expect(err).to.equal('Failed to verify multisignature');
-				done();
-			});
-		});
-
-		it('should be okay with valid multisignature', function (done) {
-			var trs = _.cloneDeep(validTransaction);
-			var vs = _.cloneDeep(validSender);
-			vs.multisignatures = [validKeypair.publicKey.toString('hex')];
-			delete trs.signature;
-			trs.signature = transaction.sign(senderKeypair, trs);
-			trs.signatures = [transaction.multisign(validKeypair, trs)];
-			transaction.verify(trs, vs, {}, function (err) {
-				expect(err).to.not.exist;
-				done();
-			});
-		});
-
-		it('should return error when second signature is invalid', function (done) {
-			var vs = _.cloneDeep(validSender);
-			vs.secondPublicKey = validKeypair.publicKey.toString('hex');
-			vs.secondSignature = 1;
-
-			var trsData = _.cloneDeep(validTransactionData);
-			trsData.sender = vs;
-			trsData.secondKeypair = validKeypair;
-			createAndProcess(trsData, validSender, function (trs) {
-				trs.signSignature = '7af5f0ee2c4d4c83d6980a46efe31befca41f7aa8cda5f7b4c2850e4942d923af058561a6a3312005ddee566244346bdbccf004bc8e2c84e653f9825c20be008';
-				transaction.verify(trs, vs, function (err) {
-					expect(err).to.equal('Failed to verify second signature');
-					done();
-				});
-			});
-		});
-		
-		it('should be okay for valid second signature', function (done) {
-			var sender = _.cloneDeep(validSender);
-			sender.secondPublicKey = validKeypair.publicKey.toString('hex');
-			sender.secondSignature = 1;
-
-			var trsData = _.cloneDeep(validTransactionData);
-			trsData.sender = sender;
-			trsData.secondKeypair = validKeypair;
-			createAndProcess(trsData, validSender, function (trs) {
-				transaction.verify(trs, validSender, {}, function (err) {
-					transaction.verify(trs, sender, function (err) {
-						expect(err).to.not.exist;
-						done();
-					});
-				});
-			});
-		});
+		// it('should return error when failed to verify multisignature', function (done) {
+		// 	var trs = _.cloneDeep(validTransaction);
+		// 	var vs = _.cloneDeep(validSender);
+		// 	vs.multisignatures = [validKeypair.publicKey.toString('hex')];
+		// 	trs.requesterPublicKey = validKeypair.publicKey.toString('hex');
+		// 	delete trs.signature;
+		// 	// using validKeypair as opposed to senderKeypair
+		// 	trs.signatures = [transaction.sign(validKeypair, trs)];
+		// 	trs.signature = transaction.sign(validKeypair, trs);
+		// 	transaction.verify(trs, vs, {}, function (err) {
+		// 		expect(err).to.equal('Failed to verify multisignature');
+		// 		done();
+		// 	});
+		// });
+		//
+		// it('should be okay with valid multisignature', function (done) {
+		// 	var trs = _.cloneDeep(validTransaction);
+		// 	var vs = _.cloneDeep(validSender);
+		// 	vs.multisignatures = [validKeypair.publicKey.toString('hex')];
+		// 	delete trs.signature;
+		// 	trs.signature = transaction.sign(senderKeypair, trs);
+		// 	trs.signatures = [transaction.multisign(validKeypair, trs)];
+		// 	transaction.verify(trs, vs, {}, function (err) {
+		// 		expect(err).to.not.exist;
+		// 		done();
+		// 	});
+		// });
+		//
+		// it('should return error when second signature is invalid', function (done) {
+		// 	var vs = _.cloneDeep(validSender);
+		// 	vs.secondPublicKey = validKeypair.publicKey.toString('hex');
+		// 	vs.secondSignature = 1;
+		//
+		// 	var trsData = _.cloneDeep(validTransactionData);
+		// 	trsData.sender = vs;
+		// 	trsData.secondKeypair = validKeypair;
+		// 	createAndProcess(trsData, validSender, function (trs) {
+		// 		trs.signSignature = '7af5f0ee2c4d4c83d6980a46efe31befca41f7aa8cda5f7b4c2850e4942d923af058561a6a3312005ddee566244346bdbccf004bc8e2c84e653f9825c20be008';
+		// 		transaction.verify(trs, vs, function (err) {
+		// 			expect(err).to.equal('Failed to verify second signature');
+		// 			done();
+		// 		});
+		// 	});
+		// });
+		//
+		// it('should be okay for valid second signature', function (done) {
+		// 	var sender = _.cloneDeep(validSender);
+		// 	sender.secondPublicKey = validKeypair.publicKey.toString('hex');
+		// 	sender.secondSignature = 1;
+		//
+		// 	var trsData = _.cloneDeep(validTransactionData);
+		// 	trsData.sender = sender;
+		// 	trsData.secondKeypair = validKeypair;
+		// 	createAndProcess(trsData, validSender, function (trs) {
+		// 		transaction.verify(trs, validSender, {}, function (err) {
+		// 			transaction.verify(trs, sender, function (err) {
+		// 				expect(err).to.not.exist;
+		// 				done();
+		// 			});
+		// 		});
+		// 	});
+		// });
 
 		it('should throw return error transaction fee is incorrect', function (done) {
 			var trs = _.cloneDeep(validTransaction);
 			trs.fee = -100;
-			transaction.verify(trs, validSender, {}, function (err) {
+			var sender = _.cloneDeep(validSender);
+			transaction.verify(trs, sender, {}, function (err) {
 				expect(err).to.include('Invalid transaction fee');
 				done();
 			});

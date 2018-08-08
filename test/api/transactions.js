@@ -18,6 +18,7 @@ function openAccount (params, done) {
 }
 
 function putTransaction (params, done) {
+	// node.post('/api/transactions/process', params, done);
 	node.put('/api/transactions', params, done);
 }
 
@@ -25,6 +26,7 @@ function sendLISK (account, amount, done) {
 	var expectedFee = node.expectedFee(amount);
 
 	putTransaction({
+		// publicKey:
 		secret: node.gAccount.password,
 		amount: amount,
 		recipientId: account.address
@@ -712,7 +714,7 @@ describe('PUT /api/transactions', function () {
 				recipientId: account2.address
 			}, function (err, res) {
 				node.expect(res.body).to.have.property('success').to.be.not.ok;
-				node.expect(res.body).to.have.property('error').to.match(/Account does not have enough LSK: [0-9]+L balance: [0-9.]+/);
+				node.expect(res.body).to.have.property('error').to.match(/Account does not have enough ADM: U[0-9]+ balance: [0-9.]+/);
 				done();
 			});
 		});

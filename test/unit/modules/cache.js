@@ -315,66 +315,66 @@ describe('cache', function () {
 
 	});
 
-	describe('onTransactionsSaved', function (done) {
-
-		it('shouldnt remove keys with pattern /api/delegate if there is no type 2 trs', function (done) {
-			var key = '/api/delegates?123';
-			var value = {testObject: 'testValue'};
-
-			cache.setJsonForKey(key, value, function (err, status) {
-				expect(err).to.not.exist;
-				expect(status).to.equal('OK');
-				var transaction = node.lisk.transaction.createTransaction('1L', 1, node.gAccount.password, node.gAccount.secondPassword);
-
-				cache.onTransactionsSaved([transaction], function (err) {
-					cache.getJsonForKey(key, function (err, res) {
-						expect(err).to.not.exist;
-						expect(res).to.eql(value);
-						done();
-					});
-				});
-			});
-		});
-
-		it('should remove keys that match pattern /api/delegate on type 2 trs', function (done) {
-			var key = '/api/delegates?123';
-			var value = {testObject: 'testValue'};
-
-			cache.setJsonForKey(key, value, function (err, status) {
-				expect(err).to.not.exist;
-				expect(status).to.equal('OK');
-				var transaction = node.lisk.delegate.createDelegate(node.randomPassword(), node.randomDelegateName().toLowerCase());
-
-				cache.onTransactionsSaved([transaction], function (err) {
-					cache.getJsonForKey(key, function (err, res) {
-						expect(err).to.not.exist;
-						expect(res).to.equal(null);
-						done();
-					});
-				});
-			});
-		});
-
-		it('should not remove keys when cacheReady = false', function (done) {
-			var key = '/api/delegates?123';
-			var value = {testObject: 'testValue'};
-
-			cache.setJsonForKey(key, value, function (err, status) {
-				expect(err).to.not.exist;
-				expect(status).to.equal('OK');
-				var transaction = node.lisk.delegate.createDelegate(node.randomPassword(), node.randomDelegateName().toLowerCase());
-
-				cache.onSyncStarted();
-				cache.onTransactionsSaved([transaction], function (err) {
-					expect(err).to.equal('Cache Unavailable');
-					cache.onSyncFinished();
-					cache.getJsonForKey(key, function (err, res) {
-						expect(err).to.not.exist;
-						expect(res).to.eql(value);
-						done();
-					});
-				});
-			});
-		});
-	});
+	// describe('onTransactionsSaved', function (done) {
+	//
+	// 	it('shouldnt remove keys with pattern /api/delegate if there is no type 2 trs', function (done) {
+	// 		var key = '/api/delegates?123';
+	// 		var value = {testObject: 'testValue'};
+	//
+	// 		cache.setJsonForKey(key, value, function (err, status) {
+	// 			expect(err).to.not.exist;
+	// 			expect(status).to.equal('OK');
+	// 			var transaction = node.lisk.transaction.createTransaction('1L', 1, node.gAccount.password, node.gAccount.secondPassword);
+	//
+	// 			cache.onTransactionsSaved([transaction], function (err) {
+	// 				cache.getJsonForKey(key, function (err, res) {
+	// 					expect(err).to.not.exist;
+	// 					expect(res).to.eql(value);
+	// 					done();
+	// 				});
+	// 			});
+	// 		});
+	// 	});
+	//
+	// 	it('should remove keys that match pattern /api/delegate on type 2 trs', function (done) {
+	// 		var key = '/api/delegates?123';
+	// 		var value = {testObject: 'testValue'};
+	//
+	// 		cache.setJsonForKey(key, value, function (err, status) {
+	// 			expect(err).to.not.exist;
+	// 			expect(status).to.equal('OK');
+	// 			var transaction = node.lisk.delegate.createDelegate(node.randomPassword(), node.randomDelegateName().toLowerCase());
+	//
+	// 			cache.onTransactionsSaved([transaction], function (err) {
+	// 				cache.getJsonForKey(key, function (err, res) {
+	// 					expect(err).to.not.exist;
+	// 					expect(res).to.equal(null);
+	// 					done();
+	// 				});
+	// 			});
+	// 		});
+	// 	});
+	//
+	// 	it('should not remove keys when cacheReady = false', function (done) {
+	// 		var key = '/api/delegates?123';
+	// 		var value = {testObject: 'testValue'};
+	//
+	// 		cache.setJsonForKey(key, value, function (err, status) {
+	// 			expect(err).to.not.exist;
+	// 			expect(status).to.equal('OK');
+	// 			var transaction = node.lisk.delegate.createDelegate(node.randomPassword(), node.randomDelegateName().toLowerCase());
+	//
+	// 			cache.onSyncStarted();
+	// 			cache.onTransactionsSaved([transaction], function (err) {
+	// 				expect(err).to.equal('Cache Unavailable');
+	// 				cache.onSyncFinished();
+	// 				cache.getJsonForKey(key, function (err, res) {
+	// 					expect(err).to.not.exist;
+	// 					expect(res).to.eql(value);
+	// 					done();
+	// 				});
+	// 			});
+	// 		});
+	// 	});
+	// });
 });

@@ -18,31 +18,70 @@ function putDelegate (params, done) {
 	node.put('/api/delegates', params, done);
 }
 
-function sendLISK (account, done) {
-	var randomLISK = node.randomLISK();
-	var expectedFee = node.expectedFee(randomLISK);
+// function sendLISK (account, done) {
+// 	var randomLISK = node.randomLISK();
+// 	var expectedFee = node.expectedFee(randomLISK);
+//
+// 	putTransaction({
+// 		secret: node.gAccount.password,
+// 		amount: randomLISK,
+// 		recipientId: account.address
+// 	}, function (err, res) {
+// 		node.expect(res.body).to.have.property('success').to.be.ok;
+// 		done(err, res);
+// 	});
+// }
 
-	putTransaction({
-		secret: node.gAccount.password,
-		amount: randomLISK,
-		recipientId: account.address
-	}, function (err, res) {
-		node.expect(res.body).to.have.property('success').to.be.ok;
-		done(err, res);
-	});
-}
+// before(function (done) {
+// 	setTimeout(function () {
+// 		sendLISK(account, done);
+// 	}, 2000);
+// });
 
-before(function (done) {
-	setTimeout(function () {
-		sendLISK(account, done);
-	}, 2000);
-});
+// before(function (done) {
+// 	setTimeout(function () {
+// 		sendLISK(account2, done);
+// 	}, 2000);
+  // describe('PUT /api/transactions from account with second signature enabled', function () {
+  //
+  //   before(function (done) {
+  //     node.onNewBlock(done);
+  //   });
+  //
+  //   var validParams;
+  //
+  //   beforeEach(function (done) {
+  //     validParams = {
+  //       secret: account.password,
+  //       secondSecret: account.password,
+  //       recipientId: account2.address,
+  //       amount: 100000000
+  //     };
+  //     done();
+  //   });
+  //
+  //   it('using no second passphase should fail', function (done) {
+  //     delete validParams.secondSecret;
+  //
+  //     putTransaction(validParams, function (err, res) {
+  //       node.expect(res.body).to.have.property('success').to.be.not.ok;
+  //       node.expect(res.body).to.have.property('error');
+  //       done();
+  //     });
+  //   });
+  //
+  //   it('using second passphase but no primary passphase should fail', function (done) {
+  //     delete validParams.secret;
+  //
+  //     putTransaction(validParams, function (err, res) {
+  //       node.expect(res.body).to.have.property('success').to.be.not.ok;
+  //       node.expect(res.body).to.have.property('error');
+  //       done();
+  //     });
+  //   });
+  // });
 
-before(function (done) {
-	setTimeout(function () {
-		sendLISK(account2, done);
-	}, 2000);
-});
+// });
 
 describe('PUT /api/signatures', function () {
 
@@ -99,45 +138,6 @@ describe('PUT /api/signatures', function () {
 			node.expect(res.body.transaction).to.have.property('senderPublicKey').to.equal(account.publicKey);
 			node.expect(res.body.transaction).to.have.property('senderId').to.equal(account.address);
 			node.expect(res.body.transaction).to.have.property('fee').to.equal(node.fees.secondPasswordFee);
-			done();
-		});
-	});
-});
-
-describe('PUT /api/transactions from account with second signature enabled', function () {
-
-	before(function (done) {
-		node.onNewBlock(done);
-	});
-
-	var validParams;
-
-	beforeEach(function (done) {
-		validParams = {
-			secret: account.password,
-			secondSecret: account.password,
-			recipientId: account2.address,
-			amount: 100000000
-		};
-		done();
-	});
-
-	it('using no second passphase should fail', function (done) {
-		delete validParams.secondSecret;
-
-		putTransaction(validParams, function (err, res) {
-			node.expect(res.body).to.have.property('success').to.be.not.ok;
-			node.expect(res.body).to.have.property('error');
-			done();
-		});
-	});
-
-	it('using second passphase but no primary passphase should fail', function (done) {
-		delete validParams.secret;
-
-		putTransaction(validParams, function (err, res) {
-			node.expect(res.body).to.have.property('success').to.be.not.ok;
-			node.expect(res.body).to.have.property('error');
 			done();
 		});
 	});
