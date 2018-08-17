@@ -35,15 +35,15 @@ For making process simplier, you can use tools/install_ubuntu_dependencies.sh sc
   System wide via package manager:
 
   ```
-  curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
+  curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
   sudo apt-get install -y nodejs
   ```
 
   Locally using [nvm](https://github.com/creationix/nvm):
 
   ```
-  curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.0/install.sh | bash
-  nvm install v6.10.1
+  curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
+  nvm install v10.9.0
   ```
 
 - Install PostgreSQL (version 9.6.2):
