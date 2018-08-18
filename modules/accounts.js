@@ -9,6 +9,7 @@ var schema = require('../schema/accounts.js');
 var sandboxHelper = require('../helpers/sandbox.js');
 var transactionTypes = require('../helpers/transactionTypes.js');
 var Vote = require('../logic/vote.js');
+var accounts = require('../helpers/accounts.js');
 
 // Private fields
 var modules, library, self, __private = {}, shared = {};
@@ -30,7 +31,7 @@ __private.blockReward = new BlockReward();
 function Accounts (cb, scope) {
     library = {
         ed: scope.ed,
-        accounts: scope.accounts,
+        accounts: accounts,
         schema: scope.schema,
         balancesSequence: scope.balancesSequence,
         logic: {
