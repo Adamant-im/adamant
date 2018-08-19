@@ -962,26 +962,24 @@ describe('transaction', function () {
 		});
 
 		it('should be okay with valid params', function (done) {
-			var trs = _.cloneDeep(validTransactionData);
-			trs.sender = _.cloneDeep(marketDelegate);
-			trs.sender.balance = 0;
-			transaction.applyUnconfirmed(trs, trs.sender, done);
+			var trs = _.cloneDeep(validUnconfirmedTrs);
+			transaction.applyUnconfirmed(trs, testSender, done);
 		});
 
 		it('should return error on if balance is low', function (done) {
-			var trs = _.cloneDeep(validTransaction);
-			trs.amount = '9850458911801908';
+			var trs = _.cloneDeep(validUnconfirmedTrs);
+			trs.amount = '985045891180190800000000000000';
 
-			transaction.applyUnconfirmed(trs, validSender, function (err) {
-				expect(err).to.include('Account does not have enough ');
+			transaction.applyUnconfirmed(trs, testSender, function (err) {
+				expect(err).to.include('Account does not have enough ADM');
 				done();
 			});
 		});
 
 		it('should okay for valid params', function (done) {
-			transaction.applyUnconfirmed(validTransaction, validSender, function (err) {
+			transaction.applyUnconfirmed(validUnconfirmedTrs, testSender, function (err) {
 				expect(err).to.not.exist;
-				undoUnconfirmedTransaction(validTransaction, validSender, done);
+				undoUnconfirmedTransaction(validUnconfirmedTrs, testSender, done);
 			});
 		});
 	});
