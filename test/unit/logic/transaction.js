@@ -912,14 +912,14 @@ describe('transaction', function () {
 
 		it('should not update sender balance when transaction is invalid', function (done) {
 
-			var trs = _.cloneDeep(validTransactionData);
+			var trs = _.cloneDeep(validUnconfirmedTrs);
 			var amount = new bignum(trs.amount.toString()).plus(trs.fee.toString());
 			delete trs.recipientId;
 
 			accountModule.getAccount({publicKey: trs.senderPublicKey}, function (err, accountBefore) {
 				var balanceBefore = new bignum(accountBefore.balance.toString());
 
-				transaction.undo(trs, dummyBlock, validSender, function (err) {
+				transaction.undo(trs, dummyBlock, testSender, function (err) {
 					accountModule.getAccount({publicKey: trs.senderPublicKey}, function (err, accountAfter) {
 						var balanceAfter = new bignum(accountAfter.balance.toString());
 
@@ -932,19 +932,19 @@ describe('transaction', function () {
 		});
 
 		it('should be okay with valid params', function (done) {
-			var trs = validTransactionData;
+			var trs = validUnconfirmedTrs;
 			var amount = new bignum(trs.amount.toString()).plus(trs.fee.toString());
 
 			accountModule.getAccount({publicKey: trs.senderPublicKey}, function (err, accountBefore) {
 				var balanceBefore = new bignum(accountBefore.balance.toString());
 
-				transaction.undo(trs, dummyBlock, validSender, function (err) {
+				transaction.undo(trs, dummyBlock, testSender, function (err) {
 					accountModule.getAccount({publicKey: trs.senderPublicKey}, function (err, accountAfter) {
 						expect(err).to.not.exist;
 
 						var balanceAfter = new bignum(accountAfter.balance.toString());
 						expect(balanceBefore.plus(amount).toString()).to.equal(balanceAfter.toString());
-						applyTransaction(trs, validSender, done);
+						applyTransaction(trs, testSender, done);
 					});
 				});
 			});
