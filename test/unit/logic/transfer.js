@@ -92,6 +92,27 @@ var rawValidTransaction = {
 	confirmations: 8343
 };
 
+var testSender = _.defaults({
+    address: 'U12559234133690317086',
+    publicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
+    secret: 'weather play vibrant large edge clean notable april fire smoke drift hidden',
+    u_balance: 1000000000000000000,
+    balance: 1000000000000000000
+},validSender);
+const testSenderHash = crypto.createHash('sha256').update(testSender.secret, 'utf8').digest();
+const testSenderKeypair = ed.makeKeypair(testSenderHash);
+var validUnconfirmedTrs = {
+    type: 0,
+    amount: 100,
+    senderPublicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
+    senderId: 'U12559234133690317086',
+    timestamp: 0,
+    asset: {},
+    recipientId: 'U7771441689362721578',
+    fee: 10000000,
+    signature: '6029db8004f1e208f9ead403260c15a5bbf4f874336e9fc7e34c771588e366f1727145b86184256c8bd496b1e7ef6f1359565fc2d68d5480bc131fdc859f800b'
+};
+
 
 describe('transfer', function () {
 	var transfer;
@@ -227,23 +248,23 @@ describe('transfer', function () {
 		});
 
 		it('should be okay for a valid transaction', function (done) {
-			accountModule.getAccount({address: validTransaction.recipientId}, function (err, accountBefore) {
+			accountModule.getAccount({address: validUnconfirmedTrs.recipientId}, function (err, accountBefore) {
 				expect(err).to.not.exist;
 				expect(accountBefore).to.exist;
 
-				var amount = new bignum(validTransaction.amount.toString());
+				var amount = new bignum(validUnconfirmedTrs.amount.toString());
 				var balanceBefore = new bignum(accountBefore.balance.toString());
 
-				transfer.apply.call(transaction, validTransaction, dummyBlock, validSender, function (err) {
+				transfer.apply.call(transaction, validUnconfirmedTrs, dummyBlock, testSender, function (err) {
 					expect(err).to.not.exist;
 
-					accountModule.getAccount({address: validTransaction.recipientId}, function (err, accountAfter) {
+					accountModule.getAccount({address: validUnconfirmedTrs.recipientId}, function (err, accountAfter) {
 						expect(err).to.not.exist;
 						expect(accountAfter).to.exist;
 
 						var balanceAfter = new bignum(accountAfter.balance.toString());
 						expect(balanceBefore.plus(amount).toString()).to.equal(balanceAfter.toString());
-						undoTransaction(validTransaction, validSender, done);
+						undoTransaction(validUnconfirmedTrs, testSender, done);
 					});
 				});
 			});
@@ -270,21 +291,21 @@ describe('transfer', function () {
 		});
 
 		it('should be okay for a valid transaction', function (done) {
-			accountModule.getAccount({address: validTransaction.recipientId}, function (err, accountBefore) {
+			accountModule.getAccount({address: validUnconfirmedTrs.recipientId}, function (err, accountBefore) {
 				expect(err).to.not.exist;
 
-				var amount = new bignum(validTransaction.amount.toString());
+				var amount = new bignum(validUnconfirmedTrs.amount.toString());
 				var balanceBefore = new bignum(accountBefore.balance.toString());
 
-				transfer.undo.call(transaction, validTransaction, dummyBlock, validSender, function (err) { 
+				transfer.undo.call(transaction, validUnconfirmedTrs, dummyBlock, testSender, function (err) {
 					expect(err).to.not.exist;
 
-					accountModule.getAccount({address: validTransaction.recipientId}, function (err, accountAfter) {
+					accountModule.getAccount({address: validUnconfirmedTrs.recipientId}, function (err, accountAfter) {
 						expect(err).to.not.exist;
 
 						var balanceAfter = new bignum(accountAfter.balance.toString());
 						expect(balanceAfter.plus(amount).toString()).to.equal(balanceBefore.toString());
-						applyTransaction(validTransaction, validSender, done);
+						applyTransaction(validUnconfirmedTrs, testSender, done);
 					});
 				});
 			});
@@ -330,22 +351,22 @@ describe('transfer', function () {
 			expect(transfer.ready(validTransaction, validSender)).to.equal(true);
 		});
 
-		it('should return false for multi signature transaction with less signatures', function () {
-			var trs = _.cloneDeep(validTransaction);
-			var vs = _.cloneDeep(validSender);
-			vs.multisignatures = [validKeypair.publicKey.toString('hex')];
-			expect(transaction.ready(trs, vs)).to.equal(false);
-		});
+		// it('should return false for multi signature transaction with less signatures', function () {
+		// 	var trs = _.cloneDeep(validTransaction);
+		// 	var vs = _.cloneDeep(validSender);
+		// 	vs.multisignatures = [validKeypair.publicKey.toString('hex')];
+		// 	expect(transaction.ready(trs, vs)).to.equal(false);
+		// });
 
-		it('should return true for multi signature transaction with alteast min signatures', function () {
-			var trs = _.cloneDeep(validTransaction);
-			var vs = _.cloneDeep(validSender);
-			vs.multisignatures = [validKeypair.publicKey.toString('hex')];
-			vs.multimin = 1;
-			delete trs.signature;
-			trs.signature = transaction.sign(senderKeypair, trs);
-			trs.signatures = [transaction.multisign(validKeypair, trs)];
-			expect(transaction.ready(trs, vs)).to.equal(true);
-		});
+		// it('should return true for multi signature transaction with alteast min signatures', function () {
+		// 	var trs = _.cloneDeep(validTransaction);
+		// 	var vs = _.cloneDeep(validSender);
+		// 	vs.multisignatures = [validKeypair.publicKey.toString('hex')];
+		// 	vs.multimin = 1;
+		// 	delete trs.signature;
+		// 	trs.signature = transaction.sign(senderKeypair, trs);
+		// 	trs.signatures = [transaction.multisign(validKeypair, trs)];
+		// 	expect(transaction.ready(trs, vs)).to.equal(true);
+		// });
 	});
 });
