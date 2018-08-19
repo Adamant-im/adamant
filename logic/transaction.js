@@ -473,14 +473,14 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
 	}
 
 	// Check for missing sender second signature
-	if (!trs.requesterPublicKey && sender.secondSignature && !trs.signSignature && trs.blockId !== this.scope.genesisblock.block.id) {
-		return setImmediate(cb, 'Missing sender second signature');
-	}
+	// if (!trs.requesterPublicKey && sender.secondSignature && !trs.signSignature && trs.blockId !== this.scope.genesisblock.block.id) {
+	// 	return setImmediate(cb, 'Missing sender second signature');
+	// }
 
 	// If second signature provided, check if sender has one enabled
-	if (!trs.requesterPublicKey && !sender.secondSignature && (trs.signSignature && trs.signSignature.length > 0)) {
-		return setImmediate(cb, 'Sender does not have a second signature');
-	}
+	// if (!trs.requesterPublicKey && !sender.secondSignature && (trs.signSignature && trs.signSignature.length > 0)) {
+	// 	return setImmediate(cb, 'Sender does not have a second signature');
+	// }
 
 	// Check for missing requester second signature
 	// if (trs.requesterPublicKey && requester.secondSignature && !trs.signSignature) {
@@ -515,30 +515,30 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
 	}
 
 	// Determine multisignatures from sender or transaction asset
-	var multisignatures = sender.multisignatures || sender.u_multisignatures || [];
-	if (multisignatures.length === 0) {
-		if (trs.asset && trs.asset.multisignature && trs.asset.multisignature.keysgroup) {
-
-			for (var i = 0; i < trs.asset.multisignature.keysgroup.length; i++) {
-				var key = trs.asset.multisignature.keysgroup[i];
-
-				if (!key || typeof key !== 'string') {
-					return setImmediate(cb, 'Invalid member in keysgroup');
-				}
-
-				multisignatures.push(key.slice(1));
-			}
-		}
-	}
-
-	// Check requester public key
-	if (trs.requesterPublicKey) {
-		multisignatures.push(trs.senderPublicKey);
-
-		if (sender.multisignatures.indexOf(trs.requesterPublicKey) < 0) {
-			return setImmediate(cb, 'Account does not belong to multisignature group');
-		}
-	}
+	// var multisignatures = sender.multisignatures || sender.u_multisignatures || [];
+	// if (multisignatures.length === 0) {
+	// 	if (trs.asset && trs.asset.multisignature && trs.asset.multisignature.keysgroup) {
+	//
+	// 		for (var i = 0; i < trs.asset.multisignature.keysgroup.length; i++) {
+	// 			var key = trs.asset.multisignature.keysgroup[i];
+	//
+	// 			if (!key || typeof key !== 'string') {
+	// 				return setImmediate(cb, 'Invalid member in keysgroup');
+	// 			}
+	//
+	// 			multisignatures.push(key.slice(1));
+	// 		}
+	// 	}
+	// }
+	//
+	// // Check requester public key
+	// if (trs.requesterPublicKey) {
+	// 	multisignatures.push(trs.senderPublicKey);
+	//
+	// 	if (sender.multisignatures.indexOf(trs.requesterPublicKey) < 0) {
+	// 		return setImmediate(cb, 'Account does not belong to multisignature group');
+	// 	}
+	// }
 
 	// Verify signature
 	try {

@@ -129,7 +129,7 @@ var existedTransaction = {
 // var genesisAcc = { ...validSender,
 // 	...{
 //         address: 'U15365455923155964650',
-//         publicKey: 'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae'
+//         publicKey: 'b80bbmarketDelegate6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae'
 // 	}
 // };
 
@@ -162,15 +162,25 @@ var genesisTrs = {
 	id: '17190511997607511181'
 };
 
+var testSender = _.defaults({
+    address: 'U12559234133690317086',
+    publicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
+	secret: 'weather play vibrant large edge clean notable april fire smoke drift hidden',
+	u_balance: 1000000000000000000,
+    balance: 1000000000000000000
+},validSender);
+const testSenderHash = crypto.createHash('sha256').update(testSender.secret, 'utf8').digest();
+const testSenderKeypair = ed.makeKeypair(testSenderHash);
 var validUnconfirmedTrs = {
 	type: 0,
 	amount: 100,
-	senderPublicKey: 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0',
-	senderId: 'U810656636599221322',
+	senderPublicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
+	senderId: 'U12559234133690317086',
 	timestamp: 0,
 	asset: {},
 	recipientId: 'U7771441689362721578',
 	fee: 10000000,
+    signature: '6029db8004f1e208f9ead403260c15a5bbf4f874336e9fc7e34c771588e366f1727145b86184256c8bd496b1e7ef6f1359565fc2d68d5480bc131fdc859f800b'
 };
 
 
@@ -717,47 +727,47 @@ describe('transaction', function () {
 		});
 
 		it('should verify transaction with correct fee (without data field)', function (done) {
-			let trs = _.cloneDeep(validTransactionData);
-            trs.signature = transaction.sign(marketDelegateKeypair, trs);
-			transaction.verify(trs, marketDelegate, {}, function (err) {
+			let trs = _.cloneDeep(validUnconfirmedTrs);
+            trs.signature = transaction.sign(testSenderKeypair, trs);
+			transaction.verify(trs, testSender, {}, function (err) {
 				expect(err).to.not.exist;
 				done();
 			});
 		});
 
 		it('should return error when transaction amount is invalid', function (done) {
-			var trsData = _.cloneDeep(validTransactionData);
+			var trsData = _.cloneDeep(validUnconfirmedTrs);
 			trsData.amount = node.constants.totalAmount + 10;
-			transaction.verify(trsData, marketDelegate, {}, function (err) {
+			transaction.verify(trsData, testSender, {}, function (err) {
 				expect(err).to.include('Invalid transaction amount');
 				done();
 			});
 		});
 
 		it('should return error when account balance is less than transaction amount', function (done) {
-			var trsData = _.cloneDeep(validTransactionData);
+			var trsData = _.cloneDeep(validUnconfirmedTrs);
 			trsData.amount = node.constants.totalAmount;
-			createAndProcess(trsData, validSender, function (trs) {
-				transaction.verify(trs, validSender, {}, function (err) {
-					expect(err).to.include('Account does not have enough LSK:');
+			createAndProcess(trsData, testSender, function (trs) {
+				transaction.verify(trs, testSender, {}, function (err) {
+					expect(err).to.include('Account does not have enough ADM:');
 					done();
 				});
 			});
 		});
 
 		it('should return error on future timestamp', function (done) {
-			var trs = _.cloneDeep(validTransaction);
+			var trs = _.cloneDeep(validUnconfirmedTrs);
 			trs.timestamp = slots.getTime() + 100;
 			delete trs.signature;
-			trs.signature = transaction.sign(senderKeypair, trs);
-			transaction.verify(trs, validSender, {}, function (err) {
+			trs.signature = transaction.sign(testSenderKeypair, trs);
+			transaction.verify(trs, testSender, {}, function (err) {
 				expect(err).to.include('Invalid transaction timestamp');
 				done();
 			});
 		});
 
 		it('should verify proper transaction with proper sender', function (done) {
-			transaction.verify(existedTransaction, genesis, {}, function (err) {
+			transaction.verify(validUnconfirmedTrs, testSender, {}, function (err) {
 				expect(err).to.not.be.ok;
 				done();
 			});
@@ -870,16 +880,16 @@ describe('transaction', function () {
 		});
 
 		it('should subtract balance from sender account on valid transaction', function (done) {
-			accountModule.getAccount({publicKey: validTransactionData.senderPublicKey}, function (err, accountBefore) {
-				var amount = new bignum(validTransaction.amount.toString()).plus(validTransaction.fee.toString());
+			accountModule.getAccount({publicKey: validUnconfirmedTrs.senderPublicKey}, function (err, accountBefore) {
+				var amount = new bignum(validUnconfirmedTrs.amount.toString()).plus(validUnconfirmedTrs.fee.toString());
 				var balanceBefore = new bignum(accountBefore.balance.toString());
 
-				transaction.apply(validTransaction, dummyBlock, validSender, function (err) {
-					accountModule.getAccount({publicKey: validTransaction.senderPublicKey}, function (err, accountAfter) {
+				transaction.apply(validUnconfirmedTrs, dummyBlock, testSender, function (err) {
+					accountModule.getAccount({publicKey: validUnconfirmedTrs.senderPublicKey}, function (err, accountAfter) {
 						expect(err).to.not.exist;
 						var balanceAfter = new bignum(accountAfter.balance.toString());
 						expect(balanceAfter.plus(amount).toString()).to.equal(balanceBefore.toString());
-						undoTransaction(validTransaction, validSender, done);
+						undoTransaction(validUnconfirmedTrs, testSender, done);
 					});
 				});
 			});
@@ -987,9 +997,10 @@ describe('transaction', function () {
 		});
 
 		it('should be okay with valid params', function (done) {
-			transaction.undoUnconfirmed(validTransaction, validSender, function (err) {
+
+			transaction.undoUnconfirmed(validUnconfirmedTrs, testSender, function (err) {
 				expect(err).to.not.exist;
-				applyUnconfirmedTransaction(validTransaction, validSender, done);
+				applyUnconfirmedTransaction(validUnconfirmedTrs, testSender, done);
 			}); 
 		});
 	});
