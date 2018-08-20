@@ -4,8 +4,10 @@
 var node = {};
 var Rounds = require('../modules/rounds.js');
 var slots = require('../helpers/slots.js');
+const _ = require('lodash');
+const ed = require('../helpers/ed');
 
-let Mnemonic = require('bitcore-mnemonic');
+const Mnemonic = require('bitcore-mnemonic');
 
 // Requires
 node.bignum = require('../helpers/bignum.js');
@@ -51,6 +53,44 @@ node.fees = {
 // 	icon: 'https://raw.githubusercontent.com/MaxKK/guestbookDapp/master/icon.png',
 // 	link: 'https://github.com/MaxKK/guestbookDapp/archive/master.zip'
 // };
+
+const validSender = {
+    username: null,
+    isDelegate: 0,
+    secondSignature: 0,
+    // address: 'U810656636599221322',
+    // publicKey: 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0',
+    secondPublicKey: null,
+    // balance: 9850458911801508,
+    // u_balance: 9850458911801508,
+    vote: 0,
+    multisignatures: null,
+    multimin: 0,
+    multilifetime: 0,
+    // blockId: '8505659485551877884',
+    nameexist: 0,
+    producedblocks: 0,
+    missedblocks: 0,
+    fees: 0,
+    rewards: 0,
+    virgin: 0
+};
+
+node.testSender = _.defaults({
+    address: 'U12559234133690317086',
+    publicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
+    secret: 'weather play vibrant large edge clean notable april fire smoke drift hidden',
+    u_balance: 1000000000000000000,
+    balance: 1000000000000000000
+},validSender);
+
+
+node.marketDelegate = _.defaults({
+    address: 'U12559234133690317086',
+    publicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
+    isDelegate: 1,
+    secret: 'rally clean ladder crane gadget century timber jealous shine scorpion beauty salon'
+},validSender);
 
 // Existing delegate account
 // TODO: replace me with a market delegate

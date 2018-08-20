@@ -31,23 +31,23 @@ describe('transactions', function () {
 		var testBody;
 
 		beforeEach(function () {
-			var account1PublicKey = node.lisk.crypto.getKeys(node.randomPassword()).publicKey;
-			var account2PublicKey = node.lisk.crypto.getKeys(node.randomPassword()).publicKey;
+			// var account1PublicKey = node.lisk.crypto.getKeys(node.randomPassword()).publicKey;
+			// var account2PublicKey = node.lisk.crypto.getKeys(node.randomPassword()).publicKey;
 
 			testBody = {
 				blockId: '1465651642158264047',
 				type: 0,
-				senderId: '1085993630748340485L',
-				senderPublicKey: 'c96dec3595ff6041c3bd28b76b8cf75dce8225173d1bd00241624ee89b50f2a8',
-				ownerPublicKey: 'c96dec3595ff6041c3bd28b76b8cf75dce8225173d1bd00241624ee89b50f2a8', 
-				ownerAddress: '1085993630748340485L', 
-				recipientId: '16313739661670634666L',
+				senderId: node.testSender.address,
+				senderPublicKey: node.testSender.publicKey,
+				ownerPublicKey: node.testSender.publicKey,
+				ownerAddress: node.testSender.address,
+				recipientId: node.marketDelegate.address,
 				amount: 100,
 				fee: 20,
-				senderPublicKeys: [account1PublicKey, account2PublicKey],
-				recipientPublicKeys: [account1PublicKey, account2PublicKey],
-				senderIds: [node.lisk.crypto.getAddress(account1PublicKey), node.lisk.crypto.getAddress(account2PublicKey)],
-				recipientIds: [node.lisk.crypto.getAddress(account1PublicKey), node.lisk.crypto.getAddress(account2PublicKey)],
+				senderPublicKeys: [node.testSender.publicKey, node.marketDelegate.publicKey],
+				recipientPublicKeys: [node.testSender.publicKey, node.marketDelegate.publicKey],
+				senderIds: [node.testSender.address, node.marketDelegate.address],
+				recipientIds: [node.testSender.address, node.marketDelegate.address],
 				fromHeight: 1,
 				toHeight: 2,
 				fromTimestamp: 0,
