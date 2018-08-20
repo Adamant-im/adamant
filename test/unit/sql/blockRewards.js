@@ -161,11 +161,11 @@ describe('BlockRewardsSQL', function () {
 		});
 
 		it('when height == (milestoneOne - 1) should return 500000000', function (done) {
-			calcBlockReward(45986485, 50000000, done);
+			calcBlockReward(45000000-1, 50000000, done);
 		});
 
 		it(`when height == (milestoneOne) should return ${constants.rewards.milestones[1]}`, function (done) {
-			calcBlockReward(45000000, constants.rewards.milestones[1], done);
+			calcBlockReward(45000000, constants.rewards.milestones[0], done);
 		});
 
 		it('when height == (milestoneOne + 1) should return 400000000', function (done) {
@@ -244,32 +244,32 @@ describe('BlockRewardsSQL', function () {
 			calcSupply(0, null, done);
 		});
 
-		it('when height == 1 should return 10000000000000000', function (done) {
-			calcSupply(1, 10000000000000000, done);
+		it(`when height == 1 should return ${constants.totalAmount}`, function (done) {
+			calcSupply(1, constants.totalAmount, done);
 		});
 
-		it('when height == (offset - 1) should return 10000000000000000', function (done) {
-			calcSupply(1451519, 10000000000000000, done);
+		it(`when height == (offset - 1) should return ${constants.totalAmount}`, function (done) {
+			calcSupply(constants.rewards.offset-1, constants.totalAmount, done);
 		});
 
-		it('when height == (offset) should return 10000000500000000', function (done) {
-			calcSupply(1451520, 10000000500000000, done);
+		it(`when height == (offset) should return ${constants.totalAmount+constants.rewards.milestones[0]}`, function (done) {
+			calcSupply(constants.rewards.offset, constants.totalAmount+constants.rewards.milestones[0], done);
 		});
 
-		it('when height == (offset + 1) should return 10000001000000000', function (done) {
-			calcSupply(1451521, 10000001000000000, done);
+		it(`when height == (offset + 1) should return ${constants.totalAmount+constants.rewards.milestones[0]*2}`, function (done) {
+			calcSupply(constants.rewards.offset+1, constants.totalAmount+constants.rewards.milestones[0]*2, done);
 		});
 
-		it('when height == (offset + 2) should return 10000001500000000', function (done) {
-			calcSupply(1451522, 10000001500000000, done);
+		it(`when height == (offset + 2) should return ${constants.totalAmount+constants.rewards.milestones[0]*3}`, function (done) {
+			calcSupply(constants.rewards.offset+2, constants.totalAmount+constants.rewards.milestones[0]*3, done);
 		});
 
-		it('when height == (distance) should return 10774240500000000', function (done) {
-			calcSupply(3000000, 10774240500000000, done);
+		it(`when height == (distance) should return ${constants.totalAmount+constants.rewards.milestones[0]}`, function (done) {
+			calcSupply(constants.rewards.distance, constants.totalAmount+constants.rewards.milestones[0], done);
 		});
 
 		it('when height == (distance + 1) should return 10774241000000000', function (done) {
-			calcSupply(3000001, 10774241000000000, done);
+			calcSupply(constants.rewards.distance+1, constants.totalAmount+constants.rewards.distance, done);
 		});
 
 		it('when height == (distance + 2) should return 10774241500000000', function (done) {
