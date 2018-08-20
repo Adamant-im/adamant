@@ -18,8 +18,8 @@ before(function (done) {
 	});
 });
 
-constants.rewards.distance = 3000000;
-constants.rewards.offset = 1451520;
+constants.rewards.distance = 6300000;
+constants.rewards.offset = 2000000;
 
 function calcBlockReward (height, reward, done) {
 	return db.query(sql.calcBlockReward, {height: height}).then(function (rows) {
@@ -132,40 +132,40 @@ describe('BlockRewardsSQL', function () {
 			calcBlockReward(1, 0, done);
 		});
 
-		it('when height == (offset - 1) should return 0', function (done) {
-			calcBlockReward(1451519, 0, done);
+		it(`when height == (offset - 1) should return 0`, function (done) {
+			calcBlockReward(constants.rewards.offset - 1, 0, done);
 		});
 
-		it('when height == (offset) should return 500000000', function (done) {
-			calcBlockReward(1451520, 500000000, done);
+		it(`when height == (offset) should return ${constants.rewards.milestones[0]}`, function (done) {
+			calcBlockReward(constants.rewards.offset, constants.rewards.milestones[0], done);
 		});
 
-		it('when height == (offset + 1) should return 500000000', function (done) {
-			calcBlockReward(1451521, 500000000, done);
+		it(`when height == (offset + 1) should return ${constants.rewards.milestones[0]}`, function (done) {
+			calcBlockReward(constants.rewards.offset + 1, constants.rewards.milestones[0], done);
 		});
 
-		it('when height == (offset + 2) should return 500000000', function (done) {
-			calcBlockReward(1451522, 500000000, done);
+		it(`when height == (offset + 2) should return ${constants.rewards.milestones[0]}`, function (done) {
+			calcBlockReward(constants.rewards.offset + 2, constants.rewards.milestones[0], done);
 		});
 
-		it('when height == (distance) should return 500000000', function (done) {
-			calcBlockReward(3000000, 500000000, done);
+		it(`when height == (distance) should return ${constants.rewards.milestones[0]}`, function (done) {
+			calcBlockReward(constants.rewards.distance, constants.rewards.milestones[0], done);
 		});
 
-		it('when height == (distance + 1) should return 500000000', function (done) {
-			calcBlockReward(3000001, 500000000, done);
+		it(`when height == (distance + 1) should return ${constants.rewards.milestones[0]}`, function (done) {
+			calcBlockReward(constants.rewards.distance+1, constants.rewards.milestones[0], done);
 		});
 
-		it('when height == (distance + 2) should return 500000000', function (done) {
-			calcBlockReward(3000002, 500000000, done);
+		it(`when height == (distance + 2) should return ${constants.rewards.milestones[0]}`, function (done) {
+			calcBlockReward(constants.rewards.distance+2, constants.rewards.milestones[0], done);
 		});
 
 		it('when height == (milestoneOne - 1) should return 500000000', function (done) {
-			calcBlockReward(4451519, 500000000, done);
+			calcBlockReward(45986485, 50000000, done);
 		});
 
-		it('when height == (milestoneOne) should return 400000000', function (done) {
-			calcBlockReward(4451520, 400000000, done);
+		it(`when height == (milestoneOne) should return ${constants.rewards.milestones[1]}`, function (done) {
+			calcBlockReward(45000000, constants.rewards.milestones[1], done);
 		});
 
 		it('when height == (milestoneOne + 1) should return 400000000', function (done) {
