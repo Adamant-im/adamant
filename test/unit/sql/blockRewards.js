@@ -89,6 +89,14 @@ function calcBlockReward_test (height_start, height_end, expected_reward, done) 
 	});
 };
 
+function milestoneHeight(milestoneNum){
+    return constants.rewards.distance*milestoneNum+constants.rewards.offset;
+}
+
+function milestoneSupply(milestoneNum, step){
+    return constants.totalAmount+constants.rewards.milestones[milestoneNum]*step;
+}
+
 describe('BlockRewardsSQL', function () {
 
 	describe('checking SQL function getBlockRewards()', function () {
@@ -160,71 +168,119 @@ describe('BlockRewardsSQL', function () {
 			calcBlockReward(constants.rewards.distance+2, constants.rewards.milestones[0], done);
 		});
 
-		it('when height == (milestoneOne - 1) should return 500000000', function (done) {
-			calcBlockReward(45000000-1, 50000000, done);
+		it(`when height == (milestoneOne - 1) should return ${constants.rewards.milestones[0]}`, function (done) {
+			calcBlockReward(milestoneHeight(1)-1, constants.rewards.milestones[0], done);
 		});
 
 		it(`when height == (milestoneOne) should return ${constants.rewards.milestones[1]}`, function (done) {
-			calcBlockReward(45000000, constants.rewards.milestones[0], done);
+			calcBlockReward(milestoneHeight(1), constants.rewards.milestones[1], done);
 		});
 
-		it('when height == (milestoneOne + 1) should return 400000000', function (done) {
-			calcBlockReward(4451521, 400000000, done);
+		it(`when height == (milestoneOne + 1) should return ${constants.rewards.milestones[1]}`, function (done) {
+			calcBlockReward(milestoneHeight(1)+1, constants.rewards.milestones[1], done);
 		});
 
-		it('when height == (milestoneTwo - 1) should return 400000000', function (done) {
-			calcBlockReward(7451519, 400000000, done);
+		it(`when height == (milestoneTwo - 1) should return ${constants.rewards.milestones[1]}`, function (done) {
+			calcBlockReward(milestoneHeight(2)-1, constants.rewards.milestones[1], done);
 		});
 
-		it('when height == (milestoneTwo) should return 300000000', function (done) {
-			calcBlockReward(7451521, 300000000, done);
+		it(`when height == (milestoneTwo) should return ${constants.rewards.milestones[2]}`, function (done) {
+			calcBlockReward(milestoneHeight(2), constants.rewards.milestones[2], done);
 		});
 
-		it('when height == (milestoneTwo + 1) should return 300000000', function (done) {
-			calcBlockReward(7451522, 300000000, done);
+		it(`when height == (milestoneTwo + 1) should return ${constants.rewards.milestones[2]}`, function (done) {
+			calcBlockReward(milestoneHeight(2)+1, constants.rewards.milestones[2], done);
 		});
 
-		it('when height == (milestoneThree - 1) should return 300000000', function (done) {
-			calcBlockReward(10451519, 300000000, done);
+		it(`when height == (milestoneThree - 1) should return ${constants.rewards.milestones[2]}`, function (done) {
+			calcBlockReward(milestoneHeight(3)-1, constants.rewards.milestones[2], done);
 		});
 
-		it('when height == (milestoneThree) should return 200000000', function (done) {
-			calcBlockReward(10451520, 200000000, done);
+		it(`when height == (milestoneThree) should return ${constants.rewards.milestones[3]}`, function (done) {
+			calcBlockReward(milestoneHeight(3), constants.rewards.milestones[3], done);
 		});
 
-		it('when height == (milestoneThree + 1) should return 200000000', function (done) {
-			calcBlockReward(10451521, 200000000, done);
+		it(`when height == (milestoneThree + 1) should return ${constants.rewards.milestones[1]}`, function (done) {
+			calcBlockReward(milestoneHeight(3)+1, constants.rewards.milestones[3], done);
 		});
 
-		it('when height == (milestoneFour - 1) should return 200000000', function (done) {
-			calcBlockReward(13451519, 200000000, done);
+		it(`when height == (milestoneFour - 1) should return ${constants.rewards.milestones[3]}`, function (done) {
+			calcBlockReward(milestoneHeight(4)-1, constants.rewards.milestones[3], done);
 		});
 
-		it('when height == (milestoneFour) should return 100000000', function (done) {
-			calcBlockReward(13451520, 100000000, done);
+		it(`when height == (milestoneFour) should return ${constants.rewards.milestones[4]}`, function (done) {
+			calcBlockReward(milestoneHeight(4), constants.rewards.milestones[4], done);
 		});
 
-		it('when height == (milestoneFour + 1) should return 100000000', function (done) {
-			calcBlockReward(13451521, 100000000, done);
+		it(`when height == (milestoneFour + 1) should return ${constants.rewards.milestones[4]}`, function (done) {
+			calcBlockReward(milestoneHeight(4)+1, constants.rewards.milestones[4], done);
 		});
 
-		it('when height == (milestoneFour * 2) should return 100000000', function (done) {
-			calcBlockReward((13451520 * 2), 100000000, done);
+        it(`when height == (milestoneFive - 1) should return ${constants.rewards.milestones[4]}`, function (done) {
+            calcBlockReward(milestoneHeight(5)-1, constants.rewards.milestones[4], done);
+        });
+
+        it(`when height == (milestoneFive) should return ${constants.rewards.milestones[5]}`, function (done) {
+            calcBlockReward(milestoneHeight(5), constants.rewards.milestones[5], done);
+        });
+
+        it(`when height == (milestoneFive + 1) should return ${constants.rewards.milestones[5]}`, function (done) {
+            calcBlockReward(milestoneHeight(5)+1, constants.rewards.milestones[5], done);
+        });
+
+        it(`when height == (milestoneSix - 1) should return ${constants.rewards.milestones[5]}`, function (done) {
+            calcBlockReward(milestoneHeight(6)-1, constants.rewards.milestones[5], done);
+        });
+
+        it(`when height == (milestoneSix) should return ${constants.rewards.milestones[6]}`, function (done) {
+            calcBlockReward(milestoneHeight(6), constants.rewards.milestones[6], done);
+        });
+
+        it(`when height == (milestoneSix + 1) should return ${constants.rewards.milestones[6]}`, function (done) {
+            calcBlockReward(milestoneHeight(6)+1, constants.rewards.milestones[6], done);
+        });
+
+        it(`when height == (milestoneSeven - 1) should return ${constants.rewards.milestones[6]}`, function (done) {
+            calcBlockReward(milestoneHeight(7)-1, constants.rewards.milestones[6], done);
+        });
+
+        it(`when height == (milestoneSeven) should return ${constants.rewards.milestones[7]}`, function (done) {
+            calcBlockReward(milestoneHeight(7), constants.rewards.milestones[7], done);
+        });
+
+        it(`when height == (milestoneSeven + 1) should return ${constants.rewards.milestones[7]}`, function (done) {
+            calcBlockReward(milestoneHeight(7)+1, constants.rewards.milestones[7], done);
+        });
+
+        it(`when height == (milestoneEight - 1) should return ${constants.rewards.milestones[7]}`, function (done) {
+            calcBlockReward(milestoneHeight(8)-1, constants.rewards.milestones[7], done);
+        });
+
+        it(`when height == (milestoneEight) should return ${constants.rewards.milestones[8]}`, function (done) {
+            calcBlockReward(milestoneHeight(8), constants.rewards.milestones[8], done);
+        });
+
+        it(`when height == (milestoneEight + 1) should return ${constants.rewards.milestones[8]}`, function (done) {
+            calcBlockReward(milestoneHeight(8)+1, constants.rewards.milestones[8], done);
+        });
+
+        it(`when height == (milestoneEight * 2) should return ${constants.rewards.milestones[8]}`, function (done) {
+			calcBlockReward((milestoneHeight(8) * 2), constants.rewards.milestones[8], done);
 		});
 
-		it('when height == (milestoneFour * 10) should return 100000000', function (done) {
-			calcBlockReward((13451520 * 10), 100000000, done);
-		});
+        it(`when height == (milestoneEight * 10) should return ${constants.rewards.milestones[8]}`, function (done) {
+            calcBlockReward((milestoneHeight(8) * 10), constants.rewards.milestones[8], done);
+        });
 
-		it('when height == (milestoneFour * 100) should return 100000000', function (done) {
-			// Height, expected reward, callback
-			calcBlockReward((13451520 * 100), 100000000, done);
-		});
+        it(`when height == (milestoneEight * 100) should return ${constants.rewards.milestones[8]}`, function (done) {
+            calcBlockReward((milestoneHeight(8) * 100), constants.rewards.milestones[8], done);
+        });
 
-		// Following example expected to fail because height is int and (milestoneFour * 1000) is bigint
+
+		// Following example expected to fail because height is int and (milestoneEight * 1000) is bigint
 		// However, it will take 400+ years to reach height of last passing test, so is safe to ignore
-		it('when height == (milestoneFour * 1000) should overflow int and return error', function (done) {
-			db.query(sql.calcBlockReward, {height: (13451520 * 1000)}).then(function (rows) {
+		it('when height == (milestoneEight * 1000) should overflow int and return error', function (done) {
+			db.query(sql.calcBlockReward, {height: (milestoneHeight(8) * 1000)}).then(function (rows) {
 				done('Should not pass');
 			}).catch(function (err) {
 				expect(err).to.be.an('error');
