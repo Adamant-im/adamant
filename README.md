@@ -6,13 +6,17 @@ ADAMANT is the most secure and anonymous messenger, encrypted with Blockchain.
 
 Highlights:
 
-– The most secure and anonymous messenger (see comparison table)
-– A working product. Try it now: <https://msg.adamant.im/>
-– Trusted. Open-source project.
-– The only one which is Blockchain-powered
-– Integrated token transfer
+- The most secure and anonymous messenger (see comparison table on the Website)
+- A working product. Try it now: <https://msg.adamant.im/>
+- iOS and Android apps available
+- Trusted. Open-source project.
+- Brand new [Fair dPoS](https://medium.com/adamant-im/fair-delegate-system-in-dpos-568e5c3c86c8) consensus
+- The only one which is Blockchain-powered
+- Integrated crypto transfers
 
 **Use this repository to run your own ADAMANT node and support true messaging distribution. You can also promote your node to a delegate to forge blocks and receive ADM block rewards**
+
+How to run ADAMANT node: [Instructions for users](https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc)
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
 
@@ -104,8 +108,7 @@ createdb adamant_test
 createdb adamant_main
 sudo -u postgres psql -d adamant_test -c "alter user "$USER" with password 'password';"
 sudo -u postgres psql -d adamant_main -c "alter user "$USER" with password 'password';"
-  
-  
+
 npm install
 ```
 
@@ -135,7 +138,7 @@ pm2 start --name adamant app.js -- -p [port] -a [address] -c [config-path]
 
 ## Tests
 
-Before running any tests, please ensure Secu is configured to run on the same testnet that is used by the test-suite.
+Before running any tests, please ensure ADAMANT is configured to run on the same testnet that is used by the test-suite.
 
 Replace **config.json** and **genesisBlock.json** with the corresponding files under the **test** directory:
 
@@ -189,6 +192,7 @@ npm test -- test/lib/transactions.js
 
 ## License
 
+Copyright © 2017-2018 ADAMANT TECH LABS LP
 Copyright © 2016-2017 Lisk Foundation
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
