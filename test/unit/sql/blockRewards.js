@@ -89,11 +89,11 @@ function calcBlockReward_test (height_start, height_end, expected_reward, done) 
 	});
 };
 
-function milestoneHeight(milestoneNum){
+function milestoneHeight (milestoneNum) {
     return constants.rewards.distance*milestoneNum+constants.rewards.offset;
 }
 
-function milestoneSupply(milestoneNum, step){
+function milestoneSupply (milestoneNum, step) {
     return constants.totalAmount+constants.rewards.milestones[milestoneNum]*step;
 }
 
@@ -140,7 +140,7 @@ describe('BlockRewardsSQL', function () {
 			calcBlockReward(1, 0, done);
 		});
 
-		it(`when height == (offset - 1) should return 0`, function (done) {
+		it('when height == (offset - 1) should return 0', function (done) {
 			calcBlockReward(constants.rewards.offset - 1, 0, done);
 		});
 
@@ -426,7 +426,7 @@ describe('BlockRewardsSQL', function () {
                 +constants.rewards.milestones[4]*2, done);
 		});
 
-        it(`when height == (milestoneFive - 1) should return 15545152100000000`, function (done) {
+        it(`when height == (milestoneFive - 1) should return ${milestoneSupply(0,milestoneHeight(1)-constants.rewards.offset)}`, function (done) {
             calcSupply(milestoneHeight(5)-1, milestoneSupply(0,milestoneHeight(1)-constants.rewards.offset)
                 +(constants.rewards.milestones[1]*constants.rewards.distance)
                 +(constants.rewards.milestones[2]*constants.rewards.distance)

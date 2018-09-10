@@ -6,11 +6,11 @@ var expect = require('chai').expect;
 var BlockReward = require('../../../logic/blockReward.js');
 var constants = require('../../../helpers/constants.js');
 
-function milestoneHeight(milestoneNum){
+function milestoneHeight (milestoneNum) {
     return constants.rewards.distance*milestoneNum+constants.rewards.offset;
 }
 
-function milestoneSupply(milestoneNum, step){
+function milestoneSupply (milestoneNum, step) {
     return constants.totalAmount+constants.rewards.milestones[milestoneNum]*step;
 }
 
@@ -699,7 +699,7 @@ describe('BlockReward', function () {
                         +(constants.rewards.milestones[4]*constants.rewards.distance)
                         +(constants.rewards.milestones[5]*constants.rewards.distance)
                         +(constants.rewards.milestones[6]*constants.rewards.distance)
-                        +(constants.rewards.milestones[7]*constants.rewards.distance)-1)
+                        +(constants.rewards.milestones[7]*constants.rewards.distance)-1);
             }
 		);
 
@@ -722,7 +722,7 @@ describe('BlockReward', function () {
                         +(constants.rewards.milestones[5]*constants.rewards.distance)
                         +(constants.rewards.milestones[6]*constants.rewards.distance)
                         +(constants.rewards.milestones[7]*constants.rewards.distance)
-                        +(constants.rewards.milestones[8]))
+                        +(constants.rewards.milestones[8]));
             }
         );
 
@@ -745,7 +745,7 @@ describe('BlockReward', function () {
                         +(constants.rewards.milestones[5]*constants.rewards.distance)
                         +(constants.rewards.milestones[6]*constants.rewards.distance)
                         +(constants.rewards.milestones[7]*constants.rewards.distance)
-                        +(constants.rewards.milestones[8]*2))
+                        +(constants.rewards.milestones[8]*2));
             }
         );
 
@@ -770,7 +770,7 @@ describe('BlockReward', function () {
                         +(constants.rewards.milestones[6]*constants.rewards.distance)
                         +(constants.rewards.milestones[7]*constants.rewards.distance)
              	   		+constants.rewards.milestones[8]*milestoneHeight(8)
-						+constants.rewards.milestones[8])
+						+constants.rewards.milestones[8]);
             }
         );
 
@@ -795,7 +795,7 @@ describe('BlockReward', function () {
                         +(constants.rewards.milestones[6]*constants.rewards.distance)
                         +(constants.rewards.milestones[7]*constants.rewards.distance)
                         +constants.rewards.milestones[8]*milestoneHeight(8)*9
-                        +constants.rewards.milestones[8])
+                        +constants.rewards.milestones[8]);
             }
         );
 
@@ -820,7 +820,7 @@ describe('BlockReward', function () {
                         +(constants.rewards.milestones[6]*constants.rewards.distance)
                         +(constants.rewards.milestones[7]*constants.rewards.distance)
                         +constants.rewards.milestones[8]*milestoneHeight(8)*99
-                        +constants.rewards.milestones[8])
+                        +constants.rewards.milestones[8]);
             }
         );
 
@@ -845,7 +845,7 @@ describe('BlockReward', function () {
                         +(constants.rewards.milestones[6]*constants.rewards.distance)
                         +(constants.rewards.milestones[7]*constants.rewards.distance)
                         +constants.rewards.milestones[8]*milestoneHeight(8)*999
-                        +constants.rewards.milestones[8])
+                        +constants.rewards.milestones[8]);
             }
         );
 
@@ -870,7 +870,7 @@ describe('BlockReward', function () {
                         +(constants.rewards.milestones[6]*constants.rewards.distance)
                         +(constants.rewards.milestones[7]*constants.rewards.distance)
                         +constants.rewards.milestones[8]*milestoneHeight(8)*9999
-                        +constants.rewards.milestones[8])
+                        +constants.rewards.milestones[8]);
             }
         );
 
@@ -895,7 +895,7 @@ describe('BlockReward', function () {
                         +(constants.rewards.milestones[6]*constants.rewards.distance)
                         +(constants.rewards.milestones[7]*constants.rewards.distance)
                         +constants.rewards.milestones[8]*milestoneHeight(8)*99999
-                        +constants.rewards.milestones[8])
+                        +constants.rewards.milestones[8]);
             }
         );
 
