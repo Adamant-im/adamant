@@ -166,11 +166,11 @@ var testSender = _.defaults({
     address: 'U12559234133690317086',
     publicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
 	secret: 'weather play vibrant large edge clean notable april fire smoke drift hidden',
-	u_balance: 1000000000000000000,
-    balance: 1000000000000000000
+	u_balance: 10000000000000,
+    balance: 100000000000000
 },validSender);
-const testSenderHash = crypto.createHash('sha256').update(testSender.secret, 'utf8').digest();
-const testSenderKeypair = ed.makeKeypair(testSenderHash);
+const testSenderHash = node.accounts.createPassPhraseHash(testSender.secret) //crypto.createHash('sha256').update(testSender.secret, 'utf8').digest();
+const testSenderKeypair = node.accounts.makeKeypair(testSenderHash);
 var validUnconfirmedTrs = {
 	type: 0,
 	amount: 100,
@@ -179,8 +179,7 @@ var validUnconfirmedTrs = {
 	timestamp: 0,
 	asset: {},
 	recipientId: 'U7771441689362721578',
-	fee: 10000000,
-    signature: '6029db8004f1e208f9ead403260c15a5bbf4f874336e9fc7e34c771588e366f1727145b86184256c8bd496b1e7ef6f1359565fc2d68d5480bc131fdc859f800b'
+	fee: 50000000
 };
 
 
@@ -737,7 +736,8 @@ describe('transaction', function () {
 
 		it('should return error when transaction amount is invalid', function (done) {
 			var trsData = _.cloneDeep(validUnconfirmedTrs);
-			trsData.amount = node.constants.totalAmount + 10;
+            trsData.amount = node.constants.totalAmount + 10;
+			trsData.signature = transaction.sign(testSenderKeypair, trsData);
 			transaction.verify(trsData, testSender, {}, function (err) {
 				expect(err).to.include('Invalid transaction amount');
 				done();
@@ -747,11 +747,10 @@ describe('transaction', function () {
 		it('should return error when account balance is less than transaction amount', function (done) {
 			var trsData = _.cloneDeep(validUnconfirmedTrs);
 			trsData.amount = node.constants.totalAmount;
-			createAndProcess(trsData, testSender, function (trs) {
-				transaction.verify(trs, testSender, {}, function (err) {
-					expect(err).to.include('Account does not have enough ADM:');
-					done();
-				});
+			trsData.signature = transaction.sign(testSenderKeypair, trsData);
+			transaction.verify(trsData, testSender, {}, function (err) {
+				expect(err).to.include('Account does not have enough ADM:');
+				done();
 			});
 		});
 
@@ -767,7 +766,9 @@ describe('transaction', function () {
 		});
 
 		it('should verify proper transaction with proper sender', function (done) {
-			transaction.verify(validUnconfirmedTrs, testSender, {}, function (err) {
+			let trs = _.cloneDeep(validUnconfirmedTrs);
+			trs.signature = transaction.sign(testSenderKeypair, trs);
+			transaction.verify(trs, testSender, {}, function (err) {
 				expect(err).to.not.be.ok;
 				done();
 			});
