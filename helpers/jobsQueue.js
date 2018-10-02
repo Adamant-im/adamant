@@ -6,7 +6,8 @@ var jobsQueue = {
 
 	register: function (name, job, time) {
 		if (this.jobs[name]) {
-			throw new Error('Synchronous job ' + name  + ' already registered');
+			return this.jobs[name];
+			// throw new Error('Synchronous job ' + name  + ' already registered');
 		}
 
 		var nextJob = function () {
