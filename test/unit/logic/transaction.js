@@ -169,7 +169,7 @@ var testSender = _.defaults({
 	u_balance: 10000000000000,
     balance: 100000000000000
 },validSender);
-const testSenderHash = node.accounts.createPassPhraseHash(testSender.secret) //crypto.createHash('sha256').update(testSender.secret, 'utf8').digest();
+const testSenderHash = node.accounts.createPassPhraseHash(testSender.secret); //crypto.createHash('sha256').update(testSender.secret, 'utf8').digest();
 const testSenderKeypair = node.accounts.makeKeypair(testSenderHash);
 var validUnconfirmedTrs = {
 	type: 0,
