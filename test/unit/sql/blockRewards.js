@@ -272,22 +272,17 @@ describe('BlockRewardsSQL', function () {
             calcBlockReward((milestoneHeight(8) * 10), constants.rewards.milestones[8], done);
         });
 
-        it(`when height == (milestoneEight * 100) should return ${constants.rewards.milestones[8]}`, function (done) {
-            calcBlockReward((milestoneHeight(8) * 100), constants.rewards.milestones[8], done);
+        // Following example expected to fail because height is int and (milestoneEight * 100) is bigint
+        // However, it will take 400+ years to reach height of last passing test, so is safe to ignore
+        it(`when height == (milestoneEight * 100) should overflow int and return error`, function (done) {
+            db.query(sql.calcBlockReward, {height: (milestoneHeight(8) * 100)}).then(function (rows) {
+                done('Should not pass');
+            }).catch(function (err) {
+                expect(err).to.be.an('error');
+                expect(err.message).to.contain('calcblockreward(bigint)');
+                done();
+            });
         });
-
-
-		// Following example expected to fail because height is int and (milestoneEight * 1000) is bigint
-		// However, it will take 400+ years to reach height of last passing test, so is safe to ignore
-		it('when height == (milestoneEight * 1000) should overflow int and return error', function (done) {
-			db.query(sql.calcBlockReward, {height: (milestoneHeight(8) * 1000)}).then(function (rows) {
-				done('Should not pass');
-			}).catch(function (err) {
-				expect(err).to.be.an('error');
-				expect(err.message).to.contain('function calcblockreward(bigint) does not exist');
-				done();
-			});
-		});
 	});
 
 	describe('checking SQL function calcSupply(int)', function () {
@@ -670,7 +665,7 @@ describe('BlockRewardsSQL', function () {
 				done('Should not pass');
 			}).catch(function (err) {
 				expect(err).to.be.an('error');
-				expect(err.message).to.contain('function calcsupply(bigint) does not exist');
+				expect(err.message).to.contain('calcsupply(bigint)');
 				done();
 			});
 		});
