@@ -192,6 +192,15 @@ function Account (db, schema, logger, cb) {
 			conv: Number,
 			expression: '("vote")::bigint'
 		},
+        {
+            name: 'votesWeight',
+            type: 'BigInt',
+            filter: {
+                type: 'integer'
+            },
+            conv: Number,
+            expression: '("votesWeight")::bigint'
+        },
 		{
 			name: 'rate',
 			type: 'BigInt',

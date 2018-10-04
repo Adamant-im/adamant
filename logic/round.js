@@ -136,6 +136,14 @@ Round.prototype.flushRound = function () {
 };
 
 /**
+ * Calls sql reCalcVotes: Update voteWeights in mem_account table.
+ * @return {function} Promise
+ */
+Round.prototype.reCalcVotes = function () {
+    return this.t.none(sql.reCalcVotes);
+};
+
+/**
  * Calls sql truncateBlocks: deletes blocks greather than height from 
  * `blocks` table.
  * @return {function} Promise
@@ -243,10 +251,12 @@ Round.prototype.applyRound = function () {
  */
 Round.prototype.land = function () {
 	return this.updateVotes()
+        .then(this.reCalcVotes.bind(this))
 		.then(this.updateMissedBlocks.bind(this))
 		.then(this.flushRound.bind(this))
 		.then(this.applyRound.bind(this))
 		.then(this.updateVotes.bind(this))
+        .then(this.reCalcVotes.bind(this))
 		.then(this.flushRound.bind(this))
 		.then(function () {
 			return this.t;
@@ -273,10 +283,12 @@ Round.prototype.land = function () {
  */
 Round.prototype.backwardLand = function () {
 	return this.updateVotes()
+        .then(this.reCalcVotes.bind(this))
 		.then(this.updateMissedBlocks.bind(this))
 		.then(this.flushRound.bind(this))
 		.then(this.applyRound.bind(this))
 		.then(this.updateVotes.bind(this))
+        .then(this.reCalcVotes.bind(this))
 		.then(this.flushRound.bind(this))
 		.then(this.restoreRoundSnapshot.bind(this))
 		.then(this.restoreVotesSnapshot.bind(this))

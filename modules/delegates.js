@@ -93,6 +93,27 @@ __private.getKeysSortByVote = function (cb) {
 };
 
 /**
+ * Gets delegate public keys sorted by votesWeight descending.
+ * @private
+ * @param {function} cb - Callback function.
+ * @returns {setImmediateCallback}
+ */
+__private.getKeysSortByVotesWeight = function (cb) {
+    modules.accounts.getAccounts({
+        isDelegate: 1,
+        sort: {'votesWeight': -1, 'publicKey': 1},
+        limit: slots.delegates
+    }, ['publicKey'], function (err, rows) {
+        if (err) {
+            return setImmediate(cb, err);
+        }
+        return setImmediate(cb, null, rows.map(function (el) {
+            return el.publicKey;
+        }));
+    });
+};
+
+/**
  * Gets slot time and keypair.
  * @private
  * @param {number} slot
@@ -347,26 +368,50 @@ __private.loadDelegates = function (cb) {
  * @todo explain seed.
  */
 Delegates.prototype.generateDelegateList = function (height, cb) {
-	__private.getKeysSortByVote(function (err, truncDelegateList) {
-		if (err) {
-			return setImmediate(cb, err);
-		}
+    if (height > constants.fairSystemActivateBlock) {
+        __private.getKeysSortByVotesWeight(function (err, truncDelegateList) {
+            if (err) {
+                return setImmediate(cb, err);
+            }
 
-		var seedSource = modules.rounds.calc(height).toString();
-		var currentSeed = crypto.createHash('sha256').update(seedSource, 'utf8').digest();
+            var seedSource = modules.rounds.calc(height).toString();
+            var currentSeed = crypto.createHash('sha256').update(seedSource, 'utf8').digest();
 
-		for (var i = 0, delCount = truncDelegateList.length; i < delCount; i++) {
-			for (var x = 0; x < 4 && i < delCount; i++, x++) {
-				var newIndex = currentSeed[x] % delCount;
-				var b = truncDelegateList[newIndex];
-				truncDelegateList[newIndex] = truncDelegateList[i];
-				truncDelegateList[i] = b;
-			}
-			currentSeed = crypto.createHash('sha256').update(currentSeed).digest();
-		}
+            for (var i = 0, delCount = truncDelegateList.length; i < delCount; i++) {
+                for (var x = 0; x < 4 && i < delCount; i++, x++) {
+                    var newIndex = currentSeed[x] % delCount;
+                    var b = truncDelegateList[newIndex];
+                    truncDelegateList[newIndex] = truncDelegateList[i];
+                    truncDelegateList[i] = b;
+                }
+                currentSeed = crypto.createHash('sha256').update(currentSeed).digest();
+            }
 
-		return setImmediate(cb, null, truncDelegateList);
-	});
+            return setImmediate(cb, null, truncDelegateList);
+        });
+    }
+    else {
+        __private.getKeysSortByVote(function (err, truncDelegateList) {
+            if (err) {
+                return setImmediate(cb, err);
+            }
+
+            var seedSource = modules.rounds.calc(height).toString();
+            var currentSeed = crypto.createHash('sha256').update(seedSource, 'utf8').digest();
+
+            for (var i = 0, delCount = truncDelegateList.length; i < delCount; i++) {
+                for (var x = 0; x < 4 && i < delCount; i++, x++) {
+                    var newIndex = currentSeed[x] % delCount;
+                    var b = truncDelegateList[newIndex];
+                    truncDelegateList[newIndex] = truncDelegateList[i];
+                    truncDelegateList[i] = b;
+                }
+                currentSeed = crypto.createHash('sha256').update(currentSeed).digest();
+            }
+
+            return setImmediate(cb, null, truncDelegateList);
+        });
+    }
 };
 
 /**
@@ -381,10 +426,14 @@ Delegates.prototype.getDelegates = function (query, cb) {
 	if (!query) {
 		throw 'Missing query argument';
 	}
+    var sortFilter = { 'vote': -1, 'publicKey': 1 };
+	if (modules.blocks.lastBlock.get().height>constants.fairSystemActivateBlock) {
+        sortFilter = { 'votesWeight': -1, 'publicKey': 1 };
+    }
 	modules.accounts.getAccounts({
 		isDelegate: 1,
-		sort: { 'vote': -1, 'publicKey': 1 }
-	}, ['username', 'address', 'publicKey', 'vote', 'missedblocks', 'producedblocks'], function (err, delegates) {
+		sort: sortFilter
+	}, ['username', 'address', 'publicKey', 'votesWeight', 'vote', 'missedblocks', 'producedblocks'], function (err, delegates) {
 		if (err) {
 			return setImmediate(cb, err);
 		}
@@ -406,7 +455,12 @@ Delegates.prototype.getDelegates = function (query, cb) {
 			// TODO: 'rate' property is deprecated and need to be removed after transitional period
 			delegates[i].rate = i + 1;
 			delegates[i].rank = i + 1;
-			delegates[i].approval = (delegates[i].vote / totalSupply) * 100;
+            if (modules.blocks.lastBlock.get().height>constants.fairSystemActivateBlock) {
+                delegates[i].approval = (delegates[i].votesWeight / totalSupply) * 100;
+            }
+            else {
+                delegates[i].approval = (delegates[i].vote / totalSupply) * 100;
+            }
 			delegates[i].approval = Math.round(delegates[i].approval * 1e2) / 1e2;
 
 			var percent = 100 - (delegates[i].missedblocks / ((delegates[i].producedblocks + delegates[i].missedblocks) / 100));
@@ -495,8 +549,6 @@ Delegates.prototype.validateBlockSlot = function (block, cb) {
 
 		var currentSlot = slots.getSlotNumber(block.timestamp);
 		var delegate_id = activeDelegates[currentSlot % slots.delegates];
-		// var nextDelegate_id = activeDelegates[(currentSlot + 1) % slots.delegates];
-		// var previousDelegate_id = activeDelegates[(currentSlot - 1) % slots.delegates];
 
 		if (delegate_id && block.generatorPublicKey === delegate_id) {
 			return setImmediate(cb);
