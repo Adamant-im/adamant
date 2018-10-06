@@ -72,6 +72,9 @@ var validTransaction = {
 	senderId: 'U810656636599221322'
 };
 
+var existedDelegateKey = '81dd616f47bda681c929b9035aa1cbc9c41ba9d4af91f04744d1325e1b1af099';
+var invalidDelegateKey = 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30fg';
+
 describe('vote', function () {
 
 	var voteBindings;
@@ -454,7 +457,7 @@ describe('vote', function () {
 
 		it('should be okay when removing vote for a delegate', function (done) {
 			var trs = _.cloneDeep(validTransaction);
-			trs.asset.votes = ['-81dd616f47bda681c929b9035aa1cbc9c41ba9d4af91f04744d1325e1b1af099'];
+			trs.asset.votes = [`-${existedDelegateKey}`];
 			vote.checkConfirmedDelegates(trs, done);
 		});
 	});
@@ -474,7 +477,7 @@ describe('vote', function () {
 
 		it('should return err when account is not a delegate', function (done) {
 			var trs = _.cloneDeep(validTransaction);
-			trs.asset.votes = ['+f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30fg'];
+			trs.asset.votes = [`+${invalidDelegateKey}`];
 			vote.checkUnconfirmedDelegates(trs, function (err) {
 				expect(err).to.equal('Delegate not found');
 				done();
