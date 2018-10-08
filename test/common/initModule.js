@@ -18,6 +18,7 @@ var Cache = require('../../modules/cache.js');
 var ed = require('../../helpers/ed');
 var Transaction = require('../../logic/transaction.js');
 var Account = require('../../logic/account.js');
+var accounts = require('../../helpers/accounts');
 
 var modulesLoader = new function () {
 
@@ -33,6 +34,7 @@ var modulesLoader = new function () {
 		public: '../../public',
 		schema: new z_schema(),
 		ed: ed,
+		accounts: accounts,
 		bus: {
 			message: function () {}
 		},
