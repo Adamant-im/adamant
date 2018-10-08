@@ -274,7 +274,7 @@ describe('BlockRewardsSQL', function () {
 
         // Following example expected to fail because height is int and (milestoneEight * 100) is bigint
         // However, it will take 400+ years to reach height of last passing test, so is safe to ignore
-        it(`when height == (milestoneEight * 100) should overflow int and return error`, function (done) {
+        it('when height == (milestoneEight * 100) should overflow int and return error', function (done) {
             db.query(sql.calcBlockReward, {height: (milestoneHeight(8) * 100)}).then(function (rows) {
                 done('Should not pass');
             }).catch(function (err) {
