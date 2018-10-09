@@ -8,6 +8,43 @@ var sinon = require('sinon');
 var modulesLoader = require('../../common/initModule').modulesLoader;
 var Cache = require('../../../modules/cache.js');
 
+var rawValidTransaction = {
+    t_id: '17190511997607511181',
+    b_height: 981,
+    t_blockId: '6438017970172540087',
+    t_type: 0,
+    t_timestamp: 33363661,
+    t_senderPublicKey: 'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f',
+    m_recipientPublicKey: null,
+    t_senderId: 'U810656636599221322',
+    t_recipientId: 'U7771441689362721578',
+    t_amount: 490000000000000,
+    t_fee: 10000000,
+    t_signature: '85dc703a2b82698193ecbd86fd7aff1b057dfeb86e2a390ef42c1998bf1e9269c0048f42285e208a1e14a63843defbabece1bc96730f317f0cc16e23bb1b4d01',
+    confirmations: 8343
+};
+
+var validTransaction = {
+    id: '8413713814903125448',
+    rowId: 133,
+    blockId: '1523428076558779496',
+    type: 2,
+    timestamp: 33363661,
+    senderPublicKey: 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0',
+    senderId: 'U6416794499161724697',
+    recipientId: 'U13030924027576053821',
+    amount: 100000000,
+    fee: 50000000,
+    signature: '85dc703a2b82698193ecbd86fd7aff1b057dfeb86e2a390ef42c1998bf1e9269c0048f42285e208a1e14a63843defbabece1bc96730f317f0cc16e23bb1b4d01',
+    signSignature: null,
+    requesterPublicKey: null,
+    signatures: null,
+    asset: {
+    	username: 'testdelegate',
+		publicKey: 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0'
+	},
+};
+
 describe('cache', function () {
 
 	var cache;
@@ -324,9 +361,7 @@ describe('cache', function () {
 			cache.setJsonForKey(key, value, function (err, status) {
 				expect(err).to.not.exist;
 				expect(status).to.equal('OK');
-				var transaction = node.lisk.transaction.createTransaction('1L', 1, node.gAccount.password, node.gAccount.secondPassword);
-
-				cache.onTransactionsSaved([transaction], function (err) {
+				cache.onTransactionsSaved([rawValidTransaction], function (err) {
 					cache.getJsonForKey(key, function (err, res) {
 						expect(err).to.not.exist;
 						expect(res).to.eql(value);
@@ -343,9 +378,8 @@ describe('cache', function () {
 			cache.setJsonForKey(key, value, function (err, status) {
 				expect(err).to.not.exist;
 				expect(status).to.equal('OK');
-				var transaction = node.lisk.delegate.createDelegate(node.randomPassword(), node.randomDelegateName().toLowerCase());
 
-				cache.onTransactionsSaved([transaction], function (err) {
+				cache.onTransactionsSaved([validTransaction], function (err) {
 					cache.getJsonForKey(key, function (err, res) {
 						expect(err).to.not.exist;
 						expect(res).to.equal(null);
@@ -362,10 +396,9 @@ describe('cache', function () {
 			cache.setJsonForKey(key, value, function (err, status) {
 				expect(err).to.not.exist;
 				expect(status).to.equal('OK');
-				var transaction = node.lisk.delegate.createDelegate(node.randomPassword(), node.randomDelegateName().toLowerCase());
 
 				cache.onSyncStarted();
-				cache.onTransactionsSaved([transaction], function (err) {
+				cache.onTransactionsSaved([validTransaction], function (err) {
 					expect(err).to.equal('Cache Unavailable');
 					cache.onSyncFinished();
 					cache.getJsonForKey(key, function (err, res) {

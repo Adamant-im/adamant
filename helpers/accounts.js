@@ -4,6 +4,11 @@ var crypto = require('crypto');
 
 var bignum = require('./bignum.js');
 
+// let sodium = require('sodium');
+var sodium = require('sodium-browserify-tweetnacl');
+
+let Mnemonic = require('bitcore-mnemonic');
+
 var accounts = {};
 
 /**
@@ -23,6 +28,20 @@ accounts.getAddressByPublicKey = function (publicKey) {
     }
 
     return 'U' + bignum.fromBuffer(temp).toString();
+};
+
+accounts.makeKeypair = function (hash) {
+  let keypair = sodium.crypto_sign_seed_keypair(hash);
+
+  return {
+    publicKey: keypair.publicKey,
+    privateKey: keypair.secretKey
+  };
+};
+
+accounts.createPassPhraseHash = function (passPhrase) {
+  let secretMnemonic = new Mnemonic(passPhrase, Mnemonic.Words.ENGLISH);
+  return crypto.createHash('sha256').update(secretMnemonic.toSeed().toString('hex'), 'hex').digest();
 };
 
 module.exports = accounts;

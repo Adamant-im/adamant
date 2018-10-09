@@ -2,6 +2,8 @@
 
 var expect = require('chai').expect;
 var async = require('async');
+const _ = require('lodash');
+const ed = require('../../../../helpers/ed');
 
 var modulesLoader = require('../../../common/initModule').modulesLoader;
 var BlockLogic = require('../../../../logic/block.js');
@@ -28,6 +30,49 @@ var previousBlock = {
 	version: 0,
 };
 
+const validSender = {
+    username: null,
+    isDelegate: 0,
+    secondSignature: 0,
+    // address: 'U810656636599221322',
+    // publicKey: 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0',
+    secondPublicKey: null,
+    // balance: 9850458911801508,
+    // u_balance: 9850458911801508,
+    vote: 0,
+    multisignatures: null,
+    multimin: 0,
+    multilifetime: 0,
+    // blockId: '8505659485551877884',
+    nameexist: 0,
+    producedblocks: 0,
+    missedblocks: 0,
+    fees: 0,
+    rewards: 0,
+    virgin: 0
+};
+
+let marketDelegate = _.defaults({
+    address: 'U12559234133690317086',
+    publicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
+    isDelegate: 1,
+    secret: 'rally clean ladder crane gadget century timber jealous shine scorpion beauty salon'
+},validSender);
+
+const marketDelegateHash = crypto.createHash('sha256').update(marketDelegate.secret, 'utf8').digest();
+const marketDelegateKeypair = ed.makeKeypair(marketDelegateHash);
+
+
+let testSender = _.defaults({
+    address: 'U12559234133690317086',
+    publicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
+    secret: 'weather play vibrant large edge clean notable april fire smoke drift hidden',
+    u_balance: 1000000000000000000,
+    balance: 1000000000000000000
+},validSender);
+const testSenderHash = crypto.createHash('sha256').update(testSender.secret, 'utf8').digest();
+const testSenderKeypair = ed.makeKeypair(testSenderHash);
+
 var validBlock = {
 	blockSignature: '56d63b563e00332ec31451376f5f2665fcf7e118d45e68f8db0b00db5963b56bc6776a42d520978c1522c39545c9aff62a7d5bdcf851bf65904b2c2158870f00',
 	generatorPublicKey: '9d3058175acab969f41ad9b86f7a2926c74258670fe56b37c429c01fca9f2f0f',
@@ -45,9 +90,9 @@ var validBlock = {
 			'amount': 10000000000000000,
 			'fee': 0,
 			'timestamp': 0,
-			'recipientId': '16313739661670634666L',
-			'senderId': '1085993630748340485L',
-			'senderPublicKey': 'c96dec3595ff6041c3bd28b76b8cf75dce8225173d1bd00241624ee89b50f2a8',
+			'recipientId': marketDelegate.address,
+			'senderId': testSender.address,
+			'senderPublicKey': testSender.publicKey,
 			'signature': 'd8103d0ea2004c3dea8076a6a22c6db8bae95bc0db819240c77fc5335f32920e91b9f41f58b01fc86dfda11019c9fd1c6c3dcbab0a4e478e3c9186ff6090dc05',
 			'id': '1465651642158264047'
 		},
@@ -56,15 +101,15 @@ var validBlock = {
 			'amount': 0,
 			'fee': 0,
 			'timestamp': 0,
-			'recipientId': '16313739661670634666L',
-			'senderId': '16313739661670634666L',
-			'senderPublicKey': 'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f',
+			'recipientId': testSender.address,
+			'senderId': testSender.address,
+			'senderPublicKey': testSender.publicKey,
 			'asset': {
 				'votes': [
-					'+9d3058175acab969f41ad9b86f7a2926c74258670fe56b37c429c01fca9f2f0f',
-					'+141b16ac8d5bd150f16b1caa08f689057ca4c4434445e56661831f4e671b7c0a',
-					'-3ff32442bb6da7d60c1b7752b24e6467813c9b698e0f278d48c43580da972135',
-					'-5d28e992b80172f38d3a2f9592cad740fd18d3c2e187745cd5f7badf285ed819'
+					'-29d72094b20d71b92a8e7879d43643ecd20cb2babfb722c959d7eccf6f72c4c3',
+					'-4e8f62f084613c5fb6dbff031227cc44c4bf573eb6a1e8c2c6fd5ed7c6149607',
+					'-fce94d6100a143b5d15c47bccd7efffa3538dd662b21bb23371e6041b1b98631',
+					'-3a2e633b2a40b4cc899bf115197056f40e647f5d5660cecd71b7891474a1ae9a'
 				]
 			},
 			'signature': '9f9446b527e93f81d3fb8840b02fcd1454e2b6276d3c19bd724033a01d3121dd2edb0aff61d48fad29091e222249754e8ec541132032aefaeebc312796f69e08',

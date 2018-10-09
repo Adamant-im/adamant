@@ -7,7 +7,7 @@ require('./unit/modules/blocks/verify.js');
 
 require('./api/accounts');
 require('./api/blocks');
-require('./api/dapps');
+// require('./api/dapps');
 require('./api/delegates');
 require('./api/loader');
 require('./api/multisignatures');

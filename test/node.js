@@ -4,14 +4,19 @@
 var node = {};
 var Rounds = require('../modules/rounds.js');
 var slots = require('../helpers/slots.js');
+const _ = require('lodash');
+const ed = require('../helpers/ed');
+
+const Mnemonic = require('bitcore-mnemonic');
 
 // Requires
 node.bignum = require('../helpers/bignum.js');
 node.config = require('../config.json');
 node.constants = require('../helpers/constants.js');
-node.dappCategories = require('../helpers/dappCategories.js');
-node.dappTypes = require('../helpers/dappTypes.js');
+// node.dappCategories = require('../helpers/dappCategories.js');
+// node.dappTypes = require('../helpers/dappTypes.js');
 node.txTypes = require('../helpers/transactionTypes.js');
+node.accounts = require('../helpers/accounts.js');
 
 node._ = require('lodash');
 node.async = require('async');
@@ -20,7 +25,7 @@ node.expect = require('chai').expect;
 node.chai = require('chai');
 node.chai.config.includeStack = true;
 node.chai.use(require('chai-bignumber')(node.bignum));
-node.lisk = require('./lisk-js');
+// node.lisk = require('./lisk-js');
 node.supertest = require('supertest');
 require('colors');
 
@@ -44,27 +49,75 @@ node.fees = {
 };
 
 // Test application
-node.guestbookDapp = {
-	icon: 'https://raw.githubusercontent.com/MaxKK/guestbookDapp/master/icon.png',
-	link: 'https://github.com/MaxKK/guestbookDapp/archive/master.zip'
+// node.guestbookDapp = {
+// 	icon: 'https://raw.githubusercontent.com/MaxKK/guestbookDapp/master/icon.png',
+// 	link: 'https://github.com/MaxKK/guestbookDapp/archive/master.zip'
+// };
+
+const validSender = {
+    username: null,
+    isDelegate: 0,
+    secondSignature: 0,
+    // address: 'U810656636599221322',
+    // publicKey: 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0',
+    secondPublicKey: null,
+    // balance: 9850458911801508,
+    // u_balance: 9850458911801508,
+    vote: 0,
+    multisignatures: null,
+    multimin: 0,
+    multilifetime: 0,
+    // blockId: '8505659485551877884',
+    nameexist: 0,
+    producedblocks: 0,
+    missedblocks: 0,
+    fees: 0,
+    rewards: 0,
+    virgin: 0
 };
 
+node.testSender = _.defaults({
+    address: 'U12559234133690317086',
+    publicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
+    secret: 'weather play vibrant large edge clean notable april fire smoke drift hidden',
+    u_balance: 1000000000000000000,
+    balance: 1000000000000000000
+},validSender);
+
+
+node.marketDelegate = _.defaults({
+    address: 'U12559234133690317086',
+    publicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
+    isDelegate: 1,
+    secret: 'rally clean ladder crane gadget century timber jealous shine scorpion beauty salon'
+},validSender);
+
 // Existing delegate account
+// TODO: replace me with a market delegate
 node.eAccount = {
-	address: '10881167371402274308L',
-	publicKey: 'addb0e15a44b0fdc6ff291be28d8c98f5551d0cd9218d749e30ddb87c6e31ca9',
-	password: 'actress route auction pudding shiver crater forum liquid blouse imitate seven front',
-	balance: '0',
-	delegateName: 'genesis_100'
+	address: 'U12559234133690317086',
+	publicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
+	password: 'weather play vibrant large edge clean notable april fire smoke drift hidden',
+	code: 'kind'
 };
 
 // Genesis account, initially holding 100M total supply
 node.gAccount = {
-	address: '16313739661670634666L',
-	publicKey: 'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f',
-	password: 'wagon stock borrow episode laundry kitten salute link globe zero feed marble',
-	balance: '10000000000000000'
+	address: 'U15365455923155964650',
+	publicKey: 'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae',
+	password: 'neck want coast appear army smile palm major crumble upper void warm'
 };
+
+node.iAccount = {
+	address: 'U5338684603617333081',
+	publicKey: '9184c87b846dec0dc4010def579fecf5dad592a59b37a013c7e6975597681f58',
+	password: 'floor myself rather hidden pepper make isolate vintage review flight century label',
+	balance: '1960000000000000'
+};
+
+node.gAccount = node.iAccount;
+
+
 
 // Optional logging
 if (process.env.SILENT === 'true') {
@@ -313,14 +366,15 @@ node.randomApplicationName = function () {
 // Returns a basic random account
 node.randomAccount = function () {
 	var account = {
-		balance: '0'
+		balance: '1000'
 	};
 
-	account.password = node.randomPassword();
-	account.secondPassword = node.randomPassword();
-	account.username = node.randomDelegateName();
-	account.publicKey = node.lisk.crypto.getKeys(account.password).publicKey;
-	account.address = node.lisk.crypto.getAddress(account.publicKey);
+	account.password = new Mnemonic(Mnemonic.Words.ENGLISH).toString();
+	account.secondPassword = new Mnemonic(Mnemonic.Words.ENGLISH).toString();
+	account.username = node.randomDelegate;
+	const keypair = node.accounts.makeKeypair(node.accounts.createPassPhraseHash(account.password));
+	account.publicKey = keypair.publicKey; //node.lisk.crypto.getKeys(account.password).publicKey;
+	account.address = node.accounts.getAddressByPublicKey(account.publicKey); //node.lisk.crypto.getAddress(account.publicKey);
 
 	return account;
 };
