@@ -172,23 +172,31 @@ __private.list = function (filter, cb) {
     if (orderBy.error) {
         return setImmediate(cb, orderBy.error);
     }
-
-    library.db.query(sql.list({
-        where: where,
-        sortField: orderBy.sortField,
-        sortMethod: orderBy.sortMethod
+    library.db.query(sql.countList({
+        where: where
     }), params).then(function (rows) {
-        var transactions = [];
+        var count = rows.length ? rows[0].count : 0;
+        library.db.query(sql.list({
+            where: where,
+            sortField: orderBy.sortField,
+            sortMethod: orderBy.sortMethod
+        }), params).then(function (rows) {
+            var transactions = [];
 
-        for (var i = 0; i < rows.length; i++) {
-            transactions.push(library.logic.transaction.dbRead(rows[i]));
-        }
+            for (var i = 0; i < rows.length; i++) {
+                transactions.push(library.logic.transaction.dbRead(rows[i]));
+            }
 
-        var data = {
-            transactions: transactions
-        };
+            var data = {
+                transactions: transactions,
+                count: count
+            };
 
-        return setImmediate(cb, null, data);
+            return setImmediate(cb, null, data);
+        }).catch(function (err) {
+            library.logger.error(err.stack);
+            return setImmediate(cb, err);
+        });
     }).catch(function (err) {
         library.logger.error(err.stack);
         return setImmediate(cb, err);
