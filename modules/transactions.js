@@ -12,6 +12,8 @@ var sql = require('../sql/transactions.js');
 var TransactionPool = require('../logic/transactionPool.js');
 var transactionTypes = require('../helpers/transactionTypes.js');
 var Transfer = require('../logic/transfer.js');
+var delegates = require('../modules/delegates.js');
+var accounts = require('../modules/accounts.js');
 
 // Private fields
 var __private = {};
@@ -1092,6 +1094,19 @@ Transactions.prototype.shared = {
                 return setImmediate(cb, null, {transactionId: transaction[0].id});
             });
         });
+    },
+    postTransactions: function (req, cb) {
+        const tType = req.body.transaction.type;
+        switch (tType) {
+            case 2:
+                delegates.shared.registerDelegate(req, cb);
+                break;
+            case 3:
+                accounts.shared.voteForDelegates(req, cb);
+                break;
+            default:
+                Transactions.shared.addTransactions(req, cb)
+        }
     }
 };
 

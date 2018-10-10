@@ -8,6 +8,7 @@ var httpApi = require('../../helpers/httpApi');
  * - End point: `/api/transactions`
  * - Public API:
  * 	- get	/
+ * 	- post /
  * 	- get	/get
  * 	- get	/count
  * 	- get	/queued/get
@@ -38,6 +39,7 @@ function TransactionsHttpApi (transactionsModule, app, logger, cache) {
 
 	router.map(transactionsModule.shared, {
 		'get /': 'getTransactions',
+        'post /': 'postTransactions',
 		'get /get': 'getTransaction',
 		'get /count': 'getTransactionsCount',
 		'get /queued/get': 'getQueuedTransaction',
