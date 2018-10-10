@@ -173,8 +173,7 @@ __private.list = function (filter, cb) {
         return setImmediate(cb, orderBy.error);
     }
     library.db.query(sql.countList({
-        where: where,
-        owner: owner
+        where: where
     }), params).then(function (rows) {
         var count = rows.length ? rows[0].count : 0;
         library.db.query(sql.list({
