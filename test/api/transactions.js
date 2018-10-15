@@ -448,7 +448,8 @@ describe('GET /api/transactions', function () {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('transactions').that.is.an('array');
 			if (res.body.transactions.length > 0) {
-				node.expect(res.body.transactions[0].timestamp).to.be.equal(offsetTimestamp);
+				const transactions = res.body.transactions.filter(x => x.height === 1);
+				node.expect(transactions[0].timestamp).to.be.equal(offsetTimestamp);
 			}
 			done();
 		});
