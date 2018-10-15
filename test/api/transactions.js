@@ -795,7 +795,7 @@ describe('PUT /api/transactions', function () {
 	});
 
 	describe('to a cold address', function (done) {
-		var recipientId = '13896491535841206186L';
+		var recipientId = 'U13896491535841206186';
 
 		it('should be ok', function (done) {
 			var amountToSend = 110000000;
@@ -812,8 +812,6 @@ describe('PUT /api/transactions', function () {
 	});
 
 	describe('from a cold address', function (done) {
-		var passphrase = 'fiber diet blind uncover crunch breeze bicycle globe attack chalk cousin divert';
-
 		before(function (done) {
 			node.onNewBlock(done);
 		});
@@ -822,7 +820,7 @@ describe('PUT /api/transactions', function () {
 			var amountToSend = 100000000;
 
 			putTransaction({
-				secret: passphrase,
+				secret: node.gAccount.password,
 				amount: amountToSend,
 				recipientId: account2.address
 			}, function (err, res) {
