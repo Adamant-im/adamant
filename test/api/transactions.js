@@ -377,9 +377,10 @@ describe('GET /api/transactions', function () {
 		node.get('/api/transactions', function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('transactions').that.is.an('array');
-			for (var i = 0; i < res.body.transactions.length; i++) {
-				if (res.body.transactions[i + 1]) {
-					node.expect(res.body.transactions[i].amount).to.be.at.least(res.body.transactions[i + 1].amount);
+			const transactions = res.body.transactions.sort((x,y) => y.amount - x.amount);
+			for (var i = 0; i < transactions.length; i++) {
+				if (transactions[i + 1]) {
+					node.expect(transactions[i].amount).to.be.at.least(transactions[i + 1].amount);
 				}
 			}
 			done();
