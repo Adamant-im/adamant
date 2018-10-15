@@ -4,6 +4,8 @@ var node = require('./../node.js');
 var modulesLoader = require('./../common/initModule.js').modulesLoader;
 var transactionSortFields = require('../../sql/transactions').sortFields;
 
+const constants = require('../../helpers/constants.js');
+
 var account = node.randomTxAccount();
 var account2 = node.randomTxAccount();
 var account3 = node.randomTxAccount();
@@ -212,8 +214,8 @@ describe('GET /api/transactions', function () {
 		var limit = 10;
 		var offset = 0;
 		var orderBy = 'amount:asc';
-		var minAmount = 20*100000000; // 20 LSK
-		var maxAmount = 100*100000000; // 100 LSK
+		var minAmount = 20*100000000;
+		var maxAmount = constants.maxAmount/10000000;
 
 		var params = [
 			'minAmount=' + minAmount,
