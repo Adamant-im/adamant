@@ -279,13 +279,13 @@ describe('GET /api/transactions', function () {
 			'or:senderIds=' + node.gAccount.address + ',' + account.address,
 			'or:recipientIds=' + account.address + ',' + account2.address,
 			'or:senderPublicKeys=' + node.gAccount.publicKey,
-			'or:recipientPublicKeys=' + node.gAccount.publicKey + ',' + account.publicKey,
+			'or:recipientPublicKeys=' + node.gAccount.publicKey,
 			'limit=' + limit,
 			'offset=' + offset,
 			'orderBy=' + orderBy
 		];
 
-		node.get('/api/transactions?' + params.join('&'), function (err, res) {
+		node.get(encodeURI('/api/transactions?' + params.join('&')), function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('transactions').that.is.an('array');
 			node.expect(res.body.transactions).to.have.length.within(transactionList.length, limit);
