@@ -912,6 +912,6 @@ describe('POST /api/transactions', function () {
             node.expect(res.body.transaction.fee).to.equal(node.fees.voteFee);
             done();
         });
-    })
+    });
 
 });

@@ -256,6 +256,7 @@ describe('PUT /api/delegates with funds', function () {
 
 	beforeEach(function (done) {
 		account = node.randomAccount();
+		account.username = node.randomDelegateName();
 		validParams = {
 			secret: account.password,
 			username: account.username
@@ -337,7 +338,7 @@ describe('PUT /api/delegates with funds', function () {
 			node.expect(res.body.transaction.fee).to.equal(node.fees.delegateRegistrationFee);
 			node.expect(res.body.transaction).to.have.property('asset').that.is.an('object');
 			node.expect(res.body.transaction.asset.delegate.username).to.equal(account.username.toLowerCase());
-			node.expect(res.body.transaction.asset.delegate.publicKey).to.equal(account.publicKey);
+			node.expect(res.body.transaction.asset.delegate.publicKey).to.equal(account.publicKey.toString('hex'));
 			node.expect(res.body.transaction.type).to.equal(node.txTypes.DELEGATE);
 			node.expect(res.body.transaction.amount).to.equal(0);
 			done();
