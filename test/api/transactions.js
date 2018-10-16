@@ -24,6 +24,10 @@ function putTransaction (params, done) {
 	node.put('/api/transactions', params, done);
 }
 
+function postTransaction(params, done) {
+    node.post('/api/transactions', params, done);
+}
+
 function sendADM (account, amount, done) {
 	var expectedFee = node.expectedFee(amount);
 
@@ -833,4 +837,32 @@ describe('PUT /api/transactions', function () {
 			});
 		});
 	});
+});
+
+describe('POST /api/transactions', function () {
+	it('should be OK for a normal transaction', function (done) {
+        var amountToSend = 100000000;
+        var expectedFee = node.expectedFee(amountToSend);
+
+        postTransaction({
+            secret: account.password,
+            amount: amountToSend,
+            recipientId: account2.address,
+			type: node.txTypes.SEND
+        }, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('transactionId').that.is.not.empty;
+            transactionList.push({
+                'sender': account.address,
+                'recipient': account2.address,
+                'grossSent': (amountToSend + expectedFee) / node.normalizer,
+                'fee': expectedFee / node.normalizer,
+                'netSent': amountToSend / node.normalizer,
+                'txId': res.body.transactionId,
+                'type': node.txTypes.SEND
+            });
+            done();
+        });
+    });
+
 });

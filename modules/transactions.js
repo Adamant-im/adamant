@@ -1096,7 +1096,7 @@ Transactions.prototype.shared = {
         });
     },
     postTransactions: function (req, cb) {
-        const tType = req.body.transaction.type;
+        const tType = req.body.transaction !== undefined ? req.body.transaction.type : req.body.type;
         switch (tType) {
             case 2:
                 delegates.shared.registerDelegate(req, cb);
@@ -1105,7 +1105,7 @@ Transactions.prototype.shared = {
                 accounts.shared.voteForDelegates(req, cb);
                 break;
             default:
-                Transactions.shared.addTransactions(req, cb)
+                modules.transactions.shared.addTransactions(req, cb)
         }
     }
 };
