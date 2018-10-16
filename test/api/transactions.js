@@ -52,6 +52,18 @@ function sendADM (account, amount, done) {
 	});
 }
 
+function sendADM2voter (params, done) {
+    node.put('/api/transactions/', params, function (err, res) {
+        done(err, res);
+    });
+}
+
+function putAccountsDelegates (params, done) {
+    node.put('/api/accounts/delegates', params, function (err, res) {
+        done(err, res);
+    });
+}
+
 before(function (done) {
 	setTimeout(function () {
 		sendADM(account, node.randomLISK(), done);
@@ -840,6 +852,28 @@ describe('PUT /api/transactions', function () {
 });
 
 describe('POST /api/transactions', function () {
+
+    var account4 = node.randomAccount();
+
+    before(function (done) {
+        sendADM2voter({
+            secret: node.gAccount.password,
+            amount: 50000000000,
+            recipientId: account4.address
+        }, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('transactionId');
+            node.expect(res.body.transactionId).to.be.not.empty;
+            done();
+        });
+    });
+
+    beforeEach(function (done) {
+        node.onNewBlock(function (err) {
+            done();
+        });
+    });
+
 	it('should be OK for a normal transaction', function (done) {
         var amountToSend = 100000000;
         var expectedFee = node.expectedFee(amountToSend);
@@ -864,5 +898,20 @@ describe('POST /api/transactions', function () {
             done();
         });
     });
+
+	it('should be OK for a vote transaction', function (done) {
+        putAccountsDelegates({
+            secret: account4.password,
+            delegates: ['+' + node.eAccount.publicKey]
+        }, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('transaction').that.is.an('object');
+            node.expect(res.body.transaction.type).to.equal(node.txTypes.VOTE);
+            node.expect(res.body.transaction.amount).to.equal(0);
+            node.expect(res.body.transaction.senderPublicKey).to.equal(account4.publicKey.toString('hex'));
+            node.expect(res.body.transaction.fee).to.equal(node.fees.voteFee);
+            done();
+        });
+    })
 
 });
