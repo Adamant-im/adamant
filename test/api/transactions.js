@@ -64,6 +64,12 @@ function putAccountsDelegates (params, done) {
     });
 }
 
+function putDelegates (params, done) {
+    node.put('/api/delegates', params, function (err, res) {
+        done(err, res);
+    });
+}
+
 before(function (done) {
 	setTimeout(function () {
 		sendADM(account, node.randomLISK(), done);
@@ -858,7 +864,7 @@ describe('POST /api/transactions', function () {
     before(function (done) {
         sendADM2voter({
             secret: node.gAccount.password,
-            amount: 50000000000,
+            amount: 500000000000,
             recipientId: account4.address
         }, function (err, res) {
             node.expect(res.body).to.have.property('success').to.be.ok;
@@ -913,5 +919,21 @@ describe('POST /api/transactions', function () {
             done();
         });
     });
+
+	it('should be OK for a register delegate transaction', function (done) {
+		account4.username = node.randomDelegateName();
+
+        putDelegates({ username: account4.username, secret: account4.password}, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('transaction').that.is.an('object');
+            node.expect(res.body.transaction.fee).to.equal(node.fees.delegateRegistrationFee);
+            node.expect(res.body.transaction).to.have.property('asset').that.is.an('object');
+            node.expect(res.body.transaction.asset.delegate.username).to.equal(account4.username.toLowerCase());
+            node.expect(res.body.transaction.asset.delegate.publicKey).to.equal(account4.publicKey.toString('hex'));
+            node.expect(res.body.transaction.type).to.equal(node.txTypes.DELEGATE);
+            node.expect(res.body.transaction.amount).to.equal(0);
+            done();
+        });
+    })
 
 });
