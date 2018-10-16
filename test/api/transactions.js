@@ -58,18 +58,6 @@ function sendADM2voter (params, done) {
     });
 }
 
-function putAccountsDelegates (params, done) {
-    node.put('/api/accounts/delegates', params, function (err, res) {
-        done(err, res);
-    });
-}
-
-function putDelegates (params, done) {
-    node.put('/api/delegates', params, function (err, res) {
-        done(err, res);
-    });
-}
-
 before(function (done) {
 	setTimeout(function () {
 		sendADM(account, node.randomLISK(), done);
@@ -906,9 +894,10 @@ describe('POST /api/transactions', function () {
     });
 
 	it('should be OK for a vote transaction', function (done) {
-        putAccountsDelegates({
+        postTransaction({
             secret: account4.password,
-            delegates: ['+' + node.eAccount.publicKey]
+            delegates: ['+' + node.eAccount.publicKey],
+            type: node.txTypes.VOTE,
         }, function (err, res) {
             node.expect(res.body).to.have.property('success').to.be.ok;
             node.expect(res.body).to.have.property('transaction').that.is.an('object');
@@ -923,7 +912,7 @@ describe('POST /api/transactions', function () {
 	it('should be OK for a register delegate transaction', function (done) {
 		account4.username = node.randomDelegateName();
 
-        putDelegates({ username: account4.username, secret: account4.password}, function (err, res) {
+        postTransaction({ username: account4.username, secret: account4.password, type: node.txTypes.DELEGATE}, function (err, res) {
             node.expect(res.body).to.have.property('success').to.be.ok;
             node.expect(res.body).to.have.property('transaction').that.is.an('object');
             node.expect(res.body.transaction.fee).to.equal(node.fees.delegateRegistrationFee);
@@ -934,6 +923,23 @@ describe('POST /api/transactions', function () {
             node.expect(res.body.transaction.amount).to.equal(0);
             done();
         });
-    })
+    });
 
+	it('should be OK for chat message transaction', function (done) {
+		let recipient = node.randomAccount();
+		let transaction = {
+			message: 'hello, world!!!!',
+			recipientId: recipient.address,
+			publicKey: account4.publicKey.toString('hex'),
+			type: node.txTypes.CHAT_MESSAGE
+		};
+		postTransaction(transaction, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('transaction').that.is.an('object');
+            node.expect(res.body.transaction).to.have.property('asset').that.is.an('object');
+            node.expect(res.body.transaction.asset.chat.message).to.equal(transaction.message);
+            node.expect(res.body.transaction.type).to.equal(node.txTypes.CHAT_MESSAGE);
+            done();
+        });
+    })
 });

@@ -594,6 +594,8 @@ Transactions.prototype.onBind = function (scope) {
     modules = {
         accounts: scope.accounts,
         transactions: scope.transactions,
+        delegates: scope.delegates,
+        chats: scope.chats
     };
 
     __private.transactionPool.bind(
@@ -1098,14 +1100,17 @@ Transactions.prototype.shared = {
     postTransactions: function (req, cb) {
         const tType = req.body.transaction !== undefined ? req.body.transaction.type : req.body.type;
         switch (tType) {
-            case 2:
-                delegates.shared.registerDelegate(req, cb);
+            case transactionTypes.DELEGATE:
+                modules.delegates.shared.addDelegate(req, cb);
                 break;
-            case 3:
-                accounts.shared.voteForDelegates(req, cb);
+            case transactionTypes.VOTE:
+                modules.accounts.shared.addDelegates(req, cb);
+                break;
+            case transactionTypes.CHAT_MESSAGE:
+                modules.chats.internal.normalize(req, cb);
                 break;
             default:
-                modules.transactions.shared.addTransactions(req, cb)
+                modules.transactions.shared.addTransactions(req, cb);
         }
     }
 };
