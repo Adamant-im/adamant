@@ -595,7 +595,8 @@ Transactions.prototype.onBind = function (scope) {
         accounts: scope.accounts,
         transactions: scope.transactions,
         delegates: scope.delegates,
-        chats: scope.chats
+        chats: scope.chats,
+        states: scope.states
     };
 
     __private.transactionPool.bind(
@@ -1108,6 +1109,9 @@ Transactions.prototype.shared = {
                 break;
             case transactionTypes.CHAT_MESSAGE:
                 modules.chats.internal.normalize(req, cb);
+                break;
+            case transactionTypes.STATE:
+                modules.states.internal.normalize(req, cb);
                 break;
             default:
                 modules.transactions.shared.addTransactions(req, cb);

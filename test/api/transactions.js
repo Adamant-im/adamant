@@ -941,5 +941,23 @@ describe('POST /api/transactions', function () {
             node.expect(res.body.transaction.type).to.equal(node.txTypes.CHAT_MESSAGE);
             done();
         });
-    })
+    });
+
+	it('should be OK for state transaction', function (done) {
+		let recipient = node.randomAccount();
+		postTransaction({
+			type: node.txTypes.STATE,
+			value: 'testValue',
+			key: 'testKey',
+			publicKey: account4.publicKey.toString('hex'),
+			recipientId: recipient.address
+		}, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('transaction').that.is.an('object');
+            node.expect(res.body.transaction).to.have.property('asset').that.is.an('object');
+            node.expect(res.body.transaction.type).to.equal(node.txTypes.CHAT_MESSAGE);
+			done();
+        })
+
+    });
 });
