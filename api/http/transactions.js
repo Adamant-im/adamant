@@ -8,18 +8,18 @@ var httpApi = require('../../helpers/httpApi');
  * - End point: `/api/transactions`
  * - Public API:
  *    - get    /
- *    - post /
+ *    - post   /
  *    - get    /get
  *    - get    /count
  *    - get    /queued/get
  *    - get    /queued
  *    - get    /multisignatures/get
- *  - get    /multisignatures
+ *    - get    /multisignatures
  *    - get    /unconfirmed/get
  *    - get    /unconfirmed
  *    - put    /
- *  - post    /normalize
- *  - post    /process
+ *    - post   /normalize
+ *    - post   /process
  * @memberof module:transactions
  * @requires helpers/Router
  * @requires helpers/httpApi
