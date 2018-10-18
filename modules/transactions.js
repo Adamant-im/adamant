@@ -12,8 +12,6 @@ var sql = require('../sql/transactions.js');
 var TransactionPool = require('../logic/transactionPool.js');
 var transactionTypes = require('../helpers/transactionTypes.js');
 var Transfer = require('../logic/transfer.js');
-var delegates = require('../modules/delegates.js');
-var accounts = require('../modules/accounts.js');
 
 // Private fields
 var __private = {};
