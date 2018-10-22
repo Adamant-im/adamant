@@ -15,7 +15,6 @@ var sql = require('../sql/chats.js');
 var TransactionPool = require('../logic/transactionPool.js');
 var transactionTypes = require('../helpers/transactionTypes.js');
 var Transfer = require('../logic/transfer.js');
-var dapp = require('dapp');
 
 // Private fields
 var modules, library, self, __private = {}, shared = {};
@@ -299,7 +298,7 @@ Chats.prototype.internal = {
                 var secondKeypair = null;
 
                 if (account.secondSignature) {
-                    var secondHash = library.ed.createPassPhraseHash(dapp.secondSecret);
+                    var secondHash = library.ed.createPassPhraseHash(chat.secondSecret);
                     secondKeypair = library.ed.makeKeypair(secondHash);
                 }
 
@@ -310,14 +309,14 @@ Chats.prototype.internal = {
                         type: transactionTypes.CHAT_MESSAGE,
                         sender: account,
                         keypair: keypair,
-                        secondKeypair: secondKeypair,
-                        category: dapp.category,
-                        name: dapp.name,
-                        description: dapp.description,
-                        tags: dapp.tags,
-                        dapp_type: dapp.type,
-                        link: dapp.link,
-                        icon: dapp.icon
+                        secondKeypair: secondKeypair
+                        // category: dapp.category,
+                        // name: dapp.name,
+                        // description: dapp.description,
+                        // tags: dapp.tags,
+                        // dapp_type: dapp.type,
+                        // link: dapp.link,
+                        // icon: dapp.icon
                     });
                 } catch (e) {
                     return setImmediate(cb, e.toString());
