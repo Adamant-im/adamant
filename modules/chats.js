@@ -15,6 +15,7 @@ var sql = require('../sql/chats.js');
 var TransactionPool = require('../logic/transactionPool.js');
 var transactionTypes = require('../helpers/transactionTypes.js');
 var Transfer = require('../logic/transfer.js');
+var dapp = require('dapp');
 
 // Private fields
 var modules, library, self, __private = {}, shared = {};
@@ -492,11 +493,11 @@ Chats.prototype.internal = {
                                 return setImmediate(cb, 'Account does not have multisignatures enabled');
                             }
 
-                            if (account.multisignatures.indexOf(keypair.publicKey.toString('hex')) < 0) {
+                            if (account.multisignatures.indexOf(req.body.multisigAccountPublicKey.toString('hex')) < 0) {
                                 return setImmediate(cb, 'Account does not belong to multisignature group');
                             }
 
-                            modules.accounts.getAccount({publicKey: keypair.publicKey}, function (err, requester) {
+                            modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey}, function (err, requester) {
                                 if (err) {
                                     return setImmediate(cb, err);
                                 }
