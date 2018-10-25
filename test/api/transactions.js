@@ -3,6 +3,15 @@
 var node = require('./../node.js');
 var modulesLoader = require('./../common/initModule.js').modulesLoader;
 var transactionSortFields = require('../../sql/transactions').sortFields;
+var Transaction = require('../../logic/transaction.js');
+var Rounds = require('../../modules/rounds.js');
+var AccountLogic = require('../../logic/account.js');
+var AccountModule = require('../../modules/accounts.js');
+var Chat = require('../../logic/chat.js');
+var transactionTypes = require('../../helpers/transactionTypes');
+var async = require('async');
+
+var Transfer = require('../../logic/transfer.js');
 
 const constants = require('../../helpers/constants.js');
 
@@ -848,6 +857,24 @@ describe('PUT /api/transactions', function () {
 describe('POST /api/transactions', function () {
 
     var account4 = node.randomAccount();
+    var transaction;
+
+    var accountModule;
+
+    var attachTransferAsset = function (transaction, accountLogic, rounds, done) {
+        modulesLoader.initModuleWithDb(AccountModule, function (err, __accountModule) {
+            var transfer = new Transfer();
+            transfer.bind(__accountModule, rounds);
+            transaction.attachAssetType(transactionTypes.SEND, transfer);
+            accountModule = __accountModule;
+            done();
+        }, {
+            logic: {
+                account: accountLogic,
+                transaction: transaction
+            }
+        });
+    };
 
     before(function (done) {
         sendADM2voter({
@@ -858,7 +885,25 @@ describe('POST /api/transactions', function () {
             node.expect(res.body).to.have.property('success').to.be.ok;
             node.expect(res.body).to.have.property('transactionId');
             node.expect(res.body.transactionId).to.be.not.empty;
-            done();
+        });
+        async.auto({
+            rounds: function (cb) {
+                modulesLoader.initModule(Rounds, modulesLoader.scope,cb);
+            },
+            accountLogic: function (cb) {
+                modulesLoader.initLogicWithDb(AccountLogic, cb);
+            },
+            transaction: ['accountLogic', function (result, cb) {
+                modulesLoader.initLogicWithDb(Transaction, cb, {
+                    ed: require('../../helpers/ed'),
+                    account: result.accountLogic
+                });
+            }]
+        }, function (err, result) {
+            transaction = result.transaction;
+            transaction.bindModules(result);
+            attachTransferAsset(transaction, result.accountLogic, result.rounds, done);
+            transaction.attachAssetType(transactionTypes.CHAT_MESSAGE, new Chat());
         });
     });
 
@@ -926,19 +971,27 @@ describe('POST /api/transactions', function () {
     });
 
 	it('should be OK for chat message transaction', function (done) {
-		let recipient = node.randomAccount();
-		let transaction = {
-			message: 'hello, world!!!!',
+        let recipient = node.randomAccount();
+		let trs = {
 			recipientId: recipient.address,
-			publicKey: account4.publicKey.toString('hex'),
-			type: node.txTypes.CHAT_MESSAGE
+			senderPublicKey: account4.publicKey.toString('hex'),
+			senderId: account4.address,
+			type: node.txTypes.CHAT_MESSAGE,
+			amount: 0,
+			asset: {
+				chat : {
+                    message: 'hello, world!',
+                    own_message: '',
+                    type: 1
+				}
+			},
+			timestamp: Math.floor((Date.now() - constants.epochTime.getTime()) / 1000)
 		};
-		postTransaction(transaction, function (err, res) {
+		trs.signature = transaction.sign(account4.keypair, trs);
+
+		postTransaction({ transaction: trs }, function (err, res) {
             node.expect(res.body).to.have.property('success').to.be.ok;
-            node.expect(res.body).to.have.property('transaction').that.is.an('object');
-            node.expect(res.body.transaction).to.have.property('asset').that.is.an('object');
-            node.expect(res.body.transaction.asset.chat.message).to.equal(transaction.message);
-            node.expect(res.body.transaction.type).to.equal(node.txTypes.CHAT_MESSAGE);
+            node.expect(res.body).to.have.property('transactionId');
             done();
         });
     });

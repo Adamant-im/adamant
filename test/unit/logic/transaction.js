@@ -25,6 +25,7 @@ var Signature = require('../../../logic/signature.js');
 // var Multisignature = require('../../../logic/multisignature.js');
 var InTransfer = require('../../../logic/inTransfer.js');
 var OutTransfer = require('../../../logic/outTransfer.js');
+var Chat = require('../../../logic/chat.js');
 
 var validPassword = 'rally clean ladder crane gadget century timber jealous shine scorpion beauty salon';
 var validKeypair = ed.makeKeypair(crypto.createHash('sha256').update(validPassword, 'utf8').digest());
@@ -269,6 +270,8 @@ describe('transaction', function () {
 			expect(appliedLogic).to.be.an.instanceof(InTransfer);
 			appliedLogic = transaction.attachAssetType(transactionTypes.OUT_TRANSFER, new OutTransfer());
 			expect(appliedLogic).to.be.an.instanceof(OutTransfer);
+            appliedLogic = transaction.attachAssetType(transactionTypes.CHAT_MESSAGE, new Chat());
+            expect(appliedLogic).to.be.an.instanceof(Chat);
 			return transaction;
 		});
 

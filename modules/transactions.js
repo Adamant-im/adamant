@@ -1106,10 +1106,10 @@ Transactions.prototype.shared = {
                 modules.accounts.shared.addDelegates(req, cb);
                 break;
             case transactionTypes.CHAT_MESSAGE:
-                modules.chats.internal.normalize(req, cb);
+                modules.chats.internal.process(req, cb);
                 break;
             case transactionTypes.STATE:
-                modules.states.internal.normalize(req, cb);
+                modules.states.internal.store(req, cb);
                 break;
             default:
                 modules.transactions.shared.addTransactions(req, cb);
