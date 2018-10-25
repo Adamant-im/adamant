@@ -8,6 +8,7 @@ var Rounds = require('../../modules/rounds.js');
 var AccountLogic = require('../../logic/account.js');
 var AccountModule = require('../../modules/accounts.js');
 var Chat = require('../../logic/chat.js');
+var State = require('../../logic/state.js');
 var transactionTypes = require('../../helpers/transactionTypes');
 var async = require('async');
 
@@ -904,6 +905,7 @@ describe('POST /api/transactions', function () {
             transaction.bindModules(result);
             attachTransferAsset(transaction, result.accountLogic, result.rounds, done);
             transaction.attachAssetType(transactionTypes.CHAT_MESSAGE, new Chat());
+            transaction.attachAssetType(transactionTypes.STATE, new State());
         });
     });
 
@@ -998,17 +1000,25 @@ describe('POST /api/transactions', function () {
 
 	it('should be OK for state transaction', function (done) {
 		let recipient = node.randomAccount();
-		postTransaction({
-			type: node.txTypes.STATE,
-			value: 'testValue',
-			key: 'testKey',
-			publicKey: account4.publicKey.toString('hex'),
-			recipientId: recipient.address
-		}, function (err, res) {
+        let trs = {
+            recipientId: recipient.address,
+            senderPublicKey: account4.publicKey.toString('hex'),
+            senderId: account4.address,
+            type: node.txTypes.STATE,
+            amount: 0,
+            asset: {
+                state : {
+                    key: 'testkey',
+                    value: 'testValue',
+                    type: 0
+                }
+            },
+            timestamp: Math.floor((Date.now() - constants.epochTime.getTime()) / 1000)
+        };
+        trs.signature = transaction.sign(account4.keypair, trs);
+		postTransaction({ transaction: trs }, function (err, res) {
             node.expect(res.body).to.have.property('success').to.be.ok;
-            node.expect(res.body).to.have.property('transaction').that.is.an('object');
-            node.expect(res.body.transaction).to.have.property('asset').that.is.an('object');
-            node.expect(res.body.transaction.type).to.equal(node.txTypes.CHAT_MESSAGE);
+            node.expect(res.body).to.have.property('transactionId');
 			done();
         })
 
