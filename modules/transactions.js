@@ -868,11 +868,11 @@ Transactions.prototype.shared = {
                                 return setImmediate(cb, 'Account does not have multisignatures enabled');
                             }
 
-                            if (account.multisignatures.indexOf(keypair.publicKey.toString('hex')) < 0) {
+                            if (account.multisignatures.indexOf(req.body.multisigAccountPublicKey.toString('hex')) < 0) {
                                 return setImmediate(cb, 'Account does not belong to multisignature group');
                             }
 
-                            modules.accounts.getAccount({publicKey: keypair.publicKey}, function (err, requester) {
+                            modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey }, function (err, requester) {
                                 if (err) {
                                     return setImmediate(cb, err);
                                 }

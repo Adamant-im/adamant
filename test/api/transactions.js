@@ -34,7 +34,7 @@ function putTransaction (params, done) {
 	node.put('/api/transactions', params, done);
 }
 
-function postTransaction(params, done) {
+function postTransaction (params, done) {
     node.post('/api/transactions', params, done);
 }
 
@@ -1020,7 +1020,7 @@ describe('POST /api/transactions', function () {
             node.expect(res.body).to.have.property('success').to.be.ok;
             node.expect(res.body).to.have.property('transactionId');
 			done();
-        })
+        });
 
     });
 });

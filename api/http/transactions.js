@@ -28,7 +28,7 @@ var httpApi = require('../../helpers/httpApi');
  * @param {scope} app - Network app.
  */
 // Constructor
-function TransactionsHttpApi(transactionsModule, app, logger, cache) {
+function TransactionsHttpApi (transactionsModule, app, logger, cache) {
 
     var router = new Router();
 
