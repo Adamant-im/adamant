@@ -375,7 +375,7 @@ node.randomAccount = function () {
 	const keypair = node.accounts.makeKeypair(node.accounts.createPassPhraseHash(account.password));
 	account.publicKey = keypair.publicKey; //node.lisk.crypto.getKeys(account.password).publicKey;
 	account.address = node.accounts.getAddressByPublicKey(account.publicKey); //node.lisk.crypto.getAddress(account.publicKey);
-
+	account.keypair = keypair;
 	return account;
 };
 
