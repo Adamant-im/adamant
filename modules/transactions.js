@@ -592,6 +592,9 @@ Transactions.prototype.onBind = function (scope) {
     modules = {
         accounts: scope.accounts,
         transactions: scope.transactions,
+        delegates: scope.delegates,
+        chats: scope.chats,
+        states: scope.states
     };
 
     __private.transactionPool.bind(
@@ -869,7 +872,7 @@ Transactions.prototype.shared = {
                                 return setImmediate(cb, 'Account does not belong to multisignature group');
                             }
 
-                            modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey}, function (err, requester) {
+                            modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey }, function (err, requester) {
                                 if (err) {
                                     return setImmediate(cb, err);
                                 }
@@ -1093,6 +1096,25 @@ Transactions.prototype.shared = {
                 return setImmediate(cb, null, {transactionId: transaction[0].id});
             });
         });
+    },
+    postTransactions: function (req, cb) {
+        const tType = req.body.transaction !== undefined ? req.body.transaction.type : req.body.type;
+        switch (tType) {
+            case transactionTypes.DELEGATE:
+                modules.delegates.shared.addDelegate(req, cb);
+                break;
+            case transactionTypes.VOTE:
+                modules.accounts.shared.addDelegates(req, cb);
+                break;
+            case transactionTypes.CHAT_MESSAGE:
+                modules.chats.internal.process(req, cb);
+                break;
+            case transactionTypes.STATE:
+                modules.states.internal.store(req, cb);
+                break;
+            default:
+                modules.transactions.shared.addTransactions(req, cb);
+        }
     }
 };
 

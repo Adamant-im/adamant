@@ -10,7 +10,7 @@ function openAccount (params, done) {
 	});
 }
 
-function sendLISK (params, done) {
+function sendADM (params, done) {
 	node.put('/api/transactions/', params, function (err, res) {
 		done(err, res);
 	});
@@ -42,7 +42,7 @@ describe('PUT /api/accounts/delegates without funds', function () {
 			delegates: ['+' + node.eAccount.publicKey]
 		}, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
-			node.expect(res.body).to.have.property('error').to.match(/Account does not have enough LSK: [0-9]+L balance: 0/);
+			node.expect(res.body).to.have.property('error').to.match(/Account does not have enough ADM/);
 			done();
 		});
 	});
@@ -53,7 +53,7 @@ describe('PUT /api/accounts/delegates without funds', function () {
 			delegates: ['-' + node.eAccount.publicKey]
 		}, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
-			node.expect(res.body).to.have.property('error').to.match(/Account does not have enough LSK: [0-9]+L balance: 0/);
+			node.expect(res.body).to.have.property('error').to.match(/Account does not have enough ADM/);
 			done();
 		});
 	});
@@ -73,7 +73,7 @@ describe('PUT /api/delegates without funds', function () {
 			username: account.username
 		}, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
-			node.expect(res.body).to.have.property('error').to.match(/Account does not have enough LSK: [0-9]+L balance: 0/);
+			node.expect(res.body).to.have.property('error').to.match(/Account does not have enough ADM/);
 			done();
 		});
 	});
@@ -83,7 +83,7 @@ describe('PUT /api/accounts/delegates with funds', function () {
 	var account = node.randomAccount();
 
 	before(function (done) {
-		sendLISK({
+		sendADM({
 			secret: node.gAccount.password,
 			amount: node.LISK,
 			recipientId: account.address
@@ -150,7 +150,7 @@ describe('PUT /api/accounts/delegates with funds', function () {
 			node.expect(res.body).to.have.property('transaction').that.is.an('object');
 			node.expect(res.body.transaction.type).to.equal(node.txTypes.VOTE);
 			node.expect(res.body.transaction.amount).to.equal(0);
-			node.expect(res.body.transaction.senderPublicKey).to.equal(account.publicKey);
+			node.expect(res.body.transaction.senderPublicKey).to.equal(account.publicKey.toString('hex'));
 			node.expect(res.body.transaction.fee).to.equal(node.fees.voteFee);
 			done();
 		});
@@ -177,7 +177,7 @@ describe('PUT /api/accounts/delegates with funds', function () {
 			node.expect(res.body).to.have.property('transaction').that.is.an('object');
 			node.expect(res.body.transaction.type).to.equal(node.txTypes.VOTE);
 			node.expect(res.body.transaction.amount).to.equal(0);
-			node.expect(res.body.transaction.senderPublicKey).to.equal(account.publicKey);
+			node.expect(res.body.transaction.senderPublicKey).to.equal(account.publicKey.toString('hex'));
 			node.expect(res.body.transaction.fee).to.equal(node.fees.voteFee);
 			done();
 		});
@@ -256,6 +256,7 @@ describe('PUT /api/delegates with funds', function () {
 
 	beforeEach(function (done) {
 		account = node.randomAccount();
+		account.username = node.randomDelegateName();
 		validParams = {
 			secret: account.password,
 			username: account.username
@@ -264,7 +265,7 @@ describe('PUT /api/delegates with funds', function () {
 	});
 
 	beforeEach(function (done) {
-		sendLISK({
+		sendADM({
 			secret: node.gAccount.password,
 			amount: node.LISK,
 			recipientId: account.address
@@ -337,7 +338,7 @@ describe('PUT /api/delegates with funds', function () {
 			node.expect(res.body.transaction.fee).to.equal(node.fees.delegateRegistrationFee);
 			node.expect(res.body.transaction).to.have.property('asset').that.is.an('object');
 			node.expect(res.body.transaction.asset.delegate.username).to.equal(account.username.toLowerCase());
-			node.expect(res.body.transaction.asset.delegate.publicKey).to.equal(account.publicKey);
+			node.expect(res.body.transaction.asset.delegate.publicKey).to.equal(account.publicKey.toString('hex'));
 			node.expect(res.body.transaction.type).to.equal(node.txTypes.DELEGATE);
 			node.expect(res.body.transaction.amount).to.equal(0);
 			done();
@@ -705,7 +706,7 @@ describe('GET /api/delegates', function () {
 		node.get('/api/delegates?' + params, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('delegates').that.is.an('array');
-			node.expect(res.body.delegates).to.have.lengthOf(101);
+			node.expect(res.body.delegates).to.have.lengthOf(100);
 			done();
 		});
 	});
@@ -764,7 +765,7 @@ describe('GET /api/delegates/voters', function () {
 	var account = node.randomAccount();
 
 	before(function (done) {
-		sendLISK({
+		sendADM({
 			secret: node.gAccount.password,
 			amount: node.LISK,
 			recipientId: account.address
@@ -1186,7 +1187,7 @@ describe('POST /api/delegates/forging/disable', function () {
 			secret: 'invalid secret'
 		}, function (err, res) {
 			node.expect(res.body).to.have.property('success').not.to.be.ok;
-			node.expect(res.body).to.have.property('error').to.be.a('string').and.to.contain('Invalid passphrase');
+			node.expect(res.body).to.have.property('error').to.be.a('string').and.to.contain('invalid secret');
 			done();
 		});
 	});
@@ -1322,7 +1323,7 @@ describe('GET /api/delegates/forging/getForgedByAccount', function () {
 	it('using unknown generatorPublicKey with borders should fail', function (done) {
 		validParams.generatorPublicKey = node.randomAccount().publicKey;
 
-		node.get('/api/delegates/forging/getForgedByAccount?' + buildParams(), function (err, res) {
+		node.get(encodeURI('/api/delegates/forging/getForgedByAccount?' + buildParams()), function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
 			node.expect(res.body).to.have.property('error').to.eql('Account not found or is not a delegate');
 			done();
