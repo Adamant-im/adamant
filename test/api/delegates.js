@@ -573,9 +573,10 @@ describe('GET /api/delegates', function () {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('delegates').that.is.an('array');
 			node.expect(res.body.delegates).to.have.lengthOf(101);
-			for (var i = 0; i < res.body.delegates.length; i++) {
-				if (res.body.delegates[i + 1] != null) {
-					node.expect(res.body.delegates[i].vote).to.be.at.least(res.body.delegates[i + 1].vote);
+			const delegates = res.body.delegates;
+			for (var i = delegates.length-1; i > 0; i--) {
+				if (delegates[i - 1] != null) {
+					node.expect(delegates[i].vote).to.be.at.least(delegates[i - 1].vote);
 				}
 			}
 			done();
@@ -831,6 +832,33 @@ describe('GET /api/delegates/voters', function () {
 
 describe('GET /api/delegates/search', function () {
 
+	before(function (done) {
+		for (let i = 1; i <= 101; i++) {
+            const account = node.randomAccount();
+            const params = {
+            	secret: account.password,
+				username: `genesis_${i}`
+			};
+            sendADM({
+                secret: node.gAccount.password,
+                amount: 300000000000,
+                recipientId: account.address
+            }, () => {
+                node.onNewBlock(function (err) {
+                    putDelegates(params, (err, res) => true);
+                });
+
+            });
+		}
+		done();
+    });
+
+    before(function (done) {
+        node.onNewBlock(function (err) {
+            done();
+        });
+    });
+
 	it('using no criteria should fail', function (done) {
 		node.get('/api/delegates/search', function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
@@ -889,30 +917,19 @@ describe('GET /api/delegates/search', function () {
 		});
 	});
 
-	it('using critera == "genesis_1" should return 13 delegates', function (done) {
-		var q = 'genesis_1';
+	it('using critera == "lo" should return 2 delegates', function (done) {
+		var q = 'lo';
 
 		node.get('/api/delegates/search?q=' + q, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('delegates').that.is.an('array');
-			node.expect(res.body.delegates).to.have.length(13);
+			node.expect(res.body.delegates).to.have.length(2);
 			done();
 		});
 	});
 
-	it('using critera == "genesis_10" should return 3 delegates', function (done) {
-		var q = 'genesis_10';
-
-		node.get('/api/delegates/search?q=' + q, function (err, res) {
-			node.expect(res.body).to.have.property('success').to.be.ok;
-			node.expect(res.body).to.have.property('delegates').that.is.an('array');
-			node.expect(res.body.delegates).to.have.length(3);
-			done();
-		});
-	});
-
-	it('using critera == "genesis_101" should return 1 delegate', function (done) {
-		var q = 'genesis_101';
+	it('using critera == "love" should return 1 delegate', function (done) {
+		var q = 'love';
 
 		node.get('/api/delegates/search?q=' + q, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
