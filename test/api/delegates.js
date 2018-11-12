@@ -833,32 +833,46 @@ describe('GET /api/delegates/voters', function () {
 
 describe('GET /api/delegates/search', function () {
 
-	before(function (done) {
-		for (let i = 1; i <= 101; i++) {
-            const account = node.randomAccount();
-            const params = {
-            	secret: account.password,
-				username: `genesis_${i}`
-			};
-            sendADM({
-                secret: node.gAccount.password,
-                amount: 300000000000,
-                recipientId: account.address
-            }, () => {
-                node.onNewBlock(function (err) {
-                    putDelegates(params, (err, res) => true);
-                });
+	const accounts = Array.from(Array(101)).map(() => node.randomAccount());
 
+	before(function (done) {
+		for (let i = 0; i < 101; i++) {
+			const account = accounts[i];
+			sendADM({
+				secret: "echo indoor minute album notice pear prosper situate alcohol vintage athlete crouch",
+				amount: node.constants.fees.delegate,
+				recipientId: account.address
+			}, (err, res) => {
+                node.expect(res.body).to.have.property('success');
+				node.waitForBlocks(2, () => {
+                    const params = {
+                        secret: account.password,
+                        username: `genesis_${i+1}`
+                    };
+                    putDelegates(params, (err, res) => {
+                        node.expect(res.body).to.have.property('success');
+                    });
+				});
             });
 		}
 		done();
     });
 
     before(function (done) {
-        node.onNewBlock(function (err) {
-            done();
-        });
+        node.waitForBlocks(101, done);
     });
+
+    // before(function (done) {
+    // 	accounts.forEach((account,i) => {
+    //
+	// 	});
+    //     // node.onNewBlock(done);
+	// 	done();
+    // });
+	//
+    // before(function (done) {
+    //     node.waitForBlocks(101, done);
+    // });
 
 	it('using no criteria should fail', function (done) {
 		node.get('/api/delegates/search', function (err, res) {
