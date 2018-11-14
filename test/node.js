@@ -2,19 +2,19 @@
 
 // Root object
 var node = {};
-var Rounds = require('../modules/rounds.js');
 var slots = require('../helpers/slots.js');
 const _ = require('lodash');
-const ed = require('../helpers/ed');
-
+const sodium = require('sodium-browserify-tweetnacl');
+const crypto = require('crypto');
+const bignum = require('../helpers/bignum.js');
+const ByteBuffer = require('bytebuffer');
 const Mnemonic = require('bitcore-mnemonic');
+const transactionTypes = require('../helpers/transactionTypes.js');
 
 // Requires
 node.bignum = require('../helpers/bignum.js');
 node.config = require('../config.json');
 node.constants = require('../helpers/constants.js');
-// node.dappCategories = require('../helpers/dappCategories.js');
-// node.dappTypes = require('../helpers/dappTypes.js');
 node.txTypes = require('../helpers/transactionTypes.js');
 node.accounts = require('../helpers/accounts.js');
 
@@ -142,6 +142,49 @@ node.randomDelegateName = function () {
 	return delegateName;
 };
 
+// return an ADM address from a public key
+node.createAddressFromPublicKey = function (publicKey) {
+    const publicKeyHash = crypto.createHash('sha256').update(publicKey, 'hex').digest();
+    let temp = Buffer.alloc(8);
+
+    for (var i = 0; i < 8; i++) {
+        temp[i] = publicKeyHash[7 - i];
+    }
+
+    return 'U' + bignum.fromBuffer(temp).toString();
+};
+
+// sign transaction
+node.transactionSign = function (trs, keypair) {
+    const hash = this.getHash(trs);
+    return sodium.crypto_sign_detached(hash, Buffer.from(keypair.privateKey, 'hex')).toString('hex');
+};
+
+// return a basic transaction
+node.createBasicTransaction = function (data) {
+    return {
+    	type: data.transactionType,
+		amount: 0,
+		timestamp: Math.floor((Date.now() - this.constants.epochTime.getTime()) / 1000),
+		asset: {},
+		senderPublicKey: data.keyPair.publicKey.toString('hex'),
+		senderId: this.createAddressFromPublicKey(data.keyPair.publicKey)};
+};
+
+// return a delegate transaction
+node.createDelegateTransaction = function (data) {
+    data.transactionType = transactionTypes.DELEGATE;
+    let transaction = this.createBasicTransaction(data);
+    transaction.asset = {
+    	delegate: {
+    		username: data.username,
+			publicKey: data.keyPair.publicKey.toString('hex')}
+    };
+    transaction.recipientId= null;
+    transaction.signature = this.transactionSign(transaction, data.keyPair);
+    return transaction;
+};
+
 // Returns a random property from the given object
 node.randomProperty = function (obj, needKey) {
 	var keys = Object.keys(obj);
@@ -151,6 +194,177 @@ node.randomProperty = function (obj, needKey) {
 	} else {
 		return keys[keys.length * Math.random() << 0];
 	}
+};
+
+node.getBytes = function (transaction) {
+    var skipSignature = false;
+    var skipSecondSignature = true;
+    var assetSize = 0;
+    var assetBytes = null;
+
+    switch (transaction.type) {
+        case transactionTypes.SEND:
+            break;
+        case transactionTypes.DELEGATE:
+            assetBytes = this.delegatesGetBytes(transaction);
+            assetSize = assetBytes.length;
+            break;
+        case transactionTypes.STATE:
+            assetBytes = this.statesGetBytes(transaction);
+            assetSize = assetBytes.length;
+            break;
+        case transactionTypes.VOTE:
+            assetBytes = this.voteGetBytes(transaction);
+            assetSize = assetBytes.length;
+            break;
+        case transactionTypes.CHAT_MESSAGE:
+            assetBytes = this.chatGetBytes(transaction);
+            assetSize = assetBytes.length;
+            break;
+        default:
+            console.log('Not supported yet');
+    }
+
+    var bb = new ByteBuffer(1 + 4 + 32 + 8 + 8 + 64 + 64 + assetSize, true);
+
+    bb.writeByte(transaction.type);
+    bb.writeInt(transaction.timestamp);
+
+    var senderPublicKeyBuffer = Buffer.from(transaction.senderPublicKey, 'hex');
+    for (var i = 0; i < senderPublicKeyBuffer.length; i++) {
+        bb.writeByte(senderPublicKeyBuffer[i]);
+    }
+
+    if (transaction.requesterPublicKey) {
+        var requesterPublicKey =  Buffer.from(transaction.requesterPublicKey, 'hex');
+
+        for (var i = 0; i < requesterPublicKey.length; i++) {
+            bb.writeByte(requesterPublicKey[i]);
+        }
+    }
+
+    if (transaction.recipientId) {
+        var recipient = transaction.recipientId.slice(1);
+        recipient = new bignum(recipient).toBuffer({size: 8});
+
+        for (i = 0; i < 8; i++) {
+            bb.writeByte(recipient[i] || 0);
+        }
+    } else {
+        for (i = 0; i < 8; i++) {
+            bb.writeByte(0);
+        }
+    }
+
+    bb.writeLong(transaction.amount);
+
+    if (assetSize > 0) {
+        for (let i = 0; i < assetSize; i++) {
+            bb.writeByte(assetBytes[i]);
+        }
+    }
+
+    if (!skipSignature && transaction.signature) {
+        var signatureBuffer =  Buffer.from(transaction.signature, 'hex');
+        for (let i = 0; i < signatureBuffer.length; i++) {
+            bb.writeByte(signatureBuffer[i]);
+        }
+    }
+
+    if (!skipSecondSignature && transaction.signSignature) {
+        var signSignatureBuffer =  Buffer.from(transaction.signSignature, 'hex');
+        for (var i = 0; i < signSignatureBuffer.length; i++) {
+            bb.writeByte(signSignatureBuffer[i]);
+        }
+    }
+
+    bb.flip();
+    var arrayBuffer = new Uint8Array(bb.toArrayBuffer());
+    var buffer = [];
+
+    for (var i = 0; i < arrayBuffer.length; i++) {
+        buffer[i] = arrayBuffer[i];
+    }
+
+    return Buffer.from(buffer);
+};
+
+node.voteGetBytes = function (trs) {
+    var buf;
+    try {
+        buf = trs.asset.votes ? Buffer.from(trs.asset.votes.join(''), 'utf8') : null;
+    } catch (e) {
+        throw e;
+    }
+    return buf;
+};
+
+node.delegatesGetBytes = function (trs) {
+    if (!trs.asset.delegate.username) {
+        return null;
+    }
+    var buf;
+
+    try {
+        buf = Buffer.from(trs.asset.delegate.username, 'utf8');
+    } catch (e) {
+        throw e;
+    }
+    return buf;
+};
+
+node.statesGetBytes = function (trs) {
+    if (!trs.asset.state.value) {
+        return null;
+    }
+    var buf;
+
+    try {
+        buf = Buffer.from([]);
+        var stateBuf = Buffer.from(trs.asset.state.value);
+        buf = Buffer.concat([buf, stateBuf]);
+        if (trs.asset.state.key) {
+            var keyBuf = Buffer.from(trs.asset.state.key);
+            buf = Buffer.concat([buf, keyBuf]);
+        }
+
+        var bb = new ByteBuffer(4 + 4, true);
+        bb.writeInt(trs.asset.state.type);
+        bb.flip();
+
+        buf = Buffer.concat([buf, bb.toBuffer()]);
+    } catch (e) {
+        throw e;
+    }
+
+    return buf;
+};
+
+node.chatGetBytes = function (trs) {
+    var buf;
+
+    try {
+        buf = Buffer.from([]);
+        var messageBuf = Buffer.from(trs.asset.chat.message, 'hex');
+        buf = Buffer.concat([buf, messageBuf]);
+
+        if (trs.asset.chat.own_message) {
+            var ownMessageBuf = Buffer.from(trs.asset.chat.own_message, 'hex');
+            buf = Buffer.concat([buf, ownMessageBuf]);
+        }
+        var bb = new ByteBuffer(4 + 4, true);
+        bb.writeInt(trs.asset.chat.type);
+        bb.flip();
+        buf = Buffer.concat([buf, Buffer.from(bb.toBuffer())]);
+    } catch (e) {
+        throw e
+    }
+
+    return buf
+};
+
+node.getHash = function (trs) {
+    return crypto.createHash('sha256').update(this.getBytes(trs)).digest();
 };
 
 // Returns random LSK amount

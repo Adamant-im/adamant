@@ -2,14 +2,6 @@
 
 var crypto = require('crypto');
 var node = require('./../node.js');
-var constants = require('../../helpers/constants.js');
-
-var Transaction = require('../../logic/transaction.js');
-var Rounds = require('../../modules/rounds.js');
-var AccountLogic = require('../../logic/account.js');
-var AccountModule = require('../../modules/accounts.js');
-
-var async = require('async');
 
 var account = node.randomAccount();
 var account2 = node.randomAccount();
@@ -34,62 +26,6 @@ function sendLISK (params, done) {
 }
 
 describe('POST /peer/transactions', function () {
-    var account = node.randomAccount();
-    var transaction;
-
-    var accountModule;
-
-    var attachTransferAsset = function (transaction, accountLogic, rounds, done) {
-        modulesLoader.initModuleWithDb(AccountModule, function (err, __accountModule) {
-            var transfer = new Transfer();
-            transfer.bind(__accountModule, rounds);
-            transaction.attachAssetType(transactionTypes.SEND, transfer);
-            accountModule = __accountModule;
-            done();
-        }, {
-            logic: {
-                account: accountLogic,
-                transaction: transaction
-            }
-        });
-    };
-    before(function (done) {
-        sendADM2voter({
-            secret: node.gAccount.password,
-            amount: 500000000000,
-            recipientId: account.address
-        }, function (err, res) {
-            node.expect(res.body).to.have.property('success').to.be.ok;
-            node.expect(res.body).to.have.property('transactionId');
-            node.expect(res.body.transactionId).to.be.not.empty;
-        });
-        async.auto({
-            rounds: function (cb) {
-                modulesLoader.initModule(Rounds, modulesLoader.scope,cb);
-            },
-            accountLogic: function (cb) {
-                modulesLoader.initLogicWithDb(AccountLogic, cb);
-            },
-            transaction: ['accountLogic', function (result, cb) {
-                modulesLoader.initLogicWithDb(Transaction, cb, {
-                    ed: require('../../helpers/ed'),
-                    account: result.accountLogic
-                });
-            }]
-        }, function (err, result) {
-            transaction = result.transaction;
-            transaction.bindModules(result);
-            attachTransferAsset(transaction, result.accountLogic, result.rounds, done);
-            transaction.attachAssetType(transactionTypes.CHAT_MESSAGE, new Chat());
-            transaction.attachAssetType(transactionTypes.STATE, new State());
-        });
-    });
-
-    beforeEach(function (done) {
-        node.onNewBlock(function (err) {
-            done();
-        });
-    });
 
 	describe('registering a delegate', function () {
 
@@ -102,22 +38,11 @@ describe('POST /peer/transactions', function () {
 		});
 
 		it('using undefined transaction.asset', function (done) {
-            let recipient = node.randomAccount();
-            recipient.username = node.randomDelegateName();
-            let transaction = {
-                recipientId: recipient.address,
-                senderPublicKey: recipient.publicKey.toString('hex'),
-                senderId: recipient.address,
-                type: node.txTypes.DELEGATE,
-                amount: 0,
+            let account = node.randomAccount();
+            let transaction = node.createDelegateTransaction({
 				username: node.randomDelegateName(),
-				secret: recipient.password,
-                asset: {
-                    username: recipient.username
-                },
-                timestamp: Math.floor((Date.now() - constants.epochTime.getTime()) / 1000)
-            };
-            transaction.signature = transaction.sign(recipient.keypair, transaction);
+				keyPair: account.keypair
+			});
 			transaction.fee = node.fees.delegateRegistrationFee;
 
 			delete transaction.asset;
