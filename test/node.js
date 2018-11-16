@@ -185,6 +185,18 @@ node.createDelegateTransaction = function (data) {
     return transaction;
 };
 
+node.createSignatureTransaction = function (data) {
+    data.transactionType = transactionTypes.SIGNATURE;
+    let transaction = this.createBasicTransaction(data);
+    transaction.asset = {};
+    transaction.recipientId= null;
+    transaction.keyPair = data.keyPair;
+    transaction.secret = data.secret;
+    transaction.publicKey = data.keyPair.publicKey.toString('hex');
+    transaction.signature = this.transactionSign(transaction, data.keyPair);
+    return transaction;
+};
+
 // Returns a random property from the given object
 node.randomProperty = function (obj, needKey) {
 	var keys = Object.keys(obj);
@@ -221,8 +233,12 @@ node.getBytes = function (transaction) {
             assetBytes = this.chatGetBytes(transaction);
             assetSize = assetBytes.length;
             break;
+		case transactionTypes.SIGNATURE:
+			assetBytes = this.signatureGetBytes(transaction);
+            assetSize = assetBytes.length;
+            break;
         default:
-            console.log('Not supported yet');
+        	throw `Transaction type ${transaction.type} is not supported yet`;
     }
 
     var bb = new ByteBuffer(1 + 4 + 32 + 8 + 8 + 64 + 64 + assetSize, true);
@@ -361,6 +377,18 @@ node.chatGetBytes = function (trs) {
     }
 
     return buf
+};
+
+node.signatureGetBytes = function (signature) {
+    var bb = new ByteBuffer(32, true);
+    var publicKeyBuffer = new Buffer(signature.keyPair.publicKey, "hex");
+
+    for (var i = 0; i < publicKeyBuffer.length; i++) {
+        bb.writeByte(publicKeyBuffer[i]);
+    }
+
+    bb.flip();
+    return new Uint8Array(bb.toArrayBuffer());
 };
 
 node.getHash = function (trs) {
