@@ -206,7 +206,17 @@ node.createSendTransaction = function (data) {
     transaction.signature = this.transactionSign(transaction, data.keyPair);
     transaction.id = this.getId(transaction);
     return transaction;
-}
+};
+
+node.createVoteTransaction = function (data) {
+    data.transactionType = transactionTypes.VOTE;
+    let transaction = this.createBasicTransaction(data);
+    transaction.asset = {"votes": data.votes};
+    transaction.recipientId= transaction.senderId;
+    transaction.signature = this.transactionSign(transaction, data.keyPair);
+    transaction.id = this.getId(transaction);
+    return transaction;
+};
 
 // Returns a random property from the given object
 node.randomProperty = function (obj, needKey) {
@@ -244,8 +254,6 @@ node.getBytes = function (transaction) {
             assetBytes = this.chatGetBytes(transaction);
             assetSize = assetBytes.length;
             break;
-            10025622306550942107;
-            10528388471240593755;
 		case transactionTypes.SIGNATURE:
 			assetBytes = this.signatureGetBytes(transaction);
             assetSize = assetBytes.length;

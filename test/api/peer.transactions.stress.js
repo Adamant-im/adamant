@@ -104,11 +104,6 @@ describe('POST /peer/transactions', function () {
                         recipientId: recipient.address
                     });
                     transaction.fee = node.fees.transactionFee;
-                    // var transaction = node.lisk.transaction.createTransaction(
-                    //     node.randomAccount().address,
-                    //     node.randomNumber(100000000, 1000000000),
-                    //     node.gAccount.password
-                    // );
 
                     postTransaction(transaction, function (err, res) {
                         node.expect(res.body).to.have.property('success').to.be.ok;
