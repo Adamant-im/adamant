@@ -197,6 +197,17 @@ node.createSignatureTransaction = function (data) {
     return transaction;
 };
 
+node.createSendTransaction = function (data) {
+    data.transactionType = transactionTypes.SEND;
+    let transaction = this.createBasicTransaction(data);
+    transaction.asset = {};
+    transaction.recipientId= data.recipientId;
+    transaction.amount = data.amount;
+    transaction.signature = this.transactionSign(transaction, data.keyPair);
+    transaction.id = this.getId(transaction);
+    return transaction;
+}
+
 // Returns a random property from the given object
 node.randomProperty = function (obj, needKey) {
 	var keys = Object.keys(obj);
@@ -233,6 +244,8 @@ node.getBytes = function (transaction) {
             assetBytes = this.chatGetBytes(transaction);
             assetSize = assetBytes.length;
             break;
+            10025622306550942107;
+            10528388471240593755;
 		case transactionTypes.SIGNATURE:
 			assetBytes = this.signatureGetBytes(transaction);
             assetSize = assetBytes.length;
@@ -393,6 +406,17 @@ node.signatureGetBytes = function (signature) {
 
 node.getHash = function (trs) {
     return crypto.createHash('sha256').update(this.getBytes(trs)).digest();
+};
+
+node.getId = function (trs) {
+    var hash = this.getHash(trs);
+    var temp = Buffer.alloc(8);
+    for (var i = 0; i < 8; i++) {
+        temp[i] = hash[7 - i];
+    }
+
+    var id = bignum.fromBuffer(temp).toString();
+    return id;
 };
 
 // Returns random LSK amount

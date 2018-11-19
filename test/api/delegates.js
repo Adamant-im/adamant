@@ -706,7 +706,7 @@ describe('GET /api/delegates', function () {
 		node.get('/api/delegates?' + params, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('delegates').that.is.an('array');
-			node.expect(res.body.delegates).to.have.lengthOf(100);
+			node.expect(res.body.delegates).to.have.lengthOf(101);
 			done();
 		});
 	});
