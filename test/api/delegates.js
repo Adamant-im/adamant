@@ -1158,7 +1158,7 @@ describe('GET /api/delegates/forging/status', function () {
 	});
 
 	it('using enabled publicKey should be ok', function (done) {
-		node.get('/api/delegates/forging/status?publicKey=' + '9d3058175acab969f41ad9b86f7a2926c74258670fe56b37c429c01fca9f2f0f', function (err, res) {
+		node.get('/api/delegates/forging/status?publicKey=' + 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089', function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('enabled').to.be.true;
 			done();

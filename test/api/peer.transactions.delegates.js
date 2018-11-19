@@ -90,7 +90,7 @@ describe('POST /peer/transactions', function () {
 
 			it('using invalid username should fail', function (done) {
                 let transaction = node.createDelegateTransaction({
-                    username: node.randomDelegateName(),
+                    username: '%',
                     keyPair: account.keypair
                 });
                 transaction.fee = node.fees.delegateRegistrationFee;
