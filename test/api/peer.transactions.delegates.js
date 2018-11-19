@@ -103,7 +103,7 @@ describe('POST /peer/transactions', function () {
 
 			it('using uppercase username should fail', function (done) {
                 let transaction = node.createDelegateTransaction({
-                    username: "UPPER_DELEGATE",
+                    username: 'UPPER_DELEGATE',
                     keyPair: account.keypair
                 });
                 transaction.fee = node.fees.delegateRegistrationFee;

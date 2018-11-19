@@ -1,5 +1,7 @@
 'use strict';
 
+/*global Uint8Array*/
+
 // Root object
 var node = {};
 var slots = require('../helpers/slots.js');
@@ -211,7 +213,7 @@ node.createSendTransaction = function (data) {
 node.createVoteTransaction = function (data) {
     data.transactionType = transactionTypes.VOTE;
     let transaction = this.createBasicTransaction(data);
-    transaction.asset = {"votes": data.votes};
+    transaction.asset = {'votes': data.votes};
     transaction.recipientId= transaction.senderId;
     transaction.signature = this.transactionSign(transaction, data.keyPair);
     transaction.id = this.getId(transaction);
@@ -394,15 +396,15 @@ node.chatGetBytes = function (trs) {
         bb.flip();
         buf = Buffer.concat([buf, Buffer.from(bb.toBuffer())]);
     } catch (e) {
-        throw e
+        throw e;
     }
 
-    return buf
+    return buf;
 };
 
 node.signatureGetBytes = function (signature) {
     var bb = new ByteBuffer(32, true);
-    var publicKeyBuffer = new Buffer(signature.keyPair.publicKey, "hex");
+    var publicKeyBuffer = new Buffer(signature.keyPair.publicKey, 'hex');
 
     for (var i = 0; i < publicKeyBuffer.length; i++) {
         bb.writeByte(publicKeyBuffer[i]);
