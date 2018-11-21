@@ -1,8 +1,11 @@
 'use strict';
 
+const _ = require('lodash');
+const async = require('async');
 const Chat = require('../logic/chat.js');
 const transactionTypes = require('../helpers/transactionTypes.js');
 const Transfer = require('../logic/transfer.js');
+const OrderBy = require('../helpers/orderBy.js');
 
 // Private fields
 let modules, library, self, __private = {}, shared = {};
@@ -55,6 +58,84 @@ function Chatrooms (cb, scope) {
     setImmediate(cb, null, self);
 }
 
+__private.list = function (filter, cb) {
+    let params = {}, where = [];
+
+    if (filter.type >= 0) {
+        where.push('"c_type" = ${type}');
+        params.type = filter.type;
+    }
+    else {
+        // message type=3 is reserved for system messages, and shouldn't be retrieved without a filter
+        where.push('NOT ("c_type" = 3)');
+    }
+    where.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
+
+    if (filter.senderId) {
+        where.push('"t_senderId" = ${name}');
+        params.name = filter.senderId;
+    }
+    if (filter.recipientId) {
+        where.push('"t_recipientId" = ${name}');
+        params.name = filter.recipientId;
+    }
+
+    if (!filter.limit) {
+        params.limit = 100;
+    } else {
+        params.limit = Math.abs(filter.limit);
+    }
+
+    if (!filter.offset) {
+        params.offset = 0;
+    } else {
+        params.offset = Math.abs(filter.offset);
+    }
+
+    if (params.limit > 100) {
+        return setImmediate(cb, 'Invalid limit. Maximum is 100');
+    }
+
+    const orderBy = OrderBy(
+        filter.orderBy, {
+            sortFields: sql.sortFields
+        }
+    );
+
+    if (orderBy.error) {
+        return setImmediate(cb, orderBy.error);
+    }
+    library.db.query(sql.countList({
+        where: where
+    }), params).then(function (rows) {
+        const count = rows.length ? rows[0].count : 0;
+        library.db.query(sql.list({
+            where: where,
+            sortField: orderBy.sortField,
+            sortMethod: orderBy.sortMethod
+        }), params).then(function (rows) {
+            let transactions = [];
+
+            for (let i = 0; i < rows.length; i++) {
+                transactions.push(library.logic.transaction.dbRead(rows[i]));
+            }
+
+            const data = {
+                messages: transactions,
+                count: count
+            };
+
+            return setImmediate(cb, null, data);
+        }).catch(function (err) {
+            library.logger.error(err.stack);
+            return setImmediate(cb, err);
+        });
+    }).catch(function (err) {
+        library.logger.error(err.stack);
+        return setImmediate(cb, err);
+    });
+};
+
 Chatrooms.prototype.onBind = function (scope) {
     modules = {
         transactions: scope.transactions,
@@ -78,7 +159,30 @@ Chatrooms.prototype.isLoaded = function () {
 
 Chatrooms.prototype.internal = {
     getChats: function (req, cb) {
+        async.waterfall([
+            function (waterCb) {
+                const params = req.body;
 
+                library.schema.validate(params, schema.getTransactions, function (err) {
+                    if (err) {
+                        return setImmediate(waterCb, err[0].message);
+                    } else {
+                        return setImmediate(waterCb, null);
+                    }
+                });
+            },
+            function (waterCb) {
+                __private.list(req.body, function (err, data) {
+                    if (err) {
+                        return setImmediate(waterCb, 'Failed to get transactions: ' + err);
+                    } else {
+                        return setImmediate(waterCb, null, {transactions: data.transactions, count: data.count});
+                    }
+                });
+            }
+        ], function (err, res) {
+            return setImmediate(cb, err, res);
+        });
     },
     getMessages: function (req, cb) {
 
