@@ -40,7 +40,7 @@ describe('POST /api/accounts/open', function () {
 			node.expect(res.body.account).to.have.property('address').to.equal(account.address);
 			node.expect(res.body.account).to.have.property('unconfirmedBalance').that.is.a('string');
 			node.expect(res.body.account).to.have.property('balance').that.is.a('string');
-			node.expect(res.body.account).to.have.property('publicKey').to.equal(account.publicKey);
+			node.expect(res.body.account).to.have.property('publicKey').to.equal(account.publicKey.toString('hex'));
 			node.expect(res.body.account).to.have.property('unconfirmedSignature').to.equal(0);
 			node.expect(res.body.account).to.have.property('secondSignature').to.equal(0);
 			node.expect(res.body.account).to.have.property('secondPublicKey').to.equal(null);
@@ -197,7 +197,7 @@ describe('POST /api/accounts/generatePublicKey', function () {
 			secret: account.password
 		}, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
-			node.expect(res.body).to.have.property('publicKey').to.equal(account.publicKey);
+			node.expect(res.body).to.have.property('publicKey').to.equal(account.publicKey.toString('hex'));
 			done();
 		});
 	});
@@ -341,7 +341,7 @@ describe('GET /accounts', function () {
 	});
 
 	it('using unknown publicKey should fail', function (done) {
-		getAccounts('publicKey=' + account.publicKey, function (err, res) {
+		getAccounts('publicKey=' + account.publicKey.toString('hex'), function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
 			node.expect(res.body).to.have.property('error').to.eql('Account not found');
 			done();
@@ -402,7 +402,7 @@ describe('GET /accounts', function () {
 	});
 
 	it('using known address and not matching publicKey should fail', function (done) {
-		getAccounts('address=' + node.gAccount.address + '&publicKey=' + account.publicKey, function (err, res) {
+		getAccounts('address=' + node.gAccount.address + '&publicKey=' + account.publicKey.toString('hex'), function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
 			node.expect(res.body).to.have.property('error');
 			node.expect(res.body.error).to.contain('Account publicKey does not match address');
