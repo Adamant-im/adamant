@@ -23,7 +23,7 @@ var Router = function () {
 			if (route.length !== 2 || ['post', 'get', 'put'].indexOf(route[0]) === -1) {
 				throw Error('Invalid map config');
 			}
-			router[route[0]](new RegExp(route[1]), function (req, res, next) {
+			router[route[0]](route[1], function (req, res, next) {
 				var reqRelevantInfo = {
 					ip: req.ip,
 					method: req.method,

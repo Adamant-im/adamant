@@ -3,7 +3,9 @@
 const _ = require('lodash');
 const async = require('async');
 const Chat = require('../logic/chat.js');
+const sql = require('../sql/chats.js');
 const transactionTypes = require('../helpers/transactionTypes.js');
+const schema = require('../schema/chatrooms.js');
 const Transfer = require('../logic/transfer.js');
 const OrderBy = require('../helpers/orderBy.js');
 
@@ -121,7 +123,7 @@ __private.list = function (filter, cb) {
             }
 
             const data = {
-                messages: transactions,
+                transactions: transactions,
                 count: count
             };
 
@@ -163,7 +165,7 @@ Chatrooms.prototype.internal = {
             function (waterCb) {
                 const params = req.body;
 
-                library.schema.validate(params, schema.getTransactions, function (err) {
+                library.schema.validate(params, schema.getChats, function (err) {
                     if (err) {
                         return setImmediate(waterCb, err[0].message);
                     } else {

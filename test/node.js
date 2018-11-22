@@ -199,6 +199,21 @@ node.createSignatureTransaction = function (data) {
     return transaction;
 };
 
+node.createChatTransaction = function (data) {
+    data.transactionType = this.txTypes.CHAT_MESSAGE;
+    let transaction = this.createBasicTransaction(data);
+    transaction.asset = {"chat" : {
+            message: data.message,
+            own_message: data.own_message,
+            type : data.message_type || 1
+        }};
+    transaction.recipientId = data.recipientId;
+    transaction.amount = 0;
+    transaction.signature = this.transactionSign(transaction, data.keyPair);
+    transaction.fee = this.constants.fees.chat_message;
+    return transaction;
+};
+
 node.createSendTransaction = function (data) {
     data.transactionType = transactionTypes.SEND;
     let transaction = this.createBasicTransaction(data);
