@@ -117,16 +117,19 @@ __private.list = function (filter, cb) {
             sortMethod: orderBy.sortMethod
         }), params).then(function (rows) {
             let transactions = [];
+            let participants = [];
 
             for (let i = 0; i < rows.length; i++) {
-                transactions.push(library.logic.transaction.dbRead(rows[i]));
+                const trs = library.logic.transaction.dbRead(rows[i]);
+                transactions.push(trs);
+                participants.push(trs.senderId);
+                participants.push(trs.recipientId);
             }
-
             const data = {
-                transactions: transactions,
+                chats: transactions,
+                participants: participants,
                 count: count
             };
-
             return setImmediate(cb, null, data);
         }).catch(function (err) {
             library.logger.error(err.stack);
@@ -178,7 +181,11 @@ Chatrooms.prototype.internal = {
                     if (err) {
                         return setImmediate(waterCb, 'Failed to get transactions: ' + err);
                     } else {
-                        return setImmediate(waterCb, null, {transactions: data.transactions, count: data.count});
+                        return setImmediate(waterCb, null, {
+                            chats: data.chats,
+                            participants: data.participants,
+                            count: data.count
+                        });
                     }
                 });
             }

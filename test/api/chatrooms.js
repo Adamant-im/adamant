@@ -25,7 +25,7 @@ describe('GET /api/chatrooms/:ID', function () {
     before(function (done) {
         sendADM({
             secret: node.gAccount.password,
-            amount: 50000000000000,
+            amount: 100000000000,
             recipientId: sender.address
         }, function () {
             done();
@@ -64,8 +64,8 @@ describe('GET /api/chatrooms/:ID', function () {
         getChats(sender.address, function (err, res) {
             node.expect(res.body).to.have.property('success').to.be.ok;
             node.expect(res.body).to.have.property('count');
-            node.expect(res.body).to.have.property('messages');
-            node.expect(res.body).to.have.property('publicKeys');
+            node.expect(res.body).to.have.property('chats');
+            node.expect(res.body).to.have.property('participants');
             done();
         });
     });
