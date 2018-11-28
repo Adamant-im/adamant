@@ -218,7 +218,7 @@ __private.listMessages = function (filter, cb) {
             let transactions = [];
             for (let i = 0; i < rows.length; i++) {
                 const trs = library.logic.transaction.dbRead(rows[i]);
-                transactions.push(trs)
+                transactions.push(trs);
             }
             const data = {
                 messages: transactions,

@@ -29,7 +29,8 @@ var ChatsSql = {
 
     list: function (params) {
 		return [
-            'SELECT *, t_timestamp as timestamp FROM full_blocks_list',
+            'SELECT *, t_timestamp as timestamp, ENCODE("publicKey", \'hex\') as "recipientPublicKey" FROM full_blocks_list',
+            'LEFT OUTER JOIN mem_accounts ON address = "t_recipientId"',
             (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
             (params.whereOr.length ? 'AND (' + params.whereOr.join(' OR ') + ')': ''),
             (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
