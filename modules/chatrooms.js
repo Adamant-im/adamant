@@ -61,7 +61,7 @@ function Chatrooms (cb, scope) {
 }
 
 __private.list = function (filter, cb) {
-    let params = {}, where = [];
+    let params = {}, where = [], whereOr = [];
 
     if (filter.type >= 0) {
         where.push('"c_type" = ${type}');
@@ -77,9 +77,16 @@ __private.list = function (filter, cb) {
         where.push('"t_senderId" = ${name}');
         params.name = filter.senderId;
     }
+
     if (filter.recipientId) {
         where.push('"t_recipientId" = ${name}');
         params.name = filter.recipientId;
+    }
+
+    if (filter.userId) {
+        whereOr.push('"t_senderId" = ${name}');
+        whereOr.push('"t_recipientId" = ${name}');
+        params.name = filter.userId;
     }
 
     if (!filter.limit) {
@@ -113,21 +120,23 @@ __private.list = function (filter, cb) {
         const count = rows.length ? rows[0].count : 0;
         library.db.query(sql.list({
             where: where,
+            whereOr: whereOr,
             sortField: orderBy.sortField,
             sortMethod: orderBy.sortMethod
         }), params).then(function (rows) {
-            let transactions = [];
-            let participants = [];
-
+            let transactions = [], chats = {};
             for (let i = 0; i < rows.length; i++) {
                 const trs = library.logic.transaction.dbRead(rows[i]);
-                transactions.push(trs);
-                participants.push(trs.senderId);
-                participants.push(trs.recipientId);
+                trs.participants = [trs.senderId, trs.recipientId];
+                const uid = trs.senderId !== filter.userId ? trs.senderId : trs.recipientId;
+                if (!chats[uid]) chats[uid] = [];
+                chats[uid].push(trs);
+            }
+            for (const uid in chats) {
+                transactions.push(chats[uid].sort((x,y) => x.timestamp - y.timestamp)[0]);
             }
             const data = {
                 chats: transactions,
-                participants: participants,
                 count: count
             };
             return setImmediate(cb, null, data);
@@ -164,6 +173,7 @@ Chatrooms.prototype.isLoaded = function () {
 
 Chatrooms.prototype.internal = {
     getChats: function (req, cb) {
+        [req.body.userId,req.body.companionId] = req.path.match(/U[0-9]+/);
         async.waterfall([
             function (waterCb) {
                 const params = req.body;
