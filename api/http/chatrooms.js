@@ -23,8 +23,8 @@ function ChatroomsHttpApi (chatroomsModule, app) {
     const router = new Router();
 
     router.map(chatroomsModule.internal, {
+        'get /U*/U*': 'getMessages',
         'get /U*': 'getChats',
-        'get /U*/U*': 'getMessages'
     });
 
 

@@ -17,7 +17,11 @@ function getChats (senderId, done) {
     node.get( `/api/chatrooms/${senderId}`, done);
 }
 
-describe('GET /api/chatrooms/:ID', function () {
+function getMessages (authorId, companionId, done) {
+    node.get( `/api/chatrooms/${authorId}/${companionId}`, done);
+}
+
+describe('GET /api/chatrooms/:ID/:ID', function () {
     const sender = node.randomAccount();
     const recipient1 = node.randomAccount();
     const recipient2 = node.randomAccount();
@@ -110,6 +114,16 @@ describe('GET /api/chatrooms/:ID', function () {
             node.expect(res.body).to.have.property('success').to.be.ok;
             node.expect(res.body).to.have.property('count');
             node.expect(res.body).to.have.property('chats').to.have.lengthOf(2);
+            done();
+        });
+    });
+
+    it('should return the messages list for a valid transaction', function (done) {
+        getMessages(sender.address, recipient1.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count');
+            node.expect(res.body).to.have.property('messages').to.have.lengthOf(2);
+            node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
             done();
         });
     });
