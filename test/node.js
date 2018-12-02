@@ -202,7 +202,7 @@ node.createSignatureTransaction = function (data) {
 node.createChatTransaction = function (data) {
     data.transactionType = this.txTypes.CHAT_MESSAGE;
     let transaction = this.createBasicTransaction(data);
-    transaction.asset = {"chat" : {
+    transaction.asset = {'chat' : {
             message: data.message,
             own_message: data.own_message,
             type : data.message_type || 1

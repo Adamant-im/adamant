@@ -129,7 +129,7 @@ __private.listChats = function (filter, cb) {
                 const trs = library.logic.transaction.dbRead(rows[i]);
                 trs.participants = [trs.senderId, trs.recipientId];
                 const uid = trs.senderId !== filter.userId ? trs.senderId : trs.recipientId;
-                if (!chats[uid]) chats[uid] = [];
+                if (!chats[uid]) { chats[uid] = []; }
                 chats[uid].push(trs);
             }
             for (const uid in chats) {
@@ -261,7 +261,7 @@ Chatrooms.prototype.internal = {
     getChats: function (req, cb) {
         let validRequest;
         [validRequest, req.body.userId,req.body.companionId] = req.path.match(/(U[0-9]+)\/?(U[0-9]+)?/);
-        if (!validRequest) return setImmediate(cb, "Invalid Request path");
+        if (!validRequest) { return setImmediate(cb, 'Invalid Request path'); }
         async.waterfall([
             function (waterCb) {
                 const params = req.body;
@@ -293,7 +293,7 @@ Chatrooms.prototype.internal = {
     getMessages: function (req, cb) {
         let validRequest;
         [validRequest, req.body.userId,req.body.companionId] = req.path.match(/(U[0-9]+)\/?(U[0-9]+)?/);
-        if (!validRequest) return setImmediate(cb, "Invalid Request path");
+        if (!validRequest) { return setImmediate(cb, 'Invalid Request path'); }
         async.waterfall([
             function (waterCb) {
                 const params = req.body;

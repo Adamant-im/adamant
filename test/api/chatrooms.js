@@ -3,7 +3,7 @@
 const node = require('./../node.js');
 const Mnemonic = require('bitcore-mnemonic');
 
-function sendADM(params, done) {
+function sendADM (params, done) {
     node.put('/api/transactions/', params, function (err, res) {
         done(err, res);
     });
