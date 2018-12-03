@@ -47,7 +47,8 @@ node.fees = {
 	secondPasswordFee: node.constants.fees.secondsignature,
 	delegateRegistrationFee: node.constants.fees.delegate,
 	multisignatureRegistrationFee: node.constants.fees.multisignature,
-	dappAddFee: node.constants.fees.dapp
+	dappAddFee: node.constants.fees.dapp,
+    messageFee: node.constants.fees.chat_message
 };
 
 // Test application

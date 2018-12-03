@@ -123,7 +123,7 @@ __private.listChats = function (filter, cb) {
         let transactions = [], chats = {};
         for (let i = 0; i < rows.length; i++) {
             const trs = library.logic.transaction.dbRead(rows[i]);
-            trs.participants = [trs.senderId, trs.recipientId];
+            trs.participants = [trs.senderPublicKey, trs.recipientPublicKey];
             const uid = trs.senderId !== filter.userId ? trs.senderId : trs.recipientId;
             if (!chats[uid]) {
                 chats[uid] = [];

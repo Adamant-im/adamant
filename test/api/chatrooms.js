@@ -30,8 +30,30 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     before(function (done) {
         sendADM({
             secret: node.gAccount.password,
-            amount: 100000000000,
+            amount: node.fees.messageFee*3,
             recipientId: sender.address
+        }, function () {
+            done();
+        });
+    });
+
+    // send ADM to message sender
+    before(function (done) {
+        sendADM({
+            secret: node.gAccount.password,
+            amount: node.fees.messageFee,
+            recipientId: recipient1.address
+        }, function () {
+            done();
+        });
+    });
+
+    // send ADM to message sender
+    before(function (done) {
+        sendADM({
+            secret: node.gAccount.password,
+            amount: node.fees.messageFee*3,
+            recipientId: recipient2.address
         }, function () {
             done();
         });
@@ -47,6 +69,38 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     before(function (done) {
         const transaction = node.createChatTransaction({
             keyPair: sender.keypair,
+            recipientId: recipient1.address,
+            message: new Mnemonic(Mnemonic.Words.ENGLISH).toString(),
+            own_message: '',
+            type: 1
+        });
+        postMessage(transaction, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('transactionId').that.is.not.empty;
+            done();
+        });
+    });
+
+    // send a message from a recipient1 to recipient2
+    before(function (done) {
+        const transaction = node.createChatTransaction({
+            keyPair: recipient1.keypair,
+            recipientId: recipient2.address,
+            message: new Mnemonic(Mnemonic.Words.ENGLISH).toString(),
+            own_message: '',
+            type: 1
+        });
+        postMessage(transaction, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('transactionId').that.is.not.empty;
+            done();
+        });
+    });
+
+    // send a message from a recipient2 to recipient1
+    before(function (done) {
+        const transaction = node.createChatTransaction({
+            keyPair: recipient2.keypair,
             recipientId: recipient1.address,
             message: new Mnemonic(Mnemonic.Words.ENGLISH).toString(),
             own_message: '',
@@ -114,6 +168,11 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
             node.expect(res.body).to.have.property('success').to.be.ok;
             node.expect(res.body).to.have.property('count').to.equal('2');
             node.expect(res.body).to.have.property('chats').to.have.lengthOf(2);
+            for (let i = 0; i < res.body.chats.length; i++) {
+                node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
+                node.expect(res.body.chats[i].participants[0]).to.equal(sender.publicKey.toString('hex'));
+                node.expect(res.body.chats[i].participants[1]).to.not.equal(null);
+            }
             done();
         });
     });
@@ -124,6 +183,8 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
             node.expect(res.body).to.have.property('count').to.equal('2');
             node.expect(res.body).to.have.property('messages').to.have.lengthOf(2);
             node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
+            node.expect(res.body.participants[0]).to.equal(sender.publicKey.toString('hex'));
+            node.expect(res.body.participants[1]).to.equal(recipient1.publicKey.toString('hex'));
             done();
         });
     });
