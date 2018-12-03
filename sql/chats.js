@@ -23,7 +23,9 @@ var ChatsSql = {
         return [
             'SELECT COUNT(1) FROM full_blocks_list',
             (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
-            (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : '')
+            (params.whereOr.length ? 'AND (' + params.whereOr.join(' OR ') + ')': ''),
+            (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
+            'LIMIT ${limit} OFFSET ${offset}'
         ].filter(Boolean).join(' ');
     },
 

@@ -112,7 +112,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     it('should return the chats list for a valid transaction', function (done) {
         getChats(sender.address, function (err, res) {
             node.expect(res.body).to.have.property('success').to.be.ok;
-            node.expect(res.body).to.have.property('count');
+            node.expect(res.body).to.have.property('count').to.equal('2');
             node.expect(res.body).to.have.property('chats').to.have.lengthOf(2);
             done();
         });
@@ -121,7 +121,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     it('should return the messages list for a valid transaction', function (done) {
         getMessages(sender.address, recipient1.address, function (err, res) {
             node.expect(res.body).to.have.property('success').to.be.ok;
-            node.expect(res.body).to.have.property('count');
+            node.expect(res.body).to.have.property('count').to.equal('2');
             node.expect(res.body).to.have.property('messages').to.have.lengthOf(2);
             node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
             done();

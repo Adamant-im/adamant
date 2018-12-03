@@ -114,36 +114,30 @@ __private.listChats = function (filter, cb) {
     if (orderBy.error) {
         return setImmediate(cb, orderBy.error);
     }
-    library.db.query(sql.countList({
-        where: where
+    library.db.query(sql.list({
+        where: where,
+        whereOr: whereOr,
+        sortField: orderBy.sortField,
+        sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {
-        const count = rows.length ? rows[0].count : 0;
-        library.db.query(sql.list({
-            where: where,
-            whereOr: whereOr,
-            sortField: orderBy.sortField,
-            sortMethod: orderBy.sortMethod
-        }), params).then(function (rows) {
-            let transactions = [], chats = {};
-            for (let i = 0; i < rows.length; i++) {
-                const trs = library.logic.transaction.dbRead(rows[i]);
-                trs.participants = [trs.senderId, trs.recipientId];
-                const uid = trs.senderId !== filter.userId ? trs.senderId : trs.recipientId;
-                if (!chats[uid]) { chats[uid] = []; }
-                chats[uid].push(trs);
+        let transactions = [], chats = {};
+        for (let i = 0; i < rows.length; i++) {
+            const trs = library.logic.transaction.dbRead(rows[i]);
+            trs.participants = [trs.senderId, trs.recipientId];
+            const uid = trs.senderId !== filter.userId ? trs.senderId : trs.recipientId;
+            if (!chats[uid]) {
+                chats[uid] = [];
             }
-            for (const uid in chats) {
-                transactions.push(chats[uid].sort((x,y) => x.timestamp - y.timestamp)[0]);
-            }
-            const data = {
-                chats: transactions,
-                count: count
-            };
-            return setImmediate(cb, null, data);
-        }).catch(function (err) {
-            library.logger.error(err.stack);
-            return setImmediate(cb, err);
-        });
+            chats[uid].push(trs);
+        }
+        for (const uid in chats) {
+            transactions.push(chats[uid].sort((x, y) => x.timestamp - y.timestamp)[0]);
+        }
+        const data = {
+            chats: transactions,
+            count: String(transactions.length)
+        };
+        return setImmediate(cb, null, data);
     }).catch(function (err) {
         library.logger.error(err.stack);
         return setImmediate(cb, err);
@@ -206,7 +200,8 @@ __private.listMessages = function (filter, cb) {
         return setImmediate(cb, orderBy.error);
     }
     library.db.query(sql.countList({
-        where: where
+        where: where,
+        whereOr: whereOr
     }), params).then(function (rows) {
         const count = rows.length ? rows[0].count : 0;
         library.db.query(sql.list({
