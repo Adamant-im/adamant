@@ -166,7 +166,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     it('should return the chats list for a valid transaction', function (done) {
         getChats(sender.address, function (err, res) {
             node.expect(res.body).to.have.property('success').to.be.ok;
-            node.expect(res.body).to.have.property('count').to.equal('2');
+            node.expect(res.body).to.have.property('count').to.equal('3');
             node.expect(res.body).to.have.property('chats').to.have.lengthOf(2);
             for (let i = 0; i < res.body.chats.length; i++) {
                 node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
