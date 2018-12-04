@@ -128,7 +128,10 @@ __private.listChats = function (filter, cb) {
             let transactions = [], chats = {};
             for (let i = 0; i < rows.length; i++) {
                 const trs = library.logic.transaction.dbRead(rows[i]);
-                trs.participants = [trs.senderPublicKey, trs.recipientPublicKey];
+                trs.participants = [
+                    [trs.senderId, trs.senderPublicKey],
+                    [trs.recipientId, trs.recipientPublicKey]
+                ];
                 const uid = trs.senderId !== filter.userId ? trs.senderId : trs.recipientId;
                 if (!chats[uid]) {
                     chats[uid] = [];
@@ -226,7 +229,10 @@ __private.listMessages = function (filter, cb) {
             }
             const data = {
                 messages: transactions,
-                participants: transactions.length ? [transactions[0].senderPublicKey,transactions[0].recipientPublicKey] : [],
+                participants: transactions.length ? [
+                    [transactions[0].senderId,transactions[0].senderPublicKey],
+                    [transactions[0].recipientId,transactions[0].recipientPublicKey]
+                ] : [],
                 count: count
             };
             return setImmediate(cb, null, data);
