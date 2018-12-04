@@ -114,7 +114,7 @@ __private.listChats = function (filter, cb) {
     if (orderBy.error) {
         return setImmediate(cb, orderBy.error);
     }
-    library.db.query(sql.countList({
+    library.db.query(sql.countChats({
         where: where,
         whereOr: whereOr
     }), params).then(function (rows) {

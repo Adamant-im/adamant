@@ -28,6 +28,15 @@ var ChatsSql = {
         ].filter(Boolean).join(' ');
     },
 
+    countChats: function (params) {
+        return [
+            'SELECT COUNT(DISTINCT "t_recipientId") FROM full_blocks_list',
+            (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
+            (params.whereOr.length ? 'AND (' + params.whereOr.join(' OR ') + ')': ''),
+            (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : '')
+        ].filter(Boolean).join(' ');
+    },
+
     list: function (params) {
 		return [
             'SELECT *, t_timestamp as timestamp, ENCODE("publicKey", \'hex\') as "m_recipientPublicKey" FROM full_blocks_list',
