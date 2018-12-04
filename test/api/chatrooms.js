@@ -170,11 +170,9 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
             node.expect(res.body).to.have.property('chats').to.have.lengthOf(2);
             for (let i = 0; i < res.body.chats.length; i++) {
                 node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
-                node.expect(res.body.chats[i].participants[0]).to.have.lengthOf(2);
-                node.expect(res.body.chats[i].participants[1]).to.have.lengthOf(2);
-                node.expect(res.body.chats[i].participants[0][0]).to.equal(sender.address);
-                node.expect(res.body.chats[i].participants[0][1]).to.equal(sender.publicKey.toString('hex'));
-                node.expect(res.body.chats[i].participants[1][1]).to.not.equal(null);
+                node.expect(res.body.chats[i].participants[0].address).to.equal(sender.address);
+                node.expect(res.body.chats[i].participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
+                node.expect(res.body.chats[i].participants[1].publicKey).to.not.equal(null);
             }
             done();
         });
@@ -186,12 +184,10 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
             node.expect(res.body).to.have.property('count').to.equal('2');
             node.expect(res.body).to.have.property('messages').to.have.lengthOf(2);
             node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
-            node.expect(res.body.participants[0]).to.have.lengthOf(2);
-            node.expect(res.body.participants[1]).to.have.lengthOf(2);
-            node.expect(res.body.participants[0][0]).to.equal(sender.address);
-            node.expect(res.body.participants[0][1]).to.equal(sender.publicKey.toString('hex'));
-            node.expect(res.body.participants[1][0]).to.equal(recipient1.address);
-            node.expect(res.body.participants[1][1]).to.equal(recipient1.publicKey.toString('hex'));
+            node.expect(res.body.participants[0].address).to.equal(sender.address);
+            node.expect(res.body.participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
+            node.expect(res.body.participants[1].address).to.equal(recipient1.address);
+            node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
             done();
         });
     });
