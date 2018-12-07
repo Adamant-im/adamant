@@ -67,11 +67,11 @@ __private.listChats = function (filter, cb) {
         where.push('"c_type" = ${type}');
         params.type = filter.type;
     }
-    else {
-        // message type=3 is reserved for system messages, and shouldn't be retrieved without a filter
-        where.push('NOT ("c_type" = 3)');
+    if (filter.withPayments) {
+        where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
+    } else {
+        where.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
     }
-    where.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
 
     if (filter.senderId) {
         where.push('"t_senderId" = ${name}');
@@ -163,11 +163,11 @@ __private.listMessages = function (filter, cb) {
         where.push('"c_type" = ${type}');
         params.type = filter.type;
     }
-    else {
-        // message type=3 is reserved for system messages, and shouldn't be retrieved without a filter
-        where.push('NOT ("c_type" = 3)');
+    if (filter.withPayments) {
+        where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
+    } else {
+        where.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
     }
-    where.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
 
     if (filter.senderId) {
         where.push('"t_senderId" = ${name}');

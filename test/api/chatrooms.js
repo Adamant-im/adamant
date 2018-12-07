@@ -13,12 +13,12 @@ function postMessage (transaction, done) {
     node.post('/api/transactions', { transaction: transaction }, done);
 }
 
-function getChats (senderId, done) {
-    node.get( `/api/chatrooms/${senderId}`, done);
+function getChats (senderId, done, withPayments) {
+    node.get( `/api/chatrooms/${senderId}${withPayments ? '?withPayments' : ''}`, done);
 }
 
-function getMessages (authorId, companionId, done) {
-    node.get( `/api/chatrooms/${authorId}/${companionId}`, done);
+function getMessages (authorId, companionId, done, withPayments) {
+    node.get( `/api/chatrooms/${authorId}/${companionId}${withPayments ? '?withPayments=true' : ''}`, done);
 }
 
 describe('GET /api/chatrooms/:ID/:ID', function () {
@@ -30,7 +30,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     before(function (done) {
         sendADM({
             secret: node.gAccount.password,
-            amount: node.fees.messageFee*3,
+            amount: node.fees.messageFee*3+node.fees.transactionFee*2,
             recipientId: sender.address
         }, function () {
             done();
@@ -157,6 +157,17 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
         });
     });
 
+    // send ADM to message sender
+    before(function (done) {
+        sendADM({
+            secret: sender.password,
+            amount: node.fees.transactionFee,
+            recipientId: recipient1.address
+        }, function () {
+            done();
+        });
+    });
+
     before(function (done) {
         node.onNewBlock(function () {
             done();
@@ -190,5 +201,19 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
             node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
             done();
         });
+    });
+
+    it('should return the messages list for a valid transaction with payments', function (done) {
+        getMessages(sender.address, recipient1.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('3');
+            node.expect(res.body).to.have.property('messages').to.have.lengthOf(3);
+            node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
+            node.expect(res.body.participants[0].address).to.equal(sender.address);
+            node.expect(res.body.participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
+            node.expect(res.body.participants[1].address).to.equal(recipient1.address);
+            node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
+            done();
+        }, true);
     });
 });
