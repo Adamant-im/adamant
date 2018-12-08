@@ -7,16 +7,16 @@ ADAMANT is the most secure and anonymous messenger, encrypted with Blockchain.
 Highlights:
 
 - The most secure and anonymous messenger (see comparison table on the Website)
-- A working product. Try it now: <https://msg.adamant.im/>
+- Try it now: <https://msg.adamant.im/>
 - iOS and Android apps available
 - Trusted. Open-source project.
 - Brand new [Fair dPoS](https://medium.com/adamant-im/fair-delegate-system-in-dpos-568e5c3c86c8) consensus
 - The only one which is Blockchain-powered
 - Integrated crypto transfers
 
-**Use this repository to run your own ADAMANT node and support true messaging distribution. You can also promote your node to a delegate to forge blocks and receive ADM block rewards**
+**Use this repository to run your own ADAMANT node and support true messaging decentralization. You can also promote your node to a delegate to forge blocks and receive ADM block rewards**
 
-How to run ADAMANT node: [Instructions for users](https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc)
+How to run ADAMANT node: [Instructions for users](https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc).
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
 
@@ -180,6 +180,7 @@ npm test -- test/lib/transactions.js
 
 ## Authors
 
+- ADAMANT Tech Labs: Dmitriy Soloduhin, Sergey Ushakov <devs@adamant.im>
 - Boris Povod <boris@crypti.me>
 - Pavel Nekrasov <landgraf.paul@gmail.com>
 - Sebastian Stupurac <stupurac.sebastian@gmail.com>
@@ -187,8 +188,6 @@ npm test -- test/lib/transactions.js
 - Isabella Dell <isabella@lightcurve.io>
 - Marius Serek <mariusz@serek.net>
 - Maciej Baj <maciej@lightcurve.io>
-- Dmitriy Soloduhin <zyuhel@yandex.ru>
-
 
 ## License
 
