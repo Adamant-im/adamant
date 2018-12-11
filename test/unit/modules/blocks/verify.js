@@ -12,18 +12,56 @@ var clearDatabaseTable = require('../../../common/globalBefore').clearDatabaseTa
 
 var crypto = require('crypto');
 
+// const previousBlock = {
+//     "type": 2,
+//     "amount": 0,
+//     "fee": 0,
+//     "recipientId": null,
+//     "timestamp": 0,
+//     "asset": {
+//         "delegate": {
+//             "username": "permit"
+//         }
+//     },
+//     "senderId": "U8339394976025567725",
+//     "senderPublicKey": "01c5079a2234f69feca1b00daf4ddbd8904e13dfb67ce47c21f26377468706fa",
+//     "signature": "89165681db2fc7237d9ca45cadfe027fde94e4ee6efb33ef458f7ee2355a014c2ecb5178224d6f64f9c046c05822fe34edcd2cb59e13cd3350bde19853350405",
+//     "id": "17388275898014608425"
+// };
+
+// const validBlock = {
+//     "type": 2,
+//     "amount": 0,
+//     "fee": 0,
+//     "recipientId": null,
+//     "timestamp": 0,
+//     "asset": {
+//         "delegate": {
+//             "username": "require"
+//         }
+//     },
+//     "senderId": "U6503669570074878139",
+//     "senderPublicKey": "853864965070bf1ae2572778cbcaa15f4808e0ff0df5fd2c7bf615175dd39d79",
+//     "signature": "639a5acd99a702180524c62d9b09c51f5b99d03b9ac3e97fc36c911ffa9d130044a99a3380337ba7b848fb7ae1e9ffae82c0855f99443da9681d1e6e50a0b800",
+//     "id": "6740239031861108626"
+// };
+
+// const validBlock = {
+//
+// };
+
 var previousBlock = {
-	blockSignature: '696f78bed4d02faae05224db64e964195c39f715471ebf416b260bc01fa0148f3bddf559127b2725c222b01cededb37c7652293eb1a81affe2acdc570266b501',
-	generatorPublicKey:'86499879448d1b0215d59cbf078836e3d7d9d2782d56a2274a568761bff36f19',
-	height: 488,
-	id: '11850828211026019525',
+	blockSignature: 'a74cd53bebf9cf003cfd5fed8c053e1b64660e89a654078ff3341348145bbb0f34d1bde4a254b139ebae03117b346a2aab77fc8607eed9c7431db5eb4d4cbe0b',
+	generatorPublicKey:'377bfcc233fdba3039d9fbb8c7d8d97e1087d52941e5661b9c55b59c57f8fafe',
+	height: 42394,
+	id: '1553572419982003786',
 	numberOfTransactions: 0,
 	payloadHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
 	payloadLength: 0,
-	previousBlock: '8805727971083409014',
+	previousBlock: '2541382865961110750',
 	relays: 1,
 	reward: 0,
-	timestamp: 32578360,
+	timestamp: 39674945,
 	totalAmount: 0,
 	totalFee: 0,
 	transactions: [],
@@ -74,50 +112,19 @@ const testSenderHash = crypto.createHash('sha256').update(testSender.secret, 'ut
 const testSenderKeypair = ed.makeKeypair(testSenderHash);
 
 var validBlock = {
-	blockSignature: '56d63b563e00332ec31451376f5f2665fcf7e118d45e68f8db0b00db5963b56bc6776a42d520978c1522c39545c9aff62a7d5bdcf851bf65904b2c2158870f00',
-	generatorPublicKey: '9d3058175acab969f41ad9b86f7a2926c74258670fe56b37c429c01fca9f2f0f',
-	numberOfTransactions: 2,
-	payloadHash: 'be0df321b1653c203226add63ac0d13b3411c2f4caf0a213566cbd39edb7ce3b',
-	payloadLength: 494,
-	previousBlock: '11850828211026019525',
+	blockSignature: '08d70794b3fd90be5d14fd02f512c56485d4bac071ccf98188833242a7d84dfd9c98bc3cf6b7eecb6231dc94da82a275002d1913f60809e98d64f9892e98d303',
+	generatorPublicKey: '747d370dc479a7d684e3b61d8c75716f3bc91afcf9e5d3eeaeb557753d757ac4',
+	numberOfTransactions: 0,
+	payloadHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+	payloadLength: 0,
+	previousBlock: '1553572419982003786',
 	reward: 0,
-	timestamp: 32578370,
-	totalAmount: 10000000000000000,
+	timestamp: 39674950,
+	totalAmount: 0,
 	totalFee: 0,
-	transactions: [
-		{
-			'type': 0,
-			'amount': 10000000000000000,
-			'fee': 0,
-			'timestamp': 0,
-			'recipientId': marketDelegate.address,
-			'senderId': testSender.address,
-			'senderPublicKey': testSender.publicKey,
-			'signature': 'd8103d0ea2004c3dea8076a6a22c6db8bae95bc0db819240c77fc5335f32920e91b9f41f58b01fc86dfda11019c9fd1c6c3dcbab0a4e478e3c9186ff6090dc05',
-			'id': '1465651642158264047'
-		},
-		{
-			'type': 3,
-			'amount': 0,
-			'fee': 0,
-			'timestamp': 0,
-			'recipientId': testSender.address,
-			'senderId': testSender.address,
-			'senderPublicKey': testSender.publicKey,
-			'asset': {
-				'votes': [
-					'-29d72094b20d71b92a8e7879d43643ecd20cb2babfb722c959d7eccf6f72c4c3',
-					'-4e8f62f084613c5fb6dbff031227cc44c4bf573eb6a1e8c2c6fd5ed7c6149607',
-					'-fce94d6100a143b5d15c47bccd7efffa3538dd662b21bb23371e6041b1b98631',
-					'-3a2e633b2a40b4cc899bf115197056f40e647f5d5660cecd71b7891474a1ae9a'
-				]
-			},
-			'signature': '9f9446b527e93f81d3fb8840b02fcd1454e2b6276d3c19bd724033a01d3121dd2edb0aff61d48fad29091e222249754e8ec541132032aefaeebc312796f69e08',
-			'id': '9314232245035524467'
-		}
-	],
+	transactions: [],
 	version: 0,
-	id: '884740302254229983'
+	id: '10000428847403166554'
 };
 
 var blockRewardInvalid = {
