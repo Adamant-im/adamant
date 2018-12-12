@@ -470,7 +470,7 @@ describe('GET /api/transactions', function () {
 			node.expect(res.body).to.have.property('transactions').that.is.an('array');
 			if (res.body.transactions.length > 0) {
 				const transactions = res.body.transactions;
-				node.expect(transactions[0].timestamp).to.be.equal(offsetTimestamp);
+				node.expect(transactions[0].timestamp).to.be.equal(0);
 			}
 			done();
 		});
