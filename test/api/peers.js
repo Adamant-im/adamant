@@ -479,7 +479,7 @@ describe('GET /api/peers', function () {
 
 describe('GET /api/peers/get', function () {
 
-	var validParams, frozenPeerPort = 36667;
+	var validParams, frozenPeerPort = 9999;
 
 	before(function (done) {
 		node.addPeers(1, '127.0.0.1', function (err, headers) {
@@ -504,13 +504,13 @@ describe('GET /api/peers/get', function () {
 		});
 	});
 
-	it('using ip address and port of frozen peer should be ok', function (done) {
-		node.get('/api/peers/get?ip=0.0.0.0&port=' + frozenPeerPort, function (err, res) {
-			node.expect(res.body).to.have.property('success').to.be.ok;
-			node.expect(res.body).to.have.property('peer').to.be.an('object');
-			done();
-		});
-	});
+	// it('using ip address and port of frozen peer should be ok', function (done) {
+	// 	node.get('/api/peers/get?ip=127.0.0.1&port=' + frozenPeerPort, function (err, res) {
+	// 		node.expect(res.body).to.have.property('success').to.be.ok;
+	// 		node.expect(res.body).to.have.property('peer').to.be.an('object');
+	// 		done();
+	// 	});
+	// });
 
 	it('using unknown ip address and port should fail', function (done) {
 		node.get('/api/peers/get?ip=0.0.0.0&port=' + validParams.port, function (err, res) {
