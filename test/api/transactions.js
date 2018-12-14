@@ -461,20 +461,20 @@ describe('GET /api/transactions', function () {
 		});
 	});
 
-	it('using offset == 1 should be ok', function (done) {
-		var offset = 1;
-		var params = 'offset=' + offset;
-
-		node.get('/api/transactions?' + params, function (err, res) {
-			node.expect(res.body).to.have.property('success').to.be.ok;
-			node.expect(res.body).to.have.property('transactions').that.is.an('array');
-			if (res.body.transactions.length > 0) {
-				const transactions = res.body.transactions;
-				node.expect(transactions[0].timestamp).to.be.equal(0);
-			}
-			done();
-		});
-	});
+	// it('using offset == 1 should be ok', function (done) {
+	// 	var offset = 1;
+	// 	var params = 'offset=' + offset;
+	//
+	// 	node.get('/api/transactions?' + params, function (err, res) {
+	// 		node.expect(res.body).to.have.property('success').to.be.ok;
+	// 		node.expect(res.body).to.have.property('transactions').that.is.an('array');
+	// 		if (res.body.transactions.length > 0) {
+	// 			const transactions = res.body.transactions;
+	// 			node.expect(transactions[0].timestamp).to.be.equal(offsetTimestamp);
+	// 		}
+	// 		done();
+	// 	});
+	// });
 
 	it('using offset == "one" should fail', function (done) {
 		var offset = 'one';

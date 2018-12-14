@@ -10,7 +10,7 @@
     "fetchCoverage": "./node_modules/.bin/grunt exec:fetchCoverage --verbose",
     "jsdoc": "jsdoc -c docs/conf.json --verbose --pedantic",
     "server-docs": "npm run jsdoc && http-server docs/jsdoc/",
-    "fasttest": "./node_modules/.bin/mocha --exclude test/unit/logic/blockReward.js --exclude test/unit/sql/blockRewards.js test/unit/**/*"
+    "fasttest": "./node_modules/.bin/mocha --exclude test/unit/logic/blockReward.js --exclude test/unit/sql/blockRewards.js --exclude test/api/delegates.js --exclude test/api/peer.transactions.stress.js --exclude test/api/peer.transactions.votes.js test/unit/**/* test/api/**/*"
   },
   "author": "Lisk Foundation <admin@lisk.io>, lightcurve GmbH <admin@lightcurve.io>, zyuhel <zyuhel@yandex.ru>",
   "license": "GPL-3.0",
