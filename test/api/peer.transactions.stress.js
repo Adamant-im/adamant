@@ -14,6 +14,16 @@ function postTransactions (transactions, done) {
 	}, done);
 }
 
+function sendADM (params, done) {
+    node.put('/api/transactions', params, function (err, res) {
+        node.expect(res.body).to.have.property('success').to.be.ok;
+        node.onNewBlock(function (err) {
+            return done(err, res);
+        });
+    });
+}
+
+
 describe('POST /peer/transactions', function () {
 
 	describe('sending 1000 bundled transfers to random addresses', function () {
@@ -21,32 +31,42 @@ describe('POST /peer/transactions', function () {
 		var transactions = [];
 		var maximum = 1000;
 		var count = 1;
+		const account = node.randomAccount();
 
 		before(function (done) {
-			node.async.doUntil(function (next) {
-				var bundled = [];
+			sendADM({
+                secret: node.gAccount.password,
+                amount: 5000000000*2000,
+                recipientId: account.address
+			},function () {
+                node.async.doUntil(function (next) {
+                    var bundled = [];
 
-				for (var i = 0; i < node.config.broadcasts.releaseLimit; i++) {
-					var transaction = node.lisk.transaction.createTransaction(
-						node.randomAccount().address,
-						node.randomNumber(100000000, 1000000000),
-						node.gAccount.password
-					);
+                    for (var i = 0; i < node.config.broadcasts.releaseLimit; i++) {
+                        const recipient = node.randomAccount();
+                        let transaction = node.createSendTransaction({
+                            keyPair: account.keypair,
+                            amount: 100000000,
+                            recipientId: recipient.address
+                        });
+                        transaction.fee = node.fees.transactionFee;
 
-					transactions.push(transaction);
-					bundled.push(transaction);
-					count++;
-				}
+                        transactions.push(transaction);
+                        bundled.push(transaction);
+                        count++;
+                    }
 
-				postTransactions(bundled, function (err, res) {
-					node.expect(res.body).to.have.property('success').to.be.ok;
-					next();
-				});
-			}, function () {
-				return (count >= maximum);
-			}, function (err) {
-				done(err);
-			});
+                    postTransactions(bundled, function (err, res) {
+                        node.expect(res.body).to.have.property('success').to.be.ok;
+                        next();
+                    });
+                }, function () {
+                    return (count >= maximum);
+                }, function (err) {
+                    done(err);
+                });
+            });
+
 		});
 
 		it('should confirm all transactions', function (done) {
@@ -68,27 +88,36 @@ describe('POST /peer/transactions', function () {
 		var transactions = [];
 		var maximum = 1000;
 		var count = 1;
+		const account = node.randomAccount();
 
 		before(function (done) {
-			node.async.doUntil(function (next) {
-				var transaction = node.lisk.transaction.createTransaction(
-					node.randomAccount().address,
-					node.randomNumber(100000000, 1000000000),
-					node.gAccount.password
-				);
-
-				postTransaction(transaction, function (err, res) {
-					node.expect(res.body).to.have.property('success').to.be.ok;
-					node.expect(res.body).to.have.property('transactionId').to.equal(transaction.id);
-					transactions.push(transaction);
-					count++;
-					next();
-				});
+			sendADM({
+                secret: node.gAccount.password,
+                amount: 5000000000*2000,
+                recipientId: account.address
 			}, function () {
-				return (count >= maximum);
-			}, function (err) {
-				done(err);
-			});
+                node.async.doUntil(function (next) {
+                    const recipient = node.randomAccount();
+                    let transaction = node.createSendTransaction({
+                        keyPair: account.keypair,
+                        amount: 100000000,
+                        recipientId: recipient.address
+                    });
+                    transaction.fee = node.fees.transactionFee;
+
+                    postTransaction(transaction, function (err, res) {
+                        node.expect(res.body).to.have.property('success').to.be.ok;
+                        node.expect(res.body).to.have.property('transactionId').to.equal(transaction.id);
+                        transactions.push(transaction);
+                        count++;
+                        next();
+                    });
+                }, function () {
+                    return (count >= maximum);
+                }, function (err) {
+                    done(err);
+                });
+            });
 		});
 
 		it('should confirm all transactions', function (done) {

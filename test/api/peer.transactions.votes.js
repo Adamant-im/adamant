@@ -30,7 +30,11 @@ function postVotes (params, done) {
 	var blocksToWait = Math.ceil(params.delegates.length / node.constants.maxTxsPerBlock);
 
 	node.async.eachSeries(params.delegates, function (delegate, eachCb) {
-		var transaction = node.lisk.vote.createVote(params.passphrase, [params.action + delegate]);
+        let transaction = node.createVoteTransaction({
+            keyPair: account.keypair,
+			votes: [params.action + delegate]
+        });
+        transaction.fee = node.fees.voteFee;
 
 		postVote(transaction, function (err, res) {
 			params.voteCb(err, res);
@@ -49,7 +53,7 @@ function postVote (transaction, done) {
 	});
 }
 
-function sendLISK (params, done) {
+function sendADM (params, done) {
 	node.put('/api/transactions', params, function (err, res) {
 		node.expect(res.body).to.have.property('success').to.be.ok;
 		node.onNewBlock(function (err) {
@@ -60,7 +64,11 @@ function sendLISK (params, done) {
 
 function registerDelegate (account, done) {
 	account.username = node.randomDelegateName().toLowerCase();
-	var transaction = node.lisk.delegate.createDelegate(account.password, account.username);
+    let transaction = node.createDelegateTransaction({
+        username: account.username,
+        keyPair: account.keypair
+    });
+    transaction.fee = node.fees.delegateRegistrationFee;
 
 	node.post('/peer/transactions', { transaction: transaction }, function (err, res) {
 		node.expect(res.body).to.have.property('success').to.be.ok;
@@ -73,9 +81,9 @@ function registerDelegate (account, done) {
 describe('POST /peer/transactions', function () {
 
 	before(function (done) {
-		sendLISK({
+		sendADM({
 			secret: node.gAccount.password,
-			amount: 100000000000,
+			amount: 50000000000000,
 			recipientId: account.address
 		}, done);
 	});
@@ -122,7 +130,11 @@ describe('POST /peer/transactions', function () {
 	});
 
 	it('using undefined transaction.asset', function (done) {
-		var transaction = node.lisk.vote.createVote(account.password, ['+' + delegate]);
+        let transaction = node.createVoteTransaction({
+            keyPair: account.keypair,
+            votes: [`+${delegate}`]
+        });
+        transaction.fee = node.fees.voteFee;
 
 		delete transaction.asset;
 
@@ -134,7 +146,11 @@ describe('POST /peer/transactions', function () {
 	});
 
 	it('using transaction.asset.votes containing invalid vote type', function (done) {
-		var transaction = node.lisk.vote.createVote(account.password, [0]);
+        let transaction = node.createVoteTransaction({
+            keyPair: account.keypair,
+            votes: [0]
+        });
+        transaction.fee = node.fees.voteFee;
 
 		postVote(transaction, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
@@ -144,7 +160,11 @@ describe('POST /peer/transactions', function () {
 	});
 
 	it('using transaction.asset.votes containing invalid vote format', function (done) {
-		var transaction = node.lisk.vote.createVote(account.password, ['@' + delegate]);
+        let transaction = node.createVoteTransaction({
+            keyPair: account.keypair,
+            votes: [`@${delegate}`]
+        });
+        transaction.fee = node.fees.voteFee;
 
 		postVote(transaction, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
@@ -154,7 +174,11 @@ describe('POST /peer/transactions', function () {
 	});
 
 	it('using transaction.asset.votes containing invalid vote length', function (done) {
-		var transaction = node.lisk.vote.createVote(account.password, ['+' + delegate + 'z']);
+        let transaction = node.createVoteTransaction({
+            keyPair: account.keypair,
+            votes: [`+${delegate}z`]
+        });
+        transaction.fee = node.fees.voteFee;
 
 		postVote(transaction, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
@@ -164,7 +188,11 @@ describe('POST /peer/transactions', function () {
 	});
 
 	it('using transaction.asset.votes containing manipulated vote', function (done) {
-		var transaction = node.lisk.vote.createVote(account.password, ['+8a6d629685b18e17e5f534065bad4984a8aa6b499c5783c3e65f61779e6da06czz']);
+        let transaction = node.createVoteTransaction({
+            keyPair: account.keypair,
+            votes: ['+8a6d629685b18e17e5f534065bad4984a8aa6b499c5783c3e65f61779e6da06czz']
+        });
+        transaction.fee = node.fees.voteFee;
 
 		postVote(transaction, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
@@ -176,7 +204,11 @@ describe('POST /peer/transactions', function () {
 	it('voting twice for a delegate should fail', function (done) {
 		node.async.series([
 			function (seriesCb) {
-				var transaction = node.lisk.vote.createVote(account.password, ['+' + delegate]);
+                let transaction = node.createVoteTransaction({
+                    keyPair: account.keypair,
+                    votes: [`+${delegate}`]
+                });
+                transaction.fee = node.fees.voteFee;
 				postVote(transaction, function (err, res) {
 					node.expect(res.body).to.have.property('success').to.be.ok;
 					return seriesCb();
@@ -186,7 +218,11 @@ describe('POST /peer/transactions', function () {
 				setTimeout(seriesCb, 1000);
 			},
 			function (seriesCb) {
-				var transaction2 = node.lisk.vote.createVote(account.password, ['+' + delegate]);
+                let transaction2 = node.createVoteTransaction({
+                    keyPair: account.keypair,
+                    votes: [`+${delegate}`]
+                });
+                transaction2.fee = node.fees.voteFee;
 				postVote(transaction2, function (err, res) {
 					node.expect(res.body).to.have.property('success').to.be.ok;
 					return seriesCb();
@@ -196,7 +232,11 @@ describe('POST /peer/transactions', function () {
 				return node.onNewBlock(seriesCb);
 			},
 			function (seriesCb) {
-				var transaction2 = node.lisk.vote.createVote(account.password, ['+' + delegate]);
+                let transaction2 = node.createVoteTransaction({
+                    keyPair: account.keypair,
+                    votes: [`+${delegate}`]
+                });
+                transaction2.fee = node.fees.voteFee;
 				postVote(transaction2, function (err, res) {
 					node.expect(res.body).to.have.property('success').to.be.not.ok;
 					return seriesCb();
@@ -214,7 +254,11 @@ describe('POST /peer/transactions', function () {
 	});
 
 	it('removing votes from a delegate should be ok', function (done) {
-		var transaction = node.lisk.vote.createVote(account.password, ['-' + delegate]);
+        let transaction = node.createVoteTransaction({
+            keyPair: account.keypair,
+            votes: [`-${delegate}`]
+        });
+        transaction.fee = node.fees.voteFee;
 		postVote(transaction, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('transactionId').to.equal(transaction.id);
@@ -225,9 +269,13 @@ describe('POST /peer/transactions', function () {
 	});
 
 	it(['voting for ', constants.maxVotesPerTransaction, 'delegates at once should be ok'].join(' '), function (done) {
-		var transaction = node.lisk.vote.createVote(account.password, delegates.slice(0, constants.maxVotesPerTransaction).map(function (delegate) {
-			return '+' + delegate;
-		}));
+		// 	return '+' + delegate;
+		// }));
+        let transaction = node.createVoteTransaction({
+            keyPair: account.keypair,
+            votes: delegates.slice(0, constants.maxVotesPerTransaction).map(x => `+${x}`)
+        });
+        transaction.fee = node.fees.voteFee;
 
 		postVote(transaction, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
@@ -239,9 +287,11 @@ describe('POST /peer/transactions', function () {
 	});
 
 	it(['removing votes from', constants.maxVotesPerTransaction, 'delegates at once should be ok'].join(' '), function (done) {
-		var transaction = node.lisk.vote.createVote(account.password, delegates.slice(0, constants.maxVotesPerTransaction).map(function (delegate) {
-			return '-' + delegate;
-		}));
+        let transaction = node.createVoteTransaction({
+            keyPair: account.keypair,
+            votes: delegates.slice(0, constants.maxVotesPerTransaction).map(x => `-${x}`)
+        });
+        transaction.fee = node.fees.voteFee;
 
 		postVote(transaction, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
@@ -253,9 +303,11 @@ describe('POST /peer/transactions', function () {
 	});
 
 	it(['voting for', constants.maxVotesPerTransaction + 1, 'delegates at once should fail'].join(' '), function (done) {
-		var transaction = node.lisk.vote.createVote(account.password, delegates.slice(0, constants.maxVotesPerTransaction + 1).map(function (delegate) {
-			return '+' + delegate;
-		}));
+        let transaction = node.createVoteTransaction({
+            keyPair: account.keypair,
+            votes: delegates.slice(0, constants.maxVotesPerTransaction + 1).map(x => `+${x}`)
+        });
+        transaction.fee = node.fees.voteFee;
 
 		postVote(transaction, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
@@ -279,9 +331,11 @@ describe('POST /peer/transactions', function () {
 	});
 
 	it(['removing votes from', constants.maxVotesPerTransaction + 1, 'delegates at once should fail'].join(' '), function (done) {
-		var transaction = node.lisk.vote.createVote(account.password, delegates.slice(0, constants.maxVotesPerTransaction + 1).map(function (delegate) {
-			return '-' + delegate;
-		}));
+        let transaction = node.createVoteTransaction({
+            keyPair: account.keypair,
+            votes: delegates.slice(0, constants.maxVotesPerTransaction + 1).map(x => `-${x}`)
+        });
+        transaction.fee = node.fees.voteFee;
 
 		postVote(transaction, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
@@ -318,9 +372,9 @@ describe('POST /peer/transactions after registering a new delegate', function ()
 	});
 
 	before(function (done) {
-		sendLISK({
+		sendADM({
 			secret: node.gAccount.password,
-			amount: 100000000000,
+			amount: 5000000000000,
 			recipientId: account.address
 		}, done);
 	});
@@ -330,7 +384,11 @@ describe('POST /peer/transactions after registering a new delegate', function ()
 	});
 
 	it('voting for self should be ok', function (done) {
-		var transaction = node.lisk.vote.createVote(account.password, ['+' + account.publicKey]);
+        let transaction = node.createVoteTransaction({
+            keyPair: account.keypair,
+            votes: [`+${account.publicKey.toString('hex')}`]
+        });
+        transaction.fee = node.fees.voteFee;
 
 		postVote(transaction, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
@@ -366,9 +424,11 @@ describe('POST /peer/transactions after registering a new delegate', function ()
 				var slicedDelegates = delegates.slice(-25);
 				node.expect(slicedDelegates).to.have.lengthOf(25);
 
-				var transaction = node.lisk.vote.createVote(account.password, slicedDelegates.map(function (delegate) {
-					return '+' + delegate;
-				}));
+                let transaction = node.createVoteTransaction({
+                    keyPair: account.keypair,
+                    votes: slicedDelegates.map(x => `+${x}`)
+                });
+                transaction.fee = node.fees.voteFee;
 
 				postVote(transaction, function (err, res) {
 					node.expect(res.body).to.have.property('success').to.be.not.ok;
@@ -387,15 +447,20 @@ describe('POST /peer/transactions after registering a new delegate', function ()
 		});
 	});
 
-	it('removing vote from self should be ok', function (done) {
-		var transaction = node.lisk.vote.createVote(account.password, ['-' + account.publicKey]);
+    it('removing vote from self should be ok', function (done) {
+        let transaction = node.createVoteTransaction({
+            keyPair: account.keypair,
+            votes: [`-${account.publicKey.toString('hex')}`]
+        });
+        transaction.fee = node.fees.voteFee;
 
-		postVote(transaction, function (err, res) {
-			node.expect(res.body).to.have.property('success').to.be.ok;
-			node.expect(res.body).to.have.property('transactionId').to.equal(transaction.id);
-			node.onNewBlock(function (err) {
-				return done(err);
-			});
-		});
-	});
+        postVote(transaction, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('transactionId').to.equal(transaction.id);
+            node.onNewBlock(function (err) {
+                return done(err);
+            });
+        });
+    });
+
 });

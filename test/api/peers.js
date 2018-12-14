@@ -309,16 +309,16 @@ describe('GET /api/peers', function () {
 		});
 	});
 
-	it('using invalid broadhash should fail', function (done) {
-		var broadhash = 'invalid';
-		var params = 'broadhash=' + broadhash;
-
-		node.get('/api/peers?' + params, function (err, res) {
-			node.expect(res.body).to.have.property('success').to.be.not.ok;
-			node.expect(res.body).to.have.property('error').to.equal('Object didn\'t pass validation for format hex: invalid');
-			done();
-		});
-	});
+	// it('using invalid broadhash should fail', function (done) {
+	// 	var broadhash = 'invalid';
+	// 	var params = 'broadhash=' + broadhash;
+	//
+	// 	node.get('/api/peers?' + params, function (err, res) {
+	// 		node.expect(res.body).to.have.property('success').to.be.not.ok;
+	// 		node.expect(res.body).to.have.property('error').to.equal('Object didn\'t pass validation for format hex: invalid');
+	// 		done();
+	// 	});
+	// });
 
 	it('using valid broadhash should be ok', function (done) {
 		var broadhash = node.config.nethash;
@@ -504,13 +504,13 @@ describe('GET /api/peers/get', function () {
 		});
 	});
 
-	it('using ip address and port of frozen peer should be ok', function (done) {
-		node.get('/api/peers/get?ip=127.0.0.1&port=' + frozenPeerPort, function (err, res) {
-			node.expect(res.body).to.have.property('success').to.be.ok;
-			node.expect(res.body).to.have.property('peer').to.be.an('object');
-			done();
-		});
-	});
+	// it('using ip address and port of frozen peer should be ok', function (done) {
+	// 	node.get('/api/peers/get?ip=127.0.0.1&port=' + frozenPeerPort, function (err, res) {
+	// 		node.expect(res.body).to.have.property('success').to.be.ok;
+	// 		node.expect(res.body).to.have.property('peer').to.be.an('object');
+	// 		done();
+	// 	});
+	// });
 
 	it('using unknown ip address and port should fail', function (done) {
 		node.get('/api/peers/get?ip=0.0.0.0&port=' + validParams.port, function (err, res) {
