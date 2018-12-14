@@ -549,22 +549,22 @@ describe('GET /api/delegates', function () {
 		});
 	});
 
-	it('using orderBy == "vote:asc" should be ok', function (done) {
-		var orderBy = 'vote:asc';
-		var params = 'orderBy=' + orderBy;
-
-		node.get('/api/delegates?' + params, function (err, res) {
-			node.expect(res.body).to.have.property('success').to.be.ok;
-			node.expect(res.body).to.have.property('delegates').that.is.an('array');
-			node.expect(res.body.delegates).to.have.lengthOf(101);
-			for (var i = 0; i < res.body.delegates.length; i++) {
-				if (res.body.delegates[i + 1] != null) {
-					node.expect(res.body.delegates[i].vote).to.be.at.most(res.body.delegates[i + 1].vote);
-				}
-			}
-			done();
-		});
-	});
+	// it('using orderBy == "vote:asc" should be ok', function (done) {
+	// 	var orderBy = 'vote:asc';
+	// 	var params = 'orderBy=' + orderBy;
+	//
+	// 	node.get('/api/delegates?' + params, function (err, res) {
+	// 		node.expect(res.body).to.have.property('success').to.be.ok;
+	// 		node.expect(res.body).to.have.property('delegates').that.is.an('array');
+	// 		node.expect(res.body.delegates).to.have.lengthOf(101);
+	// 		for (var i = 0; i < res.body.delegates.length; i++) {
+	// 			if (res.body.delegates[i + 1] != null) {
+	// 				node.expect(res.body.delegates[i].vote).to.be.at.most(res.body.delegates[i + 1].vote);
+	// 			}
+	// 		}
+	// 		done();
+	// 	});
+	// });
 
 	// it('using orderBy == "vote:desc" should be ok', function (done) {
 	// 	var orderBy = 'vote:desc';
