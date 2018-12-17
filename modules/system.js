@@ -44,12 +44,12 @@ function System (cb, scope) {
 	self = this;
 
 	__private.os = os.platform() + os.release();
-	__private.version = library.packageJson.version;
+	__private.version = library.config.version;
 	__private.port = library.config.port;
 	__private.height = 1;
 	__private.nethash = library.config.nethash;
 	__private.broadhash = library.config.nethash;
-	__private.minVersion = library.packageJson.config.minVersion;
+	__private.minVersion = library.config.minVersion;
 	__private.nonce = library.nonce;
 
 	if (rcRegExp.test(__private.minVersion)) {
