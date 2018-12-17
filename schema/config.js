@@ -14,15 +14,6 @@ module.exports = {
 				type: 'string',
 				format: 'ip'
 			},
-			version: {
-				type: 'string',
-				format: 'version',
-				minLength: 5,
-				maxLength: 12
-			},
-			minVersion: {
-				type: 'string'
-			},
 			fileLogLevel: {
 				type: 'string'
 			},
