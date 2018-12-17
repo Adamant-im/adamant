@@ -42,7 +42,7 @@ function Peers (cb, scope) {
 		},
 		config: {
 			peers: scope.config.peers,
-			version: scope.packageJSON.version,
+			version: scope.packageJson.version,
 		},
 	};
 	self = this;
