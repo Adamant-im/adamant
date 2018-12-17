@@ -47,7 +47,7 @@ For making process simplier, you can use tools/install_ubuntu_dependencies.sh sc
 
   ```
   curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
-  nvm install v10.9.0
+  nvm install v10.14.2
   ```
 
 - Install PostgreSQL (version 9.6.2):
