@@ -305,6 +305,6 @@ module.exports = {
 				format: 'hex'
 			}
 		},
-		required: ['port', 'address', 'version', 'minVersion', 'fileLogLevel', 'logFileName', 'consoleLogLevel', 'trustProxy', 'topAccounts', 'db', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'dapp', 'nethash', 'cacheEnabled', 'redis']
+		required: ['port', 'address', 'fileLogLevel', 'logFileName', 'consoleLogLevel', 'trustProxy', 'topAccounts', 'db', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'dapp', 'nethash', 'cacheEnabled', 'redis']
 	}
 };
