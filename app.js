@@ -246,7 +246,7 @@ d.run(function () {
 			});
 		},
         packageJson: function (cb) {
-            cb(null, packageJson)
+            cb(null, packageJson);
         },
 		public: function (cb) {
 			cb(null, path.join(__dirname, 'public'));
