@@ -39,7 +39,6 @@ var httpApi = require('./helpers/httpApi.js');
 var Sequence = require('./helpers/sequence.js');
 var util = require('util');
 var z_schema = require('./helpers/z_schema.js');
-
 process.stdin.resume();
 
 var versionBuild = fs.readFileSync(path.join(__dirname, 'build'), 'utf8');
@@ -219,13 +218,11 @@ d.run(function () {
 				}
 
 				fs.writeFileSync('./config.json', JSON.stringify(appConfig, null, 4));
-
 				cb(null, appConfig);
 			} else {
 				cb(null, appConfig);
 			}
 		},
-
 		logger: function (cb) {
 			cb(null, logger);
 		},
@@ -248,7 +245,9 @@ d.run(function () {
 				block: genesisblock
 			});
 		},
-
+        packageJson: function (cb) {
+            cb(null, packageJson);
+        },
 		public: function (cb) {
 			cb(null, path.join(__dirname, 'public'));
 		},
