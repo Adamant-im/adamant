@@ -39,7 +39,6 @@ var httpApi = require('./helpers/httpApi.js');
 var Sequence = require('./helpers/sequence.js');
 var util = require('util');
 var z_schema = require('./helpers/z_schema.js');
-
 process.stdin.resume();
 
 var versionBuild = fs.readFileSync(path.join(__dirname, 'build'), 'utf8');
@@ -51,7 +50,7 @@ var lastCommit = '';
 
 if (typeof gc !== 'undefined') {
 	setInterval(function () {
-// eslint-disable-next-line no-undef
+		// eslint-disable-next-line no-undef
 		gc();
 	}, 60000);
 }
@@ -137,26 +136,52 @@ var config = {
 		rounds: './modules/rounds.js',
 		multisignatures: './modules/multisignatures.js',
 		dapps: './modules/dapps.js',
-        chats: './modules/chats.js',
-        states: './modules/states.js',
+		chats: './modules/chats.js',
+		states: './modules/states.js',
 		crypto: './modules/crypto.js',
 		sql: './modules/sql.js',
 		cache: './modules/cache.js'
 	},
 	api: {
-		accounts: { http: './api/http/accounts.js' },
-		blocks: { http: './api/http/blocks.js' },
-		dapps: { http: './api/http/dapps.js' },
-        chats: { http: './api/http/chats.js' },
-        states: { http: './api/http/states.js' },
-		delegates: { http: './api/http/delegates.js' },
-		loader: { http: './api/http/loader.js' },
-		multisignatures: { http: './api/http/multisignatures.js' },
-		peers: { http: './api/http/peers.js' },
-		server: { http: './api/http/server.js' },
-		signatures: { http: './api/http/signatures.js' },
-		transactions: { http: './api/http/transactions.js' },
-		transport: { http: './api/http/transport.js' }
+		accounts: {
+			http: './api/http/accounts.js'
+		},
+		blocks: {
+			http: './api/http/blocks.js'
+		},
+		dapps: {
+			http: './api/http/dapps.js'
+		},
+		chats: {
+			http: './api/http/chats.js'
+		},
+		states: {
+			http: './api/http/states.js'
+		},
+		delegates: {
+			http: './api/http/delegates.js'
+		},
+		loader: {
+			http: './api/http/loader.js'
+		},
+		multisignatures: {
+			http: './api/http/multisignatures.js'
+		},
+		peers: {
+			http: './api/http/peers.js'
+		},
+		server: {
+			http: './api/http/server.js'
+		},
+		signatures: {
+			http: './api/http/signatures.js'
+		},
+		transactions: {
+			http: './api/http/transactions.js'
+		},
+		transport: {
+			http: './api/http/transport.js'
+		}
 	}
 };
 
@@ -165,8 +190,11 @@ var config = {
  * The Object is initialized here and pass to others as parameter.
  * @property {object} - Logger instance.
  */
-var logger = new Logger({ echo: appConfig.consoleLogLevel, errorLevel: appConfig.fileLogLevel, 
-	filename: appConfig.logFileName });
+var logger = new Logger({
+	echo: appConfig.consoleLogLevel,
+	errorLevel: appConfig.fileLogLevel,
+	filename: appConfig.logFileName
+});
 
 // Trying to get last git commit
 try {
@@ -182,7 +210,10 @@ try {
 var d = require('domain').create();
 
 d.on('error', function (err) {
-	logger.fatal('Domain master', { message: err.message, stack: err.stack });
+	logger.fatal('Domain master', {
+		message: err.message,
+		stack: err.stack
+	});
 	process.exit(0);
 });
 
@@ -219,13 +250,11 @@ d.run(function () {
 				}
 
 				fs.writeFileSync('./config.json', JSON.stringify(appConfig, null, 4));
-
 				cb(null, appConfig);
 			} else {
 				cb(null, appConfig);
 			}
 		},
-
 		logger: function (cb) {
 			cb(null, logger);
 		},
@@ -248,7 +277,9 @@ d.run(function () {
 				block: genesisblock
 			});
 		},
-
+		packageJson: function (cb) {
+			cb(null, packageJson);
+		},
 		public: function (cb) {
 			cb(null, path.join(__dirname, 'public'));
 		},
@@ -257,6 +288,17 @@ d.run(function () {
 			cb(null, new z_schema());
 		},
 
+		/**
+		 * ws client PWA,
+		 * @method clientWs 
+		 * @param {object} wsconfig - config from ws client PWA,
+		 * @param {nodeStyleCallback} cb - Callback function with created Method: 
+		 * `emit`.
+		 */
+		clientWs: ['config', function (scope, cb) {
+			var ClientWs = require('./modules/clientWs');
+			cb(null, new ClientWs(scope.config.wsClient));
+		}],
 		/**
 		 * Once config is completed, creates app, http & https servers & sockets with express.
 		 * @method network
@@ -280,7 +322,9 @@ d.run(function () {
 
 			require('./helpers/request-limiter')(app, appConfig);
 
-			app.use(compression({ level: 9 }));
+			app.use(compression({
+				level: 9
+			}));
 			app.use(cors());
 			app.options('*', cors());
 
@@ -360,9 +404,17 @@ d.run(function () {
 			scope.network.app.set('view engine', 'ejs');
 			scope.network.app.set('views', path.join(__dirname, 'public'));
 			scope.network.app.use(scope.network.express.static(path.join(__dirname, 'public')));
-			scope.network.app.use(bodyParser.raw({limit: '2mb'}));
-			scope.network.app.use(bodyParser.urlencoded({extended: true, limit: '2mb', parameterLimit: 5000}));
-			scope.network.app.use(bodyParser.json({limit: '2mb'}));
+			scope.network.app.use(bodyParser.raw({
+				limit: '2mb'
+			}));
+			scope.network.app.use(bodyParser.urlencoded({
+				extended: true,
+				limit: '2mb',
+				parameterLimit: 5000
+			}));
+			scope.network.app.use(bodyParser.json({
+				limit: '2mb'
+			}));
 			scope.network.app.use(methodOverride());
 
 			var ignore = ['id', 'name', 'lastBlockId', 'blockId', 'transactionId', 'address', 'recipientId', 'senderId', 'previousBlock'];
@@ -412,9 +464,9 @@ d.run(function () {
 		ed: function (cb) {
 			cb(null, require('./helpers/ed.js'));
 		},
-        accounts: function (cb) {
-            cb(null, require('./helpers/accounts.js'));
-        },
+		accounts: function (cb) {
+			cb(null, require('./helpers/accounts.js'));
+		},
 		bus: ['ed', function (scope, cb) {
 			var changeCase = require('change-case');
 			var bus = function () {
@@ -426,12 +478,12 @@ d.run(function () {
 
 					// executes the each module onBind function
 					modules.forEach(function (module) {
-						if (typeof(module[eventName]) === 'function') {
+						if (typeof (module[eventName]) === 'function') {
 							module[eventName].apply(module[eventName], args);
 						}
 						if (module.submodules) {
 							async.each(module.submodules, function (submodule) {
-								if (submodule && typeof(submodule[eventName]) === 'function') {
+								if (submodule && typeof (submodule[eventName]) === 'function') {
 									submodule[eventName].apply(submodule[eventName], args);
 								}
 							});
@@ -460,11 +512,11 @@ d.run(function () {
 		 * @param {object} scope - The results from current execution, 
 		 * at leats will contain the required elements.
 		 * @param {function} cb - Callback function.
-		 */	
+		 */
 		logic: ['db', 'bus', 'schema', 'genesisblock', function (scope, cb) {
 			var Transaction = require('./logic/transaction.js');
-            var Chat = require('./logic/chat.js');
-            var State = require('./logic/state.js');
+			var Chat = require('./logic/chat.js');
+			var State = require('./logic/state.js');
 			var Block = require('./logic/block.js');
 			var Account = require('./logic/account.js');
 			var Peers = require('./logic/peers.js');
@@ -490,18 +542,21 @@ d.run(function () {
 						block: genesisblock
 					});
 				},
+				clientWs: function (cb) {
+					cb(null, scope.clientWs);
+				},
 				account: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'logger', function (scope, cb) {
 					new Account(scope.db, scope.schema, scope.logger, cb);
 				}],
-				transaction: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'account', 'logger', function (scope, cb) {
-					new Transaction(scope.db, scope.ed, scope.schema, scope.genesisblock, scope.account, scope.logger, cb);
+				transaction: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'account', 'logger', 'clientWs', function (scope, cb) {
+					new Transaction(scope.db, scope.ed, scope.schema, scope.genesisblock, scope.account, scope.logger, scope.clientWs, cb);
 				}],
-                chat: ['db', 'bus', 'ed', 'schema', 'account', 'logger', function (scope, cb) {
-                    new Chat(scope.db, scope.ed, scope.schema, scope.account, scope.logger, cb);
-                }],
-                state: ['db', 'bus', 'ed', 'schema', 'account', 'logger', function (scope, cb) {
-                    new State(scope.db, scope.ed, scope.schema, scope.account, scope.logger, cb);
-                }],
+				chat: ['db', 'bus', 'ed', 'schema', 'account', 'logger', function (scope, cb) {
+					new Chat(scope.db, scope.ed, scope.schema, scope.account, scope.logger, cb);
+				}],
+				state: ['db', 'bus', 'ed', 'schema', 'account', 'logger', function (scope, cb) {
+					new State(scope.db, scope.ed, scope.schema, scope.account, scope.logger, cb);
+				}],
 				block: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'account', 'transaction', function (scope, cb) {
 					new Block(scope.ed, scope.schema, scope.transaction, cb);
 				}],
@@ -528,7 +583,10 @@ d.run(function () {
 					var d = require('domain').create();
 
 					d.on('error', function (err) {
-						scope.logger.fatal('Domain ' + name, {message: err.message, stack: err.stack});
+						scope.logger.fatal('Domain ' + name, {
+							message: err.message,
+							stack: err.stack
+						});
 					});
 
 					d.run(function () {
@@ -552,7 +610,7 @@ d.run(function () {
 		 * @param {object} scope - The results from current execution, 
 		 * at leats will contain the required elements.
 		 * @param {function} cb - Callback function.
-		 */	
+		 */
 		api: ['modules', 'logger', 'network', function (scope, cb) {
 			Object.keys(config.api).forEach(function (moduleName) {
 				Object.keys(config.api[moduleName]).forEach(function (protocol) {
@@ -648,7 +706,7 @@ d.run(function () {
 			process.once('cleanup', function () {
 				scope.logger.info('Cleaning up...');
 				async.eachSeries(modules, function (module, cb) {
-					if (typeof(module.cleanup) === 'function') {
+					if (typeof (module.cleanup) === 'function') {
 						module.cleanup(cb);
 					} else {
 						setImmediate(cb);
@@ -724,7 +782,10 @@ d.run(function () {
  */
 process.on('uncaughtException', function (err) {
 	// Handle error safely
-	logger.fatal('System error', { message: err.message, stack: err.stack });
+	logger.fatal('System error', {
+		message: err.message,
+		stack: err.stack
+	});
 	/**
 	 * emits cleanup once 'uncaughtException'.
 	 * @emits cleanup

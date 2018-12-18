@@ -9,7 +9,6 @@ var exceptions = require('../helpers/exceptions.js');
 var extend = require('extend');
 var slots = require('../helpers/slots.js');
 var sql = require('../sql/transactions.js');
-var io = require('../modules/pwa_io');
 // Private fields
 var self, modules, __private = {};
 
@@ -41,7 +40,7 @@ __private.types = {};
  * @return {setImmediateCallback} With `this` as data.
  */
 // Constructor
-function Transaction(db, ed, schema, genesisblock, account, logger, cb) {
+function Transaction(db, ed, schema, genesisblock, account, logger, clientWs, cb) {
 	this.scope = {
 		db: db,
 		ed: ed,
@@ -49,6 +48,7 @@ function Transaction(db, ed, schema, genesisblock, account, logger, cb) {
 		genesisblock: genesisblock,
 		account: account,
 		logger: logger,
+		clientWs: clientWs
 	};
 	self = this;
 	if (cb) {
@@ -893,7 +893,7 @@ Transaction.prototype.applyUnconfirmed = function (trs, sender, requester, cb) {
 
 	amount = amount.toNumber();
 
-	io('chat', trs); // #socket 
+	if (this.scope.clientWs) this.scope.clientWs.emit(trs); // #socket 
 	this.scope.account.merge(sender.address, {
 		u_balance: -amount
 	}, function (err, sender) {

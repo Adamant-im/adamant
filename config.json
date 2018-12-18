@@ -5,7 +5,7 @@
     "minVersion": ">=0.4.0",
     "fileLogLevel": "info",
     "logFileName": "logs/adamant.log",
-    "consoleLogLevel": "none",
+    "consoleLogLevel": "debag",
     "trustProxy": false,
     "topAccounts": false,
     "cacheEnabled": false,
@@ -32,7 +32,9 @@
         "enabled": true,
         "access": {
             "public": false,
-            "whiteList": ["127.0.0.1"]
+            "whiteList": [
+                "127.0.0.1"
+            ]
         },
         "options": {
             "limits": {
@@ -45,8 +47,7 @@
     },
     "peers": {
         "enabled": true,
-        "list": [
-            {
+        "list": [{
                 "ip": "51.15.221.205",
                 "port": 36666
             },
@@ -106,8 +107,12 @@
     },
     "dapp": {
         "masterrequired": true,
-        "masterpassword": "",
+        "masterpassword": "Nsbbs8sGXAzJ",
         "autoexec": []
+    },
+    "wsClient": {
+        "port": 36668,
+        "enabled": false
     },
     "nethash": "bd330166898377fb28743ceef5e43a5d9d0a3efd9b3451fb7bc53530bb0a6d64"
 }
