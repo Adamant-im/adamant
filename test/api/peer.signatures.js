@@ -23,7 +23,7 @@ describe('GET /peer/signatures', function () {
 				node.debug('> Response:'.grey, JSON.stringify(res.body));
 				node.expect(res.body).to.have.property('success').to.be.not.ok;
 				node.expect(res.body).to.have.property('message').to.eql('Request is made from incompatible version');
-				node.expect(res.body).to.have.property('expected').to.eql(packageJSON.version);
+				node.expect(res.body).to.have.property('expected').to.eql(packageJSON.config.minVersion);
 				node.expect(res.body).to.have.property('received').to.eql('0.1.0a');
 				done();
 			});
@@ -90,7 +90,7 @@ describe('POST /peer/signatures', function () {
 				node.debug('> Response:'.grey, JSON.stringify(res.body));
 				node.expect(res.body).to.have.property('success').to.be.not.ok;
 				node.expect(res.body).to.have.property('message').to.eql('Request is made from incompatible version');
-				node.expect(res.body).to.have.property('expected').to.eql(packageJSON.version);
+				node.expect(res.body).to.have.property('expected').to.eql(packageJSON.config.minVersion);
 				node.expect(res.body).to.have.property('received').to.eql('0.1.0a');
 				done();
 			});
