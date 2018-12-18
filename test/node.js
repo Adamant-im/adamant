@@ -12,6 +12,7 @@ const bignum = require('../helpers/bignum.js');
 const ByteBuffer = require('bytebuffer');
 const Mnemonic = require('bitcore-mnemonic');
 const transactionTypes = require('../helpers/transactionTypes.js');
+var packageJson = require('../package.json');
 
 // Requires
 node.bignum = require('../helpers/bignum.js');
@@ -38,7 +39,7 @@ node.api = node.supertest(node.baseUrl);
 node.normalizer = 100000000; // Use this to convert LISK amount to normal value
 node.blockTime = 10000; // Block time in miliseconds
 node.blockTimePlus = 12000; // Block time + 2 seconds in miliseconds
-node.version = node.config.version; // Node version
+node.version = packageJson.version; // Node version
 
 // Transaction fees
 node.fees = {
