@@ -2,6 +2,7 @@
 
 const node = require('./../node.js');
 const Mnemonic = require('bitcore-mnemonic');
+const _ = require('lodash');
 
 function sendADM (params, done) {
     node.put('/api/transactions/', params, function (err, res) {
@@ -13,8 +14,9 @@ function postMessage (transaction, done) {
     node.post('/api/transactions', { transaction: transaction }, done);
 }
 
-function getChats (senderId, done, withPayments) {
-    node.get( `/api/chatrooms/${senderId}${withPayments ? '?withPayments' : ''}`, done);
+function getChats (senderId, done, params) {
+    const args = _.keys(params).map((key) => `${key}=${params[key]}`);
+    node.get( `/api/chatrooms/${senderId}${args.length > 0 ? '?'+args.join('&') : ''}`, done);
 }
 
 function getMessages (authorId, companionId, done, withPayments) {
@@ -184,6 +186,36 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
                 node.expect(res.body.chats[i].participants[0].address).to.equal(sender.address);
                 node.expect(res.body.chats[i].participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
                 node.expect(res.body.chats[i].participants[1].publicKey).to.not.equal(null);
+            }
+            done();
+        });
+    });
+
+    it('should return the chats list for a valid transaction with limit', function (done) {
+        getChats(sender.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('2');
+            node.expect(res.body).to.have.property('chats').to.have.lengthOf(1);
+            for (let i = 0; i < res.body.chats.length; i++) {
+                node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
+                for (let y = 0; y < res.body.chats[i].participants.length; y++) {
+                    node.expect(res.body.chats[i].participants[y].publicKey).to.not.equal(null);
+                }
+            }
+            done();
+        }, { limit: 1 });
+    });
+
+    it('should return the chats list for a valid transaction with sender and recipient chats', function (done) {
+        getChats(recipient1.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('2');
+            node.expect(res.body).to.have.property('chats').to.have.lengthOf(2);
+            for (let i = 0; i < res.body.chats.length; i++) {
+                node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
+                for (let y = 0; y < res.body.chats[i].participants.length; y++) {
+                    node.expect(res.body.chats[i].participants[y].publicKey).to.not.equal(null);
+                }
             }
             done();
         });
