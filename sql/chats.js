@@ -36,9 +36,17 @@ var ChatsSql = {
             (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : '')
         ].filter(Boolean).join(' ');
     },
-
     list: function (params) {
-		return [
+        return [
+
+            'SELECT *, t_timestamp as timestamp FROM full_blocks_list',
+            (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
+            (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
+            'LIMIT ${limit} OFFSET ${offset}'
+        ].filter(Boolean).join(' ');
+    },
+    listChats: function (params) {
+        return [
             'SELECT *, t_timestamp as timestamp, ENCODE("publicKey", \'hex\') as "m_recipientPublicKey" FROM full_blocks_list',
             'LEFT OUTER JOIN mem_accounts ON address = "t_recipientId"',
             (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),

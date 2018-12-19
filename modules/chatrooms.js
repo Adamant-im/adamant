@@ -119,7 +119,7 @@ __private.listChats = function (filter, cb) {
         whereOr: whereOr
     }), params).then(function (rows) {
         const count = rows.length ? rows[0].count : 0;
-        library.db.query(sql.list({
+        library.db.query(sql.listChats({
             where: where,
             whereOr: whereOr,
             sortField: orderBy.sortField,
@@ -216,7 +216,7 @@ __private.listMessages = function (filter, cb) {
         whereOr: whereOr
     }), params).then(function (rows) {
         const count = rows.length ? rows[0].count : 0;
-        library.db.query(sql.list({
+        library.db.query(sql.listChats({
             where: where,
             whereOr: whereOr,
             sortField: orderBy.sortField,
