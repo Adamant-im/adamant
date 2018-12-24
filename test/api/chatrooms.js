@@ -192,6 +192,34 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
         });
     });
 
+    it('should return the chats list for a valid transaction for recipient1', function (done) {
+        getChats(recipient1.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('2');
+            node.expect(res.body).to.have.property('chats').to.have.lengthOf(2);
+            for (let i = 0; i < res.body.chats.length; i++) {
+                node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
+                node.expect(res.body.chats[i].participants[0].publicKey).to.not.equal(null);
+                node.expect(res.body.chats[i].participants[1].publicKey).to.not.equal(null);
+            }
+            done();
+        });
+    });
+
+    it('should return the chats list for a valid transaction for recipient2', function (done) {
+        getChats(recipient2.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('2');
+            node.expect(res.body).to.have.property('chats').to.have.lengthOf(2);
+            for (let i = 0; i < res.body.chats.length; i++) {
+                node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
+                node.expect(res.body.chats[i].participants[0].publicKey).to.not.equal(null);
+                node.expect(res.body.chats[i].participants[1].publicKey).to.not.equal(null);
+            }
+            done();
+        });
+    });
+
     it('should return the chats list for a valid transaction with limit', function (done) {
         getChats(sender.address, function (err, res) {
             node.expect(res.body).to.have.property('success').to.be.ok;
