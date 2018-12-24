@@ -19,8 +19,9 @@ function getChats (senderId, done, params) {
     node.get( `/api/chatrooms/${senderId}${args.length > 0 ? '?'+args.join('&') : ''}`, done);
 }
 
-function getMessages (authorId, companionId, done, withPayments) {
-    node.get( `/api/chatrooms/${authorId}/${companionId}${withPayments ? '?withPayments=true' : ''}`, done);
+function getMessages (authorId, companionId, done, params) {
+    const args = _.keys(params).map((key) => `${key}=${params[key]}`);
+    node.get( `/api/chatrooms/${authorId}/${companionId}${args.length > 0 ? '?'+args.join('&') : ''}`, done);
 }
 
 describe('GET /api/chatrooms/:ID/:ID', function () {
@@ -206,6 +207,51 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
         }, { limit: 1 });
     });
 
+    it('should return the chats list for a valid transaction with offset', function (done) {
+        getChats(sender.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('2');
+            node.expect(res.body).to.have.property('chats').to.have.lengthOf(1);
+            for (let i = 0; i < res.body.chats.length; i++) {
+                node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
+                for (let y = 0; y < res.body.chats[i].participants.length; y++) {
+                    node.expect(res.body.chats[i].participants[y].publicKey).to.not.equal(null);
+                }
+            }
+            done();
+        }, { offset: 2 });
+    });
+
+    it('should return the chats list for a valid transaction with orderBy=timestamp:desc', function (done) {
+        getChats(sender.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('2');
+            node.expect(res.body).to.have.property('chats').to.have.lengthOf(2);
+            for (let i = 0; i < res.body.chats.length; i++) {
+                node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
+                for (let y = 0; y < res.body.chats[i].participants.length; y++) {
+                    node.expect(res.body.chats[i].participants[y].publicKey).to.not.equal(null);
+                }
+            }
+            done();
+        }, { orderBy: 'timestamp:desc' });
+    });
+
+    it('should return the chats list for a valid transaction with orderBy=timestamp:asc', function (done) {
+        getChats(sender.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('2');
+            node.expect(res.body).to.have.property('chats').to.have.lengthOf(2);
+            for (let i = 0; i < res.body.chats.length; i++) {
+                node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
+                for (let y = 0; y < res.body.chats[i].participants.length; y++) {
+                    node.expect(res.body.chats[i].participants[y].publicKey).to.not.equal(null);
+                }
+            }
+            done();
+        }, { orderBy: 'timestamp:asc' });
+    });
+
     it('should return the chats list for a valid transaction with sender and recipient chats', function (done) {
         getChats(recipient1.address, function (err, res) {
             node.expect(res.body).to.have.property('success').to.be.ok;
@@ -235,6 +281,70 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
         });
     });
 
+    it('should return the messages list for a valid transaction with a limit', function (done) {
+        getMessages(sender.address, recipient1.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('2');
+            node.expect(res.body).to.have.property('messages').to.have.lengthOf(1);
+            node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
+            node.expect(res.body.participants[0].address).to.equal(sender.address);
+            node.expect(res.body.participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
+            node.expect(res.body.participants[1].address).to.equal(recipient1.address);
+            node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
+            done();
+        }, {
+            limit: 1
+        });
+    });
+
+    it('should return the messages list for a valid transaction with an offset', function (done) {
+        getMessages(sender.address, recipient1.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('2');
+            node.expect(res.body).to.have.property('messages').to.have.lengthOf(1);
+            node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
+            node.expect(res.body.participants[0].address).to.equal(sender.address);
+            node.expect(res.body.participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
+            node.expect(res.body.participants[1].address).to.equal(recipient1.address);
+            node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
+            done();
+        }, {
+            offset: 1
+        });
+    });
+
+    it('should return the messages list for a valid transaction with an orderBy=timestamp:desc', function (done) {
+        getMessages(sender.address, recipient1.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('2');
+            node.expect(res.body).to.have.property('messages').to.have.lengthOf(2);
+            node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
+            node.expect(res.body.participants[0].address).to.equal(sender.address);
+            node.expect(res.body.participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
+            node.expect(res.body.participants[1].address).to.equal(recipient1.address);
+            node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
+            done();
+        }, {
+            orderBy: 'timestamp:desc'
+        });
+    });
+
+    it('should return the messages list for a valid transaction with an orderBy=timestamp:asc', function (done) {
+        getMessages(sender.address, recipient1.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('2');
+            node.expect(res.body).to.have.property('messages').to.have.lengthOf(2);
+            node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
+            node.expect(res.body.participants[0].address).to.equal(sender.address);
+            node.expect(res.body.participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
+            node.expect(res.body.participants[1].address).to.equal(recipient1.address);
+            node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
+            done();
+        }, {
+            orderBy: 'timestamp:asc'
+        });
+    });
+
     it('should return the messages list for a valid transaction with payments', function (done) {
         getMessages(sender.address, recipient1.address, function (err, res) {
             node.expect(res.body).to.have.property('success').to.be.ok;
@@ -246,6 +356,76 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
             node.expect(res.body.participants[1].address).to.equal(recipient1.address);
             node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
             done();
-        }, true);
+        }, {
+            withPayments: true
+        });
+    });
+
+    it('should return the messages list for a valid transaction with payments with a limit', function (done) {
+        getMessages(sender.address, recipient1.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('3');
+            node.expect(res.body).to.have.property('messages').to.have.lengthOf(1);
+            node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
+            node.expect(res.body.participants[0].address).to.equal(sender.address);
+            node.expect(res.body.participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
+            node.expect(res.body.participants[1].address).to.equal(recipient1.address);
+            node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
+            done();
+        }, {
+            withPayments: true,
+            limit: 1
+        });
+    });
+
+    it('should return the messages list for a valid transaction with payments and with an offset', function (done) {
+        getMessages(sender.address, recipient1.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('3');
+            node.expect(res.body).to.have.property('messages').to.have.lengthOf(2);
+            node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
+            node.expect(res.body.participants[0].address).to.equal(sender.address);
+            node.expect(res.body.participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
+            node.expect(res.body.participants[1].address).to.equal(recipient1.address);
+            node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
+            done();
+        }, {
+            withPayments: true,
+            offset: 1
+        });
+    });
+
+    it('should return the messages list for a valid transaction with payments and with an orderBy=timestamp:desc', function (done) {
+        getMessages(sender.address, recipient1.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('3');
+            node.expect(res.body).to.have.property('messages').to.have.lengthOf(3);
+            node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
+            node.expect(res.body.participants[0].address).to.equal(sender.address);
+            node.expect(res.body.participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
+            node.expect(res.body.participants[1].address).to.equal(recipient1.address);
+            node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
+            done();
+        }, {
+            withPayments: true,
+            orderBy: 'timestamp:desc'
+        });
+    });
+
+    it('should return the messages list for a valid transaction with payments and with an orderBy=timestamp:asc', function (done) {
+        getMessages(sender.address, recipient1.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('3');
+            node.expect(res.body).to.have.property('messages').to.have.lengthOf(3);
+            node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
+            node.expect(res.body.participants[0].address).to.equal(sender.address);
+            node.expect(res.body.participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
+            node.expect(res.body.participants[1].address).to.equal(recipient1.address);
+            node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
+            done();
+        }, {
+            withPayments: true,
+            orderBy: 'timestamp:asc'
+        });
     });
 });
