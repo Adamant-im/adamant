@@ -203,7 +203,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
                 node.expect(res.body.chats[i].participants[1].publicKey).to.not.equal(null);
             }
             done();
-        });
+        }, { orderBy: 'timestamp:desc'});
     });
 
     it('should return the chats list for a valid transaction for recipient2', function (done) {

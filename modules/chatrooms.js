@@ -290,7 +290,7 @@ Chatrooms.prototype.internal = {
                         return setImmediate(waterCb, 'Failed to get transactions: ' + err);
                     } else {
                         return setImmediate(waterCb, null, {
-                            chats: data.chats,
+                            chats: _.uniqBy(data.chats, (x) => x.id),
                             count: data.count
                         });
                     }
