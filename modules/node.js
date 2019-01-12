@@ -57,9 +57,9 @@ function Node (cb, scope) {
  */
 Node.prototype.onBind = function (scope) {
 	modules = {
-		blocks: scope.blocks
+		blocks: scope.blocks,
 		transport: scope.transport,
-		system: scope.system,
+		system: scope.system
 	};
 };
 
