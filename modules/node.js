@@ -7,8 +7,7 @@ var jobsQueue = require('../helpers/jobsQueue.js');
 var extend = require('extend');
 var pgp = require('pg-promise')(); // We also initialize library here
 var schema = require('../schema/node.js');
-var BlockReward = require('../../logic/blockReward.js');
-var sql = require('../sql/node.js');
+var BlockReward = require('../logic/blockReward.js');
 var util = require('util');
 
 // Private fields
@@ -58,6 +57,7 @@ function Node (cb, scope) {
  */
 Node.prototype.onBind = function (scope) {
 	modules = {
+		blocks: scope.blocks
 		transport: scope.transport,
 		system: scope.system,
 	};
