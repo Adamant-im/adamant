@@ -58,6 +58,7 @@ function Node (cb, scope) {
 Node.prototype.onBind = function (scope) {
 	modules = {
 		blocks: scope.blocks,
+        config: scope.config,
 		transport: scope.transport,
 		system: scope.system
 	};
@@ -105,9 +106,17 @@ Node.prototype.shared = {
 	 */
     getStatus: function (req, cb) {
         var lastBlock = modules.blocks.lastBlock.get();
-
+        var wsClientEnabled = false;
+        if (modules.config.wsClient) {
+            if (modules.config.wsClient.enabled) {
+                wsClientEnabled = true;
+            }
+        }
         return setImmediate(cb, null,
             {
+                wsClient: {
+                    enabled: wsClientEnabled
+                },
             	network: {
                     broadhash: modules.system.getBroadhash(),
                     epoch: constants.epochTime,
