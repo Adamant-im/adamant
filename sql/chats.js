@@ -45,8 +45,8 @@ var ChatsSql = {
             'LIMIT ${limit} OFFSET ${offset}'
         ].filter(Boolean).join(' ');
     },
-    listChats: function (params) {
-	    let x = [
+    listMessages: function (params) {
+        let x = [
             'SELECT *, t_timestamp as timestamp, ENCODE("publicKey", \'hex\') as "m_recipientPublicKey" FROM full_blocks_list',
             'LEFT OUTER JOIN mem_accounts ON address = "t_recipientId"',
             (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
@@ -54,7 +54,36 @@ var ChatsSql = {
             (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
             'LIMIT ${limit} OFFSET ${offset}'
         ].filter(Boolean).join(' ');
-	    return x;
+        return x;
+    },
+    listChats: function (params) {
+
+	    let y = [
+            'SELECT',
+            'CONCAT(LEAST("t_senderId", "t_recipientId"), GREATEST("t_senderId", "t_recipientId")) as "srt",',
+            'first("t_id") as "t_id",',
+            'first("t_senderPublicKey") as "t_senderPublicKey",',
+            'first("m_recipientPublicKey") as "m_recipientPublicKey",',
+            'first("t_senderId") as "t_senderId",',
+            'first("t_recipientId") as "t_recipientId",',
+            'first("t_type") as "t_type"',
+            'FROM ( SELECT *, t_timestamp as timestamp, ENCODE("publicKey", \'hex\') as "m_recipientPublicKey"',
+            'FROM full_blocks_list',
+            'LEFT OUTER JOIN mem_accounts ON address = "t_recipientId"',
+
+            (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
+            (params.whereOr.length ? 'AND (' + params.whereOr.join(' OR ') + ')': ''),
+            (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
+            'LIMIT ${limit} OFFSET ${offset}',
+            ') as foo GROUP by srt'
+            //
+            //
+            // 'WHERE "t_type" = 8',
+            // 'AND ("t_senderId" = \'U1283640763437948723\'',
+            // 'OR "t_recipientId" = \'U1020291227689695733\')',
+            // 'ORDER BY "t_timestamp" DESC) as foo GROUP by srt'
+        ].filter(Boolean).join(' ');
+	    return y;
     },
 
 	getGenesis: 'SELECT b."height" AS "height", b."id" AS "id", t."senderId" AS "authorId" FROM trs t INNER JOIN blocks b ON t."blockId" = b."id" WHERE t."id" = ${id}'
