@@ -38,6 +38,7 @@ function Node (cb, scope) {
 		config: {
 			peers: scope.config.peers,
 			version: scope.packageJson.version,
+            wsClient: scope.config.wsClient
 		},
 	};
 	self = this;
@@ -58,7 +59,6 @@ function Node (cb, scope) {
 Node.prototype.onBind = function (scope) {
 	modules = {
 		blocks: scope.blocks,
-        config: scope.config,
 		transport: scope.transport,
 		system: scope.system
 	};
@@ -107,8 +107,8 @@ Node.prototype.shared = {
     getStatus: function (req, cb) {
         var lastBlock = modules.blocks.lastBlock.get();
         var wsClientEnabled = false;
-        if (modules.config.wsClient) {
-            if (modules.config.wsClient.enabled) {
+        if (library.config.wsClient) {
+            if (library.config.wsClient.enabled) {
                 wsClientEnabled = true;
             }
         }
