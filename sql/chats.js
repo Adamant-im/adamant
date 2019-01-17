@@ -29,12 +29,40 @@ var ChatsSql = {
     },
 
     countChats: function (params) {
-        return [
-            'SELECT COUNT(DISTINCT "t_recipientId") FROM full_blocks_list',
+        let y = [
+            'SELECT COUNT(1) FROM',
+            '(SELECT',
+            'CONCAT(LEAST("t_senderId", "t_recipientId"), GREATEST("t_senderId", "t_recipientId")) as "srt",',
+            'first("t_id") as "t_id",',
+            'first("t_senderPublicKey") as "t_senderPublicKey",',
+            'first("m_recipientPublicKey") as "m_recipientPublicKey",',
+            'first("t_senderId") as "t_senderId",',
+            'first("t_recipientId") as "t_recipientId",',
+            'first("t_timestamp") as "timestamp",',
+            'first("t_type") as "t_type"',
+            'FROM ( SELECT *, t_timestamp as timestamp, ENCODE("publicKey", \'hex\') as "m_recipientPublicKey"',
+            'FROM full_blocks_list',
+            'LEFT OUTER JOIN mem_accounts ON address = "t_recipientId"',
+
             (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
             (params.whereOr.length ? 'AND (' + params.whereOr.join(' OR ') + ')': ''),
-            (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : '')
+            ') as foo GROUP by srt',
+            (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
+            ') as bar'
+            //
+            //
+            // 'WHERE "t_type" = 8',
+            // 'AND ("t_senderId" = \'U1283640763437948723\'',
+            // 'OR "t_recipientId" = \'U1020291227689695733\')',
+            // 'ORDER BY "t_timestamp" DESC) as foo GROUP by srt'
         ].filter(Boolean).join(' ');
+        return y;
+        // return [
+        //     'SELECT COUNT(DISTINCT "t_recipientId") FROM full_blocks_list',
+        //     (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
+        //     (params.whereOr.length ? 'AND (' + params.whereOr.join(' OR ') + ')': ''),
+        //     (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : '')
+        // ].filter(Boolean).join(' ');
     },
     list: function (params) {
         return [
