@@ -66,6 +66,7 @@ var ChatsSql = {
             'first("m_recipientPublicKey") as "m_recipientPublicKey",',
             'first("t_senderId") as "t_senderId",',
             'first("t_recipientId") as "t_recipientId",',
+            'first("t_timestamp") as "timestamp",',
             'first("t_type") as "t_type"',
             'FROM ( SELECT *, t_timestamp as timestamp, ENCODE("publicKey", \'hex\') as "m_recipientPublicKey"',
             'FROM full_blocks_list',
@@ -73,9 +74,9 @@ var ChatsSql = {
 
             (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
             (params.whereOr.length ? 'AND (' + params.whereOr.join(' OR ') + ')': ''),
+            ') as foo GROUP by srt',
             (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
-            'LIMIT ${limit} OFFSET ${offset}',
-            ') as foo GROUP by srt'
+            'LIMIT ${limit} OFFSET ${offset}'
             //
             //
             // 'WHERE "t_type" = 8',
