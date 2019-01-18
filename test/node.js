@@ -48,7 +48,8 @@ node.fees = {
 	secondPasswordFee: node.constants.fees.secondsignature,
 	delegateRegistrationFee: node.constants.fees.delegate,
 	multisignatureRegistrationFee: node.constants.fees.multisignature,
-	dappAddFee: node.constants.fees.dapp
+	dappAddFee: node.constants.fees.dapp,
+    messageFee: node.constants.fees.chat_message
 };
 
 // Test application
@@ -197,6 +198,21 @@ node.createSignatureTransaction = function (data) {
     transaction.secret = data.secret;
     transaction.publicKey = data.keyPair.publicKey.toString('hex');
     transaction.signature = this.transactionSign(transaction, data.keyPair);
+    return transaction;
+};
+
+node.createChatTransaction = function (data) {
+    data.transactionType = this.txTypes.CHAT_MESSAGE;
+    let transaction = this.createBasicTransaction(data);
+    transaction.asset = {'chat' : {
+            message: data.message,
+            own_message: data.own_message,
+            type : data.message_type || 1
+        }};
+    transaction.recipientId = data.recipientId;
+    transaction.amount = 0;
+    transaction.signature = this.transactionSign(transaction, data.keyPair);
+    transaction.fee = this.constants.fees.chat_message;
     return transaction;
 };
 
