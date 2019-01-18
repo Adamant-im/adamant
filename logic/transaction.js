@@ -40,7 +40,7 @@ __private.types = {};
  * @return {setImmediateCallback} With `this` as data.
  */
 // Constructor
-function Transaction(db, ed, schema, genesisblock, account, logger, clientWs, cb) {
+function Transaction (db, ed, schema, genesisblock, account, logger, clientWs, cb) {
 	this.scope = {
 		db: db,
 		ed: ed,
@@ -893,7 +893,10 @@ Transaction.prototype.applyUnconfirmed = function (trs, sender, requester, cb) {
 
 	amount = amount.toNumber();
 
-	if (this.scope.clientWs) this.scope.clientWs.emit(trs); // #socket 
+	if (this.scope.clientWs) {
+		this.scope.clientWs.emit(trs);
+	}
+
 	this.scope.account.merge(sender.address, {
 		u_balance: -amount
 	}, function (err, sender) {

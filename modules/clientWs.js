@@ -1,11 +1,11 @@
 class ClientWs {
-	constructor(config, cb) {
-		if (!config || !config.enabled)
+	constructor (config, cb) {
+		if (!config || !config.enabled) {
 			return false;
+		}
 
-		const port = config.port;
-		const io = require('socket.io').listen(port);
-		console.log('Start socket.io class port ' + port);
+		const port = config.portWS;
+		const io = require('socket.io')(36668);
 
 		this.describes = {};
 
@@ -17,7 +17,7 @@ class ClientWs {
 					this.describes[address] = socket;
 				});
 				socket.on('msg', (msg) => {
-					console.info(address || 'new Socket', ': ', msg);
+					console.info(address || 'new Socket!!', ': ', msg);
 				});
 				socket.on('disconnect', () => {
 					console.log(address + ' disconnect');
@@ -33,9 +33,10 @@ class ClientWs {
 		}
 	}
 
-	emit(t) {
-		if (lastTransactionsIds[t.id])
+	emit (t) {
+		if (lastTransactionsIds[t.id]) {
 			return;
+		}
 		lastTransactionsIds[t.id] = getUTime();
 		try {
 			const recip = this.describes[t.recipientId];
@@ -54,13 +55,15 @@ class ClientWs {
 
 const lastTransactionsIds = {};
 
-setInterval(() => { // check double confirm trs;
+setInterval(() => {
 	for (let id in lastTransactionsIds) {
-		if (getUTime() - lastTransactionsIds[id] >= 60) delete lastTransactionsIds[id];
+		if (getUTime() - lastTransactionsIds[id] >= 60) {
+			delete lastTransactionsIds[id];
+		}
 	}
-}, 60 * 1000)
+}, 60 * 1000);
 
-function getUTime() {
+function getUTime () {
 	return new Date().getTime() / 1000;
 }
 
