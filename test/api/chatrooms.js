@@ -247,7 +247,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
                 }
             }
             done();
-        }, { offset: 2 });
+        }, { offset: 1 });
     });
 
     it('should return the chats list for a valid transaction with orderBy=timestamp:desc', function (done) {
