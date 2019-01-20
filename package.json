@@ -79,5 +79,8 @@
     "moment": "=2.19.3",
     "sinon": "=1.17.7",
     "supertest": "=3.0.0"
+  },
+  "config": {
+    "minVersion": ">=0.4.0"
   }
 }

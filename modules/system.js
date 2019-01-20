@@ -35,10 +35,10 @@ function System (cb, scope) {
 		db: scope.db,
 		nonce: scope.nonce,
 		config: {
-			version: scope.config.version,
+			version: scope.packageJson.version,
 			port: scope.config.port,
 			nethash: scope.config.nethash,
-			minVersion: scope.config.minVersion,
+			minVersion: scope.packageJson.config.minVersion,
 		},
 	};
 	self = this;

@@ -105,6 +105,7 @@ describe('GET /api/accounts/getBalance?address=', function () {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('balance').that.is.a('string');
 			node.expect(res.body).to.have.property('unconfirmedBalance').that.is.a('string');
+			node.expect(res.body.balance).to.equal(res.body.unconfirmedBalance);
 			done();
 		});
 	});
@@ -114,6 +115,7 @@ describe('GET /api/accounts/getBalance?address=', function () {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('balance').that.is.a('string');
 			node.expect(res.body).to.have.property('unconfirmedBalance').that.is.a('string');
+			node.expect(res.body.balance).to.equal(res.body.unconfirmedBalance);
 			done();
 		});
 	});

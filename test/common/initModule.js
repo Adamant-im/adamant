@@ -9,6 +9,7 @@ var _ = require('lodash');
 var async = require('../node').async;
 var dirname = path.join(__dirname, '..', '..');
 var config = require(path.join(dirname, '/config.json'));
+var packageJson = require(path.join(dirname, '/package.json'));
 var database = require(path.join(dirname, '/helpers', 'database.js'));
 var genesisblock = require(path.join(dirname, '/genesisBlock.json'));
 var Logger = require(dirname + '/logger.js');
@@ -26,6 +27,7 @@ var modulesLoader = new function () {
 	this.logger = new Logger({ echo: null, errorLevel: config.fileLogLevel, filename: config.logFileName });
 	this.scope = {
 		config: config,
+		packageJson: packageJson,
 		genesisblock: { block: genesisblock },
 		logger: this.logger,
 		network: {

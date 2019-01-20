@@ -136,6 +136,10 @@ var config = {
 		rounds: './modules/rounds.js',
 		multisignatures: './modules/multisignatures.js',
 		dapps: './modules/dapps.js',
+        chats: './modules/chats.js',
+		chatrooms: './modules/chatrooms.js',
+        states: './modules/states.js',
+		node: './modules/node.js',
 		chats: './modules/chats.js',
 		states: './modules/states.js',
 		crypto: './modules/crypto.js',
@@ -143,45 +147,21 @@ var config = {
 		cache: './modules/cache.js'
 	},
 	api: {
-		accounts: {
-			http: './api/http/accounts.js'
-		},
-		blocks: {
-			http: './api/http/blocks.js'
-		},
-		dapps: {
-			http: './api/http/dapps.js'
-		},
-		chats: {
-			http: './api/http/chats.js'
-		},
-		states: {
-			http: './api/http/states.js'
-		},
-		delegates: {
-			http: './api/http/delegates.js'
-		},
-		loader: {
-			http: './api/http/loader.js'
-		},
-		multisignatures: {
-			http: './api/http/multisignatures.js'
-		},
-		peers: {
-			http: './api/http/peers.js'
-		},
-		server: {
-			http: './api/http/server.js'
-		},
-		signatures: {
-			http: './api/http/signatures.js'
-		},
-		transactions: {
-			http: './api/http/transactions.js'
-		},
-		transport: {
-			http: './api/http/transport.js'
-		}
+		accounts: { http: './api/http/accounts.js' },
+		blocks: { http: './api/http/blocks.js' },
+		dapps: { http: './api/http/dapps.js' },
+        chats: { http: './api/http/chats.js' },
+		chatrooms: { http: './api/http/chatrooms.js' },
+        states: { http: './api/http/states.js' },
+        node: { http: './api/http/node.js' },
+		delegates: { http: './api/http/delegates.js' },
+		loader: { http: './api/http/loader.js' },
+		multisignatures: { http: './api/http/multisignatures.js' },
+		peers: { http: './api/http/peers.js' },
+		server: { http: './api/http/server.js' },
+		signatures: { http: './api/http/signatures.js' },
+		transactions: { http: './api/http/transactions.js' },
+		transport: { http: './api/http/transport.js' }
 	}
 };
 
@@ -277,10 +257,10 @@ d.run(function () {
 				block: genesisblock
 			});
 		},
-		packageJson: function (cb) {
-			cb(null, packageJson);
-		},
-		public: function (cb) {
+        packageJson: function (cb) {
+            cb(null, packageJson);
+        },
+			public: function (cb) {
 			cb(null, path.join(__dirname, 'public'));
 		},
 

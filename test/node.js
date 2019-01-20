@@ -12,6 +12,7 @@ const bignum = require('../helpers/bignum.js');
 const ByteBuffer = require('bytebuffer');
 const Mnemonic = require('bitcore-mnemonic');
 const transactionTypes = require('../helpers/transactionTypes.js');
+var packageJson = require('../package.json');
 
 // Requires
 node.bignum = require('../helpers/bignum.js');
@@ -38,7 +39,7 @@ node.api = node.supertest(node.baseUrl);
 node.normalizer = 100000000; // Use this to convert LISK amount to normal value
 node.blockTime = 10000; // Block time in miliseconds
 node.blockTimePlus = 12000; // Block time + 2 seconds in miliseconds
-node.version = node.config.version; // Node version
+node.version = packageJson.version; // Node version
 
 // Transaction fees
 node.fees = {
@@ -47,7 +48,8 @@ node.fees = {
 	secondPasswordFee: node.constants.fees.secondsignature,
 	delegateRegistrationFee: node.constants.fees.delegate,
 	multisignatureRegistrationFee: node.constants.fees.multisignature,
-	dappAddFee: node.constants.fees.dapp
+	dappAddFee: node.constants.fees.dapp,
+    messageFee: node.constants.fees.chat_message
 };
 
 // Test application
@@ -196,6 +198,21 @@ node.createSignatureTransaction = function (data) {
     transaction.secret = data.secret;
     transaction.publicKey = data.keyPair.publicKey.toString('hex');
     transaction.signature = this.transactionSign(transaction, data.keyPair);
+    return transaction;
+};
+
+node.createChatTransaction = function (data) {
+    data.transactionType = this.txTypes.CHAT_MESSAGE;
+    let transaction = this.createBasicTransaction(data);
+    transaction.asset = {'chat' : {
+            message: data.message,
+            own_message: data.own_message,
+            type : data.message_type || 1
+        }};
+    transaction.recipientId = data.recipientId;
+    transaction.amount = 0;
+    transaction.signature = this.transactionSign(transaction, data.keyPair);
+    transaction.fee = this.constants.fees.chat_message;
     return transaction;
 };
 
