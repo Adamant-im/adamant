@@ -9,7 +9,6 @@ var exceptions = require('../helpers/exceptions.js');
 var extend = require('extend');
 var slots = require('../helpers/slots.js');
 var sql = require('../sql/transactions.js');
-
 // Private fields
 var self, modules, __private = {};
 
@@ -41,7 +40,7 @@ __private.types = {};
  * @return {setImmediateCallback} With `this` as data.
  */
 // Constructor
-function Transaction (db, ed, schema, genesisblock, account, logger, cb) {
+function Transaction (db, ed, schema, genesisblock, account, logger, clientWs, cb) {
 	this.scope = {
 		db: db,
 		ed: ed,
@@ -49,6 +48,7 @@ function Transaction (db, ed, schema, genesisblock, account, logger, cb) {
 		genesisblock: genesisblock,
 		account: account,
 		logger: logger,
+		clientWs: clientWs
 	};
 	self = this;
 	if (cb) {
@@ -105,49 +105,49 @@ Transaction.prototype.create = function (data) {
 	return trs;
 };
 Transaction.prototype.publish = function (data) {
-    if (!__private.types[data.type]) {
-        throw 'Unknown transaction type ' + data.type;
-    }
+	if (!__private.types[data.type]) {
+		throw 'Unknown transaction type ' + data.type;
+	}
 
-    if (!data.senderId) {
-        throw 'Invalid sender';
-    }
+	if (!data.senderId) {
+		throw 'Invalid sender';
+	}
 
-    if (!data.signature) {
-        throw 'Invalid signature';
-    }
+	if (!data.signature) {
+		throw 'Invalid signature';
+	}
 
-    var trs = data;
+	var trs = data;
 
 
 
-    trs.id = this.getId(trs);
+	trs.id = this.getId(trs);
 
-    trs.fee = __private.types[trs.type].calculateFee.call(this, trs, data.senderId) || false;
+	trs.fee = __private.types[trs.type].calculateFee.call(this, trs, data.senderId) || false;
 
-    return trs;
+	return trs;
 };
 Transaction.prototype.normalize = function (data) {
-    if (!__private.types[data.type]) {
-        throw 'Unknown transaction type ' + data.type;
-    }
+	if (!__private.types[data.type]) {
+		throw 'Unknown transaction type ' + data.type;
+	}
 
-    if (!data.sender) {
-        throw 'Invalid sender';
-    }
+	if (!data.sender) {
+		throw 'Invalid sender';
+	}
 
-    var trs = {
-        type: data.type,
-        amount: 0,
-        senderPublicKey: data.sender.publicKey,
-        requesterPublicKey: data.requester ? data.requester.publicKey.toString('hex') : null,
-        timestamp: slots.getTime(),
-        asset: {}
-    };
+	var trs = {
+		type: data.type,
+		amount: 0,
+		senderPublicKey: data.sender.publicKey,
+		requesterPublicKey: data.requester ? data.requester.publicKey.toString('hex') : null,
+		timestamp: slots.getTime(),
+		asset: {}
+	};
 
-    trs = __private.types[trs.type].create.call(this, data, trs);
+	trs = __private.types[trs.type].create.call(this, data, trs);
 
-    return trs;
+	return trs;
 };
 /**
  * Sets private type based on type id after instance object validation.
@@ -268,7 +268,9 @@ Transaction.prototype.getBytes = function (trs, skipSignature, skipSecondSignatu
 
 		if (trs.recipientId) {
 			var recipient = trs.recipientId.slice(1);
-			recipient = new bignum(recipient).toBuffer({size: 8});
+			recipient = new bignum(recipient).toBuffer({
+				size: 8
+			});
 
 			for (i = 0; i < 8; i++) {
 				bb.writeByte(recipient[i] || 0);
@@ -335,7 +337,9 @@ Transaction.prototype.ready = function (trs, sender) {
  * @return {setImmediateCallback} error | row.count
  */
 Transaction.prototype.countById = function (trs, cb) {
-	this.scope.db.one(sql.countById, { id: trs.id }).then(function (row) {
+	this.scope.db.one(sql.countById, {
+		id: trs.id
+	}).then(function (row) {
 		return setImmediate(cb, null, row.count);
 	}).catch(function (err) {
 		this.scope.logger.error(err.stack);
@@ -378,7 +382,7 @@ Transaction.prototype.checkBalance = function (amount, balance, trs, sender) {
 		exceeded: exceeded,
 		error: exceeded ? [
 			'Account does not have enough ADM:', sender.address,
-			'balance:', new bignum(sender[balance].toString() || '0').div(Math.pow(10,8))
+			'balance:', new bignum(sender[balance].toString() || '0').div(Math.pow(10, 8))
 		].join(' ') : null
 	};
 };
@@ -581,7 +585,9 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
 	// Check that signatures are unique
 	if (trs.signatures && trs.signatures.length) {
 		var signatures = trs.signatures.reduce(function (p, c) {
-			if (p.indexOf(c) < 0) { p.push(c); }
+			if (p.indexOf(c) < 0) {
+				p.push(c);
+			}
 			return p;
 		}, []);
 
@@ -614,12 +620,12 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
 	// Calculate fee
 	var fee = __private.types[trs.type].calculateFee.call(this, trs, sender) || false;
 	if (!fee || trs.fee !== fee) {
-        if (exceptions.fee.indexOf(trs.id) > -1) {
-            this.scope.logger.debug('Invalid transaction fee');
-            this.scope.logger.debug(JSON.stringify(trs));
-        } else {
-            return setImmediate(cb, 'Invalid transaction fee');
-        }
+		if (exceptions.fee.indexOf(trs.id) > -1) {
+			this.scope.logger.debug('Invalid transaction fee');
+			this.scope.logger.debug(JSON.stringify(trs));
+		} else {
+			return setImmediate(cb, 'Invalid transaction fee');
+		}
 	}
 
 	// Check amount
@@ -669,7 +675,9 @@ Transaction.prototype.verifySignature = function (trs, publicKey, signature) {
 		throw 'Unknown transaction type ' + trs.type;
 	}
 
-	if (!signature) { return false; }
+	if (!signature) {
+		return false;
+	}
 
 	var res;
 
@@ -698,7 +706,9 @@ Transaction.prototype.verifySecondSignature = function (trs, publicKey, signatur
 		throw 'Unknown transaction type ' + trs.type;
 	}
 
-	if (!signature) { return false; }
+	if (!signature) {
+		return false;
+	}
 
 	var res;
 
@@ -771,7 +781,12 @@ Transaction.prototype.apply = function (trs, block, sender, cb) {
 
 	amount = amount.toNumber();
 
-	this.scope.logger.trace('Logic/Transaction->apply', {sender: sender.address, balance: -amount, blockId: block.id, round: modules.rounds.calc(block.height)});
+	this.scope.logger.trace('Logic/Transaction->apply', {
+		sender: sender.address,
+		balance: -amount,
+		blockId: block.id,
+		round: modules.rounds.calc(block.height)
+	});
 	this.scope.account.merge(sender.address, {
 		balance: -amount,
 		blockId: block.id,
@@ -814,9 +829,14 @@ Transaction.prototype.apply = function (trs, block, sender, cb) {
  */
 Transaction.prototype.undo = function (trs, block, sender, cb) {
 	var amount = new bignum(trs.amount.toString());
-	    amount = amount.plus(trs.fee.toString()).toNumber();
+	amount = amount.plus(trs.fee.toString()).toNumber();
 
-	this.scope.logger.trace('Logic/Transaction->undo', {sender: sender.address, balance: amount, blockId: block.id, round: modules.rounds.calc(block.height)});
+	this.scope.logger.trace('Logic/Transaction->undo', {
+		sender: sender.address,
+		balance: amount,
+		blockId: block.id,
+		round: modules.rounds.calc(block.height)
+	});
 	this.scope.account.merge(sender.address, {
 		balance: amount,
 		blockId: block.id,
@@ -858,6 +878,7 @@ Transaction.prototype.undo = function (trs, block, sender, cb) {
  * @return {setImmediateCallback} for errors | cb
  */
 Transaction.prototype.applyUnconfirmed = function (trs, sender, requester, cb) {
+
 	if (typeof requester === 'function') {
 		cb = requester;
 	}
@@ -872,14 +893,22 @@ Transaction.prototype.applyUnconfirmed = function (trs, sender, requester, cb) {
 
 	amount = amount.toNumber();
 
-	this.scope.account.merge(sender.address, {u_balance: -amount}, function (err, sender) {
+	if (this.scope.clientWs) {
+		this.scope.clientWs.emit(trs);
+	}
+
+	this.scope.account.merge(sender.address, {
+		u_balance: -amount
+	}, function (err, sender) {
 		if (err) {
 			return setImmediate(cb, err);
 		}
 
 		__private.types[trs.type].applyUnconfirmed.call(this, trs, sender, function (err) {
 			if (err) {
-				this.scope.account.merge(sender.address, {u_balance: amount}, function (err2) {
+				this.scope.account.merge(sender.address, {
+					u_balance: amount
+				}, function (err2) {
 					return setImmediate(cb, err2 || err);
 				});
 			} else {
@@ -903,16 +932,20 @@ Transaction.prototype.applyUnconfirmed = function (trs, sender, requester, cb) {
  */
 Transaction.prototype.undoUnconfirmed = function (trs, sender, cb) {
 	var amount = new bignum(trs.amount.toString());
-	    amount = amount.plus(trs.fee.toString()).toNumber();
+	amount = amount.plus(trs.fee.toString()).toNumber();
 
-	this.scope.account.merge(sender.address, {u_balance: amount}, function (err, sender) {
+	this.scope.account.merge(sender.address, {
+		u_balance: amount
+	}, function (err, sender) {
 		if (err) {
 			return setImmediate(cb, err);
 		}
 
 		__private.types[trs.type].undoUnconfirmed.call(this, trs, sender, function (err) {
 			if (err) {
-				this.scope.account.merge(sender.address, {u_balance: -amount}, function (err2) {
+				this.scope.account.merge(sender.address, {
+					u_balance: -amount
+				}, function (err2) {
 					return setImmediate(cb, err2 || err);
 				});
 			} else {
@@ -963,27 +996,25 @@ Transaction.prototype.dbSave = function (trs) {
 		throw e;
 	}
 
-	var promises = [
-		{
-			table: this.dbTable,
-			fields: this.dbFields,
-			values: {
-				id: trs.id,
-				blockId: trs.blockId,
-				type: trs.type,
-				timestamp: trs.timestamp,
-				senderPublicKey: senderPublicKey,
-				requesterPublicKey: requesterPublicKey,
-				senderId: trs.senderId,
-				recipientId: trs.recipientId || null,
-				amount: trs.amount,
-				fee: trs.fee,
-				signature: signature,
-				signSignature: signSignature,
-				signatures: trs.signatures ? trs.signatures.join(',') : null,
-			}
+	var promises = [{
+		table: this.dbTable,
+		fields: this.dbFields,
+		values: {
+			id: trs.id,
+			blockId: trs.blockId,
+			type: trs.type,
+			timestamp: trs.timestamp,
+			senderPublicKey: senderPublicKey,
+			requesterPublicKey: requesterPublicKey,
+			senderId: trs.senderId,
+			recipientId: trs.recipientId || null,
+			amount: trs.amount,
+			fee: trs.fee,
+			signature: signature,
+			signSignature: signSignature,
+			signatures: trs.signatures ? trs.signatures.join(',') : null,
 		}
-	];
+	}];
 
 	var promise = __private.types[trs.type].dbSave(trs);
 
