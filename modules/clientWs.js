@@ -1,25 +1,27 @@
 class ClientWs {
-    constructor (config, cb) {
+    constructor (config, logger, cb) {
         if (!config || !config.enabled) {
             return false;
         }
-
         const port = config.portWS;
         const io = require('socket.io')(port);
-
         this.describes = {};
-
+        this.logger = logger;
         io.sockets.on('connection', (socket) => {
             try {
                 let address = '';
+                let aId = '';
                 socket.on('address', a => {
                     address = a;
-                    this.describes[address] = socket;
+                    aId = address + '_' + socket.id;
+                    this.describes[aId] = socket;
                 });
                 socket.on('disconnect', () => {
-                    delete this.describes[address];
+                    delete this.describes[aId];
                 });
-            } catch (e) {}
+            } catch (e) {
+                logger.debug('Error Connection socket: ' + e);
+            }
         });
 
         if (cb) {
@@ -33,16 +35,12 @@ class ClientWs {
         }
         lastTransactionsIds[t.id] = getUTime();
         try {
-            const recip = this.describes[t.recipientId];
-            const sender = this.describes[t.senderId];
-            if (recip) {
-                recip.emit('newTrans', t);
-            }
-            if (sender) {
-                sender.emit('newTrans', t);
-            }
+            const subs = findSubs(t.recipientId, t.senderId, this.describes);
+            subs.forEach(s => {
+                s.emit('newTrans', t);
+            });
         } catch (e) {
-            console.log('Socket error emit');
+            this.logger.debug('Socket error emit ' + e);
         }
     }
 }
@@ -59,6 +57,16 @@ setInterval(() => {
 
 function getUTime () {
     return new Date().getTime() / 1000;
+}
+
+function findSubs (address1, address2, subs) {
+    const filterred = [];
+    for (let aId in subs) {
+        if (aId.startsWith(address1) || aId.startsWith(address2)) {
+            filterred.push(subs[aId]);
+        }
+    }
+    return filterred;
 }
 
 module.exports = ClientWs;

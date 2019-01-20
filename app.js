@@ -141,7 +141,6 @@ var config = {
         states: './modules/states.js',
 		node: './modules/node.js',
 		chats: './modules/chats.js',
-		states: './modules/states.js',
 		crypto: './modules/crypto.js',
 		sql: './modules/sql.js',
 		cache: './modules/cache.js'
@@ -277,7 +276,7 @@ d.run(function () {
 		 */
 		clientWs: ['config', function (scope, cb) {
 			var ClientWs = require('./modules/clientWs');
-			cb(null, new ClientWs(scope.config.wsClient));
+			cb(null, new ClientWs(scope.config.wsClient, logger));
 		}],
 		/**
 		 * Once config is completed, creates app, http & https servers & sockets with express.

@@ -3,7 +3,7 @@
     "address": "0.0.0.0",
     "fileLogLevel": "info",
     "logFileName": "logs/adamant.log",
-    "consoleLogLevel": "debag",
+    "consoleLogLevel": "none",
     "trustProxy": false,
     "topAccounts": false,
     "cacheEnabled": false,
@@ -105,7 +105,7 @@
     },
     "dapp": { 
         "masterrequired": true,
-        "masterpassword": "Nsbbs8sGXAzJ",
+        "masterpassword": "",
         "autoexec": []
     },
     "wsClient": {
