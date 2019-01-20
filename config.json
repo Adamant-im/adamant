@@ -26,7 +26,7 @@
         "db": 0,
         "password": null
     },
-    "api": { 
+    "api": {
         "enabled": true,
         "access": {
             "public": false,
@@ -43,9 +43,10 @@
             }
         }
     },
-    "peers": { 
+    "peers": {
         "enabled": true,
-        "list": [{
+        "list": [
+            {
                 "ip": "51.15.221.205",
                 "port": 36666
             },
@@ -103,14 +104,14 @@
             "cert": "./ssl/lisk.crt"
         }
     },
-    "dapp": { 
+    "dapp": {
         "masterrequired": true,
-        "masterpassword": "",
+        "masterpassword": "rJ1T2sZH3cLU",
         "autoexec": []
     },
     "wsClient": {
         "portWS": 36668,
         "enabled": true
-        },
+    },
     "nethash": "bd330166898377fb28743ceef5e43a5d9d0a3efd9b3451fb7bc53530bb0a6d64"
 }
