@@ -190,6 +190,11 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
                 node.expect(res.body.chats[i].timestamp).to.not.equal(null);
                 node.expect(res.body.chats[i].fee).to.not.equal(null);
                 node.expect(res.body.chats[i].amount).to.not.equal(null);
+                node.expect(res.body.chats[i]).to.have.property('asset').to.be.an('object');
+                node.expect(res.body.chats[i].asset).to.have.property('chat').to.be.an('object');
+                node.expect(res.body.chats[i].asset.chat).to.have.property('message').to.not.equal(null);
+                node.expect(res.body.chats[i].asset.chat).to.have.property('own_message').to.not.equal(null);
+                node.expect(res.body.chats[i].asset.chat).to.have.property('type').to.not.equal(null);
             }
             done();
         });
