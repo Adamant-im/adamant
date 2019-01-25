@@ -260,6 +260,36 @@ describe('GET /api/transactions', function () {
 		});
 	});
 
+	it('using minFee with and:maxFee ordered by fee and limited should be ok', function (done) {
+		const limit = 10;
+		const offset = 0;
+		const orderBy = 'fee:asc';
+		const minFee = constants.feeStartVolume;
+		const maxFee = constants.fees.delegate;
+
+		var params = [
+			'minFee=' + minFee,
+			'and:maxFee=' + maxFee,
+			'limit=' + limit,
+			'offset=' + offset,
+			'orderBy=' + orderBy
+		];
+
+		node.get('/api/transactions?' + params.join('&'), function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('transactions').that.is.an('array');
+			node.expect(res.body.transactions).to.have.length.within(2, limit);
+			node.expect(res.body.transactions[0].fee).to.be.equal(minFee);
+			node.expect(res.body.transactions[res.body.transactions.length-1].fee).to.be.equal(maxFee);
+			for (var i = 0; i < res.body.transactions.length; i++) {
+				if (res.body.transactions[i + 1]) {
+					node.expect(res.body.transactions[i].fee).to.be.at.most(res.body.transactions[i + 1].fee);
+				}
+			}
+			done();
+		});
+	});
+
 	it('using valid parameters with/without and/or should be ok', function (done) {
 		var limit = 10;
 		var offset = 0;
