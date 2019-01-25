@@ -92,6 +92,8 @@ __private.list = function (filter, cb) {
         recipientPublicKeys: 'ENCODE ("m_recipientPublicKey", \'hex\') IN (${recipientPublicKeys:csv})',
         minAmount:           '"t_amount" >= ${minAmount}',
         maxAmount:           '"t_amount" <= ${maxAmount}',
+        minFee:              '"t_fee" >= ${minFee}',
+        maxFee:              '"t_fee" <= ${maxFee}',
         type:                '"t_type" = ${type}',
         minConfirmations:    'confirmations >= ${minConfirmations}',
         limit: null,
@@ -133,7 +135,7 @@ __private.list = function (filter, cb) {
         }
 
         // Checking for empty parameters, 0 is allowed for few
-        if (!value && !(value === 0 && _.includes(['fromTimestamp', 'minAmount', 'minConfirmations', 'type', 'offset'], field[1]))) {
+        if (!value && !(value === 0 && _.includes(['fromTimestamp', 'minAmount', 'minConfirmations', 'type', 'offset', 'minFee'], field[1]))) {
             throw new Error('Value for parameter [' + field[1] + '] cannot be empty');
         }
 

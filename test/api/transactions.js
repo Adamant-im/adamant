@@ -264,7 +264,7 @@ describe('GET /api/transactions', function () {
 		const limit = 10;
 		const offset = 0;
 		const orderBy = 'fee:asc';
-		const minFee = constants.feeStartVolume;
+		const minFee = constants.fees.delegate;;
 		const maxFee = constants.fees.delegate;
 
 		var params = [
