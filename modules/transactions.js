@@ -95,6 +95,7 @@ __private.list = function (filter, cb) {
         minFee:              '"t_fee" >= ${minFee}',
         maxFee:              '"t_fee" <= ${maxFee}',
         type:                '"t_type" = ${type}',
+        types:               '"t_type" IN (${types:csv})',
         minConfirmations:    'confirmations >= ${minConfirmations}',
         limit: null,
         offset: null,
@@ -626,12 +627,16 @@ Transactions.prototype.shared = {
                 _.each(req.body, function (value, key) {
                     var param = String(key).replace(pattern, '');
                     // Dealing with array-like parameters (csv comma separated)
-                    if (_.includes(['senderIds', 'recipientIds', 'senderPublicKeys', 'recipientPublicKeys'], param)) {
+                    if (_.includes(['senderIds', 'recipientIds', 'senderPublicKeys', 'recipientPublicKeys', 'types'], param)) {
                         value = String(value).split(',');
                         req.body[key] = value;
                     }
                     params[param] = value;
                 });
+
+                if(params.types) {
+                    params.types = params.types.map(x => parseInt(x));
+                }
 
                 library.schema.validate(params, schema.getTransactions, function (err) {
                     if (err) {

@@ -423,6 +423,22 @@ describe('GET /api/transactions', function () {
 		});
 	});
 
+	it('using array-like types should be ok', function (done) {
+		const types = [node.txTypes.VOTE,node.txTypes.DELEGATE];
+		const params = 'types=' + types.join(',');
+
+		node.get('/api/transactions?' + params, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('transactions').that.is.an('array');
+			for (var i = 0; i < res.body.transactions.length; i++) {
+				if (res.body.transactions[i]) {
+					node.expect(res.body.transactions[i].type).to.be.oneOf(types);
+				}
+			}
+			done();
+		});
+	});
+
 	it('using no params should be ok', function (done) {
 		node.get('/api/transactions', function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;

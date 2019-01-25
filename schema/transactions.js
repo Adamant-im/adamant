@@ -136,6 +136,15 @@ module.exports = {
 				type: 'integer',
 				minimum: 1
 			},
+			types: {
+				type: 'array',
+				minItems: 1,
+				'items': {
+					type: 'integer',
+					minimum: 0,
+					maximum: 10
+				}
+			},
 			minConfirmations: {
 				type: 'integer',
 				minimum: 0
