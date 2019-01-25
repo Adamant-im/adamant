@@ -145,6 +145,11 @@ module.exports = {
 					maximum: 10
 				}
 			},
+			noClutter: {
+				type: 'integer',
+				minimum: 0,
+				maximum: 1
+			},
 			minConfirmations: {
 				type: 'integer',
 				minimum: 0

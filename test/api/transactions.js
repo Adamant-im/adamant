@@ -439,6 +439,23 @@ describe('GET /api/transactions', function () {
 		});
 	});
 
+	it('using noClutter param should be ok', function (done) {
+		node.get('/api/transactions?noClutter=1', function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('transactions').that.is.an('array');
+			for (var i = 0; i < res.body.transactions.length; i++) {
+				if (res.body.transactions[i]) {
+					try {
+						node.expect(res.body.transactions[i].type).to.be.not.equal(8);
+					} catch (e) {
+						node.expect(res.body.transactions[i].amount).to.be.not.equal(0);
+					}
+				}
+			}
+			done();
+		});
+	});
+
 	it('using no params should be ok', function (done) {
 		node.get('/api/transactions', function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;

@@ -96,6 +96,7 @@ __private.list = function (filter, cb) {
         maxFee:              '"t_fee" <= ${maxFee}',
         type:                '"t_type" = ${type}',
         types:               '"t_type" IN (${types:csv})',
+        noClutter:           '("t_amount" > 0 OR "t_type" < 8)',
         minConfirmations:    'confirmations >= ${minConfirmations}',
         limit: null,
         offset: null,
