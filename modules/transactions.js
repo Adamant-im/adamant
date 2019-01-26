@@ -92,7 +92,11 @@ __private.list = function (filter, cb) {
         recipientPublicKeys: 'ENCODE ("m_recipientPublicKey", \'hex\') IN (${recipientPublicKeys:csv})',
         minAmount:           '"t_amount" >= ${minAmount}',
         maxAmount:           '"t_amount" <= ${maxAmount}',
+        minFee:              '"t_fee" >= ${minFee}',
+        maxFee:              '"t_fee" <= ${maxFee}',
         type:                '"t_type" = ${type}',
+        types:               '"t_type" IN (${types:csv})',
+        noClutter:           '("t_amount" > 0 OR "t_type" < 8)',
         minConfirmations:    'confirmations >= ${minConfirmations}',
         limit: null,
         offset: null,
@@ -133,7 +137,7 @@ __private.list = function (filter, cb) {
         }
 
         // Checking for empty parameters, 0 is allowed for few
-        if (!value && !(value === 0 && _.includes(['fromTimestamp', 'minAmount', 'minConfirmations', 'type', 'offset'], field[1]))) {
+        if (!value && !(value === 0 && _.includes(['fromTimestamp', 'minAmount', 'minConfirmations', 'type', 'offset', 'minFee'], field[1]))) {
             throw new Error('Value for parameter [' + field[1] + '] cannot be empty');
         }
 
@@ -624,12 +628,16 @@ Transactions.prototype.shared = {
                 _.each(req.body, function (value, key) {
                     var param = String(key).replace(pattern, '');
                     // Dealing with array-like parameters (csv comma separated)
-                    if (_.includes(['senderIds', 'recipientIds', 'senderPublicKeys', 'recipientPublicKeys'], param)) {
+                    if (_.includes(['senderIds', 'recipientIds', 'senderPublicKeys', 'recipientPublicKeys', 'types'], param)) {
                         value = String(value).split(',');
                         req.body[key] = value;
                     }
                     params[param] = value;
                 });
+
+                if(params.types) {
+                    params.types = params.types.map(x => parseInt(x));
+                }
 
                 library.schema.validate(params, schema.getTransactions, function (err) {
                     if (err) {

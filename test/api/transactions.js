@@ -260,6 +260,36 @@ describe('GET /api/transactions', function () {
 		});
 	});
 
+	it('using minFee with and:maxFee ordered by fee and limited should be ok', function (done) {
+		const limit = 10;
+		const offset = 0;
+		const orderBy = 'fee:asc';
+		const minFee = constants.fees.delegate;;
+		const maxFee = constants.fees.delegate;
+
+		var params = [
+			'minFee=' + minFee,
+			'and:maxFee=' + maxFee,
+			'limit=' + limit,
+			'offset=' + offset,
+			'orderBy=' + orderBy
+		];
+
+		node.get('/api/transactions?' + params.join('&'), function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('transactions').that.is.an('array');
+			node.expect(res.body.transactions).to.have.length.within(2, limit);
+			node.expect(res.body.transactions[0].fee).to.be.equal(minFee);
+			node.expect(res.body.transactions[res.body.transactions.length-1].fee).to.be.equal(maxFee);
+			for (var i = 0; i < res.body.transactions.length; i++) {
+				if (res.body.transactions[i + 1]) {
+					node.expect(res.body.transactions[i].fee).to.be.at.most(res.body.transactions[i + 1].fee);
+				}
+			}
+			done();
+		});
+	});
+
 	it('using valid parameters with/without and/or should be ok', function (done) {
 		var limit = 10;
 		var offset = 0;
@@ -387,6 +417,39 @@ describe('GET /api/transactions', function () {
 			for (var i = 0; i < res.body.transactions.length; i++) {
 				if (res.body.transactions[i]) {
 					node.expect(res.body.transactions[i].type).to.equal(type);
+				}
+			}
+			done();
+		});
+	});
+
+	it('using array-like types should be ok', function (done) {
+		const types = [node.txTypes.VOTE,node.txTypes.DELEGATE];
+		const params = 'types=' + types.join(',');
+
+		node.get('/api/transactions?' + params, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('transactions').that.is.an('array');
+			for (var i = 0; i < res.body.transactions.length; i++) {
+				if (res.body.transactions[i]) {
+					node.expect(res.body.transactions[i].type).to.be.oneOf(types);
+				}
+			}
+			done();
+		});
+	});
+
+	it('using noClutter param should be ok', function (done) {
+		node.get('/api/transactions?noClutter=1', function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('transactions').that.is.an('array');
+			for (var i = 0; i < res.body.transactions.length; i++) {
+				if (res.body.transactions[i]) {
+					try {
+						node.expect(res.body.transactions[i].type).to.be.not.equal(8);
+					} catch (e) {
+						node.expect(res.body.transactions[i].amount).to.be.not.equal(0);
+					}
 				}
 			}
 			done();

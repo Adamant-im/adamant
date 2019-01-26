@@ -187,6 +187,14 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
                 node.expect(res.body.chats[i].participants[0].address).to.equal(sender.address);
                 node.expect(res.body.chats[i].participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
                 node.expect(res.body.chats[i].participants[1].publicKey).to.not.equal(null);
+                node.expect(res.body.chats[i].timestamp).to.not.equal(null);
+                node.expect(res.body.chats[i].fee).to.not.equal(null);
+                node.expect(res.body.chats[i].amount).to.not.equal(null);
+                node.expect(res.body.chats[i]).to.have.property('asset').to.be.an('object');
+                node.expect(res.body.chats[i].asset).to.have.property('chat').to.be.an('object');
+                node.expect(res.body.chats[i].asset.chat).to.have.property('message').to.not.equal(null);
+                node.expect(res.body.chats[i].asset.chat).to.have.property('own_message').to.not.equal(null);
+                node.expect(res.body.chats[i].asset.chat).to.have.property('type').to.not.equal(null);
             }
             done();
         });
@@ -201,6 +209,9 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
                 node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
                 node.expect(res.body.chats[i].participants[0].publicKey).to.not.equal(null);
                 node.expect(res.body.chats[i].participants[1].publicKey).to.not.equal(null);
+                node.expect(res.body.chats[i].timestamp).to.not.equal(null);
+                node.expect(res.body.chats[i].fee).to.not.equal(null);
+                node.expect(res.body.chats[i].amount).to.not.equal(null);
             }
             done();
         }, { orderBy: 'timestamp:desc'});
@@ -215,6 +226,9 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
                 node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
                 node.expect(res.body.chats[i].participants[0].publicKey).to.not.equal(null);
                 node.expect(res.body.chats[i].participants[1].publicKey).to.not.equal(null);
+                node.expect(res.body.chats[i].timestamp).to.not.equal(null);
+                node.expect(res.body.chats[i].fee).to.not.equal(null);
+                node.expect(res.body.chats[i].amount).to.not.equal(null);
             }
             done();
         });
