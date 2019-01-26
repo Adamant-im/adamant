@@ -30,7 +30,9 @@
         "enabled": true,
         "access": {
             "public": false,
-            "whiteList": ["127.0.0.1"]
+            "whiteList": [
+                "127.0.0.1"
+            ]
         },
         "options": {
             "limits": {
@@ -104,8 +106,12 @@
     },
     "dapp": {
         "masterrequired": true,
-        "masterpassword": "",
+        "masterpassword": "rJ1T2sZH3cLU",
         "autoexec": []
+    },
+    "wsClient": {
+        "portWS": 36668,
+        "enabled": true
     },
     "nethash": "bd330166898377fb28743ceef5e43a5d9d0a3efd9b3451fb7bc53530bb0a6d64"
 }
