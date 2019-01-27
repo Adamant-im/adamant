@@ -200,6 +200,34 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
         });
     });
 
+    it('should return the chats list for a valid transaction with a KVS records', function (done) {
+        getChats(sender.address, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('count').to.equal('2');
+            node.expect(res.body).to.have.property('chats').to.have.lengthOf(2);
+            for (let i = 0; i < res.body.chats.length; i++) {
+                node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
+                node.expect(res.body.chats[i].participants[0]).to.have.property('kvs').to.have.lengthOf(2);
+                node.expect(res.body.chats[i].participants[1]).to.have.property('kvs').to.have.lengthOf(2);
+                node.expect(res.body.chats[i].participants[0].address).to.equal(sender.address);
+                node.expect(res.body.chats[i].participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
+                node.expect(res.body.chats[i].participants[1].publicKey).to.not.equal(null);
+
+                node.expect(res.body.chats[i].timestamp).to.not.equal(null);
+                node.expect(res.body.chats[i].fee).to.not.equal(null);
+                node.expect(res.body.chats[i].amount).to.not.equal(null);
+                node.expect(res.body.chats[i]).to.have.property('asset').to.be.an('object');
+                node.expect(res.body.chats[i].asset).to.have.property('chat').to.be.an('object');
+                node.expect(res.body.chats[i].asset.chat).to.have.property('message').to.not.equal(null);
+                node.expect(res.body.chats[i].asset.chat).to.have.property('own_message').to.not.equal(null);
+                node.expect(res.body.chats[i].asset.chat).to.have.property('type').to.not.equal(null);
+            }
+            done();
+        }, {
+            fetchKeys: 'DOGE,ETH'
+        });
+    });
+
     it('should return the chats list for a valid transaction for recipient1', function (done) {
         getChats(recipient1.address, function (err, res) {
             node.expect(res.body).to.have.property('success').to.be.ok;
