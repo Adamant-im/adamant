@@ -33,7 +33,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     before(function (done) {
         sendADM({
             secret: node.gAccount.password,
-            amount: node.fees.messageFee*3+node.fees.transactionFee*2,
+            amount: node.fees.messageFee*3+node.fees.transactionFee*2+node.fees.state,
             recipientId: sender.address
         }, function () {
             done();
@@ -44,7 +44,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     before(function (done) {
         sendADM({
             secret: node.gAccount.password,
-            amount: node.fees.messageFee,
+            amount: node.fees.messageFee+node.fees.state,
             recipientId: recipient1.address
         }, function () {
             done();
@@ -55,7 +55,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     before(function (done) {
         sendADM({
             secret: node.gAccount.password,
-            amount: node.fees.messageFee,
+            amount: node.fees.messageFee+node.fees.state,
             recipientId: recipient2.address
         }, function () {
             done();
@@ -146,6 +146,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
 
     // send a second message from a sender to recipient1
     before(function (done) {
+
         const transaction = node.createChatTransaction({
             keyPair: sender.keypair,
             recipientId: recipient1.address,
@@ -167,6 +168,57 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
             amount: node.fees.transactionFee,
             recipientId: recipient1.address
         }, function () {
+            done();
+        });
+    });
+
+    // send a state transaction for a sender
+    before(function (done) {
+        const transaction = node.createStateTransaction({
+            keyPair: sender.keypair,
+            recipientId: sender.address,
+            key: 'eth:address',
+            value: 'my_not_secure_eth_address',
+            type: 0
+        });
+
+        postMessage(transaction, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('transactionId');
+            done();
+        });
+    });
+
+    // send a state transaction for a recipient1
+    before(function (done) {
+        const transaction = node.createStateTransaction({
+            keyPair: recipient1.keypair,
+            recipientId: recipient1.address,
+            key: 'eth:address',
+            value: 'my_not_secure_eth_address',
+            type: 0
+        });
+
+        postMessage(transaction, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('transactionId');
+            done();
+        });
+    });
+
+    // send a state transaction for a recipient2
+    before(function (done) {
+        const transaction = node.createStateTransaction({
+            keyPair: recipient2.keypair,
+            recipientId: recipient2.address,
+            key: 'eth:address',
+            value: 'my_not_secure_eth_address',
+            type: 0
+        });
+
+        postMessage(transaction, function (err, res) {
+            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('transactionId');
             done();
         });
     });
@@ -207,8 +259,8 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
             node.expect(res.body).to.have.property('chats').to.have.lengthOf(2);
             for (let i = 0; i < res.body.chats.length; i++) {
                 node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
-                node.expect(res.body.chats[i].participants[0]).to.have.property('kvs').to.have.lengthOf(2);
-                node.expect(res.body.chats[i].participants[1]).to.have.property('kvs').to.have.lengthOf(2);
+                node.expect(res.body.chats[i].participants[0]).to.have.property('kvs').to.have.lengthOf(1);
+                node.expect(res.body.chats[i].participants[1]).to.have.property('kvs').to.have.lengthOf(1);
                 node.expect(res.body.chats[i].participants[0].address).to.equal(sender.address);
                 node.expect(res.body.chats[i].participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
                 node.expect(res.body.chats[i].participants[1].publicKey).to.not.equal(null);
@@ -224,7 +276,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
             }
             done();
         }, {
-            fetchKeys: 'DOGE,ETH'
+            fetchKeys: 'ETH'
         });
     });
 

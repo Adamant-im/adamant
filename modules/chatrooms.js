@@ -61,14 +61,20 @@ function Chatrooms (cb, scope) {
 }
 
 __private.listChats = function (filter, cb) {
-    let params = {}, where = [], whereOr = [];
+    let params = {}, where = [], whereOr = [], types = [];
 
     if (filter.type >= 0) {
         where.push('"c_type" = ${type}');
         params.type = filter.type;
     }
     if (filter.withPayments) {
-        where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
+        let type = `("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`;
+        where.push(type);
+    } else if (filter.fetchKeys) {
+        where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.STATE})`);
+        // remove all non-alphabetic keys
+        filter.fetchKeys = filter.fetchKeys.split(',').filter(x => x.match(/^[a-z]+$/i));
+        filter.fetchKeys.forEach(key => whereOr.push(`"st_stored_key" LIKE '${key.toLowerCase()}:address'`))
     } else {
         where.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
     }
@@ -116,7 +122,8 @@ __private.listChats = function (filter, cb) {
     }
     library.db.query(sql.countChats({
         where: where,
-        whereOr: whereOr
+        whereOr: whereOr,
+        types: types
     }), params).then(function (rows) {
         const count = rows.length ? rows[0].count : 0;
         library.db.query(sql.listChats({
@@ -125,22 +132,33 @@ __private.listChats = function (filter, cb) {
             sortField: orderBy.sortField,
             sortMethod: orderBy.sortMethod
         }), params).then(function (rows) {
-            let transactions = [], chats = {};
+            let transactions = [], chats = {}, kvs = {};
             for (let i = 0; i < rows.length; i++) {
                 const trs = library.logic.transaction.dbRead(rows[i]);
-                trs.participants = [
-                    {address: trs.senderId, publicKey: trs.senderPublicKey},
-                    {address: trs.recipientId, publicKey: trs.recipientPublicKey}
-                ];
-                const uid = trs.senderId !== filter.userId ? trs.senderId : trs.recipientId;
-                if (!chats[uid]) {
-                    chats[uid] = [];
+                if (filter.fetchKeys && trs.type === transactionTypes.STATE) {
+                    const uid = trs.senderId !== filter.userId ? trs.senderId : trs.recipientId;
+                    if (!kvs[uid]) {
+                        kvs[uid] = [];
+                    }
+                    kvs[uid].push(trs);
+                } else {
+                    trs.participants = [
+                        {address: trs.senderId, publicKey: trs.senderPublicKey, kvs: []},
+                        {address: trs.recipientId, publicKey: trs.recipientPublicKey, kvs: []}
+                    ];
+                    const uid = trs.senderId !== filter.userId ? trs.senderId : trs.recipientId;
+                    if (!chats[uid]) {
+                        chats[uid] = [];
+                    }
+                    chats[uid].push(trs);
                 }
-                chats[uid].push(trs);
             }
             for (const uid in chats) {
-                transactions.push(chats[uid].sort((x, y) => x.timestamp - y.timestamp)[0]);
+                let trs = chats[uid].sort((x, y) => x.timestamp - y.timestamp)[0];
+                trs.participants.forEach(x => x.kvs = kvs[x.address] || []);
+                transactions.push(trs);
             }
+
             const data = {
                 chats: transactions,
                 count: count
