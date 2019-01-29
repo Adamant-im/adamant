@@ -101,6 +101,8 @@ var ChatsSql = {
             'first("c_message") as "c_message",',
             'first("c_own_message") as "c_own_message",',
             'first("c_type") as "c_type",',
+            'first("st_stored_key") as "st_stored_key",',
+            'first("st_stored_value") as "st_stored_value",',
             'first("t_type") as "t_type"',
             'FROM ( SELECT *, t_timestamp as timestamp, ENCODE("publicKey", \'hex\') as "m_recipientPublicKey"',
             'FROM full_blocks_list',

@@ -1173,6 +1173,8 @@ Transaction.prototype.dbRead = function (raw) {
 			signSignature: raw.t_signSignature,
 			signatures: raw.t_signatures ? raw.t_signatures.split(',') : [],
 			confirmations: parseInt(raw.confirmations),
+			stored_value: raw.st_stored_value,
+			stored_key: raw.st_stored_key,
 			asset: {}
 		};
 
