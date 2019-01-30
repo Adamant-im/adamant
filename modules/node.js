@@ -107,16 +107,20 @@ Node.prototype.shared = {
     getStatus: function (req, cb) {
         var lastBlock = modules.blocks.lastBlock.get();
         var wsClientEnabled = false;
+        var wsClientOptions = {
+            enabled: false
+        };
         if (library.config.wsClient) {
             if (library.config.wsClient.enabled) {
-                wsClientEnabled = true;
+                wsClientOptions.enabled = true;
+                wsClientOptions.port = library.config.wsClient.portWS;
             }
         }
+
+
         return setImmediate(cb, null,
             {
-                wsClient: {
-                    enabled: wsClientEnabled
-                },
+                wsClient: wsClientOptions,
             	network: {
                     broadhash: modules.system.getBroadhash(),
                     epoch: constants.epochTime,
