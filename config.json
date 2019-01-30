@@ -106,7 +106,7 @@
     },
     "dapp": {
         "masterrequired": true,
-        "masterpassword": "rJ1T2sZH3cLU",
+        "masterpassword": "",
         "autoexec": []
     },
     "wsClient": {
