@@ -128,6 +128,28 @@ module.exports = {
 				type: 'integer',
 				minimum: 1
 			},
+			minFee: {
+				type: 'integer',
+				minimum: 1
+			},
+			maxFee: {
+				type: 'integer',
+				minimum: 1
+			},
+			types: {
+				type: 'array',
+				minItems: 1,
+				'items': {
+					type: 'integer',
+					minimum: 0,
+					maximum: 10
+				}
+			},
+			noClutter: {
+				type: 'integer',
+				minimum: 0,
+				maximum: 1
+			},
 			minConfirmations: {
 				type: 'integer',
 				minimum: 0
