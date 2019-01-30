@@ -100,23 +100,27 @@ Node.prototype.shared = {
 	 * @return {Function} cb Callback function from params (through setImmediate)
 	 * @return {Object}   cb.err Always return `null` here
 	 * @return {Object}   cb.obj Anonymous object with version info
-	 * @return {String}   cb.obj.build Build information (if available, otherwise '')
-	 * @return {String}   cb.obj.commit Hash of last git commit (if available, otherwise '')
-	 * @return {String}   cb.obj.version Lisk version from config file
+	 * @return {Object}   cb.obj.network Anonymous object with network info
+	 * @return {Object}   cb.obj.wsClient Anonymous object with WebSocket Client info
+	 * @return {Boolean}  cb.obj.wsClient.enabled are webSockets available.
+	 * @return {Object}   cb.obj.version Anonymous object with version info
+	 * @return {String}   cb.obj.version.build Build information (if available, otherwise '')
+	 * @return {String}   cb.obj.version.commit Hash of last git commit (if available, otherwise '')
+	 * @return {String}   cb.obj.version.version ADAMANT version from package.json
 	 */
     getStatus: function (req, cb) {
         var lastBlock = modules.blocks.lastBlock.get();
-        var wsClientEnabled = false;
+        var wsClientOptions = {
+            enabled: false
+        };
         if (library.config.wsClient) {
             if (library.config.wsClient.enabled) {
-                wsClientEnabled = true;
+                wsClientOptions.enabled = true;
+                wsClientOptions.port = library.config.wsClient.portWS;
             }
         }
         return setImmediate(cb, null,
             {
-                wsClient: {
-                    enabled: wsClientEnabled
-                },
             	network: {
                     broadhash: modules.system.getBroadhash(),
                     epoch: constants.epochTime,
@@ -131,7 +135,8 @@ Node.prototype.shared = {
                     build: library.build,
                     commit: library.lastCommit,
                     version: library.config.version
-                }
+                },
+                wsClient: wsClientOptions
             });
     }
 };
