@@ -65,33 +65,27 @@ __private.listChats = function (filter, cb) {
 
     if (filter.type >= 0) {
         where.push('"c_type" = ${type}');
-        types.push('"c_type" = ${type}');
         params.type = filter.type;
     }
     if (filter.withPayments) {
         let type = `("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`;
         where.push(type);
-        types.push(type);
     } else if (filter.fetchKeys) {
         where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.STATE})`);
         // remove all non-alphabetic keys
         filter.fetchKeys = filter.fetchKeys.split(',').filter(x => x.match(/^[a-z]+$/i));
-        filter.fetchKeys.forEach(key => whereOr.push(`"st_stored_key" LIKE '${key.toLowerCase()}:address'`));
-        types.push(`"t_type" = ${transactionTypes.CHAT_MESSAGE}`)
+        filter.fetchKeys.forEach(key => whereOr.push(`"st_stored_key" LIKE '${key.toLowerCase()}:address'`))
     } else {
         where.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
-        types.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
     }
 
     if (filter.senderId) {
         where.push('"t_senderId" = ${name}');
-        types.push('"t_senderId" = ${name}');
         params.name = filter.senderId;
     }
 
     if (filter.recipientId) {
         where.push('"t_recipientId" = ${name}');
-        types.push('"t_recipientId" = ${name}');
         params.name = filter.recipientId;
     }
 
@@ -127,8 +121,9 @@ __private.listChats = function (filter, cb) {
         return setImmediate(cb, orderBy.error);
     }
     library.db.query(sql.countChats({
-        where: types,
-        whereOr: whereOr
+        where: where,
+        whereOr: whereOr,
+        types: types
     }), params).then(function (rows) {
         const count = rows.length ? rows[0].count : 0;
         library.db.query(sql.listChats({
@@ -145,7 +140,7 @@ __private.listChats = function (filter, cb) {
                     if (!kvs[uid]) {
                         kvs[uid] = [];
                     }
-                    kvs[uid].push({ key: trs.stored_key, value: trs.stored_value });
+                    kvs[uid].push(trs);
                 } else {
                     trs.participants = [
                         {address: trs.senderId, publicKey: trs.senderPublicKey, kvs: []},
