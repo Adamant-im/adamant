@@ -123,6 +123,13 @@ var ChatsSql = {
 	    return y;
     },
 
+    fetchKeys: function(params) {
+        const keys = params.keys.map(x => `st_stored_key = '${x}:address'`);
+	    return `select * from full_blocks_list `+
+            `where "t_senderId" IN (${params.uids.map(x => '\''+x+'\'').join(',')}) `+
+	        `and st_type = 0 and (${keys.join(' OR ')})`;
+    },
+
 	getGenesis: 'SELECT b."height" AS "height", b."id" AS "id", t."senderId" AS "authorId" FROM trs t INNER JOIN blocks b ON t."blockId" = b."id" WHERE t."id" = ${id}'
 
 };
