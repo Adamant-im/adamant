@@ -31,7 +31,7 @@
     "express-domain-middleware": "=0.1.0",
     "express-query-int": "=1.0.1",
     "express-rate-limit": "=2.6.0",
-    "extend": "=3.0.0",
+    "extend": "=3.0.2",
     "ip": "=1.1.5",
     "js-nacl": "^1.2.2",
     "json-schema": "=0.2.3",
