@@ -61,20 +61,14 @@ function Chatrooms (cb, scope) {
 }
 
 __private.listChats = function (filter, cb) {
-    let params = {}, where = [], whereOr = [], types = [];
+    let params = {}, where = [], whereOr = [];
 
     if (filter.type >= 0) {
         where.push('"c_type" = ${type}');
         params.type = filter.type;
     }
     if (filter.withPayments) {
-        let type = `("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`;
-        where.push(type);
-    } else if (filter.fetchKeys) {
-        where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.STATE})`);
-        // remove all non-alphabetic keys
-        filter.fetchKeys = filter.fetchKeys.split(',').filter(x => x.match(/^[a-z]+$/i));
-        filter.fetchKeys.forEach(key => whereOr.push(`"st_stored_key" LIKE '${key.toLowerCase()}:address'`))
+        where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
     } else {
         where.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
     }
@@ -122,8 +116,7 @@ __private.listChats = function (filter, cb) {
     }
     library.db.query(sql.countChats({
         where: where,
-        whereOr: whereOr,
-        types: types
+        whereOr: whereOr
     }), params).then(function (rows) {
         const count = rows.length ? rows[0].count : 0;
         library.db.query(sql.listChats({
@@ -132,38 +125,60 @@ __private.listChats = function (filter, cb) {
             sortField: orderBy.sortField,
             sortMethod: orderBy.sortMethod
         }), params).then(function (rows) {
-            let transactions = [], chats = {}, kvs = {};
+            let transactions = [], chats = {};
             for (let i = 0; i < rows.length; i++) {
                 const trs = library.logic.transaction.dbRead(rows[i]);
-                if (filter.fetchKeys && trs.type === transactionTypes.STATE) {
-                    const uid = trs.senderId !== filter.userId ? trs.senderId : trs.recipientId;
-                    if (!kvs[uid]) {
-                        kvs[uid] = [];
-                    }
-                    kvs[uid].push(trs);
-                } else {
-                    trs.participants = [
-                        {address: trs.senderId, publicKey: trs.senderPublicKey, kvs: []},
-                        {address: trs.recipientId, publicKey: trs.recipientPublicKey, kvs: []}
-                    ];
-                    const uid = trs.senderId !== filter.userId ? trs.senderId : trs.recipientId;
-                    if (!chats[uid]) {
-                        chats[uid] = [];
-                    }
-                    chats[uid].push(trs);
+                trs.participants = [
+                    {address: trs.senderId, publicKey: trs.senderPublicKey},
+                    {address: trs.recipientId, publicKey: trs.recipientPublicKey}
+                ];
+                const uid = trs.senderId !== filter.userId ? trs.senderId : trs.recipientId;
+                if (!chats[uid]) {
+                    chats[uid] = [];
                 }
+                chats[uid].push(trs);
             }
             for (const uid in chats) {
-                let trs = chats[uid].sort((x, y) => x.timestamp - y.timestamp)[0];
-                trs.participants.forEach(x => x.kvs = kvs[x.address] || []);
-                transactions.push(trs);
+                transactions.push(chats[uid].sort((x, y) => x.timestamp - y.timestamp)[0]);
             }
 
-            const data = {
-                chats: transactions,
-                count: count
-            };
-            return setImmediate(cb, null, data);
+            if (filter.fetchKeys) {
+                const keys = filter.fetchKeys.split(',').map(x => x.toLowerCase());
+                let uids = [];
+                transactions.forEach(function (x) {
+                    x.participants.forEach(function (y) {
+                        uids.push(y.address)
+                    });
+                });
+                uids = _.uniq(uids);
+                if (keys.length > 0) {
+                    library.db.query(sql.fetchKeys({ keys: keys, uids: uids })).then(function (rows) {
+                        transactions.forEach((x) => {
+                           x.participants.forEach( y => {
+                               y.kvs = rows.filter(x => x.t_senderId === y.address).map(x => {
+                                   return { key: x.st_stored_key, value: x.st_stored_value }
+                               });
+                           });
+                        });
+                        const data = {
+                            chats: transactions,
+                            count: count
+                        };
+                        return setImmediate(cb, null, data);
+                    }).catch(e => {
+                        return setImmediate(cb, e);
+                    });
+
+                } else {
+                    return setImmediate(cb, 'KVS keys requested but not defined');
+                }
+            } else {
+                const data = {
+                    chats: transactions,
+                    count: count
+                };
+                return setImmediate(cb, null, data);
+            }
         }).catch(function (err) {
             library.logger.error(err.stack);
             return setImmediate(cb, err);
