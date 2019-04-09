@@ -127,19 +127,20 @@ __private.listChats = function (filter, cb) {
         }), params).then(function (rows) {
             let transactions = [], chats = {};
             for (let i = 0; i < rows.length; i++) {
-                const trs = library.logic.transaction.dbRead(rows[i]);
+                const trs = {};
+                trs.lastTransaction = library.logic.transaction.dbRead(rows[i]);
                 trs.participants = [
-                    {address: trs.senderId, publicKey: trs.senderPublicKey},
-                    {address: trs.recipientId, publicKey: trs.recipientPublicKey}
+                    {address: trs.lastTransaction.senderId, publicKey: trs.lastTransaction.senderPublicKey},
+                    {address: trs.lastTransaction.recipientId, publicKey: trs.lastTransaction.recipientPublicKey}
                 ];
-                const uid = trs.senderId !== filter.userId ? trs.senderId : trs.recipientId;
+                const uid = trs.lastTransaction.senderId !== filter.userId ? trs.lastTransaction.senderId : trs.lastTransaction.recipientId;
                 if (!chats[uid]) {
                     chats[uid] = [];
                 }
                 chats[uid].push(trs);
             }
             for (const uid in chats) {
-                transactions.push(chats[uid].sort((x, y) => x.timestamp - y.timestamp)[0]);
+                transactions.push(chats[uid].sort((x, y) => x.lastTransaction.timestamp - y.lastTransaction.timestamp)[0]);
             }
             const data = {
                 chats: transactions,
