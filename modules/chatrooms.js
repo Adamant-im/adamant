@@ -72,7 +72,7 @@ __private.listChats = function (filter, cb) {
     } else {
         where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
     }
-
+    where.push('NOT( "t_type" = 3) ');
     if (filter.senderId) {
         where.push('"t_senderId" = ${name}');
         params.name = filter.senderId;
