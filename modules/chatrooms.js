@@ -70,7 +70,7 @@ __private.listChats = function (filter, cb) {
     if (filter.withPayments) {
         where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
     } else {
-        where.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
+        where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
     }
 
     if (filter.senderId) {
@@ -127,7 +127,7 @@ __private.listChats = function (filter, cb) {
         }), params).then(function (rows) {
             let transactions = [], chats = {};
             for (let i = 0; i < rows.length; i++) {
-                const trs = {};
+                let trs = {};
                 trs.lastTransaction = library.logic.transaction.dbRead(rows[i]);
                 trs.participants = [
                     {address: trs.lastTransaction.senderId, publicKey: trs.lastTransaction.senderPublicKey},
@@ -167,7 +167,7 @@ __private.listMessages = function (filter, cb) {
     if (filter.withPayments) {
         where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
     } else {
-        where.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
+        where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
     }
 
     if (filter.senderId) {
@@ -231,8 +231,8 @@ __private.listMessages = function (filter, cb) {
             const data = {
                 messages: transactions,
                 participants: transactions.length ? [
-                    {address: transactions[0].senderId,publicKey: transactions[0].senderPublicKey},
-                    {address: transactions[0].recipientId,publicKey: transactions[0].recipientPublicKey}
+                    {address: transactions[0].senderId, publicKey: transactions[0].senderPublicKey},
+                    {address: transactions[0].recipientId, publicKey: transactions[0].recipientPublicKey}
                 ] : [],
                 count: count
             };
@@ -271,8 +271,10 @@ Chatrooms.prototype.isLoaded = function () {
 Chatrooms.prototype.internal = {
     getChats: function (req, cb) {
         let validRequest;
-        [validRequest, req.body.userId,req.body.companionId] = req.path.match(/(U[0-9]+)\/?(U[0-9]+)?/);
-        if (!validRequest) { return setImmediate(cb, 'Invalid Request path'); }
+        [validRequest, req.body.userId, req.body.companionId] = req.path.match(/(U[0-9]+)\/?(U[0-9]+)?/);
+        if (!validRequest) {
+            return setImmediate(cb, 'Invalid Request path');
+        }
         async.waterfall([
             function (waterCb) {
                 const params = req.body;
@@ -303,8 +305,10 @@ Chatrooms.prototype.internal = {
     },
     getMessages: function (req, cb) {
         let validRequest;
-        [validRequest, req.body.userId,req.body.companionId] = req.path.match(/(U[0-9]+)\/?(U[0-9]+)?/);
-        if (!validRequest) { return setImmediate(cb, 'Invalid Request path'); }
+        [validRequest, req.body.userId, req.body.companionId] = req.path.match(/(U[0-9]+)\/?(U[0-9]+)?/);
+        if (!validRequest) {
+            return setImmediate(cb, 'Invalid Request path');
+        }
         async.waterfall([
             function (waterCb) {
                 const params = req.body;
