@@ -113,12 +113,6 @@ var ChatsSql = {
             ') as foo GROUP by srt',
             (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
             'LIMIT ${limit} OFFSET ${offset}'
-            //
-            //
-            // 'WHERE "t_type" = 8',
-            // 'AND ("t_senderId" = \'U1283640763437948723\'',
-            // 'OR "t_recipientId" = \'U1020291227689695733\')',
-            // 'ORDER BY "t_timestamp" DESC) as foo GROUP by srt'
         ].filter(Boolean).join(' ');
 	    return y;
     },
