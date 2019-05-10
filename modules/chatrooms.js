@@ -90,7 +90,7 @@ __private.listChats = function (filter, cb) {
     }
 
     if (!filter.limit) {
-        params.limit = 100;
+        params.limit = 25;
     } else {
         params.limit = Math.abs(filter.limit);
     }
