@@ -204,9 +204,7 @@ __private.listMessages = function (filter, cb) {
     }
 
     const orderBy = OrderBy(
-        filter.orderBy, {
-            sortFields: sql.sortFields
-        }
+        filter.orderBy, sql.chatroomsSortDefaults
     );
 
     if (orderBy.error) {
