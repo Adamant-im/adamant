@@ -2,7 +2,10 @@
 
 var ChatsSql = {
 	sortFields: ['type','timestamp'],
-
+    chatroomsSortDefaults: {
+        sortField: 'timestamp',
+        sortMethod: 'desc'
+    },
 	countByTransactionId: 'SELECT COUNT(*)::int AS "count" FROM chats WHERE "transactionId" = ${id}',
 
 
