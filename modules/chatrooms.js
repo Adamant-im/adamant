@@ -106,9 +106,7 @@ __private.listChats = function (filter, cb) {
     }
 
     const orderBy = OrderBy(
-        filter.orderBy, {
-            sortFields: sql.sortFields
-        }
+        filter.orderBy, sql.chatroomsSortDefaults
     );
 
     if (orderBy.error) {
@@ -163,6 +161,8 @@ __private.listMessages = function (filter, cb) {
     if (filter.type >= 0) {
         where.push('"c_type" = ${type}');
         params.type = filter.type;
+    } else {
+        where.push('NOT( "c_type" = 3) ');
     }
     if (filter.withPayments) {
         where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
