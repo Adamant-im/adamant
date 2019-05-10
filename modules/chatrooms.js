@@ -67,10 +67,10 @@ __private.listChats = function (filter, cb) {
         where.push('"c_type" = ${type}');
         params.type = filter.type;
     }
-    if (filter.withPayments) {
-        where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
-    } else {
+    if (filter.withoutDirectTransfers) {
         where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
+    } else {
+        where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
     }
     where.push('NOT( "c_type" = 3) ');
     if (filter.senderId) {
