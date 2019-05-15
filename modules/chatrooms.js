@@ -67,12 +67,12 @@ __private.listChats = function (filter, cb) {
         where.push('"c_type" = ${type}');
         params.type = filter.type;
     }
-    if (filter.withPayments) {
-        where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
+    if (filter.withoutDirectTransfers) {
+        where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
     } else {
-        where.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
+        where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
     }
-
+    where.push(`(NOT("c_type" = ${transactionTypes.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE}) OR c_type IS NULL) `);
     if (filter.senderId) {
         where.push('"t_senderId" = ${name}');
         params.name = filter.senderId;
@@ -90,7 +90,7 @@ __private.listChats = function (filter, cb) {
     }
 
     if (!filter.limit) {
-        params.limit = 100;
+        params.limit = 25;
     } else {
         params.limit = Math.abs(filter.limit);
     }
@@ -106,9 +106,7 @@ __private.listChats = function (filter, cb) {
     }
 
     const orderBy = OrderBy(
-        filter.orderBy, {
-            sortFields: sql.sortFields
-        }
+        filter.orderBy, sql.chatroomsSortDefaults
     );
 
     if (orderBy.error) {
@@ -127,19 +125,20 @@ __private.listChats = function (filter, cb) {
         }), params).then(function (rows) {
             let transactions = [], chats = {};
             for (let i = 0; i < rows.length; i++) {
-                const trs = library.logic.transaction.dbRead(rows[i]);
+                let trs = {};
+                trs.lastTransaction = library.logic.transaction.dbRead(rows[i]);
                 trs.participants = [
-                    {address: trs.senderId, publicKey: trs.senderPublicKey},
-                    {address: trs.recipientId, publicKey: trs.recipientPublicKey}
+                    {address: trs.lastTransaction.senderId, publicKey: trs.lastTransaction.senderPublicKey},
+                    {address: trs.lastTransaction.recipientId, publicKey: trs.lastTransaction.recipientPublicKey}
                 ];
-                const uid = trs.senderId !== filter.userId ? trs.senderId : trs.recipientId;
+                const uid = trs.lastTransaction.senderId !== filter.userId ? trs.lastTransaction.senderId : trs.lastTransaction.recipientId;
                 if (!chats[uid]) {
                     chats[uid] = [];
                 }
                 chats[uid].push(trs);
             }
             for (const uid in chats) {
-                transactions.push(chats[uid].sort((x, y) => x.timestamp - y.timestamp)[0]);
+                transactions.push(chats[uid].sort((x, y) => x.lastTransaction.timestamp - y.lastTransaction.timestamp)[0]);
             }
             const data = {
                 chats: transactions,
@@ -162,11 +161,13 @@ __private.listMessages = function (filter, cb) {
     if (filter.type >= 0) {
         where.push('"c_type" = ${type}');
         params.type = filter.type;
-    }
-    if (filter.withPayments) {
-        where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
     } else {
-        where.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
+        where.push(`(NOT("c_type" = ${transactionTypes.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE}) OR c_type IS NULL)`);
+    }
+    if (filter.withoutDirectTransfers) {
+        where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
+    } else {
+        where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
     }
 
     if (filter.senderId) {
@@ -203,9 +204,7 @@ __private.listMessages = function (filter, cb) {
     }
 
     const orderBy = OrderBy(
-        filter.orderBy, {
-            sortFields: sql.sortFields
-        }
+        filter.orderBy, sql.chatroomsSortDefaults
     );
 
     if (orderBy.error) {
@@ -230,8 +229,8 @@ __private.listMessages = function (filter, cb) {
             const data = {
                 messages: transactions,
                 participants: transactions.length ? [
-                    {address: transactions[0].senderId,publicKey: transactions[0].senderPublicKey},
-                    {address: transactions[0].recipientId,publicKey: transactions[0].recipientPublicKey}
+                    {address: transactions[0].senderId, publicKey: transactions[0].senderPublicKey},
+                    {address: transactions[0].recipientId, publicKey: transactions[0].recipientPublicKey}
                 ] : [],
                 count: count
             };
@@ -270,8 +269,10 @@ Chatrooms.prototype.isLoaded = function () {
 Chatrooms.prototype.internal = {
     getChats: function (req, cb) {
         let validRequest;
-        [validRequest, req.body.userId,req.body.companionId] = req.path.match(/(U[0-9]+)\/?(U[0-9]+)?/);
-        if (!validRequest) { return setImmediate(cb, 'Invalid Request path'); }
+        [validRequest, req.body.userId, req.body.companionId] = req.path.match(/(U[0-9]+)\/?(U[0-9]+)?/);
+        if (!validRequest) {
+            return setImmediate(cb, 'Invalid Request path');
+        }
         async.waterfall([
             function (waterCb) {
                 const params = req.body;
@@ -290,7 +291,7 @@ Chatrooms.prototype.internal = {
                         return setImmediate(waterCb, 'Failed to get transactions: ' + err);
                     } else {
                         return setImmediate(waterCb, null, {
-                            chats: _.uniqBy(data.chats, (x) => x.id),
+                            chats: _.uniqBy(data.chats, (x) => x.lastTransaction.id),
                             count: data.count
                         });
                     }
@@ -302,8 +303,10 @@ Chatrooms.prototype.internal = {
     },
     getMessages: function (req, cb) {
         let validRequest;
-        [validRequest, req.body.userId,req.body.companionId] = req.path.match(/(U[0-9]+)\/?(U[0-9]+)?/);
-        if (!validRequest) { return setImmediate(cb, 'Invalid Request path'); }
+        [validRequest, req.body.userId, req.body.companionId] = req.path.match(/(U[0-9]+)\/?(U[0-9]+)?/);
+        if (!validRequest) {
+            return setImmediate(cb, 'Invalid Request path');
+        }
         async.waterfall([
             function (waterCb) {
                 const params = req.body;
