@@ -72,7 +72,7 @@ __private.listChats = function (filter, cb) {
     } else {
         where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
     }
-    where.push('(NOT("c_type" = 3) OR c_type IS NULL) ');
+    where.push(`(NOT("c_type" = ${transactionTypes.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE}) OR c_type IS NULL) `);
     if (filter.senderId) {
         where.push('"t_senderId" = ${name}');
         params.name = filter.senderId;
@@ -162,7 +162,7 @@ __private.listMessages = function (filter, cb) {
         where.push('"c_type" = ${type}');
         params.type = filter.type;
     } else {
-        where.push('(NOT("c_type" = 3) OR c_type IS NULL) ');
+        where.push(`(NOT("c_type" = ${transactionTypes.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE}) OR c_type IS NULL)`);
     }
     if (filter.withoutDirectTransfers) {
         where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
