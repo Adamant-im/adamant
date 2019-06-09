@@ -202,8 +202,11 @@ __private.list = function (filter, cb) {
         owner: owner
     }), params).then(function (rows) {
         var count = rows.length ? rows[0].count : 0;
-
-        library.db.query(sql.list({
+        var sql_method='list';
+        if (filter.returnAsset) {
+            sql_method = 'listFull';
+        }
+        library.db.query(sql[sql_method]({
             where: where,
             owner: owner,
             sortField: orderBy.sortField,
@@ -253,6 +256,27 @@ __private.getById = function (id, cb) {
     });
 };
 
+/**
+ * Gets transaction by id from `trs_list_full` view.
+ * @private
+ * @param {string} id
+ * @param {function} cb - Callback function.
+ * @returns {setImmediateCallback} error | data: {transaction}
+ */
+__private.getByIdFullAsset = function (id, cb) {
+    library.db.query(sql.getByIdFull, {id: id}).then(function (rows) {
+        if (!rows.length) {
+            return setImmediate(cb, 'Transaction not found: ' + id);
+        }
+
+        var transacton = library.logic.transaction.dbRead(rows[0]);
+
+        return setImmediate(cb, null, transacton);
+    }).catch(function (err) {
+        library.logger.error(err.stack);
+        return setImmediate(cb, 'Transactions#getById error');
+    });
+};
 /**
  * Gets votes by transaction id from `votes` table.
  * @private
@@ -666,8 +690,11 @@ Transactions.prototype.shared = {
             if (err) {
                 return setImmediate(cb, err[0].message);
             }
-
-            __private.getById(req.body.id, function (err, transaction) {
+            var method='getById';
+            if (req.body.returnAsset) {
+                method = 'getByIdFullAsset';
+            }
+            __private[method](req.body.id, function (err, transaction) {
                 if (!transaction || err) {
                     return setImmediate(cb, 'Transaction not found');
                 }

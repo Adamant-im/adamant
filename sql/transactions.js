@@ -43,8 +43,24 @@ var TransactionsSql = {
       'LIMIT ${limit} OFFSET ${offset}'
     ].filter(Boolean).join(' ');
   },
+  listFull: function (params) {
+    return [
+      'SELECT "t_id", "b_height", "t_blockId", "t_type", "t_timestamp", "t_senderId", "t_recipientId",',
+      '"t_amount", "t_fee", "t_signature", "t_SignSignature", "t_signatures", "confirmations",',
+      'ENCODE ("t_senderPublicKey", \'hex\') AS "t_senderPublicKey", ENCODE ("m_recipientPublicKey", \'hex\') AS "m_recipientPublicKey",',
+      '"d_username", "v_votes", "m_min", "m_lifetime", "m_keysgroup", "c_message", "c_own_message", "c_type", "st_type", "st_stored_value", "st_stored_key" '
+      'FROM trs_list_full',
+      (params.where.length || params.owner ? 'WHERE' : ''),
+      (params.where.length ? '(' + params.where.join(' ') + ')' : ''),
+      // FIXME: Backward compatibility, should be removed after transitional period
+      (params.where.length && params.owner ? ' AND ' + params.owner : params.owner),
+      (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
+      'LIMIT ${limit} OFFSET ${offset}'
+    ].filter(Boolean).join(' ');
+  },
 
-  getById: 'SELECT *, ENCODE ("t_senderPublicKey", \'hex\') AS "t_senderPublicKey", ENCODE ("m_recipientPublicKey", \'hex\') AS "m_recipientPublicKey" FROM trs_list_full WHERE "t_id" = ${id}',
+  getById: 'SELECT *, ENCODE ("t_senderPublicKey", \'hex\') AS "t_senderPublicKey", ENCODE ("m_recipientPublicKey", \'hex\') AS "m_recipientPublicKey" FROM trs_list WHERE "t_id" = ${id}',
+  getByIdFull: 'SELECT *, ENCODE ("t_senderPublicKey", \'hex\') AS "t_senderPublicKey", ENCODE ("m_recipientPublicKey", \'hex\') AS "m_recipientPublicKey" FROM trs_list_full WHERE "t_id" = ${id}',
 
   getVotesById: 'SELECT * FROM votes WHERE "transactionId" = ${id}'
 };
