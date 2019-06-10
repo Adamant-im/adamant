@@ -101,6 +101,7 @@ __private.list = function (filter, cb) {
         limit: null,
         offset: null,
         orderBy: null,
+        returnAsset: null,
         // FIXME: Backward compatibility, should be removed after transitional period
         ownerAddress: null,
         ownerPublicKey: null
