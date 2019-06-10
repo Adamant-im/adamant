@@ -48,7 +48,7 @@ var TransactionsSql = {
       'SELECT "t_id", "b_height", "t_blockId", "t_type", "t_timestamp", "t_senderId", "t_recipientId",',
       '"t_amount", "t_fee", "t_signature", "t_SignSignature", "t_signatures", "confirmations",',
       'ENCODE ("t_senderPublicKey", \'hex\') AS "t_senderPublicKey", ENCODE ("m_recipientPublicKey", \'hex\') AS "m_recipientPublicKey",',
-      '"d_username", "v_votes", "m_min", "m_lifetime", "m_keysgroup", "c_message", "c_own_message", "c_type", "st_type", "st_stored_value", "st_stored_key" '
+      '"d_username", "v_votes", "m_min", "m_lifetime", "m_keysgroup", "c_message", "c_own_message", "c_type", "st_type", "st_stored_value", "st_stored_key" ',
       'FROM trs_list_full',
       (params.where.length || params.owner ? 'WHERE' : ''),
       (params.where.length ? '(' + params.where.join(' ') + ')' : ''),
