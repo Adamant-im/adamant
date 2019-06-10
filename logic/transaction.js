@@ -22,6 +22,9 @@ var self, modules, __private = {};
  * - 5: DApp
  * - 6: InTransfer
  * - 7: OutTransfer
+ * - 8: ChatMessage
+ * - 9: KVS
+ *
  */
 __private.types = {};
 
