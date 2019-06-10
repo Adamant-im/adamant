@@ -165,6 +165,11 @@ module.exports = {
 			offset: {
 				type: 'integer',
 				minimum: 0
+			},
+			returnAsset: {
+				type: 'integer',
+				minimum: 0,
+				maximum: 1
 			}
 		}
 	},
@@ -177,6 +182,11 @@ module.exports = {
 				format: 'id',
 				minLength: 1,
 				maxLength: 20
+			},
+			returnAsset: {
+				type: 'integer',
+				minimum: 0,
+				maximum: 1
 			}
 		},
 		required: ['id']
