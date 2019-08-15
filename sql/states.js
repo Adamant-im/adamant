@@ -31,7 +31,7 @@ var StatesSql = {
 	list: function (params) {
 		return [
 
-			'SELECT *, t_timestamp as timestamp FROM full_blocks_list',
+			'SELECT *, t_timestamp as timestamp, b_timestamp as block_timestamp FROM full_blocks_list',
       (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
       (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
 			'LIMIT ${limit} OFFSET ${offset}'
