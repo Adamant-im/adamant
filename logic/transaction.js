@@ -1205,6 +1205,7 @@ Transaction.prototype.dbRead = function (raw) {
 			height: raw.b_height,
 			blockId: raw.b_id || raw.t_blockId,
 			type: parseInt(raw.t_type),
+			block_timestamp: parseInt(raw.block_timestamp),
 			timestamp: parseInt(raw.t_timestamp),
 			senderPublicKey: raw.t_senderPublicKey,
 			requesterPublicKey: raw.t_requesterPublicKey,
