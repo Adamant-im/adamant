@@ -1220,7 +1220,9 @@ Transaction.prototype.dbRead = function (raw) {
 			confirmations: parseInt(raw.confirmations),
 			asset: {}
 		};
-
+		if (!tx.block_timestamp && raw.b_timestamp) {
+			tx.block_timestamp = parseInt(raw.b_timestamp);
+		}
 		if (!__private.types[tx.type]) {
 			throw 'Unknown transaction type ' + tx.type;
 		}
