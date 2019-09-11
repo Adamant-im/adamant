@@ -1,28 +1,37 @@
 # ADAMANT
 
-ADAMANT is decentralized messaging platform based on Lisk codebase and written in JavaScript. For more information please refer to our website: <https://adamant.im/>.
+ADAMANT is **decentralized messaging platform** based on Lisk codebase and written in JavaScript. For more information please refer to our website: <https://adamant.im/>.
 
-ADAMANT is the most secure and anonymous messenger, encrypted with Blockchain.
+ADAMANT is a secure and anonymous messenger, encrypted with Blockchain. ADAMANT [solves security flaws](https://medium.com/adamant-im/adamant-security-features-e7cc836ff52c) typical for P2P and centralized messagers.
 
 Highlights:
 
-- The most secure and anonymous messenger (see comparison table on the Website)
-- Try it now: <https://msg.adamant.im/>
-- iOS and Android apps available
-- Trusted. Open-source project.
-- Brand new [Fair dPoS](https://medium.com/adamant-im/fair-delegate-system-in-dpos-568e5c3c86c8) consensus
 - The only one which is Blockchain-powered
-- Integrated crypto transfers
+- Anonymous. No emails, no phone numbers
+- No access to user device’s data (like address book or location)
+- IP is hidden for partners
+- Web app, Tor Web app, iOS, Android, Windows, GUN/Linux and Mac OS apps available. Try it now: <https://msg.adamant.im/>
+- Messages are End-to-end encypted with curve25519xsalsa20poly1305 (NaCl box) and signed with Ed25519 EdDSA
+- Trusted. Open-source project.
+- Brand new [Fair dPoS consensus](https://medium.com/adamant-im/fair-delegate-system-in-dpos-568e5c3c86c8)
+- Integrated crypto Wallets, In-Chat transfers and Exchange
+- Secure alternative to 2FA via SMS
 
-**Use this repository to run your own ADAMANT node and support true messaging decentralization. You can also promote your node to a delegate to forge blocks and receive ADM block rewards**
-
-How to run ADAMANT node: [Instructions for users](https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc).
+**Use this repository to run your own ADAMANT node and support true messaging decentralization. You can also promote your node to a delegate to forge blocks and receive ADM block rewards**. How to run ADAMANT node: [Instructions for users](https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc).
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
 
-**NOTE:** The following information is applicable to **Ubuntu 16.04 (LTS) or 16.10 — x86_64**.
+**NOTE:** The following information is applicable to **Ubuntu 16 or 18 versions**.
 
 For making process simplier, you can use tools/install_ubuntu_dependencies.sh script.
+
+# API Documentation
+
+Comprehensive [API specification](https://github.com/Adamant-im/adamant/wiki) is avalable.
+
+The manual describes the procedure for working with accounts and/or addresses, transactions, chats, and a KVS database. Furthermore, you will find all the necessary information on transactions and messages types. Additionally, the manual suggests valuable information on creating new accounts and encrypting and decrypting messages. 
+
+# Set up
 
 ## Prerequisites — In order
 
@@ -180,7 +189,7 @@ npm test -- test/lib/transactions.js
 
 ## Authors
 
-- ADAMANT Tech Labs: Dmitriy Soloduhin, Sergey Ushakov <devs@adamant.im>
+- ADAMANT Tech Labs: Dmitriy Soloduhin, Aleksei Lebedev, Sergey Ushakov <devs@adamant.im>
 - Boris Povod <boris@crypti.me>
 - Pavel Nekrasov <landgraf.paul@gmail.com>
 - Sebastian Stupurac <stupurac.sebastian@gmail.com>
@@ -191,7 +200,7 @@ npm test -- test/lib/transactions.js
 
 ## License
 
-Copyright © 2017-2018 ADAMANT TECH LABS LP
+Copyright © 2017-2019 ADAMANT TECH LABS LP
 Copyright © 2016-2017 Lisk Foundation
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
