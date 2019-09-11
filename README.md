@@ -21,10 +21,6 @@ Highlights:
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
 
-**NOTE:** The following information is applicable to **Ubuntu 16 or 18 versions**.
-
-For making process simplier, you can use tools/install_ubuntu_dependencies.sh script.
-
 # API Documentation
 
 Comprehensive [API specification](https://github.com/Adamant-im/adamant/wiki) is avalable.
@@ -32,6 +28,10 @@ Comprehensive [API specification](https://github.com/Adamant-im/adamant/wiki) is
 The manual describes the procedure for working with accounts and/or addresses, transactions, chats, and a KVS database. Furthermore, you will find all the necessary information on transactions and messages types. Additionally, the manual suggests valuable information on creating new accounts and encrypting and decrypting messages. 
 
 # Set up
+
+**NOTE:** The following information is applicable to **Ubuntu 16 or 18 versions**.
+
+For making process simplier, you can use tools/install_ubuntu_dependencies.sh script.
 
 ## Prerequisites — In order
 
