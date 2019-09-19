@@ -132,7 +132,7 @@ __private.list = function (filter, cb) {
     }
     if (filter.keyIds) {
         where.push('"st_stored_key" IN (${keyIds:csv})');
-        params.keyIds = filter.senderIds;
+        params.keyIds = filter.keyIds;
     }
     if (filter.senderId) {
         where.push('"t_senderId" = ${name}');
