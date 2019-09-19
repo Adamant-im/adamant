@@ -46,6 +46,16 @@ module.exports = {
                     format: 'publicKey'
                 }
             },
+            keysIds: {
+                type: 'array',
+                minItems: 1,
+                'items': {
+                    type: 'string',
+                    format: 'address',
+                    minLength: 1,
+                    maxLength: 22
+                }
+            },
             senderIds: {
                 type: 'array',
                 minItems: 1,
