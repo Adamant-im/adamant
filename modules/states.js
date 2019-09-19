@@ -128,11 +128,11 @@ __private.list = function (filter, cb) {
     where.push('"t_type" = '+ transactionTypes.STATE);
     if (filter.senderIds) {
         where.push('"t_senderId" IN (${senderIds:csv})');
-        params.name = filter.senderIds;
+        params.senderIds = filter.senderIds;
     }
     if (filter.keyIds) {
-        where.push('"t_senderId" IN (${senderIds:csv})');
-        params.name = filter.senderIds;
+        where.push('"st_stored_key" IN (${keyIds:csv})');
+        params.keyIds = filter.senderIds;
     }
     if (filter.senderId) {
         where.push('"t_senderId" = ${name}');
