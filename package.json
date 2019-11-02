@@ -37,7 +37,7 @@
     "json-schema": "=0.2.3",
     "json-sql": "LiskHQ/json-sql#27e1ed1",
     "lisk-sandbox": "LiskHQ/lisk-sandbox#162da38",
-    "lodash": "=4.17.11",
+    "lodash": "=4.17.15",
     "method-override": "=2.3.10",
     "npm": "=2.15.10",
     "pg-monitor": "=0.7.1",
