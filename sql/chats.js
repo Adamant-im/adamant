@@ -99,6 +99,7 @@ var ChatsSql = {
             'first("t_recipientId" ORDER BY b_height DESC, t_timestamp DESC) as "t_recipientId",',
             'first("t_timestamp" ORDER BY b_height DESC, t_timestamp DESC) as "t_timestamp",',
             'first("t_timestamp" ORDER BY b_height DESC, t_timestamp DESC) as "timestamp",',
+            'first("b_timestamp" ORDER BY b_height DESC, b_timestamp DESC) as "block_timestamp",',
             'first("t_amount" ORDER BY b_height DESC, t_timestamp DESC) as "t_amount",',
             'first("t_fee" ORDER BY b_height DESC, t_timestamp DESC) as "t_fee",',
             'first("c_message" ORDER BY b_height DESC, t_timestamp DESC) as "c_message",',

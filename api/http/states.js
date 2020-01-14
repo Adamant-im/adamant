@@ -27,6 +27,7 @@ function StatesHttpApi (statesModule, app) {
 
     router.map(statesModule.internal, {
         'get /get': 'getTransactions',
+        'post /get': 'getTransactions',
         'post /normalize': 'normalize',
         'post /store': 'store'
     });

@@ -897,9 +897,19 @@ Transaction.prototype.applyUnconfirmed = function (trs, sender, requester, cb) {
 	amount = amount.toNumber();
 
 	if (this.scope.clientWs) {
-		this.scope.clientWs.emit(trs);
-	}
+		var new_trs = Object.assign({}, trs);
+		new_trs.blockTimestamp = null;
+		if (!new_trs.recipientPublicKey && new_trs.recipientId) {
+			this.scope.db.query('SELECT publicKey from mem_accounts WHERE address="'+new_trs.recipientId+'"').then(function (rows) {
+				new_trs.recipientPublicKey = rows[0]['publicKey'];
+				this.scope.clientWs.emit(new_trs);
+			}).catch(function (err) {
 
+			});
+		} else {
+			this.scope.clientWs.emit(new_trs);
+		}
+	}
 	this.scope.account.merge(sender.address, {
 		u_balance: -amount
 	}, function (err, sender) {
@@ -1195,6 +1205,7 @@ Transaction.prototype.dbRead = function (raw) {
 			height: raw.b_height,
 			blockId: raw.b_id || raw.t_blockId,
 			type: parseInt(raw.t_type),
+			block_timestamp: parseInt(raw.block_timestamp),
 			timestamp: parseInt(raw.t_timestamp),
 			senderPublicKey: raw.t_senderPublicKey,
 			requesterPublicKey: raw.t_requesterPublicKey,
@@ -1209,7 +1220,9 @@ Transaction.prototype.dbRead = function (raw) {
 			confirmations: parseInt(raw.confirmations),
 			asset: {}
 		};
-
+		if (!tx.block_timestamp && raw.b_timestamp) {
+			tx.block_timestamp = parseInt(raw.b_timestamp);
+		}
 		if (!__private.types[tx.type]) {
 			throw 'Unknown transaction type ' + tx.type;
 		}
