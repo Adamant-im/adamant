@@ -900,11 +900,13 @@ Transaction.prototype.applyUnconfirmed = function (trs, sender, requester, cb) {
 		var new_trs = Object.assign({}, trs);
 		new_trs.blockTimestamp = null;
 		if (!new_trs.recipientPublicKey && new_trs.recipientId) {
-			this.scope.db.query('SELECT publicKey from mem_accounts WHERE address="'+new_trs.recipientId+'"').then(function (rows) {
-				new_trs.recipientPublicKey = rows[0]['publicKey'];
+			this.scope.db.query(`SELECT ENCODE ("publicKey", \'hex\') AS "publicKey" from mem_accounts WHERE address='` + new_trs.recipientId + `' limit 1`).then((rows) => {
+				if (rows[0]) {
+					new_trs.recipientPublicKey = rows[0]['publicKey'];
+				}
 				this.scope.clientWs.emit(new_trs);
-			}).catch(function (err) {
-
+			}).catch((err) => {
+				this.scope.logger.error(err.stack);
 			});
 		} else {
 			this.scope.clientWs.emit(new_trs);
