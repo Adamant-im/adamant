@@ -126,7 +126,14 @@ __private.list = function (filter, cb) {
         params.key = filter.key;
     }
     where.push('"t_type" = '+ transactionTypes.STATE);
-
+    if (filter.senderIds) {
+        where.push('"t_senderId" IN (${senderIds:csv})');
+        params.senderIds = filter.senderIds;
+    }
+    if (filter.keyIds) {
+        where.push('"st_stored_key" IN (${keyIds:csv})');
+        params.keyIds = filter.keyIds;
+    }
     if (filter.senderId) {
         where.push('"t_senderId" = ${name}');
         params.name = filter.senderId;
@@ -227,7 +234,7 @@ States.prototype.internal = {
                 _.each(req.body, function (value, key) {
                     var param = String(key).replace(pattern, '');
                     // Dealing with array-like parameters (csv comma separated)
-                    if (_.includes(['senderIds', 'senderPublicKeys'], param)) {
+                    if (_.includes(['senderIds', 'senderPublicKeys', 'keyIds'], param)) {
                         value = String(value).split(',');
                         req.body[key] = value;
                     }
