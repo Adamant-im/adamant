@@ -39,7 +39,7 @@
     "lisk-sandbox": "LiskHQ/lisk-sandbox#162da38",
     "lodash": "=4.17.15",
     "method-override": "=2.3.10",
-    "npm": "=6.13.4",
+    "npm": "=6.14.6",
     "pg-monitor": "=0.7.1",
     "pg-native": "=1.10.0",
     "pg-promise": "=5.5.6",
