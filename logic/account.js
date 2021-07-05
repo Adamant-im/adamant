@@ -598,12 +598,6 @@ Account.prototype.getAll = function (filter, fields, cb) {
 	}
 	delete filter.sort;
 
-	if (typeof filter.address === 'string') {
-		filter.address = {
-			$upper: ['address', filter.address]
-		};
-	}
-
 	var sql = jsonSql.build({
 		type: 'select',
 		table: this.table,
@@ -611,7 +605,6 @@ Account.prototype.getAll = function (filter, fields, cb) {
 		offset: offset,
 		sort: sort,
 		alias: 'a',
-		condition: filter,
 		fields: realFields
 	});
 
