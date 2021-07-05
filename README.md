@@ -29,7 +29,7 @@ The manual describes the procedure for working with accounts and/or addresses, t
 
 # Set up
 
-**NOTE:** The following information is applicable to **Ubuntu 16 or 18 versions**.
+**NOTE:** The following information is applicable to **Ubuntu 20 or 21 versions**.
 
 For making process simplier, you can use tools/install_ubuntu_dependencies.sh script.
 
@@ -48,7 +48,7 @@ For making process simplier, you can use tools/install_ubuntu_dependencies.sh sc
   System wide via package manager:
 
   ```
-  curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
+  curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
   sudo apt-get install -y nodejs
   ```
 
@@ -56,10 +56,10 @@ For making process simplier, you can use tools/install_ubuntu_dependencies.sh sc
 
   ```
   curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
-  nvm install v10.14.2
+  nvm install v12.18.3  
   ```
 
-- Install PostgreSQL (version 9.6.2):
+- Install PostgreSQL (version 12.7):
 
   ```
   sudo apt-get purge -y postgres*
