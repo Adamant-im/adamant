@@ -4,7 +4,6 @@ var crypto = require('crypto');
 
 var bignum = require('./bignum.js');
 
-// let sodium = require('sodium');
 var sodium = require('sodium-browserify-tweetnacl');
 
 let Mnemonic = require('bitcore-mnemonic');
