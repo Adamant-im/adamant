@@ -29,7 +29,7 @@ The manual describes the procedure for working with accounts and/or addresses, t
 
 # Set up
 
-**NOTE:** The following information is applicable to **Ubuntu 16 or 18 versions**.
+**NOTE:** The following information is applicable to **Ubuntu 20 or 21 versions**.
 
 For making process simplier, you can use tools/install_ubuntu_dependencies.sh script.
 
@@ -59,7 +59,7 @@ For making process simplier, you can use tools/install_ubuntu_dependencies.sh sc
   nvm install v10.14.2
   ```
 
-- Install PostgreSQL (version 9.6.2):
+- Install PostgreSQL (version 12.7):
 
   ```
   sudo apt-get purge -y postgres*
@@ -168,7 +168,7 @@ createdb adamant_test
 wagon stock borrow episode laundry kitten salute link globe zero feed marble
 ```
 
-Launch ADAMANT (runs on port 36667):
+Launch ADAMANT (runs on port 36666):
 
 ```
 node app.js
