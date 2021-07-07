@@ -378,7 +378,7 @@ Transaction.prototype.checkConfirmed = function (trs, cb) {
  * @returns {Object} With exceeded boolean and error: address, balance
  */
 Transaction.prototype.checkBalance = function (amount, balance, trs, sender) {
-	var exceededBalance = new bignum(sender[balance].toString()).lessThan(amount);
+	var exceededBalance = new bignum(sender[balance].toString()).lt(amount);
 	var exceeded = (trs.blockId !== this.scope.genesisblock.block.id && exceededBalance);
 
 	return {
@@ -900,7 +900,7 @@ Transaction.prototype.applyUnconfirmed = function (trs, sender, requester, cb) {
 		var new_trs = Object.assign({}, trs);
 		new_trs.block_timestamp = null;
 		if (!new_trs.recipientPublicKey && new_trs.recipientId) {
-			this.scope.db.query(`SELECT ENCODE ("publicKey", \'hex\') AS "publicKey" from mem_accounts WHERE address='` + new_trs.recipientId + `' limit 1`).then((rows) => {
+			this.scope.db.query('SELECT ENCODE (\'publicKey\', \'hex\') AS \'publicKey\' from mem_accounts WHERE address=' + new_trs.recipientId + ' limit 1').then((rows) => {
 				if (rows[0]) {
 					new_trs.recipientPublicKey = rows[0]['publicKey'];
 				}
