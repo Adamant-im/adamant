@@ -71,7 +71,6 @@ function Migrator (pgp, db) {
 
 		function matchMigrationId (file) {
 			var id = file.match(/^[0-9]+/);
-
 			return Array.isArray(id) ? new bignum(id[0]) : null;
 		}
 
@@ -91,7 +90,7 @@ function Migrator (pgp, db) {
 					(file.id && file.name) && fs.statSync(file.path).isFile() && /\.sql$/.test(file.path)
 				);
 			}).forEach(function (file) {
-				if (!lastMigration || file.id.greaterThan(lastMigration.id)) {
+				if (!lastMigration || file.id.gt(lastMigration.id)) {
 					pendingMigrations.push(file);
 				}
 			});
