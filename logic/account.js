@@ -608,8 +608,6 @@ Account.prototype.getAll = function (filter, fields, cb) {
 		fields: realFields
 	});
 
-	console.log(sql)
-
 	// Fix for /api/accounts query
 
 	if (filter.address && /u_isDelegate/.test(sql.query))
