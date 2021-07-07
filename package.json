@@ -72,7 +72,6 @@
     "javascript-obfuscator": "^2.0.0",
     "grunt-contrib-obfuscator": "=8.0.0",
     "jsdoc": "^3.6.5",
-    "jsdox": "^0.3.0",
     "mocha": "=9.0.0",
     "moment": "=2.29.1",
     "nyc": "=15.1.0",
