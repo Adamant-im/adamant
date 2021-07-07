@@ -48,7 +48,7 @@ For making process simplier, you can use tools/install_ubuntu_dependencies.sh sc
   System wide via package manager:
 
   ```
-  curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
+  curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
   sudo apt-get install -y nodejs
   ```
 
@@ -56,7 +56,7 @@ For making process simplier, you can use tools/install_ubuntu_dependencies.sh sc
 
   ```
   curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
-  nvm install v10.14.2
+  nvm install v12.22.1
   ```
 
 - Install PostgreSQL (version 12.7):
@@ -66,7 +66,7 @@ For making process simplier, you can use tools/install_ubuntu_dependencies.sh sc
   sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
   wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | sudo apt-key add -
   sudo apt-get update
-  sudo apt-get install -y postgresql postgresql-contrib libpq-dev
+  sudo apt-get install -y postgresql-12 postgresql-common postgresql-server-dev-12 libnode72 libpq5 libpq-dev
   
   # Create user if you are working from superuser
   adduser adamant
