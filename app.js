@@ -28,7 +28,6 @@ var checkIpInList = require('./helpers/checkIpInList.js');
 var extend = require('extend');
 var fs = require('fs');
 
-var genesisblock = require('./genesisBlock.json');
 var git = require('./helpers/git.js');
 var https = require('https');
 var Logger = require('./logger.js');
@@ -57,7 +56,8 @@ if (typeof gc !== 'undefined') {
 
 program
 	.version(packageJson.version)
-	.option('-c, --config <path>', 'config file path')
+	.option('-c, --config <path>', 'config.json file path')
+	.option('-g, --genesis <path>', 'genesisBlock.json file path')
 	.option('-p, --port <port>', 'listening port number')
 	.option('-a, --address <ip>', 'listening host name or ip')
 	.option('-x, --peers [peers...]', 'peers list')
@@ -70,6 +70,7 @@ program
  * @default 'config.json'
  */
 var appConfig = require('./helpers/config.js')(program.config);
+var genesisblock = require(path.resolve(process.cwd(), (program.genesis || 'genesisBlock.json')));
 
 if (program.port) {
 	appConfig.port = program.port;
