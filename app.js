@@ -18,7 +18,7 @@
 
 /**
  * Main entry point.
- * Loads the secu modules, the secu api and run the express server as Domain master.
+ * Loads the ADAMANT modules, the ADAMANT api and run the express server as Domain master.
  * CLI options available.
  * @module app
  */
@@ -111,7 +111,7 @@ if (process.env.NODE_ENV === 'test') {
 process.env.TOP = appConfig.topAccounts;
 
 /**
- * The config object to handle secu modules and secu api.
+ * The config object to handle ADAMANT modules and ADAMANT api.
  * It loads `modules` and `api` folders content.
  * Also contains db configuration from config.json.
  * @property {object} db - Config values for database.
@@ -282,7 +282,7 @@ d.run(function () {
 		 * Once config is completed, creates app, http & https servers & sockets with express.
 		 * @method network
 		 * @param {object} scope - The results from current execution,
-		 * at leats will contain the required elements.
+		 * at least will contain the required elements.
 		 * @param {nodeStyleCallback} cb - Callback function with created Object: 
 		 * `{express, app, server, io, https, https_io}`.
 		 */
@@ -367,7 +367,7 @@ d.run(function () {
 		 * adds configuration to `network.app`.
 		 * @method connect
 		 * @param {object} scope - The results from current execution, 
-		 * at leats will contain the required elements.
+		 * at least will contain the required elements.
 		 * @param {function} cb - Callback function.
 		 */
 		connect: ['config', 'public', 'genesisblock', 'logger', 'build', 'network', function (scope, cb) {
@@ -489,7 +489,7 @@ d.run(function () {
 		 * loads transaction, block, account and peers from logic folder.
 		 * @method logic
 		 * @param {object} scope - The results from current execution, 
-		 * at leats will contain the required elements.
+		 * at least will contain the required elements.
 		 * @param {function} cb - Callback function.
 		 */
 		logic: ['db', 'bus', 'schema', 'genesisblock', function (scope, cb) {
@@ -550,7 +550,7 @@ d.run(function () {
 		 * loads modules from `modules` folder using `config.modules`.
 		 * @method modules
 		 * @param {object} scope - The results from current execution,
-		 * at leats will contain the required elements.
+		 * at least will contain the required elements.
 		 * @param {nodeStyleCallback} cb - Callback function with resulted load.
 		 */
 		modules: ['network', 'connect', 'config', 'logger', 'bus', 'sequence', 'dbSequence', 'balancesSequence', 'db', 'logic', 'cache', function (scope, cb) {
@@ -587,7 +587,7 @@ d.run(function () {
 		 * network are completed.
 		 * @method api
 		 * @param {object} scope - The results from current execution, 
-		 * at leats will contain the required elements.
+		 * at least will contain the required elements.
 		 * @param {function} cb - Callback function.
 		 */
 		api: ['modules', 'logger', 'network', function (scope, cb) {
@@ -619,17 +619,17 @@ d.run(function () {
 		 * specified host and port for `scope.network.server`.
 		 * @method listen
 		 * @param {object} scope - The results from current execution, 
-		 * at leats will contain the required elements.
+		 * at least will contain the required elements.
 		 * @param {nodeStyleCallback} cb - Callback function with `scope.network`.
 		 */
 		listen: ['ready', function (scope, cb) {
 			scope.network.server.listen(scope.config.port, scope.config.address, function (err) {
-				scope.logger.info('Secu started: ' + scope.config.address + ':' + scope.config.port);
+				scope.logger.info('ADAMANT started: ' + scope.config.address + ':' + scope.config.port);
 
 				if (!err) {
 					if (scope.config.ssl.enabled) {
 						scope.network.https.listen(scope.config.ssl.options.port, scope.config.ssl.options.address, function (err) {
-							scope.logger.info('Secu https started: ' + scope.config.ssl.options.address + ':' + scope.config.ssl.options.port);
+							scope.logger.info('ADAMANT https started: ' + scope.config.ssl.options.address + ':' + scope.config.ssl.options.port);
 
 							cb(err, scope.network);
 						});
@@ -657,7 +657,7 @@ d.run(function () {
 			 * @property {undefined} connect - Undefined.
 			 * @property {Object} db - Database constructor, database functions.
 			 * @property {function} dbSequence - Database function.
-			 * @property {Object} ed - Crypto functions from secu node-sodium.
+			 * @property {Object} ed - Crypto functions from ADAMANT node-sodium.
 			 * @property {Object} genesisblock - Block information.
 			 * @property {string} lastCommit - Hash transaction.
 			 * @property {Object} listen - Network information.
@@ -666,7 +666,7 @@ d.run(function () {
 			 * @property {Object} modules - Several modules functions.
 			 * @property {Object} network - Several network functions.
 			 * @property {string} nonce
-			 * @property {string} public - Path to secu public folder.
+			 * @property {string} public - Path to ADAMANT public folder.
 			 * @property {undefined} ready
 			 * @property {Object} schema - ZSchema with objects.
 			 * @property {Object} sequence - Sequence function, sequence Array.

@@ -6,7 +6,7 @@ var constants = require('./constants.js');
  * @module helpers/slots
  */
 /**
- * Gets constant time from Secu epoch.
+ * Gets constant time from ADAMANT epoch.
  * @returns {number} epochTime from constants.
  */
 function beginEpochTime () {
@@ -16,9 +16,9 @@ function beginEpochTime () {
 }
 
 /**
- * Calculates time since Secu epoch.
+ * Calculates time since ADAMANT epoch.
  * @param {number|undefined} time - Time in unix seconds.
- * @returns {number} current time - secu epoch time.
+ * @returns {number} current time - ADAMANT epoch time.
  */
 function getEpochTime (time) {
 	if (time === undefined) {
@@ -47,7 +47,7 @@ module.exports = {
 	/**
 	 * @method
 	 * @param {number} time
-	 * @return {number} secu epoch time constant.
+	 * @return {number} ADAMANT epoch time constant.
 	 */
 	getTime: function (time) {
 		return getEpochTime(time);
@@ -56,7 +56,7 @@ module.exports = {
 	/**
 	 * @method
 	 * @param {number} [epochTime]
-	 * @return {number} constant time from secu epoch + input time.
+	 * @return {number} constant time from ADAMANT epoch + input time.
 	 */
 	getRealTime: function (epochTime) {
 		if (epochTime === undefined) {
