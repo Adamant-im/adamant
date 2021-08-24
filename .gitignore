@@ -2,6 +2,7 @@
 .ed25519-node
 .idea/
 .project
+.vscode/
 __MACOSX/
 dapps/
 docs/jsdoc/
@@ -17,3 +18,5 @@ tmp
 sftp-config.json
 *.swp
 *.swo
+package-lock.json
+
