@@ -51,6 +51,14 @@
             {
                 "ip": "65.21.156.2",
                 "port": 36667
+            },
+            {
+                "ip": "95.217.19.144",
+                "port": 36667
+            },
+            {
+                "ip": "157.90.229.236",
+                "port": 36667
             }
         ],
         "access": {
@@ -205,5 +213,9 @@
         "masterpassword": "",
         "autoexec": []
     },
+    "wsClient": {
+        "portWS": 36665,
+        "enabled": true
+    },    
     "nethash": "38f153a81332dea86751451fd992df26a9249f0834f72f58f84ac31cceb70f43"
 }
