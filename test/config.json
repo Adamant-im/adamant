@@ -5,7 +5,7 @@
     "logFileName": "logs/adamant.log",
     "consoleLogLevel": "debug",
     "trustProxy": false,
-    "topAccounts": false,
+    "topAccounts": true,
     "cacheEnabled": true,
     "db": {
         "host": "localhost",
