@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node app.js",
+    "start:testnet": "node app.js --config test/config.json --genesis test/genesisBlock.json",
     "test": "./node_modules/.bin/grunt test --verbose",
     "jenkins": "./node_modules/.bin/grunt jenkins --verbose",
     "eslint": "./node_modules/.bin/grunt eslint-nofix --verbose",
