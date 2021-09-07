@@ -1,8 +1,6 @@
 'use strict';
 
-var crypto = require('crypto');
 var node = require('./../node.js');
-
 var modulesLoader = require('../common/initModule').modulesLoader;
 var Account = require('../../logic/account');
 

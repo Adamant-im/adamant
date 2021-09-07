@@ -196,6 +196,7 @@ node.createDelegateTransaction = function (data) {
     };
     transaction.recipientId= null;
     transaction.signature = this.transactionSign(transaction, data.keyPair);
+    transaction.fee = node.fees.delegateRegistrationFee;
     return transaction;
 };
 
@@ -234,7 +235,7 @@ node.createSendTransaction = function (data) {
     transaction.amount = data.amount;
     transaction.signature = this.transactionSign(transaction, data.keyPair);
     transaction.id = this.getId(transaction);
-    transaction.fee = this.constants.fees.send;
+    transaction.fee = transaction.fee = node.fees.transactionFee;
     return transaction;
 };
 
