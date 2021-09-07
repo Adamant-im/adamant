@@ -101,7 +101,7 @@ describe('GET /api/accounts/getBalance?address=', function () {
 	}
 
 	it('using known address should be ok', function (done) {
-		getBalance(node.iAccount.address, function (err, res) {
+		getBalance(node.gAccount.address, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('balance').that.is.a('string');
 			node.expect(res.body).to.have.property('unconfirmedBalance').that.is.a('string');
