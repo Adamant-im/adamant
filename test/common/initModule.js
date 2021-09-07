@@ -8,10 +8,10 @@ var _ = require('lodash');
 
 var async = require('../node').async;
 var dirname = path.join(__dirname, '..', '..');
-var config = require(path.join(dirname, '/config.json'));
+var config = require(path.join(dirname, 'test/config.json')); // use Testnet config
 var packageJson = require(path.join(dirname, '/package.json'));
 var database = require(path.join(dirname, '/helpers', 'database.js'));
-var genesisblock = require(path.join(dirname, '/genesisBlock.json'));
+var genesisblock = require(path.join(dirname, 'test/genesisBlock.json')); // use Testnet genesisBlock
 var Logger = require(dirname + '/logger.js');
 var z_schema = require('../../helpers/z_schema.js');
 var cacheHelper = require('../../helpers/cache.js');
@@ -61,7 +61,8 @@ var modulesLoader = new function () {
 					new Account(scope.db, scope.schema, scope.logger, cb);
 				}
 			 }, function (err, result) {
-				 new Logic(scope.db, scope.ed, scope.schema, scope.genesisblock, result.account, scope.logger, cb);
+				 // null is for clientWs
+				 new Logic(scope.db, scope.ed, scope.schema, scope.genesisblock, result.account, scope.logger, null, cb);
 			 });
 			break;
 		 case 'Block':
@@ -70,7 +71,8 @@ var modulesLoader = new function () {
 					return new Account(scope.db, scope.schema, scope.logger, waterCb);
 				},
 				function (account, waterCb) {
-					return new Transaction(scope.db, scope.ed, scope.schema, scope.genesisblock, account, scope.logger, waterCb);
+				 // null is for clientWs
+				 return new Transaction(scope.db, scope.ed, scope.schema, scope.genesisblock, account, scope.logger, null, waterCb);
 				}
 			 ], function (err, transaction) {
 				 new Logic(scope.ed, scope.schema, transaction, cb);

@@ -31,8 +31,8 @@ describe('transactions', function () {
 		var testBody;
 
 		beforeEach(function () {
-			// var account1PublicKey = node.lisk.crypto.getKeys(node.randomPassword()).publicKey;
-			// var account2PublicKey = node.lisk.crypto.getKeys(node.randomPassword()).publicKey;
+			// var account1PublicKey = node.randomAccount().publicKey;
+			// var account2PublicKey = node.randomAccount().publicKey;
 
 			testBody = {
 				blockId: '1465651642158264047',

@@ -1,7 +1,7 @@
 'use strict';
 
 var node = require('./../node.js');
-var genesisblock = require('../../genesisBlock.json');
+var genesisblock = require('../../test/genesisBlock.json'); // use testnet genesisBlock
 
 var testBlock = {
 	id: '2807833455815592401',

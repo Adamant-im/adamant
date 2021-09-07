@@ -16,7 +16,7 @@ var packageJson = require('../package.json');
 
 // Requires
 node.bignum = require('../helpers/bignum.js');
-node.config = require('../config.json');
+node.config = require('./config.json'); // use Testnet config
 node.constants = require('../helpers/constants.js');
 node.txTypes = require('../helpers/transactionTypes.js');
 node.accounts = require('../helpers/accounts.js');
@@ -33,12 +33,13 @@ node.supertest = require('supertest');
 require('colors');
 
 // Node configuration
-node.baseUrl = 'http://' + node.config.address + ':' + node.config.port;
+// node.baseUrl = 'http://' + node.config.address + ':' + node.config.port;
+node.baseUrl = 'http://' + node.config.peers.list[1].ip + ':' + node.config.peers.list[1].port;
 node.api = node.supertest(node.baseUrl);
 
 node.normalizer = 100000000; // Use this to convert LISK amount to normal value
-node.blockTime = 10000; // Block time in miliseconds
-node.blockTimePlus = 12000; // Block time + 2 seconds in miliseconds
+node.blockTime = 10000; // Block time in milliseconds
+node.blockTimePlus = 12000; // Block time + 2 seconds in milliseconds
 node.version = packageJson.version; // Node version
 
 // Transaction fees
@@ -53,10 +54,12 @@ node.fees = {
 };
 
 // Test application
-// node.guestbookDapp = {
-// 	icon: 'https://raw.githubusercontent.com/MaxKK/guestbookDapp/master/icon.png',
-// 	link: 'https://github.com/MaxKK/guestbookDapp/archive/master.zip'
-// };
+node.guestbookDapp = {
+	icon: 'https://adamant.im/img/logos/admgrad.png',
+	link: 'https://adamant.im/img/media_pack.zip'
+};
+node.dappCategories = require('../helpers/dappCategories.js');
+node.dappTypes = require('../helpers/dappTypes.js');
 
 const validSender = {
     username: null,
@@ -96,6 +99,11 @@ node.marketDelegate = _.defaults({
     secret: 'rally clean ladder crane gadget century timber jealous shine scorpion beauty salon'
 },validSender);
 
+// return a (Buffer) from a passphrase
+node.createKeypairFromPassphrase = function (passphrase) {
+    return node.accounts.makeKeypair(node.accounts.createPassPhraseHash(passphrase));
+};
+
 // Existing delegate account
 // TODO: replace me with a market delegate
 node.eAccount = {
@@ -105,12 +113,13 @@ node.eAccount = {
 	code: 'kind'
 };
 
-// Genesis account, initially holding 100M total supply
+// Genesis account, initially holding 98M total supply
 node.gAccount = {
 	address: 'U15365455923155964650',
 	publicKey: 'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae',
 	password: 'neck want coast appear army smile palm major crumble upper void warm'
 };
+node.gAccount.keypair = node.createKeypairFromPassphrase(node.gAccount.password);
 
 node.iAccount = {
 	address: 'U5338684603617333081',
@@ -118,6 +127,7 @@ node.iAccount = {
 	password: 'floor myself rather hidden pepper make isolate vintage review flight century label',
 	balance: '1960000000000000'
 };
+node.iAccount.keypair = node.createKeypairFromPassphrase(node.iAccount.password);
 
 node.gAccount = node.iAccount;
 
@@ -224,6 +234,7 @@ node.createSendTransaction = function (data) {
     transaction.amount = data.amount;
     transaction.signature = this.transactionSign(transaction, data.keyPair);
     transaction.id = this.getId(transaction);
+    transaction.fee = this.constants.fees.send;
     return transaction;
 };
 
@@ -529,7 +540,7 @@ node.waitForNewBlock = function (height, blocksToWait, cb) {
 
 				node.debug('	Waiting for block:'.grey, 'Height:'.grey, res.body.height, 'Target:'.grey, target, 'Second:'.grey, counter++);
 
-				if (target === res.body.height) {
+				if (res.body.height >= target) {
 					height = res.body.height;
 				}
 
@@ -667,6 +678,7 @@ node.randomAccount = function () {
 	account.username = node.randomDelegate;
 	const keypair = node.accounts.makeKeypair(node.accounts.createPassPhraseHash(account.password));
 	account.publicKey = keypair.publicKey; //node.lisk.crypto.getKeys(account.password).publicKey;
+	account.publicKeyHex = keypair.publicKey.toString('hex');
 	account.address = node.accounts.getAddressByPublicKey(account.publicKey); //node.lisk.crypto.getAddress(account.publicKey);
 	account.keypair = keypair;
 	return account;
