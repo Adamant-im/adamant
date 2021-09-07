@@ -31,7 +31,7 @@ var State = require('../../../logic/state.js');
 var validPassword = 'rally clean ladder crane gadget century timber jealous shine scorpion beauty salon';
 var validKeypair = ed.makeKeypair(crypto.createHash('sha256').update(validPassword, 'utf8').digest());
 
-var senderHash = crypto.createHash('sha256').update(node.gAccount.password, 'utf8').digest();
+var senderHash = crypto.createHash('sha256').update(node.iAccount.password, 'utf8').digest();
 var senderKeypair = ed.makeKeypair(senderHash);
 
 let validSender = {

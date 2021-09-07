@@ -22,7 +22,7 @@ var DelegateModule = require('../../../modules/delegates.js');
 var validPassword = 'robust weapon course unknown head trial pencil latin acid';
 var validKeypair = ed.makeKeypair(crypto.createHash('sha256').update(validPassword, 'utf8').digest());
 
-var senderHash = crypto.createHash('sha256').update(node.gAccount.password, 'utf8').digest();
+var senderHash = crypto.createHash('sha256').update(node.iAccount.password, 'utf8').digest();
 var senderKeypair = ed.makeKeypair(senderHash);
 
 var validSender = {

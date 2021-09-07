@@ -72,7 +72,7 @@ describe('POST /peer/transactions', function () {
 
 			before(function (done) {
 				sendLISK({
-					secret: node.gAccount.password,
+					secret: node.iAccount.password,
 					amount: node.fees.secondPasswordFee + 100000000,
 					recipientId: account.address
 				}, done);
@@ -105,7 +105,7 @@ describe('POST /peer/transactions', function () {
         amount: 100000000,
         recipientId: randomAccount.address
       });
-      var transaction = node.lisk.transaction.createTransaction('1L', 1, node.gAccount.password, account.secondPassword);
+      var transaction = node.lisk.transaction.createTransaction('1L', 1, node.iAccount.password, account.secondPassword);
 
 			postTransaction(transaction, function (err, res) {
 				node.expect(res.body).to.have.property('success').to.be.not.ok;

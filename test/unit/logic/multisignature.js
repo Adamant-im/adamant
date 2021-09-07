@@ -102,7 +102,7 @@ describe('multisignature', function () {
 
 			it('should return error when value is not an integer', function () {
 				var min = '2';
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, '+' + multiSigAccount2.publicKey], 1, 2);
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, '+' + multiSigAccount2.publicKey], 1, 2);
 				trs.asset.multisignature.min = min;
 
 				expect(function () {
@@ -112,7 +112,7 @@ describe('multisignature', function () {
 
 			it('should return error when value is a negative integer', function () {
 				var min = -1;
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, '+' + multiSigAccount2.publicKey], 1, 2);
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, '+' + multiSigAccount2.publicKey], 1, 2);
 				trs.asset.multisignature.min = min;
 
 				expect(function () {
@@ -122,7 +122,7 @@ describe('multisignature', function () {
 
 			it('should return error when value is smaller than minimum acceptable value', function () {
 				var min = constants.multisigConstraints.min.minimum - 1;
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, '+' + multiSigAccount2.publicKey], 1, min);
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, '+' + multiSigAccount2.publicKey], 1, min);
 
 				expect(function () {
 					multisignature.objectNormalize.call(transaction, trs);
@@ -131,7 +131,7 @@ describe('multisignature', function () {
 
 			it('should return error when value is greater than maximum acceptable value', function () {
 				var min = constants.multisigConstraints.min.maximum + 1;
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, '-' + multiSigAccount2.publicKey], 1, min);
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, '-' + multiSigAccount2.publicKey], 1, min);
 
 				expect(function () {
 					multisignature.objectNormalize.call(transaction, trs);
@@ -140,7 +140,7 @@ describe('multisignature', function () {
 
 			it('should return error when value is an overflow number', function () {
 				var min = Number.MAX_VALUE + 1;
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, '-' + multiSigAccount2.publicKey], 1, 2);
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, '-' + multiSigAccount2.publicKey], 1, 2);
 				trs.asset.multisignature.min = min;
 
 				expect(function () {
@@ -153,7 +153,7 @@ describe('multisignature', function () {
 
 			it('should return error when value is not an integer', function () {
 				var lifetime = '2';
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, '-' + multiSigAccount2.publicKey], 1, 2);
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, '-' + multiSigAccount2.publicKey], 1, 2);
 				trs.asset.multisignature.lifetime = lifetime;
 
 				expect(function () {
@@ -163,7 +163,7 @@ describe('multisignature', function () {
 
 			it('should return error when value is smaller than minimum acceptable value', function () {
 				var lifetime = node.constants.multisigConstraints.lifetime.minimum - 1;
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, '-' + multiSigAccount2.publicKey], lifetime, 2);
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, '-' + multiSigAccount2.publicKey], lifetime, 2);
 
 				expect(function () {
 					multisignature.objectNormalize.call(transaction, trs);
@@ -172,7 +172,7 @@ describe('multisignature', function () {
 
 			it('should return error when value is greater than maximum acceptable value', function () {
 				var lifetime = node.constants.multisigConstraints.lifetime.maximum + 1;
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, '-' + multiSigAccount2.publicKey], lifetime, 2);
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, '-' + multiSigAccount2.publicKey], lifetime, 2);
 
 				expect(function () {
 					multisignature.objectNormalize.call(transaction, trs);
@@ -181,7 +181,7 @@ describe('multisignature', function () {
 
 			it('should return error when value is an overflow number', function () {
 				var lifetime = Number.MAX_VALUE;
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, '-' + multiSigAccount2.publicKey], 1, 2);
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, '-' + multiSigAccount2.publicKey], 1, 2);
 				trs.asset.multisignature.lifetime = lifetime;
 
 				expect(function () {
@@ -193,7 +193,7 @@ describe('multisignature', function () {
 		describe('keysgroup', function () {
 
 			it('should return error when it is not an array', function () {
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, [''], 1, 2);
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, [''], 1, 2);
 				trs.asset.multisignature.keysgroup = '';
 
 				expect(function () {
@@ -203,7 +203,7 @@ describe('multisignature', function () {
 
 			it('should return error when array length is smaller than minimum acceptable value', function () {
 				var keysgroup = [];
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, keysgroup, 1, 2);
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, keysgroup, 1, 2);
 
 				expect(function () {
 					multisignature.objectNormalize.call(transaction, trs);
@@ -214,7 +214,7 @@ describe('multisignature', function () {
 				var keysgroup = Array.apply(null, Array(constants.multisigConstraints.keysgroup.maxItems + 1)).map(function () {
 					return '+' + node.randomAccount().publicKey;
 				});
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, keysgroup, 1, 2);
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, keysgroup, 1, 2);
 
 				expect(function () {
 					multisignature.objectNormalize.call(transaction, trs);
@@ -223,7 +223,7 @@ describe('multisignature', function () {
 		});
 
 		it('should return transaction when asset is valid', function () {
-			var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, Array.apply(null, Array(10)).map(function () {
+			var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, Array.apply(null, Array(10)).map(function () {
 				return '+' + node.randomAccount().publicKey;
 			}), 1, 2);
 
@@ -236,50 +236,50 @@ describe('multisignature', function () {
 		describe('from transaction.verify tests', function () {
 
 			it('should return error when multisignature keysgroup has an entry which does not start with + character', function (done) {
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, '-' + multiSigAccount2.publicKey], 1, 2);
-				trs.senderId = node.gAccount.address;
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, '-' + multiSigAccount2.publicKey], 1, 2);
+				trs.senderId = node.iAccount.address;
 
-				transaction.verify(trs, node.gAccount, function (err, trs) {
+				transaction.verify(trs, node.iAccount, function (err, trs) {
 					expect(err).to.equal('Invalid math operator in multisignature keysgroup');
 					done();
 				});
 			});
 
 			it('should return error when multisignature keysgroup has an entry which is null', function (done) {
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, null], 1, 2);
-				trs.senderId = node.gAccount.address;
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, null], 1, 2);
+				trs.senderId = node.iAccount.address;
 
-				transaction.verify(trs, node.gAccount, function (err, trs) {
+				transaction.verify(trs, node.iAccount, function (err, trs) {
 					expect(err).to.equal('Invalid member in keysgroup');
 					done();
 				});
 			});
 
 			it('should return error when multisignature keysgroup has an entry which is undefined', function (done) {
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, undefined], 1, 2);
-				trs.senderId = node.gAccount.address;
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, undefined], 1, 2);
+				trs.senderId = node.iAccount.address;
 
-				transaction.verify(trs, node.gAccount, function (err, trs) {
+				transaction.verify(trs, node.iAccount, function (err, trs) {
 					expect(err).to.equal('Invalid member in keysgroup');
 					done();
 				});
 			});
 
 			it('should return error when multisignature keysgroup has an entry which is an integer', function (done) {
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, 12], 1, 2);
-				trs.senderId = node.gAccount.address;
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, 12], 1, 2);
+				trs.senderId = node.iAccount.address;
 
-				transaction.verify(trs, node.gAccount, function (err, trs) {
+				transaction.verify(trs, node.iAccount, function (err, trs) {
 					expect(err).to.equal('Invalid member in keysgroup');
 					done();
 				});
 			});
 
 			it('should be okay for valid transaction', function (done) {
-				var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, '+' + multiSigAccount2.publicKey], 1, 2);
-				trs.senderId = node.gAccount.address;
+				var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, '+' + multiSigAccount2.publicKey], 1, 2);
+				trs.senderId = node.iAccount.address;
 
-				transaction.verify(trs, node.gAccount, function (err, trs) {
+				transaction.verify(trs, node.iAccount, function (err, trs) {
 					expect(err).to.not.exist;
 					done();
 				});
@@ -291,10 +291,10 @@ describe('multisignature', function () {
 
 		it('should return error when min value is smaller than minimum acceptable value', function (done) {
 			var min = constants.multisigConstraints.min.minimum - 1;
-			var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, '+' + multiSigAccount2.publicKey], 1, 1);
+			var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, '+' + multiSigAccount2.publicKey], 1, 1);
 			trs.asset.multisignature.min = min;
 
-			multisignature.verify(trs, node.gAccount, function (err) {
+			multisignature.verify(trs, node.iAccount, function (err) {
 				expect(err).to.equal('Invalid multisignature min. Must be between 1 and 15');
 				done();
 			});
@@ -302,59 +302,59 @@ describe('multisignature', function () {
 
 		it('should return error when min value is greater than maximum acceptable value', function (done) {
 			var min = constants.multisigConstraints.min.maximum + 1;
-			var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, '+' + multiSigAccount2.publicKey], 1, min);
+			var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, '+' + multiSigAccount2.publicKey], 1, min);
 
-			multisignature.verify(trs, node.gAccount, function (err) {
+			multisignature.verify(trs, node.iAccount, function (err) {
 				expect(err).to.equal('Invalid multisignature min. Must be between 1 and 15');
 				done();
 			});
 		});
 
 		it('should return error when multisignature keysgroup has an entry which does not start with + character', function (done) {
-			var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, '-' + multiSigAccount2.publicKey], 1, 2);
-			trs.senderId = node.gAccount.address;
+			var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, '-' + multiSigAccount2.publicKey], 1, 2);
+			trs.senderId = node.iAccount.address;
 
-			multisignature.verify(trs, node.gAccount, function (err, trs) {
+			multisignature.verify(trs, node.iAccount, function (err, trs) {
 				expect(err).to.equal('Invalid math operator in multisignature keysgroup');
 				done();
 			});
 		});
 
 		it('should return error when multisignature keysgroup has an entry which is null', function (done) {
-			var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, null], 1, 2);
-			trs.senderId = node.gAccount.address;
+			var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, null], 1, 2);
+			trs.senderId = node.iAccount.address;
 
-			multisignature.verify(trs, node.gAccount, function (err, trs) {
+			multisignature.verify(trs, node.iAccount, function (err, trs) {
 				expect(err).to.equal('Invalid member in keysgroup');
 				done();
 			});
 		});
 
 		it('should return error when multisignature keysgroup has an entry which is undefined', function (done) {
-			var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, undefined], 1, 2);
-			trs.senderId = node.gAccount.address;
+			var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, undefined], 1, 2);
+			trs.senderId = node.iAccount.address;
 
-			multisignature.verify(trs, node.gAccount, function (err, trs) {
+			multisignature.verify(trs, node.iAccount, function (err, trs) {
 				expect(err).to.equal('Invalid member in keysgroup');
 				done();
 			});
 		});
 
 		it('should return error when multisignature keysgroup has an entry which is an integer', function (done) {
-			var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, 12], 1, 2);
-			trs.senderId = node.gAccount.address;
+			var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, 12], 1, 2);
+			trs.senderId = node.iAccount.address;
 
-			multisignature.verify(trs, node.gAccount, function (err, trs) {
+			multisignature.verify(trs, node.iAccount, function (err, trs) {
 				expect(err).to.equal('Invalid member in keysgroup');
 				done();
 			});
 		});
 
 		it('should be okay for valid transaction', function (done) {
-			var trs	= node.lisk.multisignature.createMultisignature(node.gAccount.password, null, ['+' + multiSigAccount1.publicKey, '+' + multiSigAccount2.publicKey], 1, 2);
-			trs.senderId = node.gAccount.address;
+			var trs	= node.lisk.multisignature.createMultisignature(node.iAccount.password, null, ['+' + multiSigAccount1.publicKey, '+' + multiSigAccount2.publicKey], 1, 2);
+			trs.senderId = node.iAccount.address;
 
-			multisignature.verify(trs, node.gAccount, function (err, trs) {
+			multisignature.verify(trs, node.iAccount, function (err, trs) {
 				expect(err).to.not.exist;
 				done();
 			});

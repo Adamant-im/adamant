@@ -260,7 +260,7 @@ describe('vote', function () {
 	describe('verify', function () {
 		it('should return error when receipientId and sender id are different', function (done) {
 			var trs = _.cloneDeep(validTransaction);
-			trs.recipientId = node.gAccount.address;
+			trs.recipientId = node.iAccount.address;
 			vote.verify(trs, validSender, function (err) {
 				expect(err).to.equal('Invalid recipient');
 				done();
@@ -308,7 +308,7 @@ describe('vote', function () {
 
 		it('should return error when removing vote for delegate sender has not voted', function (done) {
 			var trs = _.cloneDeep(validTransaction);
-			trs.asset.votes = ['-' + node.gAccount.publicKey];
+			trs.asset.votes = ['-' + node.iAccount.publicKey];
 			vote.verify(trs, validSender, function (err) {
 				expect(err).to.equal('Failed to remove vote, account has not voted for this delegate');
 				done();
@@ -419,7 +419,7 @@ describe('vote', function () {
 
 		it('should return err when account is not a delegate', function (done) {
 			var trs = _.cloneDeep(validTransaction);
-			trs.asset.votes = ['+' + node.gAccount.publicKey];
+			trs.asset.votes = ['+' + node.iAccount.publicKey];
 			vote.checkConfirmedDelegates(trs, function (err) {
 				expect(err).to.equal('Delegate not found');
 				done();
@@ -618,7 +618,7 @@ describe('vote', function () {
 		it('should return error when votes array is longer than maximum acceptable', function () {
 			var trs = _.cloneDeep(validTransaction);
 			trs.asset.votes = Array.apply(null, Array(constants.maxVotesPerTransaction + 1)).map(function () {
-				return '+' + node.gAccount.publicKey;
+				return '+' + node.iAccount.publicKey;
 			});
 			expect(function () {
 				vote.objectNormalize.call(transaction, trs);

@@ -38,7 +38,7 @@ describe('POST /peer/transactions', function () {
 		before(function (done) {
 			// Send funds to collision account
       var transaction = node.createSendTransaction({
-        keyPair: node.gAccount.keypair,
+        keyPair: node.iAccount.keypair,
         amount: 220000000,
         recipientId: collision.address
       });
@@ -54,7 +54,7 @@ describe('POST /peer/transactions', function () {
     //     var transaction = node.createSendTransaction({
     //       keyPair: node.createKeypairFromPassphrase(collision.passphrases[1]),
     //       amount: 100000000,
-    //       recipientId: node.gAccount.address
+    //       recipientId: node.iAccount.address
     //     });
 
 		// 		postTransaction(transaction, function (err, res) {
@@ -68,7 +68,7 @@ describe('POST /peer/transactions', function () {
     //     var transaction = node.createSendTransaction({
     //       keyPair: node.createKeypairFromPassphrase(collision.passphrases[0]),
     //       amount: 100000000,
-    //       recipientId: node.gAccount.address
+    //       recipientId: node.iAccount.address
     //     });
 
 		// 		postTransaction(transaction, function (err, res) {
@@ -89,7 +89,7 @@ describe('POST /peer/transactions', function () {
         var transaction = node.createSendTransaction({
           keyPair: node.createKeypairFromPassphrase(collision.passphrases[0]),
           amount: 100000000,
-          recipientId: node.gAccount.address
+          recipientId: node.iAccount.address
         });
 
 				postTransaction(transaction, function (err, res) {
@@ -102,7 +102,7 @@ describe('POST /peer/transactions', function () {
       //   var transaction = node.createSendTransaction({
       //     keyPair: node.createKeypairFromPassphrase(collision.passphrases[1]),
       //     amount: 100000000,
-      //     recipientId: node.gAccount.address
+      //     recipientId: node.iAccount.address
       //   });
 
 			// 	postTransaction(transaction, function (err, res) {

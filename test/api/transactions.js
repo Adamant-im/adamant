@@ -43,14 +43,14 @@ function sendADM (account, amount, done) {
 
 	putTransaction({
 		// publicKey:
-		secret: node.gAccount.password,
+		secret: node.iAccount.password,
 		amount: amount,
 		recipientId: account.address
 	}, function (err, res) {
 		node.expect(res.body).to.have.property('success').to.be.ok;
 		node.expect(res.body).to.have.property('transactionId').that.is.not.empty;
 		transactionList.push({
-			'sender': node.gAccount.address,
+			'sender': node.iAccount.address,
 			'recipient': account.address,
 			'grossSent': (amount + expectedFee) / node.normalizer,
 			'fee': expectedFee / node.normalizer,
@@ -135,7 +135,7 @@ describe('GET /api/transactions (cache)', function () {
 		url = '/api/transactions?';
 		params = [
 			'blockId=' + '1',
-			'senderId=' + node.gAccount.address,
+			'senderId=' + node.iAccount.address,
 			'recipientId=' + account.address,
 		];
 
@@ -155,7 +155,7 @@ describe('GET /api/transactions (cache)', function () {
 		var url, params;
 		url = '/api/transactions?';
 		params = [
-			'whatever:senderId=' + node.gAccount.address
+			'whatever:senderId=' + node.iAccount.address
 		];
 
 		node.get(url + params.join('&'), function (err, res) {
@@ -183,7 +183,7 @@ describe('GET /api/transactions', function () {
 
 		var params = [
 			'blockId=' + '1',
-			'senderId=' + node.gAccount.address,
+			'senderId=' + node.iAccount.address,
 			'recipientId=' + account.address,
 			'limit=' + limit,
 			'offset=' + offset,
@@ -210,7 +210,7 @@ describe('GET /api/transactions', function () {
 
 		var params = [
 			'and:blockId=' + '1',
-			'or:senderId=' + node.gAccount.address,
+			'or:senderId=' + node.iAccount.address,
 			'or:recipientId=' + account.address,
 			'limit=' + limit,
 			'offset=' + offset,
@@ -297,7 +297,7 @@ describe('GET /api/transactions', function () {
 
 		var params = [
 			'and:blockId=' + '1',
-			'or:senderId=' + node.gAccount.address,
+			'or:senderId=' + node.iAccount.address,
 			'or:recipientId=' + account.address,
 			'fromHeight=' + 1,
 			'toHeight=' + 666,
@@ -328,10 +328,10 @@ describe('GET /api/transactions', function () {
 
 		var params = [
 			'blockId=' + '1',
-			'or:senderIds=' + node.gAccount.address + ',' + account.address,
+			'or:senderIds=' + node.iAccount.address + ',' + account.address,
 			'or:recipientIds=' + account.address + ',' + account2.address,
-			'or:senderPublicKeys=' + node.gAccount.publicKey,
-			'or:recipientPublicKeys=' + node.gAccount.publicKey,
+			'or:senderPublicKeys=' + node.iAccount.publicKey,
+			'or:recipientPublicKeys=' + node.iAccount.publicKey,
 			'limit=' + limit,
 			'offset=' + offset,
 			'orderBy=' + orderBy
@@ -357,7 +357,7 @@ describe('GET /api/transactions', function () {
 
 		var params = [
 			'and:blockId=' + '1',
-			'or:senderId=' + node.gAccount.address,
+			'or:senderId=' + node.iAccount.address,
 			'or:whatever=' + account.address,
 			'limit=' + limit,
 			'offset=' + offset,
@@ -373,7 +373,7 @@ describe('GET /api/transactions', function () {
 
 	it('using invalid condition should fail', function (done) {
 		var params = [
-			'whatever:senderId=' + node.gAccount.address
+			'whatever:senderId=' + node.iAccount.address
 		];
 
 		node.get('/api/transactions?' + params.join('&'), function (err, res) {
@@ -385,7 +385,7 @@ describe('GET /api/transactions', function () {
 
 	it('using invalid field name (x:y:z) should fail', function (done) {
 		var params = [
-			'or:whatever:senderId=' + node.gAccount.address
+			'or:whatever:senderId=' + node.iAccount.address
 		];
 
 		node.get('/api/transactions?' + params.join('&'), function (err, res) {
@@ -888,7 +888,7 @@ describe('PUT /api/transactions', function () {
 			var amountToSend = 110000000;
 
 			putTransaction({
-				secret: node.gAccount.password,
+				secret: node.iAccount.password,
 				amount: amountToSend,
 				recipientId: recipientId
 			}, function (err, res) {
@@ -907,7 +907,7 @@ describe('PUT /api/transactions', function () {
 			var amountToSend = 100000000;
 
 			putTransaction({
-				secret: node.gAccount.password,
+				secret: node.iAccount.password,
 				amount: amountToSend,
 				recipientId: account2.address
 			}, function (err, res) {
@@ -942,7 +942,7 @@ describe('POST /api/transactions', function () {
 
     before(function (done) {
         sendADM2voter({
-            secret: node.gAccount.password,
+            secret: node.iAccount.password,
             amount: 500000000000,
             recipientId: account4.address
         }, function (err, res) {

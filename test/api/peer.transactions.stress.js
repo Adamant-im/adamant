@@ -35,7 +35,7 @@ describe('POST /peer/transactions', function () {
 
 		before(function (done) {
 			sendADM({
-                secret: node.gAccount.password,
+                secret: node.iAccount.password,
                 amount: 5000000000*2000,
                 recipientId: account.address
 			},function () {
@@ -92,7 +92,7 @@ describe('POST /peer/transactions', function () {
 
 		before(function (done) {
 			sendADM({
-                secret: node.gAccount.password,
+                secret: node.iAccount.password,
                 amount: 5000000000*2000,
                 recipientId: account.address
 			}, function () {

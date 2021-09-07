@@ -84,7 +84,7 @@ describe('PUT /api/accounts/delegates with funds', function () {
 
 	before(function (done) {
 		sendADM({
-			secret: node.gAccount.password,
+			secret: node.iAccount.password,
 			amount: node.LISK,
 			recipientId: account.address
 		}, function (err, res) {
@@ -266,7 +266,7 @@ describe('PUT /api/delegates with funds', function () {
 
 	beforeEach(function (done) {
 		sendADM({
-			secret: node.gAccount.password,
+			secret: node.iAccount.password,
 			amount: node.LISK,
 			recipientId: account.address
 		}, function (err, res) {
@@ -766,7 +766,7 @@ describe('GET /api/delegates/voters', function () {
 
 	before(function (done) {
 		sendADM({
-			secret: node.gAccount.password,
+			secret: node.iAccount.password,
 			amount: node.LISK,
 			recipientId: account.address
 		}, function (err, res) {

@@ -82,7 +82,7 @@ describe('POST /peer/transactions', function () {
 
 	before(function (done) {
 		sendADM({
-			secret: node.gAccount.password,
+			secret: node.iAccount.password,
 			amount: 50000000000000,
 			recipientId: account.address
 		}, done);
@@ -373,7 +373,7 @@ describe('POST /peer/transactions after registering a new delegate', function ()
 
 	before(function (done) {
 		sendADM({
-			secret: node.gAccount.password,
+			secret: node.iAccount.password,
 			amount: 5000000000000,
 			recipientId: account.address
 		}, done);

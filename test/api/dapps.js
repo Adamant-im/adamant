@@ -49,7 +49,7 @@ before(function (done) {
 		var expectedFee = node.expectedFee(randomLISK);
 
 		putTransaction({
-			secret: node.gAccount.password,
+			secret: node.iAccount.password,
 			amount: randomLISK,
 			recipientId: account.address
 		}, done);
@@ -63,7 +63,7 @@ before(function (done) {
 		var expectedFee = node.expectedFee(randomLISK);
 
 		putTransaction({
-			secret: node.gAccount.password,
+			secret: node.iAccount.password,
 			amount: randomLISK,
 			recipientId: account2.address
 		}, done);

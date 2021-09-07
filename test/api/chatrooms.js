@@ -32,7 +32,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     // send ADM to message sender
     before(function (done) {
         sendADM({
-            secret: node.gAccount.password,
+            secret: node.iAccount.password,
             amount: node.fees.messageFee*3+node.fees.transactionFee*2,
             recipientId: sender.address
         }, function () {
@@ -43,7 +43,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     // send ADM to recipient1
     before(function (done) {
         sendADM({
-            secret: node.gAccount.password,
+            secret: node.iAccount.password,
             amount: node.fees.messageFee,
             recipientId: recipient1.address
         }, function () {
@@ -54,7 +54,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     // send ADM to recipient2
     before(function (done) {
         sendADM({
-            secret: node.gAccount.password,
+            secret: node.iAccount.password,
             amount: node.fees.messageFee,
             recipientId: recipient2.address
         }, function () {

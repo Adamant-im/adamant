@@ -23,7 +23,7 @@ function sendLISK (account, done) {
 	var expectedFee = node.expectedFee(randomLISK);
 
 	putTransaction({
-		secret: node.gAccount.password,
+		secret: node.iAccount.password,
 		amount: randomLISK,
 		recipientId: account.address
 	}, function (err, res) {

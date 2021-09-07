@@ -121,6 +121,7 @@ node.gAccount = {
 };
 node.gAccount.keypair = node.createKeypairFromPassphrase(node.gAccount.password);
 
+// Account, holding 19.6 mln ADM, received from Genesis
 node.iAccount = {
 	address: 'U5338684603617333081',
 	publicKey: '9184c87b846dec0dc4010def579fecf5dad592a59b37a013c7e6975597681f58',
@@ -128,10 +129,6 @@ node.iAccount = {
 	balance: '1960000000000000'
 };
 node.iAccount.keypair = node.createKeypairFromPassphrase(node.iAccount.password);
-
-node.gAccount = node.iAccount;
-
-
 
 // Optional logging
 if (process.env.SILENT === 'true') {
@@ -205,10 +202,9 @@ node.createSignatureTransaction = function (data) {
     let transaction = this.createBasicTransaction(data);
     transaction.asset = {};
     transaction.recipientId= null;
-    transaction.keyPair = data.keyPair;
-    transaction.secret = data.secret;
     transaction.publicKey = data.keyPair.publicKey.toString('hex');
     transaction.signature = this.transactionSign(transaction, data.keyPair);
+    transaction.id = this.getId(transaction);
     return transaction;
 };
 
@@ -235,7 +231,7 @@ node.createSendTransaction = function (data) {
     transaction.amount = data.amount;
     transaction.signature = this.transactionSign(transaction, data.keyPair);
     transaction.id = this.getId(transaction);
-    transaction.fee = transaction.fee = node.fees.transactionFee;
+    transaction.fee = node.fees.transactionFee;
     return transaction;
 };
 
@@ -433,7 +429,7 @@ node.chatGetBytes = function (trs) {
 
 node.signatureGetBytes = function (signature) {
     var bb = new ByteBuffer(32, true);
-    var publicKeyBuffer = new Buffer(signature.keyPair.publicKey, 'hex');
+    var publicKeyBuffer = new Buffer(signature.publicKey, 'hex');
 
     for (var i = 0; i < publicKeyBuffer.length; i++) {
         bb.writeByte(publicKeyBuffer[i]);

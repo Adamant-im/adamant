@@ -50,7 +50,7 @@ describe('POST /peer/transactions', function () {
 
 			before(function (done) {
 				sendLISK({
-					secret: node.gAccount.password,
+					secret: node.iAccount.password,
 					amount: node.fees.multisignatureRegistrationFee * 10,
 					recipientId: multisigAccount.address
 				}, done);

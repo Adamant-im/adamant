@@ -68,7 +68,7 @@ describe('POST /peer/transactions', function () {
 
 			before(function (done) {
 				sendADM({
-					secret: node.gAccount.password,
+					secret: node.iAccount.password,
 					amount: node.fees.delegateRegistrationFee,
 					recipientId: account.address
 				}, function (err, res) {
@@ -143,7 +143,7 @@ describe('POST /peer/transactions', function () {
 
 			before(function (done) {
 				sendADM({
-					secret: node.gAccount.password,
+					secret: node.iAccount.password,
 					amount: (node.fees.delegateRegistrationFee * 2),
 					recipientId: account.address
 				}, done);

@@ -12,14 +12,14 @@ describe('POST /api/accounts/open', function () {
 
 	it('using known passphrase should be ok', function (done) {
 		openAccount({
-			secret: node.gAccount.password
+			secret: node.iAccount.password
 		}, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('account').that.is.an('object');
-			node.expect(res.body.account).to.have.property('address').to.equal(node.gAccount.address);
+			node.expect(res.body.account).to.have.property('address').to.equal(node.iAccount.address);
 			node.expect(res.body.account).to.have.property('unconfirmedBalance').that.is.a('string');
 			node.expect(res.body.account).to.have.property('balance').that.is.a('string');
-			node.expect(res.body.account).to.have.property('publicKey').to.equal(node.gAccount.publicKey);
+			node.expect(res.body.account).to.have.property('publicKey').to.equal(node.iAccount.publicKey);
 			node.expect(res.body.account).to.have.property('unconfirmedSignature').to.equal(0);
 			node.expect(res.body.account).to.have.property('secondSignature').to.equal(0);
 			node.expect(res.body.account).to.have.property('secondPublicKey').to.equal(null);
@@ -101,7 +101,7 @@ describe('GET /api/accounts/getBalance?address=', function () {
 	}
 
 	it('using known address should be ok', function (done) {
-		getBalance(node.gAccount.address, function (err, res) {
+		getBalance(node.iAccount.address, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('balance').that.is.a('string');
 			node.expect(res.body).to.have.property('unconfirmedBalance').that.is.a('string');
@@ -145,9 +145,9 @@ describe('GET /api/accounts/getPublicKey?address=', function () {
 	}
 
 	it('using known address should be ok', function (done) {
-		getPublicKey(node.gAccount.address, function (err, res) {
+		getPublicKey(node.iAccount.address, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
-			node.expect(res.body).to.have.property('publicKey').to.equal(node.gAccount.publicKey);
+			node.expect(res.body).to.have.property('publicKey').to.equal(node.iAccount.publicKey);
 			done();
 		});
 	});
@@ -186,10 +186,10 @@ describe('POST /api/accounts/generatePublicKey', function () {
 
 	it('using known passphrase should be ok', function (done) {
 		generatePublicKey({
-			secret: node.gAccount.password
+			secret: node.iAccount.password
 		}, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
-			node.expect(res.body).to.have.property('publicKey').to.equal(node.gAccount.publicKey);
+			node.expect(res.body).to.have.property('publicKey').to.equal(node.iAccount.publicKey);
 			done();
 		});
 	});
@@ -241,13 +241,13 @@ describe('GET /accounts', function () {
 	}
 
 	it('using known address should be ok', function (done) {
-		getAccounts('address=' + node.gAccount.address, function (err, res) {
+		getAccounts('address=' + node.iAccount.address, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('account').that.is.an('object');
-			node.expect(res.body.account).to.have.property('address').to.equal(node.gAccount.address);
+			node.expect(res.body.account).to.have.property('address').to.equal(node.iAccount.address);
 			node.expect(res.body.account).to.have.property('unconfirmedBalance').that.is.a('string');
 			node.expect(res.body.account).to.have.property('balance').that.is.a('string');
-			node.expect(res.body.account).to.have.property('publicKey').to.equal(node.gAccount.publicKey);
+			node.expect(res.body.account).to.have.property('publicKey').to.equal(node.iAccount.publicKey);
 			node.expect(res.body.account).to.have.property('unconfirmedSignature').to.equal(0);
 			node.expect(res.body.account).to.have.property('secondSignature').to.equal(0);
 			node.expect(res.body.account).to.have.property('secondPublicKey').to.equal(null);
@@ -258,13 +258,13 @@ describe('GET /accounts', function () {
 	});
 
 	it('using known address and empty publicKey should be ok', function (done) {
-		getAccounts('address=' + node.gAccount.address + '&publicKey=', function (err, res) {
+		getAccounts('address=' + node.iAccount.address + '&publicKey=', function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('account').that.is.an('object');
-			node.expect(res.body.account).to.have.property('address').to.equal(node.gAccount.address);
+			node.expect(res.body.account).to.have.property('address').to.equal(node.iAccount.address);
 			node.expect(res.body.account).to.have.property('unconfirmedBalance').that.is.a('string');
 			node.expect(res.body.account).to.have.property('balance').that.is.a('string');
-			node.expect(res.body.account).to.have.property('publicKey').to.equal(node.gAccount.publicKey);
+			node.expect(res.body.account).to.have.property('publicKey').to.equal(node.iAccount.publicKey);
 			node.expect(res.body.account).to.have.property('unconfirmedSignature').to.equal(0);
 			node.expect(res.body.account).to.have.property('secondSignature').to.equal(0);
 			node.expect(res.body.account).to.have.property('secondPublicKey').to.equal(null);
@@ -275,13 +275,13 @@ describe('GET /accounts', function () {
 	});
 
 	it('using known lowercase address should be ok', function (done) {
-		getAccounts('address=' + node.gAccount.address.toLowerCase(), function (err, res) {
+		getAccounts('address=' + node.iAccount.address.toLowerCase(), function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('account').that.is.an('object');
-			node.expect(res.body.account).to.have.property('address').to.equal(node.gAccount.address);
+			node.expect(res.body.account).to.have.property('address').to.equal(node.iAccount.address);
 			node.expect(res.body.account).to.have.property('unconfirmedBalance').that.is.a('string');
 			node.expect(res.body.account).to.have.property('balance').that.is.a('string');
-			node.expect(res.body.account).to.have.property('publicKey').to.equal(node.gAccount.publicKey);
+			node.expect(res.body.account).to.have.property('publicKey').to.equal(node.iAccount.publicKey);
 			node.expect(res.body.account).to.have.property('unconfirmedSignature').to.equal(0);
 			node.expect(res.body.account).to.have.property('secondSignature').to.equal(0);
 			node.expect(res.body.account).to.have.property('secondPublicKey').to.equal(null);
@@ -318,13 +318,13 @@ describe('GET /accounts', function () {
 	});
 
 	it('using known publicKey should be ok', function (done) {
-		getAccounts('publicKey=' + node.gAccount.publicKey, function (err, res) {
+		getAccounts('publicKey=' + node.iAccount.publicKey, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('account').that.is.an('object');
-			node.expect(res.body.account).to.have.property('address').to.equal(node.gAccount.address);
+			node.expect(res.body.account).to.have.property('address').to.equal(node.iAccount.address);
 			node.expect(res.body.account).to.have.property('unconfirmedBalance').that.is.a('string');
 			node.expect(res.body.account).to.have.property('balance').that.is.a('string');
-			node.expect(res.body.account).to.have.property('publicKey').to.equal(node.gAccount.publicKey);
+			node.expect(res.body.account).to.have.property('publicKey').to.equal(node.iAccount.publicKey);
 			node.expect(res.body.account).to.have.property('unconfirmedSignature').to.equal(0);
 			node.expect(res.body.account).to.have.property('secondSignature').to.equal(0);
 			node.expect(res.body.account).to.have.property('secondPublicKey').to.equal(null);
@@ -335,7 +335,7 @@ describe('GET /accounts', function () {
 	});
 
 	it('using known publicKey and empty address should fail', function (done) {
-		getAccounts('publicKey=' + node.gAccount.publicKey + '&address=', function (err, res) {
+		getAccounts('publicKey=' + node.iAccount.publicKey + '&address=', function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
 			node.expect(res.body).to.have.property('error').to.eql('String is too short (0 chars), minimum 1');
 			done();
@@ -387,13 +387,13 @@ describe('GET /accounts', function () {
 	});
 
 	it('using known address and matching publicKey should be ok', function (done) {
-		getAccounts('address=' + node.gAccount.address + '&publicKey=' + node.gAccount.publicKey, function (err, res) {
+		getAccounts('address=' + node.iAccount.address + '&publicKey=' + node.iAccount.publicKey, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('account').that.is.an('object');
-			node.expect(res.body.account).to.have.property('address').to.equal(node.gAccount.address);
+			node.expect(res.body.account).to.have.property('address').to.equal(node.iAccount.address);
 			node.expect(res.body.account).to.have.property('unconfirmedBalance').that.is.a('string');
 			node.expect(res.body.account).to.have.property('balance').that.is.a('string');
-			node.expect(res.body.account).to.have.property('publicKey').to.equal(node.gAccount.publicKey);
+			node.expect(res.body.account).to.have.property('publicKey').to.equal(node.iAccount.publicKey);
 			node.expect(res.body.account).to.have.property('unconfirmedSignature').to.equal(0);
 			node.expect(res.body.account).to.have.property('secondSignature').to.equal(0);
 			node.expect(res.body.account).to.have.property('secondPublicKey').to.equal(null);
@@ -404,7 +404,7 @@ describe('GET /accounts', function () {
 	});
 
 	it('using known address and not matching publicKey should fail', function (done) {
-		getAccounts('address=' + node.gAccount.address + '&publicKey=' + account.publicKey.toString('hex'), function (err, res) {
+		getAccounts('address=' + node.iAccount.address + '&publicKey=' + account.publicKey.toString('hex'), function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
 			node.expect(res.body).to.have.property('error');
 			node.expect(res.body.error).to.contain('Account publicKey does not match address');

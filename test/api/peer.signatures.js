@@ -44,7 +44,7 @@ describe('POST /peer/signatures', function () {
 
 	var validParams;
 
-	// var transaction = node.lisk.transaction.createTransaction('1L', 1, node.gAccount.password);
+	// var transaction = node.lisk.transaction.createTransaction('1L', 1, node.iAccount.password);
 
     var transaction = {
         t_id: '17190511997607511181',
@@ -132,7 +132,7 @@ describe('POST /peer/signatures', function () {
 	//
 	// 		node.async.eachSeries([owner, coSigner1, coSigner2], function (account, eachSeriesCb) {
 	// 			transactions.push(
-	// 				node.lisk.transaction.createTransaction(account.address, 100000000000, node.gAccount.password)
+	// 				node.lisk.transaction.createTransaction(account.address, 100000000000, node.iAccount.password)
 	// 			);
 	// 			eachSeriesCb();
 	// 		}, function (err) {
