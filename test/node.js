@@ -197,14 +197,22 @@ node.createDelegateTransaction = function (data) {
     return transaction;
 };
 
+// createSignatureTransaction doesn't work as ADAMANT doesn't use second signatures
 node.createSignatureTransaction = function (data) {
     data.transactionType = transactionTypes.SIGNATURE;
     let transaction = this.createBasicTransaction(data);
     transaction.asset = {};
     transaction.recipientId= null;
     transaction.publicKey = data.keyPair.publicKey.toString('hex');
+    transaction.keypair = data.keyPair;
+    transaction.secondKeypair = data.secondKeypair;
+    // transaction.secret = data.secret;
+    // transaction.secondSecret = data.secret;
     transaction.signature = this.transactionSign(transaction, data.keyPair);
     transaction.id = this.getId(transaction);
+    transaction.fee = node.fees.secondPasswordFee;
+    delete transaction.keyPair;
+    delete transaction.secondKeypair;
     return transaction;
 };
 
