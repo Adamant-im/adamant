@@ -1,3 +1,6 @@
+// Multisignatures tests are disabled currently
+
+/*
 'use strict';
 
 var crypto = require('crypto');
@@ -81,3 +84,4 @@ describe('POST /peer/transactions', function () {
 		});
 	});
 });
+*/
