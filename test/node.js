@@ -35,6 +35,7 @@ require('colors');
 // Node configuration
 node.baseUrl = 'http://' + node.config.address + ':' + node.config.port;
 // Note: using not a localhost-node can break tests where PUT requests are used, or involving cache
+// When high load, remote node can accept PUT request and return success:true, but not actually broadcast a transaction
 // node.baseUrl = 'http://' + node.config.peers.list[2].ip + ':' + node.config.peers.list[2].port;
 node.api = node.supertest(node.baseUrl);
 
@@ -253,6 +254,7 @@ node.createVoteTransaction = function (data) {
     transaction.recipientId= transaction.senderId;
     transaction.signature = this.transactionSign(transaction, data.keyPair);
     transaction.id = this.getId(transaction);
+    transaction.fee = node.fees.voteFee;
     return transaction;
 };
 
@@ -504,9 +506,14 @@ node.onNewBlock = function (cb) {
 		if (err) {
 			return cb(err);
 		} else {
-			node.waitForNewBlock(height, 2, cb);
+			node.waitForNewBlock(height, 3, cb);
 		}
 	});
+};
+
+// Waits for (ms) milliseconds
+node.waitMilliSeconds = function (ms, cb) {
+    setTimeout(cb, ms);
 };
 
 // Waits for (n) blocks to be created
