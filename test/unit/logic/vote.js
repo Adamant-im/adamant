@@ -24,6 +24,7 @@ var AccountModule = require('../../../modules/accounts.js');
 var DelegateModule = require('../../../modules/delegates.js');
 
 var validPassword = 'robust weapon course unknown head trial pencil latin acid';
+// Fix here to library.ed.createPassPhraseHash()
 var validKeypair = ed.makeKeypair(crypto.createHash('sha256').update(validPassword, 'utf8').digest());
 
 var validSender = {
@@ -37,6 +38,7 @@ var validSender = {
 
 };
 
+// Fix here to library.ed.createPassPhraseHash()
 var senderHash = crypto.createHash('sha256').update(validSender.password, 'utf8').digest();
 var senderKeypair = ed.makeKeypair(senderHash);
 

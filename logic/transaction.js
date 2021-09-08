@@ -198,6 +198,7 @@ Transaction.prototype.sign = function (keypair, trs) {
  */
 Transaction.prototype.multisign = function (keypair, trs) {
 	var bytes = this.getBytes(trs, true, true);
+	// TODO: check put here if we need to use createPassPhraseHash instead (probably not)
 	var hash = crypto.createHash('sha256').update(bytes).digest();
 	return this.scope.ed.sign(hash, keypair).toString('hex');
 };

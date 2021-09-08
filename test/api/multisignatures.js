@@ -7,7 +7,8 @@ var constants = require('../../helpers/constants.js');
 
 var totalMembers = 15;
 var requiredSignatures = 15;
-var multisigAccount = node.randomAccount();
+// var multisigAccount = node.randomAccount();
+var multisigAccount = node.notRandomAccount();
 
 var accounts = [];
 for (var i = 0; i < totalMembers; i++) {
@@ -83,7 +84,7 @@ var Keys;
 function makeKeysGroup () {
 	var keysgroup = [];
 	for (var i = 0; i < totalMembers; i++) {
-		var member = '+' + accounts[i].publicKey;
+		var member = '+' + accounts[i].publicKeyHex; //publicKey
 		keysgroup.push(member);
 	}
 	return keysgroup;
@@ -150,7 +151,7 @@ describe('PUT /api/multisignatures', function () {
 
 	it('using sender in the keysgroup should fail', function (done) {
 		validParams.keysgroup.pop();
-		validParams.keysgroup.push('+' + multisigAccount.publicKey);
+		validParams.keysgroup.push('+' + multisigAccount.publicKeyHex); //publicKey
 
 		node.put('/api/multisignatures', validParams, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
@@ -333,7 +334,7 @@ describe('PUT /api/multisignatures', function () {
 	});
 
 	it('using invalid passphrase should fail', function (done) {
-		validParams.secret = multisigAccount.password + 'inv4lid';
+		validParams.secret = multisigAccount.password + 'invalid';
 
 		node.put('/api/multisignatures', validParams, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;

@@ -20,8 +20,10 @@ var AccountModule = require('../../../modules/accounts.js');
 var DelegateModule = require('../../../modules/delegates.js');
 
 var validPassword = 'robust weapon course unknown head trial pencil latin acid';
+// Fix here to library.ed.createPassPhraseHash()
 var validKeypair = ed.makeKeypair(crypto.createHash('sha256').update(validPassword, 'utf8').digest());
 
+// Fix here to library.ed.createPassPhraseHash()
 var senderHash = crypto.createHash('sha256').update(node.iAccount.password, 'utf8').digest();
 var senderKeypair = ed.makeKeypair(senderHash);
 
@@ -99,6 +101,7 @@ var testSender = _.defaults({
     u_balance: 1000000000000000000,
     balance: 1000000000000000000
 },validSender);
+// Fix here to library.ed.createPassPhraseHash()
 const testSenderHash = crypto.createHash('sha256').update(testSender.secret, 'utf8').digest();
 const testSenderKeypair = ed.makeKeypair(testSenderHash);
 var validUnconfirmedTrs = {

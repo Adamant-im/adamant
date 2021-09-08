@@ -29,8 +29,10 @@ var Chat = require('../../../logic/chat.js');
 var State = require('../../../logic/state.js');
 
 var validPassword = 'rally clean ladder crane gadget century timber jealous shine scorpion beauty salon';
+// Fix here to library.ed.createPassPhraseHash()
 var validKeypair = ed.makeKeypair(crypto.createHash('sha256').update(validPassword, 'utf8').digest());
 
+// Fix here to library.ed.createPassPhraseHash()
 var senderHash = crypto.createHash('sha256').update(node.iAccount.password, 'utf8').digest();
 var senderKeypair = ed.makeKeypair(senderHash);
 
@@ -63,6 +65,7 @@ let marketDelegate = _.defaults({
 	secret: 'rally clean ladder crane gadget century timber jealous shine scorpion beauty salon'
 },validSender);
 
+// Fix here to library.ed.createPassPhraseHash()
 const marketDelegateHash = crypto.createHash('sha256').update(marketDelegate.secret, 'utf8').digest();
 const marketDelegateKeypair = ed.makeKeypair(marketDelegateHash);
 
@@ -77,6 +80,7 @@ const genesis = _.defaults({
 	secret: 'neck want coast appear army smile palm major crumble upper void warm',
 	balance: 0
 },validSender);
+// Fix here to library.ed.createPassPhraseHash()
 const genesisHash = crypto.createHash('sha256').update(genesis.secret, 'utf8').digest();
 const genesisKeypair = ed.makeKeypair(genesisHash);
 
@@ -171,6 +175,7 @@ var testSender = _.defaults({
 	u_balance: 10000000000000,
     balance: 100000000000000
 },validSender);
+// Fix here to library.ed.createPassPhraseHash()
 const testSenderHash = node.accounts.createPassPhraseHash(testSender.secret); //crypto.createHash('sha256').update(testSender.secret, 'utf8').digest();
 const testSenderKeypair = node.accounts.makeKeypair(testSenderHash);
 var validUnconfirmedTrs = {

@@ -21,6 +21,7 @@ var AccountModule = require('../../../modules/accounts.js');
 var Multisignature = require('../../../logic/multisignature.js');
 
 var validPassword = 'robust weapon course unknown head trial pencil latin acid';
+// Fix here to library.ed.createPassPhraseHash()
 var validKeypair = ed.makeKeypair(crypto.createHash('sha256').update(validPassword, 'utf8').digest());
 
 var validSender = {
@@ -30,6 +31,7 @@ var validSender = {
 	balance: '10000000000000000'
 };
 
+// Fix here to library.ed.createPassPhraseHash()
 var senderHash = crypto.createHash('sha256').update(validSender.password, 'utf8').digest();
 var senderKeypair = ed.makeKeypair(senderHash);
 

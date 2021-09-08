@@ -428,6 +428,8 @@ Multisignatures.prototype.shared = {
 					}
 
 					scope.hash = crypto.createHash('sha256').update(req.body.secret, 'utf8').digest();
+					// TODO: use createPassPhraseHash — Correct one
+					// scope.hash = library.ed.createPassPhraseHash(req.body.secret);
 					scope.keypair = library.ed.makeKeypair(scope.hash);
 
 					if (req.body.publicKey) {
@@ -499,6 +501,8 @@ Multisignatures.prototype.shared = {
 				},
 				addMultisignature: function (seriesCb) {
 					scope.hash = crypto.createHash('sha256').update(req.body.secret, 'utf8').digest();
+					// TODO: use createPassPhraseHash — Correct one
+					// scope.hash = library.ed.createPassPhraseHash(req.body.secret);
 					scope.keypair = library.ed.makeKeypair(scope.hash);
 
 					if (req.body.publicKey) {
@@ -524,6 +528,8 @@ Multisignatures.prototype.shared = {
 
 						if (account.secondSignature) {
 							scope.secondHash = crypto.createHash('sha256').update(req.body.secondSecret, 'utf8').digest();
+							// TODO: use createPassPhraseHash — Correct one
+							// scope.secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
 							scope.secondKeypair = library.ed.makeKeypair(scope.secondHash);
 						}
 

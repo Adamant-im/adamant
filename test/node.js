@@ -687,6 +687,22 @@ node.randomAccount = function () {
 	return account;
 };
 
+// Returns a basic random account
+node.notRandomAccount = function () {
+	var account = {
+		balance: '1000'
+	};
+	account.password ='drive hurt august domain soccer forum dial more borrow neglect child reopen';
+	const keypair = node.createKeypairFromPassphrase(account.password);
+	account.publicKey = keypair.publicKey;
+	account.publicKeyHex = keypair.publicKey.toString('hex');
+    node.expect(account).to.have.property('publicKeyHex').to.equal('59c55fe82772db642ed12dcb19206f8f761c2de50eb0de4b37c96a23867c7768');
+    account.address = node.createAddressFromPublicKey(keypair.publicKey);
+    node.expect(account).to.have.property('address').to.equal('U7519306946775275717');
+	account.keypair = keypair;
+	return account;
+};
+
 // Returns an extended random account
 node.randomTxAccount = function () {
 	return node._.defaults(node.randomAccount(), {
