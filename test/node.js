@@ -33,8 +33,9 @@ node.supertest = require('supertest');
 require('colors');
 
 // Node configuration
-// node.baseUrl = 'http://' + node.config.address + ':' + node.config.port;
-node.baseUrl = 'http://' + node.config.peers.list[1].ip + ':' + node.config.peers.list[1].port;
+node.baseUrl = 'http://' + node.config.address + ':' + node.config.port;
+// Note: using not a localhost-node can break tests where PUT requests are used, or involving cache
+// node.baseUrl = 'http://' + node.config.peers.list[2].ip + ':' + node.config.peers.list[2].port;
 node.api = node.supertest(node.baseUrl);
 
 node.normalizer = 100000000; // Use this to convert LISK amount to normal value
@@ -137,8 +138,10 @@ if (process.env.SILENT === 'true') {
 	node.debug = console.log;
 }
 
-// Random LSK amount
-node.LISK = Math.floor(Math.random() * (100000 * 100000000)) + 1;
+// Returns random LSK amount
+node.randomLISK = function () {
+	return Math.floor(Math.random() * (10000 * 100000000)) + (1000 * 100000000);
+};
 
 // Returns a random delegate name
 node.randomDelegateName = function () {
@@ -460,11 +463,6 @@ node.getId = function (trs) {
 
     var id = bignum.fromBuffer(temp).toString();
     return id;
-};
-
-// Returns random LSK amount
-node.randomLISK = function () {
-	return Math.floor(Math.random() * (10000 * 100000000)) + (1000 * 100000000);
 };
 
 // Returns current block height
