@@ -3,24 +3,25 @@
 var node = require('./../node.js');
 var genesisblock = require('../../test/genesisBlock.json'); // use testnet genesisBlock
 
+// api/blocks/get?id=18267398587476633612
 var testBlock = {
-	id: '2807833455815592401',
-	version: 0,
-	timestamp: 39997040,
-	height: 1258,
-	previousBlock: '3863141986505461614',
-	numberOfTransactions: 0,
-	transactions: [],
-	totalAmount: 0,
-	totalFee: 0,
-	reward: 0,
-	payloadLength: 0,
-	payloadHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-	generatorPublicKey: 'bf9f5cfc548d29983cc0dfa5c4ec47c66c31df0f87aa669869678996902ab47f',
-	generatorId: '9950029393097476480L',
-	blockSignature: 'd54ac91d2f712f408e16ff5057f7ceaa2e3a1ad4bde759e1025b16ec48bdd8ea1d3adaf5e8b94ef205f9f365f6ebae0f178a3cb3f6354c28e74ba7a05fce600c',
-	confirmations: 2,
-	totalForged: '0'
+  id: '18267398587476633612',
+  version: 0,
+  timestamp: 126725875,
+  height: 105080,
+  previousBlock: '4479835370871360804',
+  numberOfTransactions: 16,
+	transactions: [], // Added manually, an endpoint doesn't return transactions property
+  totalAmount: 8395608909063,
+  totalFee: 800000000,
+  reward: 0,
+  payloadLength: 1872,
+  payloadHash: 'dd8ec39220738f0d70c1441216cfb725abb52cb0c279c8fc121ebbfb5b029642',
+  generatorPublicKey: '4abe42f0153eee29d49a17788ed8f5e562a71c086d0ba563b635abc093318d3d',
+  generatorId: 'U7195757346097283386',
+  blockSignature: '58ad2fd7ae4b3cf3ea74c5a583a8b78c844134519f8c048b01eae69bac49d8f3e71892eeed019c615c3b9e4d9ab457f2757a3196d3b248816055c54b2637e103',
+  confirmations: 1929,
+  totalForged: '800000000'
 };
 
 describe('GET /peer/blocks', function () {
@@ -229,7 +230,7 @@ describe('POST /peer/blocks', function () {
 			.end(function (err, res) {
 				node.debug('> Response:'.grey, JSON.stringify(res.body));
 				node.expect(res.body).to.have.property('success').to.be.ok;
-				node.expect(res.body).to.have.property('blockId').to.equal('2807833455815592401');
+				node.expect(res.body).to.have.property('blockId').to.equal('18267398587476633612');
 				done();
 			});
 	});
