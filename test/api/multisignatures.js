@@ -1,3 +1,6 @@
+// Multisignatures tests are disabled currently
+
+/*
 'use strict';
 
 var async = require('async');
@@ -7,8 +10,8 @@ var constants = require('../../helpers/constants.js');
 
 var totalMembers = 15;
 var requiredSignatures = 15;
-// var multisigAccount = node.randomAccount();
-var multisigAccount = node.notRandomAccount();
+var multisigAccount = node.randomAccount();
+// var multisigAccount = node.notRandomAccount();
 
 var accounts = [];
 for (var i = 0; i < totalMembers; i++) {
@@ -779,3 +782,4 @@ describe('POST /api/multisignatures/sign (regular account)', function () {
 		});
 	});
 });
+*/
