@@ -8,7 +8,7 @@ var async = require('async');
 
 // var chai = require('chai');
 var expect = require('chai').expect;
-var _  = require('lodash');
+var _ = require('lodash');
 var transactionTypes = require('../../../helpers/transactionTypes');
 var slots = require('../../../helpers/slots');
 
@@ -22,34 +22,27 @@ var Vote = require('../../../logic/vote.js');
 var Transfer = require('../../../logic/transfer.js');
 var Delegate = require('../../../logic/delegate.js');
 var Signature = require('../../../logic/signature.js');
-// var Multisignature = require('../../../logic/multisignature.js');
+var Multisignature = require('../../../logic/multisignature.js');
 var InTransfer = require('../../../logic/inTransfer.js');
 var OutTransfer = require('../../../logic/outTransfer.js');
 var Chat = require('../../../logic/chat.js');
 var State = require('../../../logic/state.js');
 
+// valid keypair sample (market delegate's passphrase)
 var validPassword = 'rally clean ladder crane gadget century timber jealous shine scorpion beauty salon';
-// Fix here to library.ed.createPassPhraseHash()
-var validKeypair = ed.makeKeypair(crypto.createHash('sha256').update(validPassword, 'utf8').digest());
+var validHash = ed.createPassPhraseHash(validPassword);
+var validKeypair = ed.makeKeypair(validHash);
 
-// Fix here to library.ed.createPassPhraseHash()
-var senderHash = crypto.createHash('sha256').update(node.iAccount.password, 'utf8').digest();
-var senderKeypair = ed.makeKeypair(senderHash);
-
+// stub for a valid sender
 let validSender = {
 	username: null,
 	isDelegate: 0,
 	secondSignature: 0,
-	// address: 'U810656636599221322',
-	// publicKey: 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0',
 	secondPublicKey: null,
-	// balance: 9850458911801508,
-	// u_balance: 9850458911801508,
 	vote: 0,
 	multisignatures: null,
 	multimin: 0,
 	multilifetime: 0,
-	// blockId: '8505659485551877884',
 	nameexist: 0,
 	producedblocks: 0,
 	missedblocks: 0,
@@ -58,87 +51,70 @@ let validSender = {
 	virgin: 0
 };
 
-let marketDelegate = _.defaults({
+// valid sender to test transactions (kind delegate)
+var testSender = _.defaults({
 	address: 'U12559234133690317086',
 	publicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
-	isDelegate: 1,
-	secret: 'rally clean ladder crane gadget century timber jealous shine scorpion beauty salon'
-},validSender);
+	secret: 'weather play vibrant large edge clean notable april fire smoke drift hidden',
+	u_balance: 10000000000000,
+	balance: 100000000000000
+}, validSender);
+const testSenderHash = node.accounts.createPassPhraseHash(testSender.secret);
+const testSenderKeypair = node.accounts.makeKeypair(testSenderHash);
 
-// Fix here to library.ed.createPassPhraseHash()
-const marketDelegateHash = crypto.createHash('sha256').update(marketDelegate.secret, 'utf8').digest();
-const marketDelegateKeypair = ed.makeKeypair(marketDelegateHash);
-
-const validRecipient = _.defaults({
-    address: 'U7771441689362721578',
-    publicKey: 'd3a3c26c3906080689d0c2ccd3df30f2f4797c881e21a92aa4579bc68744581f'
-},validSender);
-
+// genesis account
 const genesis = _.defaults({
 	address: 'U15365455923155964650',
 	publicKey: 'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae',
 	secret: 'neck want coast appear army smile palm major crumble upper void warm',
 	balance: 0
-},validSender);
-// Fix here to library.ed.createPassPhraseHash()
-const genesisHash = crypto.createHash('sha256').update(genesis.secret, 'utf8').digest();
+}, validSender);
+const genesisHash = ed.createPassPhraseHash(genesis.secret);
 const genesisKeypair = ed.makeKeypair(genesisHash);
 
+// valid new tx sample from a test sender
+var validUnconfirmedTrs = {
+	type: 0,
+	amount: 100,
+	senderId: testSender.address,
+	senderPublicKey: testSender.publicKey,
+	recipientId: 'U7771441689362721578',
+	fee: 50000000,
+	timestamp: 1000,
+	asset: {}
+};
+
+// valid new tx sample from a test sender, but with keypair
 var validTransactionData = {
 	type: 0,
 	amount: 8067474861277,
-	sender: marketDelegate,
-	senderId: marketDelegate.address,
-	recipientId: validRecipient.address,
-	fee: 10000000,
-	keypair: marketDelegateKeypair,
-	senderPublicKey: marketDelegate.publicKey,
-	timestamp: 0
-};
-
-// validTransactionData.signature = transaction.sign(marketDelegateKeypair, validTransactionData);
-
-var validTransaction = {
-	id: '8413713814903125448',
-	rowId: 133,
-	blockId: '1523428076558779496',
-	type: 0,
-	timestamp: 33363661,
-	senderPublicKey: 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0',
-	senderId: 'U6416794499161724697',
-	recipientId: 'U13030924027576053821',
-	amount: 100000000,
+	keypair: testSenderKeypair,
+	sender: testSender,
+	senderId: testSender.address,
+	senderPublicKey: testSender.publicKey,
+	recipientId: 'U7771441689362721578',
 	fee: 50000000,
-	signature: '85dc703a2b82698193ecbd86fd7aff1b057dfeb86e2a390ef42c1998bf1e9269c0048f42285e208a1e14a63843defbabece1bc96730f317f0cc16e23bb1b4d01',
-	signSignature: null,
-	requesterPublicKey: null,
-	signatures: null,
-	asset: {},
+	timestamp: 1000
 };
 
-// from genesis to ico
-var existedTransaction = {
-    id: '8787084714365585523',
-    blockId: '6438017970172540087',
-    type: 0,
-	sender: genesis,
-    senderPublicKey: genesis.publicKey,
-    senderId: genesis.address,
-    recipientId: 'U2509016256839651561',
-    amount: 7350000000000000,
-    fee: 50000000,
-    signature: 'b824bb51bc5a7f1a134e95445d8cd24ca15d49594d2c28c8711a941cdcbf98d405cd9b5d81c4a31e10a57262920136f20d114d956b423d3210bcf46486667500',
-    asset: {},
-	timestamp: 0
+// valid tx sample, got from api endpoint (from genesis to devs)
+var validTransaction = {
+  id: '17190511997607511181',
+  blockId: '6438017970172540087',
+  type: 0,
+  block_timestamp: null,
+  timestamp: 0,
+  senderPublicKey: 'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae',
+  senderId: 'U15365455923155964650',
+  recipientId: 'U9781760580710719871',
+  amount: 490000000000000,
+  fee: 0,
+  signature: '85dc703a2b82698193ecbd86fd7aff1b057dfeb86e2a390ef42c1998bf1e9269c0048f42285e208a1e14a63843defbabece1bc96730f317f0cc16e23bb1b4d01',
+  signatures: [],
+  asset: {}
 };
 
-// var genesisAcc = { ...validSender,
-// 	...{
-//         address: 'U15365455923155964650',
-//         publicKey: 'b80bbmarketDelegate6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae'
-// 	}
-// };
-
+// valid raw tx sample (same)
 var rawValidTransaction = {
 	t_id: '17190511997607511181',
 	b_height: 981,
@@ -150,43 +126,23 @@ var rawValidTransaction = {
 	t_senderId: 'U810656636599221322',
 	t_recipientId: 'U7771441689362721578',
 	t_amount: 490000000000000,
-	t_fee: 10000000,
+	t_fee: 0,
 	t_signature: '85dc703a2b82698193ecbd86fd7aff1b057dfeb86e2a390ef42c1998bf1e9269c0048f42285e208a1e14a63843defbabece1bc96730f317f0cc16e23bb1b4d01',
 	confirmations: 8343
 };
 
+// from genesis to devs
 var genesisTrs = {
 	type: 0,
 	amount: 490000000000000,
 	fee: 0,
 	timestamp: 0,
-	recipientId: 'U7771441689362721578',
-	senderId: 'U810656636599221322',
-	senderPublicKey: 'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f',
+	recipientId: 'U9781760580710719871',
+	senderId: 'U15365455923155964650',
+	senderPublicKey: 'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae',
 	signature: '85dc703a2b82698193ecbd86fd7aff1b057dfeb86e2a390ef42c1998bf1e9269c0048f42285e208a1e14a63843defbabece1bc96730f317f0cc16e23bb1b4d01',
 	blockId: '6438017970172540087',
 	id: '17190511997607511181'
-};
-
-var testSender = _.defaults({
-    address: 'U12559234133690317086',
-    publicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
-	secret: 'weather play vibrant large edge clean notable april fire smoke drift hidden',
-	u_balance: 10000000000000,
-    balance: 100000000000000
-},validSender);
-// Fix here to library.ed.createPassPhraseHash()
-const testSenderHash = node.accounts.createPassPhraseHash(testSender.secret); //crypto.createHash('sha256').update(testSender.secret, 'utf8').digest();
-const testSenderKeypair = node.accounts.makeKeypair(testSenderHash);
-var validUnconfirmedTrs = {
-	type: 0,
-	amount: 100,
-	senderPublicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
-	senderId: 'U12559234133690317086',
-	timestamp: 0,
-	asset: {},
-	recipientId: 'U7771441689362721578',
-	fee: 50000000
 };
 
 
@@ -213,7 +169,7 @@ describe('transaction', function () {
 	before(function (done) {
 		async.auto({
 			rounds: function (cb) {
-				modulesLoader.initModule(Rounds, modulesLoader.scope,cb);
+				modulesLoader.initModule(Rounds, modulesLoader.scope, cb);
 			},
 			accountLogic: function (cb) {
 				modulesLoader.initLogicWithDb(AccountLogic, cb);
@@ -227,7 +183,7 @@ describe('transaction', function () {
 		}, function (err, result) {
 			transaction = result.transaction;
 			transaction.bindModules(result);
-			attachTransferAsset(transaction, result.accountLogic, result.rounds, done); 
+			attachTransferAsset(transaction, result.accountLogic, result.rounds, done);
 		});
 	});
 
@@ -270,16 +226,16 @@ describe('transaction', function () {
 			expect(appliedLogic).to.be.an.instanceof(Delegate);
 			appliedLogic = transaction.attachAssetType(transactionTypes.SIGNATURE, new Signature());
 			expect(appliedLogic).to.be.an.instanceof(Signature);
-            // appliedLogic = transaction.attachAssetType(transactionTypes.MULTI, new Multisignature());
-            // expect(appliedLogic).to.be.an.instanceof(Multisignature);
-            appliedLogic = transaction.attachAssetType(transactionTypes.IN_TRANSFER, new InTransfer());
+			appliedLogic = transaction.attachAssetType(transactionTypes.MULTI, new Multisignature());
+			expect(appliedLogic).to.be.an.instanceof(Multisignature);
+			appliedLogic = transaction.attachAssetType(transactionTypes.IN_TRANSFER, new InTransfer());
 			expect(appliedLogic).to.be.an.instanceof(InTransfer);
 			appliedLogic = transaction.attachAssetType(transactionTypes.OUT_TRANSFER, new OutTransfer());
 			expect(appliedLogic).to.be.an.instanceof(OutTransfer);
-            appliedLogic = transaction.attachAssetType(transactionTypes.CHAT_MESSAGE, new Chat());
-            expect(appliedLogic).to.be.an.instanceof(Chat);
-            appliedLogic = transaction.attachAssetType(transactionTypes.STATE, new State());
-            expect(appliedLogic).to.be.an.instanceof(State);
+			appliedLogic = transaction.attachAssetType(transactionTypes.CHAT_MESSAGE, new Chat());
+			expect(appliedLogic).to.be.an.instanceof(Chat);
+			appliedLogic = transaction.attachAssetType(transactionTypes.STATE, new State());
+			expect(appliedLogic).to.be.an.instanceof(State);
 			return transaction;
 		});
 
@@ -301,7 +257,10 @@ describe('transaction', function () {
 		});
 
 		it('should sign transaction', function () {
-			expect(transaction.sign(genesisKeypair, existedTransaction)).to.be.a('string').which.is.equal('33bfe35fbe231fcb8895e5440a0f5d33beb1d17a16cdc8ea0e78a65c1e9beff8bf918775b6955d97b06b73942440d13ff375fe95ab5635e2177f995a3d269b09');
+			var notSignedTx = _.cloneDeep(validTransaction);
+			delete notSignedTx.signature;
+			// expect(transaction.sign(genesisKeypair, validTransaction)).to.be.a('string').which.is.equal('85dc703a2b82698193ecbd86fd7aff1b057dfeb86e2a390ef42c1998bf1e9269c0048f42285e208a1e14a63843defbabece1bc96730f317f0cc16e23bb1b4d01');
+			expect(transaction.sign(genesisKeypair, notSignedTx)).to.be.a('string').which.is.equal('85dc703a2b82698193ecbd86fd7aff1b057dfeb86e2a390ef42c1998bf1e9269c0048f42285e208a1e14a63843defbabece1bc96730f317f0cc16e23bb1b4d01');
 		});
 	});
 
@@ -312,7 +271,7 @@ describe('transaction', function () {
 	// 	});
 	//
 	// 	it('should multisign the transaction', function () {
-	// 		expect(transaction.multisign(senderKeypair, validTransaction)).to.equal(validTransaction.signature);
+	// 		expect(transaction.multisign(testSenderKeypair, validTransaction)).to.equal(validTransaction.signature);
 	// 	});
 	// });
 
@@ -323,7 +282,7 @@ describe('transaction', function () {
 		});
 
 		it('should generate the id of the trs', function () {
-			expect(transaction.getId(existedTransaction)).to.be.a('string').which.is.equal(existedTransaction.id);
+			expect(transaction.getId(genesisTrs)).to.be.a('string').which.is.equal(genesisTrs.id);
 		});
 
 		it('should update id if a field in trs value changes', function () {
@@ -342,12 +301,12 @@ describe('transaction', function () {
 
 		it('should return hash for trs', function () {
 			var trs = validTransaction;
-			var expectedHash = 'a74da7ebf7ce42f20d260157a50b0f202a0eea3e89c24dcf1d0a870fb7e80d61';
+			var expectedHash = '8d847c2495f790ee1f203c572f998b02376c37be57a8853bbbdcbc882d07b639';
 			expect(transaction.getHash(trs).toString('hex')).to.be.a('string').which.is.equal(expectedHash);
 		});
 
 		it('should update hash if a field is trs value changes', function () {
-			var originalTrsHash = '5164ef55fccefddf72360ea6e05f19eed7c8d2653c5069df4db899c47246dd2f';
+			var originalTrsHash = '8d847c2495f790ee1f203c572f998b02376c37be57a8853bbbdcbc882d07b639';
 			var trs = _.cloneDeep(validTransaction);
 			trs.amount = 4000;
 			expect(transaction.getHash(trs).toString('hex')).to.not.equal(originalTrsHash);
@@ -411,7 +370,7 @@ describe('transaction', function () {
 		});
 
 		it('should return count of trs in db with trs id', function (done) {
-			transaction.countById(existedTransaction, function (err, count) {
+			transaction.countById(validTransaction, function (err, count) {
 				expect(err).to.not.exist;
 				expect(count).to.be.equal(1);
 				done();
@@ -459,9 +418,9 @@ describe('transaction', function () {
 		});
 
 		it('should return error when sender has insufficiant balance', function () {
-			var amount =  '49000000000000000000000';
+			var amount = '49000000000000000000000';
 			var balanceKey = 'balance';
-			let sender = _.cloneDeep(marketDelegate);
+			let sender = _.cloneDeep(testSender);
 			sender.balance = 0;
 			var res = transaction.checkBalance(amount, balanceKey, validUnconfirmedTrs, sender);
 			expect(res.exceeded).to.equal(true);
@@ -469,10 +428,10 @@ describe('transaction', function () {
 		});
 
 		it('should be okay if insufficient balance from genesis account', function () {
-			var amount =  '999823366072900';
+			var amount = '999823366072900';
 			var balanceKey = 'balance';
-            let sender = _.cloneDeep(genesis);
-            sender.balance = 0;
+			let sender = _.cloneDeep(genesis);
+			sender.balance = 0;
 			var res = transaction.checkBalance(amount, balanceKey, genesisTrs, sender);
 			expect(res.exceeded).to.equal(false);
 			expect(res.error).to.not.exist;
@@ -521,7 +480,7 @@ describe('transaction', function () {
 		});
 
 		it('should process the transaction', function (done) {
-			transaction.process(existedTransaction, genesis, function (err, res) {
+			transaction.process(genesisTrs, genesis, function (err, res) {
 				expect(err).to.not.be.ok;
 				expect(res).to.be.an('object');
 				expect(res.senderId).to.be.a('string').which.is.equal(genesis.address);
@@ -532,12 +491,12 @@ describe('transaction', function () {
 
 	describe('verify', function () {
 
-		function createAndProcess (trsData, sender, cb) {
+		function createAndProcess(trsData, sender, cb) {
 			var trs = transaction.create(trsData);
 			transaction.process(trs, sender, function (err, __trs) {
 				expect(err).to.not.exist;
 				expect(__trs).to.be.an('object');
-				cb(__trs);	trs.senderId = sender.address;
+				cb(__trs); trs.senderId = sender.address;
 
 			});
 		}
@@ -594,8 +553,8 @@ describe('transaction', function () {
 		// });
 
 		it('should return error when trs sender publicKey and sender public key are different', function (done) {
-			var trs = _.cloneDeep(existedTransaction);
-			var invalidPublicKey =  '01389197bbaf1afb0acd47bbfeabb34aca80fb372a8f694a1c0716b3398db746';
+			var trs = _.cloneDeep(validTransaction);
+			var invalidPublicKey = '01389197bbaf1afb0acd47bbfeabb34aca80fb372a8f694a1c0716b3398db746';
 			trs.senderPublicKey = invalidPublicKey;
 
 			transaction.verify(trs, genesis, {}, function (err) {
@@ -605,7 +564,7 @@ describe('transaction', function () {
 		});
 
 		it('should be impossible to send the money from genesis account', function (done) {
-            var trs = transaction.create(validTransactionData);
+			var trs = transaction.create(validTransactionData);
 			trs.senderId = 'U15365455923155964650';
 			trs.senderPublicKey = 'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae';
 			var vs = _.cloneDeep(validSender);
@@ -618,7 +577,7 @@ describe('transaction', function () {
 		});
 
 		it('should return error on different sender address in trs and sender', function (done) {
-			var trs = _.cloneDeep(existedTransaction);
+			var trs = _.cloneDeep(validTransaction);
 			trs.senderId = 'U2581762640681118072';
 
 			transaction.verify(trs, genesis, {}, function (err) {
@@ -642,9 +601,9 @@ describe('transaction', function () {
 		// });
 
 		it('should return error when signature is not correct', function (done) {
-			var trs = _.cloneDeep(existedTransaction);
+			var trs = _.cloneDeep(validTransaction);
 			// valid keypair is a different account
-			trs.signature = transaction.sign(marketDelegateKeypair, trs);
+			trs.signature = transaction.sign(testSenderKeypair, trs);
 			transaction.verify(trs, genesis, {}, function (err) {
 				expect(err).to.include('Failed to verify signature');
 				done();
@@ -657,7 +616,7 @@ describe('transaction', function () {
 		// 	vs.multisignatures = [validKeypair.publicKey.toString('hex')];
 		// 	delete trs.signature;
 		// 	trs.signatures = Array.apply(null, Array(2)).map(function () { return transaction.sign(validKeypair, trs); });
-		// 	trs.signature = transaction.sign(senderKeypair, trs);
+		// 	trs.signature = transaction.sign(testSenderKeypair, trs);
 		// 	transaction.verify(trs, vs, {}, function (err) {
 		// 		expect(err).to.equal('Encountered duplicate signature in transaction');
 		// 		done();
@@ -670,7 +629,7 @@ describe('transaction', function () {
 		// 	vs.multisignatures = [validKeypair.publicKey.toString('hex')];
 		// 	trs.requesterPublicKey = validKeypair.publicKey.toString('hex');
 		// 	delete trs.signature;
-		// 	// using validKeypair as opposed to senderKeypair
+		// 	// using validKeypair as opposed to testSenderKeypair
 		// 	trs.signatures = [transaction.sign(validKeypair, trs)];
 		// 	trs.signature = transaction.sign(validKeypair, trs);
 		// 	transaction.verify(trs, vs, {}, function (err) {
@@ -684,7 +643,7 @@ describe('transaction', function () {
 		// 	var vs = _.cloneDeep(validSender);
 		// 	vs.multisignatures = [validKeypair.publicKey.toString('hex')];
 		// 	delete trs.signature;
-		// 	trs.signature = transaction.sign(senderKeypair, trs);
+		// 	trs.signature = transaction.sign(testSenderKeypair, trs);
 		// 	trs.signatures = [transaction.multisign(validKeypair, trs)];
 		// 	transaction.verify(trs, vs, {}, function (err) {
 		// 		expect(err).to.not.exist;
@@ -728,7 +687,7 @@ describe('transaction', function () {
 		// });
 
 		it('should throw return error transaction fee is incorrect', function (done) {
-			var trs = _.cloneDeep(existedTransaction);
+			var trs = _.cloneDeep(genesisTrs);
 			trs.fee = -100;
 			transaction.verify(trs, genesis, {}, function (err) {
 				expect(err).to.include('Invalid transaction fee');
@@ -738,7 +697,7 @@ describe('transaction', function () {
 
 		it('should verify transaction with correct fee (without data field)', function (done) {
 			let trs = _.cloneDeep(validUnconfirmedTrs);
-            trs.signature = transaction.sign(testSenderKeypair, trs);
+			trs.signature = transaction.sign(testSenderKeypair, trs);
 			transaction.verify(trs, testSender, {}, function (err) {
 				expect(err).to.not.exist;
 				done();
@@ -747,7 +706,7 @@ describe('transaction', function () {
 
 		it('should return error when transaction amount is invalid', function (done) {
 			var trsData = _.cloneDeep(validUnconfirmedTrs);
-            trsData.amount = node.constants.totalAmount + 10;
+			trsData.amount = node.constants.totalAmount + 10;
 			trsData.signature = transaction.sign(testSenderKeypair, trsData);
 			transaction.verify(trsData, testSender, {}, function (err) {
 				expect(err).to.include('Invalid transaction amount');
@@ -822,7 +781,7 @@ describe('transaction', function () {
 			var trs = _.cloneDeep(validTransactionData);
 			// change trs value
 			trs.amount = 1001;
-			expect(transaction.verifySignature(trs, marketDelegate.publicKey, trs.signature)).to.equal(false);
+			expect(transaction.verifySignature(trs, testSender.publicKey, trs.signature)).to.equal(false);
 		});
 
 		it('should return false if signature not provided', function () {
@@ -831,7 +790,7 @@ describe('transaction', function () {
 		});
 
 		it('should return valid signature for correct trs', function () {
-			var trs = existedTransaction;
+			var trs = genesisTrs;
 			expect(transaction.verifySignature(trs, genesis.publicKey, trs.signature)).to.equal(true);
 		});
 
@@ -877,8 +836,8 @@ describe('transaction', function () {
 		});
 
 		it('should be okay for valid bytes', function () {
-			var trsBytes = transaction.getBytes(existedTransaction, true, true);
-			var res = transaction.verifyBytes(trsBytes, existedTransaction.senderPublicKey, existedTransaction.signature);
+			var trsBytes = transaction.getBytes(genesisTrs, true, true);
+			var res = transaction.verifyBytes(trsBytes, genesisTrs.senderPublicKey, genesisTrs.signature);
 			expect(res).to.equal(true);
 		});
 	});
@@ -889,8 +848,8 @@ describe('transaction', function () {
 			height: 1
 		};
 
-		function undoTransaction (trs, sender, done) {
-			transaction.undo(trs, dummyBlock, sender, done); 
+		function undoTransaction(trs, sender, done) {
+			transaction.undo(trs, dummyBlock, sender, done);
 		}
 
 		it('should throw an error with no param', function () {
@@ -898,14 +857,14 @@ describe('transaction', function () {
 		});
 
 		it('should be okay with valid params', function (done) {
-			var trs = existedTransaction;
+			var trs = validTransaction;
 			transaction.apply(trs, dummyBlock, genesis, done);
 		});
 
 		it('should return error on if balance is low', function (done) {
 			var trs = _.cloneDeep(validTransactionData);
 			trs.amount = '9850458911801908';
-			let sender = _.cloneDeep(marketDelegate);
+			let sender = _.cloneDeep(testSender);
 			sender.balance = 0;
 			transaction.apply(trs, dummyBlock, sender, function (err) {
 				expect(err).to.include('Account does not have enough ');
@@ -914,12 +873,12 @@ describe('transaction', function () {
 		});
 
 		it('should subtract balance from sender account on valid transaction', function (done) {
-			accountModule.getAccount({publicKey: validUnconfirmedTrs.senderPublicKey}, function (err, accountBefore) {
+			accountModule.getAccount({ publicKey: validUnconfirmedTrs.senderPublicKey }, function (err, accountBefore) {
 				var amount = new bignum(validUnconfirmedTrs.amount.toString()).plus(validUnconfirmedTrs.fee.toString());
 				var balanceBefore = new bignum(accountBefore.balance.toString());
 
 				transaction.apply(validUnconfirmedTrs, dummyBlock, testSender, function (err) {
-					accountModule.getAccount({publicKey: validUnconfirmedTrs.senderPublicKey}, function (err, accountAfter) {
+					accountModule.getAccount({ publicKey: validUnconfirmedTrs.senderPublicKey }, function (err, accountAfter) {
 						expect(err).to.not.exist;
 						var balanceAfter = new bignum(accountAfter.balance.toString());
 						expect(balanceAfter.plus(amount).toString()).to.equal(balanceBefore.toString());
@@ -936,7 +895,7 @@ describe('transaction', function () {
 			height: 1
 		};
 
-		function applyTransaction (trs, sender, done) {
+		function applyTransaction(trs, sender, done) {
 			transaction.apply(trs, dummyBlock, sender, done);
 		}
 
@@ -950,11 +909,11 @@ describe('transaction', function () {
 			var amount = new bignum(trs.amount.toString()).plus(trs.fee.toString());
 			delete trs.recipientId;
 
-			accountModule.getAccount({publicKey: trs.senderPublicKey}, function (err, accountBefore) {
+			accountModule.getAccount({ publicKey: trs.senderPublicKey }, function (err, accountBefore) {
 				var balanceBefore = new bignum(accountBefore.balance.toString());
 
 				transaction.undo(trs, dummyBlock, testSender, function (err) {
-					accountModule.getAccount({publicKey: trs.senderPublicKey}, function (err, accountAfter) {
+					accountModule.getAccount({ publicKey: trs.senderPublicKey }, function (err, accountAfter) {
 						var balanceAfter = new bignum(accountAfter.balance.toString());
 
 						expect(balanceBefore.plus(amount.mul(2)).toString()).to.not.equal(balanceAfter.toString());
@@ -969,11 +928,11 @@ describe('transaction', function () {
 			var trs = validUnconfirmedTrs;
 			var amount = new bignum(trs.amount.toString()).plus(trs.fee.toString());
 
-			accountModule.getAccount({publicKey: trs.senderPublicKey}, function (err, accountBefore) {
+			accountModule.getAccount({ publicKey: trs.senderPublicKey }, function (err, accountBefore) {
 				var balanceBefore = new bignum(accountBefore.balance.toString());
 
 				transaction.undo(trs, dummyBlock, testSender, function (err) {
-					accountModule.getAccount({publicKey: trs.senderPublicKey}, function (err, accountAfter) {
+					accountModule.getAccount({ publicKey: trs.senderPublicKey }, function (err, accountAfter) {
 						expect(err).to.not.exist;
 
 						var balanceAfter = new bignum(accountAfter.balance.toString());
@@ -987,8 +946,8 @@ describe('transaction', function () {
 
 	describe('applyUnconfirmed', function () {
 
-		function undoUnconfirmedTransaction (trs, sender, done) {
-			transaction.undoUnconfirmed(trs, sender, done); 
+		function undoUnconfirmedTransaction(trs, sender, done) {
+			transaction.undoUnconfirmed(trs, sender, done);
 		}
 
 		it('should throw an error with no param', function () {
@@ -1020,7 +979,7 @@ describe('transaction', function () {
 
 	describe('undoUnconfirmed', function () {
 
-		function applyUnconfirmedTransaction (trs, sender, done) {
+		function applyUnconfirmedTransaction(trs, sender, done) {
 			transaction.applyUnconfirmed(trs, sender, done);
 		}
 
@@ -1033,7 +992,7 @@ describe('transaction', function () {
 			transaction.undoUnconfirmed(validUnconfirmedTrs, testSender, function (err) {
 				expect(err).to.not.exist;
 				applyUnconfirmedTransaction(validUnconfirmedTrs, testSender, done);
-			}); 
+			});
 		});
 	});
 
@@ -1056,7 +1015,7 @@ describe('transaction', function () {
 			var vs = _.cloneDeep(validSender);
 			vs.multisignatures = [validKeypair.publicKey.toString('hex')];
 			delete trs.signature;
-			trs.signature = transaction.sign(senderKeypair, trs);
+			trs.signature = transaction.sign(testSenderKeypair, trs);
 			trs.signatures = [transaction.multisign(validKeypair, trs)];
 			var savePromise = transaction.dbSave(trs);
 			expect(savePromise).to.be.an('Array');
@@ -1150,6 +1109,7 @@ describe('transaction', function () {
 				'id',
 				'height',
 				'blockId',
+				'block_timestamp',
 				'type',
 				'timestamp',
 				'senderPublicKey',

@@ -173,7 +173,7 @@ describe('peers', function () {
 			removeAll();
 		});
 
-		it('should insert peer with different ips', function () {
+		it('should insert peer with different IPs', function () {
 			removeAll();
 
 			peers.upsert(randomPeer);

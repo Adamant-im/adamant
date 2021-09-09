@@ -94,7 +94,7 @@ node.testSender = _.defaults({
 },validSender);
 
 
-node.marketDelegate = _.defaults({
+node.kindDelegate = _.defaults({
     address: 'U12559234133690317086',
     publicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
     isDelegate: 1,
@@ -107,7 +107,6 @@ node.createKeypairFromPassphrase = function (passphrase) {
 };
 
 // Existing delegate account
-// TODO: replace me with a market delegate
 node.eAccount = {
 	address: 'U12559234133690317086',
 	publicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
