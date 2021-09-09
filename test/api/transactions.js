@@ -35,7 +35,7 @@ function putTransaction (params, done) {
 }
 
 function postTransaction (params, done) {
-    node.post('/api/transactions', params, done);
+	node.post('/api/transactions', params, done);
 }
 
 function sendADM (account, amount, done) {
@@ -63,9 +63,9 @@ function sendADM (account, amount, done) {
 }
 
 function sendADM2voter (params, done) {
-    node.put('/api/transactions/', params, function (err, res) {
-        done(err, res);
-    });
+	node.put('/api/transactions/', params, function (err, res) {
+		done(err, res);
+	});
 }
 
 before(function (done) {
@@ -82,15 +82,13 @@ before(function (done) {
 
 before(function (done) {
 	setTimeout(function () {
-		// Send 20 LSK
-		sendADM(account2, 20*100000000, done);
+		sendADM(account2, 20 * 100000000, done);
 	}, 2000);
 });
 
 before(function (done) {
 	setTimeout(function () {
-		// Send 100 LSK
-		sendADM(account2, 100*100000000, done);
+		sendADM(account2, 100 * 100000000, done);
 	}, 2000);
 });
 
@@ -234,8 +232,8 @@ describe('GET /api/transactions', function () {
 		var limit = 10;
 		var offset = 0;
 		var orderBy = 'amount:asc';
-		var minAmount = 20*100000000;
-		var maxAmount = constants.maxAmount/10000000;
+		var minAmount = 20 * 100000000;
+		var maxAmount = constants.maxAmount / 10000000;
 
 		var params = [
 			'minAmount=' + minAmount,
@@ -250,7 +248,7 @@ describe('GET /api/transactions', function () {
 			node.expect(res.body).to.have.property('transactions').that.is.an('array');
 			node.expect(res.body.transactions).to.have.length.within(2, limit);
 			node.expect(res.body.transactions[0].amount).to.be.equal(minAmount);
-			node.expect(res.body.transactions[res.body.transactions.length-1].amount).to.be.equal(maxAmount);
+			node.expect(res.body.transactions[res.body.transactions.length - 1].amount).to.be.equal(maxAmount);
 			for (var i = 0; i < res.body.transactions.length; i++) {
 				if (res.body.transactions[i + 1]) {
 					node.expect(res.body.transactions[i].amount).to.be.at.most(res.body.transactions[i + 1].amount);
@@ -280,7 +278,7 @@ describe('GET /api/transactions', function () {
 			node.expect(res.body).to.have.property('transactions').that.is.an('array');
 			node.expect(res.body.transactions).to.have.length.within(2, limit);
 			node.expect(res.body.transactions[0].fee).to.be.equal(minFee);
-			node.expect(res.body.transactions[res.body.transactions.length-1].fee).to.be.equal(maxFee);
+			node.expect(res.body.transactions[res.body.transactions.length - 1].fee).to.be.equal(maxFee);
 			for (var i = 0; i < res.body.transactions.length; i++) {
 				if (res.body.transactions[i + 1]) {
 					node.expect(res.body.transactions[i].fee).to.be.at.most(res.body.transactions[i + 1].fee);
@@ -424,7 +422,7 @@ describe('GET /api/transactions', function () {
 	});
 
 	it('using array-like types should be ok', function (done) {
-		const types = [node.txTypes.VOTE,node.txTypes.DELEGATE];
+		const types = [node.txTypes.VOTE, node.txTypes.DELEGATE];
 		const params = 'types=' + types.join(',');
 
 		node.get('/api/transactions?' + params, function (err, res) {
@@ -460,7 +458,7 @@ describe('GET /api/transactions', function () {
 		node.get('/api/transactions', function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('transactions').that.is.an('array');
-			const transactions = res.body.transactions.sort((x,y) => y.amount - x.amount);
+			const transactions = res.body.transactions.sort((x, y) => y.amount - x.amount);
 			for (var i = 0; i < transactions.length; i++) {
 				if (transactions[i + 1]) {
 					node.expect(transactions[i].amount).to.be.at.least(transactions[i + 1].amount);
@@ -547,7 +545,7 @@ describe('GET /api/transactions', function () {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
 			node.expect(res.body).to.have.property('error');
 			done();
-		 });
+		});
 	});
 
 	it('using completely invalid fields should fail', function (done) {
@@ -593,7 +591,7 @@ describe('GET /api/transactions', function () {
 				var dividedIndices = res.body.transactions.reduce(function (memo, peer, index) {
 					memo[peer[sortField] === null ? 'nullIndices' : 'notNullIndices'].push(index);
 					return memo;
-				}, {notNullIndices: [], nullIndices: []});
+				}, { notNullIndices: [], nullIndices: [] });
 
 				if (dividedIndices.nullIndices.length && dividedIndices.notNullIndices.length) {
 					var ascOrder = function (a, b) { return a - b; };
@@ -920,123 +918,123 @@ describe('PUT /api/transactions', function () {
 
 describe('POST /api/transactions', function () {
 
-    var account4 = node.randomAccount();
-    var transaction;
+	var account4 = node.randomAccount();
+	var transaction;
 
-    var accountModule;
+	var accountModule;
 
-    var attachTransferAsset = function (transaction, accountLogic, rounds, done) {
-        modulesLoader.initModuleWithDb(AccountModule, function (err, __accountModule) {
-            var transfer = new Transfer();
-            transfer.bind(__accountModule, rounds);
-            transaction.attachAssetType(transactionTypes.SEND, transfer);
-            accountModule = __accountModule;
-            done();
-        }, {
-            logic: {
-                account: accountLogic,
-                transaction: transaction
-            }
-        });
-    };
+	var attachTransferAsset = function (transaction, accountLogic, rounds, done) {
+		modulesLoader.initModuleWithDb(AccountModule, function (err, __accountModule) {
+			var transfer = new Transfer();
+			transfer.bind(__accountModule, rounds);
+			transaction.attachAssetType(transactionTypes.SEND, transfer);
+			accountModule = __accountModule;
+			done();
+		}, {
+			logic: {
+				account: accountLogic,
+				transaction: transaction
+			}
+		});
+	};
 
-    before(function (done) {
-        sendADM2voter({
-            secret: node.iAccount.password,
-            amount: 500000000000,
-            recipientId: account4.address
-        }, function (err, res) {
-            node.expect(res.body).to.have.property('success').to.be.ok;
-            node.expect(res.body).to.have.property('transactionId');
-            node.expect(res.body.transactionId).to.be.not.empty;
-        });
-        async.auto({
-            rounds: function (cb) {
-                modulesLoader.initModule(Rounds, modulesLoader.scope,cb);
-            },
-            accountLogic: function (cb) {
-                modulesLoader.initLogicWithDb(AccountLogic, cb);
-            },
-            transaction: ['accountLogic', function (result, cb) {
-                modulesLoader.initLogicWithDb(Transaction, cb, {
-                    ed: require('../../helpers/ed'),
-                    account: result.accountLogic
-                });
-            }]
-        }, function (err, result) {
-            transaction = result.transaction;
-            transaction.bindModules(result);
-            attachTransferAsset(transaction, result.accountLogic, result.rounds, done);
-            transaction.attachAssetType(transactionTypes.CHAT_MESSAGE, new Chat());
-            transaction.attachAssetType(transactionTypes.STATE, new State());
-        });
-    });
+	before(function (done) {
+		sendADM2voter({
+			secret: node.iAccount.password,
+			amount: 500000000000,
+			recipientId: account4.address
+		}, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('transactionId');
+			node.expect(res.body.transactionId).to.be.not.empty;
+		});
+		async.auto({
+			rounds: function (cb) {
+				modulesLoader.initModule(Rounds, modulesLoader.scope, cb);
+			},
+			accountLogic: function (cb) {
+				modulesLoader.initLogicWithDb(AccountLogic, cb);
+			},
+			transaction: ['accountLogic', function (result, cb) {
+				modulesLoader.initLogicWithDb(Transaction, cb, {
+					ed: require('../../helpers/ed'),
+					account: result.accountLogic
+				});
+			}]
+		}, function (err, result) {
+			transaction = result.transaction;
+			transaction.bindModules(result);
+			attachTransferAsset(transaction, result.accountLogic, result.rounds, done);
+			transaction.attachAssetType(transactionTypes.CHAT_MESSAGE, new Chat());
+			transaction.attachAssetType(transactionTypes.STATE, new State());
+		});
+	});
 
-    beforeEach(function (done) {
-        node.onNewBlock(function (err) {
-            done();
-        });
-    });
+	beforeEach(function (done) {
+		node.onNewBlock(function (err) {
+			done();
+		});
+	});
 
 	it('should be OK for a normal transaction', function (done) {
-        var amountToSend = 100000000;
-        var expectedFee = node.expectedFee(amountToSend);
+		var amountToSend = 100000000;
+		var expectedFee = node.expectedFee(amountToSend);
 
-        postTransaction({
-            secret: account.password,
-            amount: amountToSend,
-            recipientId: account2.address,
+		postTransaction({
+			secret: account.password,
+			amount: amountToSend,
+			recipientId: account2.address,
 			type: node.txTypes.SEND
-        }, function (err, res) {
-            node.expect(res.body).to.have.property('success').to.be.ok;
-            node.expect(res.body).to.have.property('transactionId').that.is.not.empty;
-            transactionList.push({
-                'sender': account.address,
-                'recipient': account2.address,
-                'grossSent': (amountToSend + expectedFee) / node.normalizer,
-                'fee': expectedFee / node.normalizer,
-                'netSent': amountToSend / node.normalizer,
-                'txId': res.body.transactionId,
-                'type': node.txTypes.SEND
-            });
-            done();
-        });
-    });
+		}, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('transactionId').that.is.not.empty;
+			transactionList.push({
+				'sender': account.address,
+				'recipient': account2.address,
+				'grossSent': (amountToSend + expectedFee) / node.normalizer,
+				'fee': expectedFee / node.normalizer,
+				'netSent': amountToSend / node.normalizer,
+				'txId': res.body.transactionId,
+				'type': node.txTypes.SEND
+			});
+			done();
+		});
+	});
 
 	it('should be OK for a vote transaction', function (done) {
-        postTransaction({
-            secret: account4.password,
-            delegates: ['+' + node.eAccount.publicKey],
-            type: node.txTypes.VOTE,
-        }, function (err, res) {
-            node.expect(res.body).to.have.property('success').to.be.ok;
-            node.expect(res.body).to.have.property('transaction').that.is.an('object');
-            node.expect(res.body.transaction.type).to.equal(node.txTypes.VOTE);
-            node.expect(res.body.transaction.amount).to.equal(0);
-            node.expect(res.body.transaction.senderPublicKey).to.equal(account4.publicKey.toString('hex'));
-            node.expect(res.body.transaction.fee).to.equal(node.fees.voteFee);
-            done();
-        });
-    });
+		postTransaction({
+			secret: account4.password,
+			delegates: ['+' + node.eAccount.publicKey],
+			type: node.txTypes.VOTE,
+		}, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('transaction').that.is.an('object');
+			node.expect(res.body.transaction.type).to.equal(node.txTypes.VOTE);
+			node.expect(res.body.transaction.amount).to.equal(0);
+			node.expect(res.body.transaction.senderPublicKey).to.equal(account4.publicKey.toString('hex'));
+			node.expect(res.body.transaction.fee).to.equal(node.fees.voteFee);
+			done();
+		});
+	});
 
 	it('should be OK for a register delegate transaction', function (done) {
 		account4.username = node.randomDelegateName();
 
-        postTransaction({ username: account4.username, secret: account4.password, type: node.txTypes.DELEGATE}, function (err, res) {
-            node.expect(res.body).to.have.property('success').to.be.ok;
-            node.expect(res.body).to.have.property('transaction').that.is.an('object');
-            node.expect(res.body.transaction.fee).to.equal(node.fees.delegateRegistrationFee);
-            node.expect(res.body.transaction).to.have.property('asset').that.is.an('object');
-            node.expect(res.body.transaction.asset.delegate.username).to.equal(account4.username.toLowerCase());
-            node.expect(res.body.transaction.asset.delegate.publicKey).to.equal(account4.publicKey.toString('hex'));
-            node.expect(res.body.transaction.type).to.equal(node.txTypes.DELEGATE);
-            node.expect(res.body.transaction.amount).to.equal(0);
-            done();
-        });
-    });
+		postTransaction({ username: account4.username, secret: account4.password, type: node.txTypes.DELEGATE }, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('transaction').that.is.an('object');
+			node.expect(res.body.transaction.fee).to.equal(node.fees.delegateRegistrationFee);
+			node.expect(res.body.transaction).to.have.property('asset').that.is.an('object');
+			node.expect(res.body.transaction.asset.delegate.username).to.equal(account4.username.toLowerCase());
+			node.expect(res.body.transaction.asset.delegate.publicKey).to.equal(account4.publicKey.toString('hex'));
+			node.expect(res.body.transaction.type).to.equal(node.txTypes.DELEGATE);
+			node.expect(res.body.transaction.amount).to.equal(0);
+			done();
+		});
+	});
 
 	it('should be OK for chat message transaction', function (done) {
-        let recipient = node.randomAccount();
+		let recipient = node.randomAccount();
 		let trs = {
 			recipientId: recipient.address,
 			senderPublicKey: account4.publicKey.toString('hex'),
@@ -1044,10 +1042,10 @@ describe('POST /api/transactions', function () {
 			type: node.txTypes.CHAT_MESSAGE,
 			amount: 0,
 			asset: {
-				chat : {
-                    message: 'hello, world!',
-                    own_message: '',
-                    type: 1
+				chat: {
+					message: 'hello, world!',
+					own_message: '',
+					type: 1
 				}
 			},
 			timestamp: Math.floor((Date.now() - constants.epochTime.getTime()) / 1000)
@@ -1055,35 +1053,35 @@ describe('POST /api/transactions', function () {
 		trs.signature = transaction.sign(account4.keypair, trs);
 
 		postTransaction({ transaction: trs }, function (err, res) {
-            node.expect(res.body).to.have.property('success').to.be.ok;
-            node.expect(res.body).to.have.property('transactionId');
-            done();
-        });
-    });
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('transactionId');
+			done();
+		});
+	});
 
 	it('should be OK for state transaction', function (done) {
 		let recipient = node.randomAccount();
-        let trs = {
-            recipientId: recipient.address,
-            senderPublicKey: account4.publicKey.toString('hex'),
-            senderId: account4.address,
-            type: node.txTypes.STATE,
-            amount: 0,
-            asset: {
-                state : {
-                    key: 'testkey',
-                    value: 'testValue',
-                    type: 0
-                }
-            },
-            timestamp: Math.floor((Date.now() - constants.epochTime.getTime()) / 1000)
-        };
-        trs.signature = transaction.sign(account4.keypair, trs);
+		let trs = {
+			recipientId: recipient.address,
+			senderPublicKey: account4.publicKey.toString('hex'),
+			senderId: account4.address,
+			type: node.txTypes.STATE,
+			amount: 0,
+			asset: {
+				state: {
+					key: 'testkey',
+					value: 'testValue',
+					type: 0
+				}
+			},
+			timestamp: Math.floor((Date.now() - constants.epochTime.getTime()) / 1000)
+		};
+		trs.signature = transaction.sign(account4.keypair, trs);
 		postTransaction({ transaction: trs }, function (err, res) {
-            node.expect(res.body).to.have.property('success').to.be.ok;
-            node.expect(res.body).to.have.property('transactionId');
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('transactionId');
 			done();
-        });
+		});
 
-    });
+	});
 });
