@@ -1,4 +1,7 @@
-'use strict';/*eslint*/
+// Multisignatures tests are disabled currently
+
+/*
+'use strict';
 
 var node = require('./../../node.js');
 var ed = require('../../../helpers/ed');
@@ -363,3 +366,4 @@ describe('multisignature', function () {
 		});
 	});
 });
+*/
