@@ -42,6 +42,7 @@ before(function (done) {
 	setTimeout(function () {
 		sendLISK(account2, done);
 	}, 2000);
+
   describe('PUT /api/transactions from account with second signature enabled', function () {
   
     before(function (done) {
@@ -115,7 +116,7 @@ describe('PUT /api/signatures', function () {
 
 		putSignature(validParams, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
-			node.expect(res.body).to.have.property('error').to.match(/Account does not have enough ADM: U[0-9]+ balance: 0/);
+			node.expect(res.body).to.have.property('error').to.match(/API error: Mnemonic string is invalid: invalid/);
 			done();
 		});
 	});
@@ -125,7 +126,7 @@ describe('PUT /api/signatures', function () {
 
 		putSignature(validParams, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
-			node.expect(res.body).to.have.property('error');
+			node.expect(res.body).to.have.property('error').to.match(/Missing required property: secondSecret/);
 			done();
 		});
 	});
@@ -135,7 +136,7 @@ describe('PUT /api/signatures', function () {
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('transaction').that.is.an('object');
 			node.expect(res.body.transaction).to.have.property('type').to.equal(node.txTypes.SIGNATURE);
-			node.expect(res.body.transaction).to.have.property('senderPublicKey').to.equal(account.publicKey);
+			node.expect(res.body.transaction).to.have.property('senderPublicKey').to.equal(account.publicKeyHex);
 			node.expect(res.body.transaction).to.have.property('senderId').to.equal(account.address);
 			node.expect(res.body.transaction).to.have.property('fee').to.equal(node.fees.secondPasswordFee);
 			done();
