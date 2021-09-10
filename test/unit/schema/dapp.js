@@ -7,6 +7,8 @@ var validator = new ZSchema();
 describe('dapp', function () {
 
 	// TODO: Add tests for other dapps schemas
+
+	/*
 	describe('put', function () {
 		it('tests for schema');
 	});
@@ -42,6 +44,8 @@ describe('dapp', function () {
 	describe('stop', function () {
 		it('tests for schema');
 	});
+
+	*/
 
 	describe('launch', function () {
 		var testBody;

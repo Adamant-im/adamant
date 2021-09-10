@@ -9,6 +9,8 @@ var validator = new ZSchema();
 describe('multisignatures', function () {
 
 	// TODO: Add tests for other multisignature schemas
+
+	/*
 	describe('getAccounts', function () {
 		it('tests for schema');
 	});
@@ -20,15 +22,16 @@ describe('multisignatures', function () {
 	describe('sign', function () {
 		it('tests for schema');
 	});
+	*/
 
 	describe('addMultisignatures', function () {
 		var testBody;
 
 		beforeEach(function () {
-			var secret = node.randomAccount().password;
+			var account = node.randomAccount();
 			testBody = {
-				secret: secret,
-				publicKey: node.lisk.crypto.getKeys(secret).publicKey,
+				secret: account.password,
+				publicKey: account.publicKeyHex,
 				min: 2,
 				lifetime: 1,
 				keysgroup: Array.apply(null, Array(4)).map(function () { return '+' + node.randomAccount().publicKey;})

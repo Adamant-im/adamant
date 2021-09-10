@@ -89,7 +89,7 @@ var validBlockWithPayload = {
 	id: '15642998233669588601'
 };
 
-describe('blocks/verify', function () {
+describe('blocks/verify (one may fail with Cannot read property sockets of undefined)', function () {
 
 	var blocksVerify;
 	var blocks;
