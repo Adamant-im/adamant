@@ -196,7 +196,7 @@ describe('PUT /api/accounts/delegates with funds', function () {
 		});
 	});
 
-	it('when upvoting using a blank pasphrase should fail', function (done) {
+	it('when upvoting using a blank passphrase should fail', function (done) {
 		putAccountsDelegates({
 			secret: '',
 			delegates: ['+' + node.eAccount.publicKey]
@@ -207,7 +207,7 @@ describe('PUT /api/accounts/delegates with funds', function () {
 		});
 	});
 
-	it('when downvoting using a blank pasphrase should fail', function (done) {
+	it('when downvoting using a blank passphrase should fail', function (done) {
 		putAccountsDelegates({
 			secret: '',
 			delegates: ['-' + node.eAccount.publicKey]
@@ -280,7 +280,7 @@ describe('PUT /api/delegates with funds', function () {
 		});
 	});
 
-	it('using blank pasphrase should fail', function (done) {
+	it('using blank passphrase should fail', function (done) {
 		validParams.secret = '';
 
 		putDelegates(validParams, function (err, res) {
@@ -290,7 +290,7 @@ describe('PUT /api/delegates with funds', function () {
 		});
 	});
 
-	it('using invalid pasphrase should fail', function (done) {
+	it('using invalid passphrase should fail', function (done) {
 		validParams.secret = [];
 
 		putDelegates(validParams, function (err, res) {
@@ -933,7 +933,7 @@ describe('GET /api/delegates/voters', function () {
 // 		});
 // 	});
 //
-// 	it('using critera == "lo" should return 2 delegates', function (done) {
+// 	it('using criteria == "lo" should return 2 delegates', function (done) {
 // 		var q = 'lo';
 //
 // 		node.get('/api/delegates/search?q=' + q, function (err, res) {
@@ -944,7 +944,7 @@ describe('GET /api/delegates/voters', function () {
 // 		});
 // 	});
 //
-// 	it('using critera == "love" should return 1 delegate', function (done) {
+// 	it('using criteria == "love" should return 1 delegate', function (done) {
 // 		var q = 'love';
 //
 // 		node.get('/api/delegates/search?q=' + q, function (err, res) {
@@ -955,7 +955,7 @@ describe('GET /api/delegates/voters', function () {
 // 		});
 // 	});
 //
-// 	it('using critera == "genesis_101" should have all properties', function (done) {
+// 	it('using criteria == "genesis_101" should have all properties', function (done) {
 // 		var q = 'genesis_101';
 //
 // 		node.get('/api/delegates/search?q=' + q, function (err, res) {
