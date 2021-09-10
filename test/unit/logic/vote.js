@@ -23,9 +23,10 @@ var AccountLogic = require('../../../logic/account.js');
 var AccountModule = require('../../../modules/accounts.js');
 var DelegateModule = require('../../../modules/delegates.js');
 
-var validPassword = 'robust weapon course unknown head trial pencil latin acid';
-// Fix here to library.ed.createPassPhraseHash()
-var validKeypair = ed.makeKeypair(crypto.createHash('sha256').update(validPassword, 'utf8').digest());
+// valid keypair sample (market delegate's passphrase)
+var validPassword = 'rally clean ladder crane gadget century timber jealous shine scorpion beauty salon';
+var validHash = ed.createPassPhraseHash(validPassword);
+var validKeypair = ed.makeKeypair(validHash);
 
 var validSender = {
 	balance: 8067474861277,
@@ -35,11 +36,9 @@ var validSender = {
 	publicKey: 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0',
 	multimin: 0,
 	address: 'U810656636599221322'
-
 };
 
-// Fix here to library.ed.createPassPhraseHash()
-var senderHash = crypto.createHash('sha256').update(validSender.password, 'utf8').digest();
+var senderHash = ed.createPassPhraseHash(validSender.password);
 var senderKeypair = ed.makeKeypair(senderHash);
 
 var transactionVotes = [
@@ -93,6 +92,7 @@ describe('vote', function () {
 		'd3a3c26c3906080689d0c2ccd3df30f2f4797c881e21a92aa4579bc68744581f',
 		'2deabea717a9e9054e3759e3041b84409dd6195c74d9d7736e0cd8442c000f5a'
 	];
+
 	function addVotes (votes, done) {
 		var trs = _.clone(validTransaction);
 		trs.asset.votes = votes;
@@ -260,7 +260,7 @@ describe('vote', function () {
 	});
 
 	describe('verify', function () {
-		it('should return error when receipientId and sender id are different', function (done) {
+		it('should return error when recipientId and sender id are different', function (done) {
 			var trs = _.cloneDeep(validTransaction);
 			trs.recipientId = node.iAccount.address;
 			vote.verify(trs, validSender, function (err) {
