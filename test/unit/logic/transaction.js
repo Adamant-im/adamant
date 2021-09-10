@@ -259,21 +259,24 @@ describe('transaction', function () {
 		it('should sign transaction', function () {
 			var notSignedTx = _.cloneDeep(validTransaction);
 			delete notSignedTx.signature;
-			// expect(transaction.sign(genesisKeypair, validTransaction)).to.be.a('string').which.is.equal('85dc703a2b82698193ecbd86fd7aff1b057dfeb86e2a390ef42c1998bf1e9269c0048f42285e208a1e14a63843defbabece1bc96730f317f0cc16e23bb1b4d01');
-			expect(transaction.sign(genesisKeypair, notSignedTx)).to.be.a('string').which.is.equal('85dc703a2b82698193ecbd86fd7aff1b057dfeb86e2a390ef42c1998bf1e9269c0048f42285e208a1e14a63843defbabece1bc96730f317f0cc16e23bb1b4d01');
+			expect(transaction.sign(genesisKeypair, notSignedTx)).to.be.a('string').which.is.equal(validTransaction.signature);
 		});
 	});
 
-	// describe('multisign', function () {
-	//
-	// 	it('should throw an error with no param', function () {
-	// 		expect(transaction.multisign).to.throw();
-	// 	});
-	//
-	// 	it('should multisign the transaction', function () {
-	// 		expect(transaction.multisign(testSenderKeypair, validTransaction)).to.equal(validTransaction.signature);
-	// 	});
-	// });
+	// Multisignatures tests are disabled currently
+
+	/*
+	describe('multisign', function () {
+	
+		it('should throw an error with no param', function () {
+			expect(transaction.multisign).to.throw();
+		});
+	
+		it('should multisign the transaction', function () {
+			expect(transaction.multisign(testSenderKeypair, validTransaction)).to.equal(validTransaction.signature);
+		});
+	});
+	*/
 
 	describe('getId', function () {
 
@@ -325,19 +328,13 @@ describe('transaction', function () {
 			expect(firstCalculation.equals(secondCalculation)).to.be.ok;
 		});
 
-		// it('should return same result of getBytes using /logic/transaction and lisk-js package (without data field)', function () {
-		// 	var trsBytesFromLogic = transaction.getBytes(validTransaction);
-		// 	var trsBytesFromLiskJs = node.lisk.crypto.getBytes(validTransaction);
-		// 	expect(trsBytesFromLogic.equals(trsBytesFromLiskJs)).to.be.ok;
-		// });
-
 		it('should skip signature, second signature for getting bytes', function () {
 			var trsBytes = transaction.getBytes(validTransaction, true);
 			expect(trsBytes.length).to.equal(53);
 		});
 	});
 
-	describe('ready', function () {
+	describe('transaction.ready', function () {
 
 		it('should throw an error with no param', function () {
 			expect(transaction.ready).to.throw();
@@ -417,7 +414,7 @@ describe('transaction', function () {
 			expect(transaction.checkBalance).to.throw();
 		});
 
-		it('should return error when sender has insufficiant balance', function () {
+		it('should return error when sender has insufficient balance', function () {
 			var amount = '49000000000000000000000';
 			var balanceKey = 'balance';
 			let sender = _.cloneDeep(testSender);
@@ -447,7 +444,7 @@ describe('transaction', function () {
 		});
 	});
 
-	describe('process', function () {
+	describe('transaction.process', function () {
 
 		it('should throw an error with no param', function () {
 			expect(transaction.process).to.throw();
@@ -489,15 +486,15 @@ describe('transaction', function () {
 		});
 	});
 
-	describe('verify', function () {
+	describe('transaction.verify', function () {
 
-		function createAndProcess(trsData, sender, cb) {
+		function createAndProcess (trsData, sender, cb) {
 			var trs = transaction.create(trsData);
 			transaction.process(trs, sender, function (err, __trs) {
 				expect(err).to.not.exist;
 				expect(__trs).to.be.an('object');
-				cb(__trs); trs.senderId = sender.address;
-
+				cb(__trs);
+				trs.senderId = sender.address;
 			});
 		}
 
@@ -518,39 +515,42 @@ describe('transaction', function () {
 			});
 		});
 
+		// Second signature tests are disabled currently
+
 		// it('should return error when missing sender second signature', function (done) {
-		// 	var trs = _.cloneDeep(validTransaction);
-		// 	var vs = _.cloneDeep(validSender);
+		// 	var trs = _.cloneDeep(validUnconfirmedTrs);
+		// 	trs.signSignature = [transaction.sign(testSenderKeypair, trs)];
+		// 	var vs = _.cloneDeep(testSender);
 		// 	vs.secondSignature = '839eba0f811554b9f935e39a68b3078f90bea22c5424d3ad16630f027a48362f78349ddc3948360045d6460404f5bc8e25b662d4fd09e60c89453776962df40d';
-		//
+		
 		// 	transaction.verify(trs, vs, {}, function (err) {
 		// 		expect(err).to.include('Missing sender second signature');
 		// 		done();
 		// 	});
 		// });
 
-		// it('should return error when sender does not have a second signature', function (done) {
-		// 	var trs = _.cloneDeep(validTransaction);
-		// 	trs.signSignature = [transaction.sign(validKeypair, trs)];
-		//
-		// 	transaction.verify(trs, validSender, {}, function (err) {
-		// 		expect(err).to.include('Sender does not have a second signature');
-		// 		done();
-		// 	});
-		// });
-		//
-		// it('should return error when requester does not have a second signature', function (done) {
-		// 	var trs = _.cloneDeep(validTransaction);
-		// 	var dummyRequester = {
-		// 		secondSignature : 'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f'
-		// 	};
-		// 	trs.requesterPublicKey = '839eba0f811554b9f935e39a68b3078f90bea22c5424d3ad16630f027a48362f78349ddc3948360045d6460404f5bc8e25b662d4fd09e60c89453776962df40d';
-		//
-		// 	transaction.verify(trs, validSender, dummyRequester, function (err) {
-		// 		expect(err).to.include('Missing requester second signature');
-		// 		done();
-		// 	});
-		// });
+		it('should return error when sender does not have a second signature', function (done) {
+			var trs = _.cloneDeep(validTransaction);
+			trs.signSignature = [transaction.sign(validKeypair, trs)];
+		
+			transaction.verify(trs, validSender, {}, function (err) {
+				expect(err).to.include('Sender does not have a second signature');
+				done();
+			});
+		});
+		
+		it('should return error when requester does not have a second signature', function (done) {
+			var trs = _.cloneDeep(validTransaction);
+			var dummyRequester = {
+				secondSignature : 'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f'
+			};
+			trs.requesterPublicKey = '839eba0f811554b9f935e39a68b3078f90bea22c5424d3ad16630f027a48362f78349ddc3948360045d6460404f5bc8e25b662d4fd09e60c89453776962df40d';
+		
+			transaction.verify(trs, validSender, dummyRequester, function (err) {
+				expect(err).to.include('Missing requester second signature');
+				done();
+			});
+		});
 
 		it('should return error when trs sender publicKey and sender public key are different', function (done) {
 			var trs = _.cloneDeep(validTransaction);
@@ -586,23 +586,27 @@ describe('transaction', function () {
 			});
 		});
 
-		// it('should return error when Account does not belong to multisignature group', function (done) {
-		// 	var trs = _.cloneDeep(validTransaction);
-		// 	var vs = _.cloneDeep(validSender);
-		// 	// Different publicKey for multisignature account
-		// 	vs.multisignatures = [node.eAccount.publicKey];
-		// 	trs.requesterPublicKey = validKeypair.publicKey.toString('hex');
-		// 	delete trs.signature;
-		// 	trs.signature = transaction.sign(validKeypair, trs);
-		// 	transaction.verify(trs, vs, {}, function (err) {
-		// 		expect(err).to.equal('Account does not belong to multisignature group');
-		// 		done();
-		// 	});
-		// });
+		// Multisignatures tests are disabled currently
+
+		/*
+		it('should return error when Account does not belong to multisignature group', function (done) {
+			var trs = _.cloneDeep(validTransaction);
+			var vs = _.cloneDeep(validSender);
+			// Different publicKey for multisignature account
+			vs.multisignatures = [node.eAccount.publicKey];
+			trs.requesterPublicKey = validKeypair.publicKey.toString('hex');
+			delete trs.signature;
+			trs.signature = transaction.sign(validKeypair, trs);
+			transaction.verify(trs, vs, {}, function (err) {
+				expect(err).to.equal('Account does not belong to multisignature group');
+				done();
+			});
+		});
+		*/
 
 		it('should return error when signature is not correct', function (done) {
 			var trs = _.cloneDeep(validTransaction);
-			// valid keypair is a different account
+			// testSenderKeypair is for a different account
 			trs.signature = transaction.sign(testSenderKeypair, trs);
 			transaction.verify(trs, genesis, {}, function (err) {
 				expect(err).to.include('Failed to verify signature');
@@ -610,81 +614,83 @@ describe('transaction', function () {
 			});
 		});
 
-		// it('should return error when duplicate signature in transaction', function (done) {
-		// 	var trs = _.cloneDeep(validTransaction);
-		// 	var vs = _.cloneDeep(validSender);
-		// 	vs.multisignatures = [validKeypair.publicKey.toString('hex')];
-		// 	delete trs.signature;
-		// 	trs.signatures = Array.apply(null, Array(2)).map(function () { return transaction.sign(validKeypair, trs); });
-		// 	trs.signature = transaction.sign(testSenderKeypair, trs);
-		// 	transaction.verify(trs, vs, {}, function (err) {
-		// 		expect(err).to.equal('Encountered duplicate signature in transaction');
-		// 		done();
-		// 	});
-		// });
+		// Multisignatures tests are disabled currently
 
-		// it('should return error when failed to verify multisignature', function (done) {
-		// 	var trs = _.cloneDeep(validTransaction);
-		// 	var vs = _.cloneDeep(validSender);
-		// 	vs.multisignatures = [validKeypair.publicKey.toString('hex')];
-		// 	trs.requesterPublicKey = validKeypair.publicKey.toString('hex');
-		// 	delete trs.signature;
-		// 	// using validKeypair as opposed to testSenderKeypair
-		// 	trs.signatures = [transaction.sign(validKeypair, trs)];
-		// 	trs.signature = transaction.sign(validKeypair, trs);
-		// 	transaction.verify(trs, vs, {}, function (err) {
-		// 		expect(err).to.equal('Failed to verify multisignature');
-		// 		done();
-		// 	});
-		// });
-		//
-		// it('should be okay with valid multisignature', function (done) {
-		// 	var trs = _.cloneDeep(validTransaction);
-		// 	var vs = _.cloneDeep(validSender);
-		// 	vs.multisignatures = [validKeypair.publicKey.toString('hex')];
-		// 	delete trs.signature;
-		// 	trs.signature = transaction.sign(testSenderKeypair, trs);
-		// 	trs.signatures = [transaction.multisign(validKeypair, trs)];
-		// 	transaction.verify(trs, vs, {}, function (err) {
-		// 		expect(err).to.not.exist;
-		// 		done();
-		// 	});
-		// });
-		//
-		// it('should return error when second signature is invalid', function (done) {
-		// 	var vs = _.cloneDeep(validSender);
-		// 	vs.secondPublicKey = validKeypair.publicKey.toString('hex');
-		// 	vs.secondSignature = 1;
-		//
-		// 	var trsData = _.cloneDeep(validTransactionData);
-		// 	trsData.sender = vs;
-		// 	trsData.secondKeypair = validKeypair;
-		// 	createAndProcess(trsData, validSender, function (trs) {
-		// 		trs.signSignature = '7af5f0ee2c4d4c83d6980a46efe31befca41f7aa8cda5f7b4c2850e4942d923af058561a6a3312005ddee566244346bdbccf004bc8e2c84e653f9825c20be008';
-		// 		transaction.verify(trs, vs, function (err) {
-		// 			expect(err).to.equal('Failed to verify second signature');
-		// 			done();
-		// 		});
-		// 	});
-		// });
-		//
-		// it('should be okay for valid second signature', function (done) {
-		// 	var sender = _.cloneDeep(validSender);
-		// 	sender.secondPublicKey = validKeypair.publicKey.toString('hex');
-		// 	sender.secondSignature = 1;
-		//
-		// 	var trsData = _.cloneDeep(validTransactionData);
-		// 	trsData.sender = sender;
-		// 	trsData.secondKeypair = validKeypair;
-		// 	createAndProcess(trsData, validSender, function (trs) {
-		// 		transaction.verify(trs, validSender, {}, function (err) {
-		// 			transaction.verify(trs, sender, function (err) {
-		// 				expect(err).to.not.exist;
-		// 				done();
-		// 			});
-		// 		});
-		// 	});
-		// });
+		/*
+		it('should return error when duplicate signature in transaction', function (done) {
+			var trs = _.cloneDeep(validTransaction);
+			var vs = _.cloneDeep(validSender);
+			vs.multisignatures = [validKeypair.publicKey.toString('hex')];
+			delete trs.signature;
+			trs.signatures = Array.apply(null, Array(2)).map(function () { return transaction.sign(validKeypair, trs); });
+			trs.signature = transaction.sign(testSenderKeypair, trs);
+			transaction.verify(trs, vs, {}, function (err) {
+				expect(err).to.equal('Encountered duplicate signature in transaction');
+				done();
+			});
+		});
+
+		it('should return error when failed to verify multisignature', function (done) {
+			var trs = _.cloneDeep(validTransaction);
+			var vs = _.cloneDeep(validSender);
+			vs.multisignatures = [validKeypair.publicKey.toString('hex')];
+			trs.requesterPublicKey = validKeypair.publicKey.toString('hex');
+			delete trs.signature;
+			// using validKeypair as opposed to testSenderKeypair
+			trs.signatures = [transaction.sign(validKeypair, trs)];
+			trs.signature = transaction.sign(validKeypair, trs);
+			transaction.verify(trs, vs, {}, function (err) {
+				expect(err).to.equal('Failed to verify multisignature');
+				done();
+			});
+		});
+		
+		it('should be okay with valid multisignature', function (done) {
+			var trs = _.cloneDeep(validTransaction);
+			var vs = _.cloneDeep(validSender);
+			vs.multisignatures = [validKeypair.publicKey.toString('hex')];
+			delete trs.signature;
+			trs.signature = transaction.sign(testSenderKeypair, trs);
+			trs.signatures = [transaction.multisign(validKeypair, trs)];
+			transaction.verify(trs, vs, {}, function (err) {
+				expect(err).to.not.exist;
+				done();
+			});
+		});
+		*/
+
+		it('should return error when second signature is invalid', function (done) {
+			var vs = _.cloneDeep(validSender);
+			vs.secondPublicKey = validKeypair.publicKey.toString('hex');
+			vs.secondSignature = 1;
+		
+			var trsData = _.cloneDeep(validTransactionData);
+			createAndProcess(trsData, validSender, function (trs) {
+				trs.signSignature = '7af5f0ee2c4d4c83d6980a46efe31befca41f7aa8cda5f7b4c2850e4942d923af058561a6a3312005ddee566244346bdbccf004bc8e2c84e653f9825c20be008';
+				transaction.verify(trs, vs, function (err) {
+					expect(err).to.equal('Failed to verify second signature');
+					done();
+				});
+			});
+		});
+		
+		it('should be okay for valid second signature', function (done) {
+			var sender = _.cloneDeep(testSender);
+			sender.secondPublicKey = validKeypair.publicKey.toString('hex');
+			sender.secondSignature = 1;
+		
+			var trsData = _.cloneDeep(validTransactionData);
+			trsData.sender = sender;
+			trsData.secondKeypair = validKeypair;
+			createAndProcess(trsData, testSender, function (trs) {
+				transaction.verify(trs, testSender, {}, function (err) {
+					transaction.verify(trs, sender, function (err) {
+						expect(err).to.not.exist;
+						done();
+					});
+				});
+			});
+		});
 
 		it('should throw return error transaction fee is incorrect', function (done) {
 			var trs = _.cloneDeep(genesisTrs);
@@ -779,7 +785,6 @@ describe('transaction', function () {
 
 		it('should return false if trs is changed', function () {
 			var trs = _.cloneDeep(validTransactionData);
-			// change trs value
 			trs.amount = 1001;
 			expect(transaction.verifySignature(trs, testSender.publicKey, trs.signature)).to.equal(false);
 		});
@@ -803,17 +808,17 @@ describe('transaction', function () {
 		});
 	});
 
-	// describe('verifySecondSignature', function () {
-	//
-	// 	it('should throw an error with no param', function () {
-	// 		expect(transaction.verifySecondSignature).to.throw();
-	// 	});
-	//
-	// 	it('should verify the second signature correctly', function () {
-	// 		var signature = transaction.sign(validKeypair, validTransaction);
-	// 		expect(transaction.verifySecondSignature(validTransaction, validKeypair.publicKey.toString('hex'), signature)).to.equal(true);
-	// 	});
-	// });
+	describe('verifySecondSignature', function () {
+	
+		it('should throw an error with no param', function () {
+			expect(transaction.verifySecondSignature).to.throw();
+		});
+	
+		it('should verify the second signature correctly', function () {
+			var signature = transaction.sign(validKeypair, validTransaction);
+			expect(transaction.verifySecondSignature(validTransaction, validKeypair.publicKey.toString('hex'), signature)).to.equal(true);
+		});
+	});
 
 	describe('verifyBytes', function () {
 
@@ -827,7 +832,7 @@ describe('transaction', function () {
 			expect(transaction.verifyBytes(trsBytes, invalidPublicKey, validTransaction.signature)).to.equal(false);
 		});
 
-		it('should throw when publickey is not in the right format', function () {
+		it('should throw when public key is not in the right format', function () {
 			var trsBytes = transaction.getBytes(validTransaction);
 			var invalidPublicKey = 'iddb0e15a44b0fdc6ff291be28d8c98f5551d0cd9218d749e30ddb87c6e31ca9';
 			expect(function () {
@@ -842,13 +847,13 @@ describe('transaction', function () {
 		});
 	});
 
-	describe('apply', function () {
+	describe('transaction.apply', function () {
 		var dummyBlock = {
 			id: '9314232245035524467',
 			height: 1
 		};
 
-		function undoTransaction(trs, sender, done) {
+		function undoTransaction (trs, sender, done) {
 			transaction.undo(trs, dummyBlock, sender, done);
 		}
 
@@ -895,7 +900,7 @@ describe('transaction', function () {
 			height: 1
 		};
 
-		function applyTransaction(trs, sender, done) {
+		function applyTransaction (trs, sender, done) {
 			transaction.apply(trs, dummyBlock, sender, done);
 		}
 
@@ -946,7 +951,7 @@ describe('transaction', function () {
 
 	describe('applyUnconfirmed', function () {
 
-		function undoUnconfirmedTransaction(trs, sender, done) {
+		function undoUnconfirmedTransaction (trs, sender, done) {
 			transaction.undoUnconfirmed(trs, sender, done);
 		}
 
@@ -979,7 +984,7 @@ describe('transaction', function () {
 
 	describe('undoUnconfirmed', function () {
 
-		function applyUnconfirmedTransaction(trs, sender, done) {
+		function applyUnconfirmedTransaction (trs, sender, done) {
 			transaction.applyUnconfirmed(trs, sender, done);
 		}
 
