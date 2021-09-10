@@ -10,6 +10,8 @@ var validator = new ZSchema();
 describe('transactions', function () {
 
 	// TODO: Add tests for other transaction schemas
+
+	/*
 	describe('getTransaction', function () {
 		it('tests for schema');
 	});
@@ -25,15 +27,13 @@ describe('transactions', function () {
 	describe('addTransactions', function () {
 		it('tests for schema');
 	});
+	*/
 
 	describe('getTransactions', function () {
 		// TODO: Add tests for other schemas properties
 		var testBody;
 
 		beforeEach(function () {
-			// var account1PublicKey = node.randomAccount().publicKey;
-			// var account2PublicKey = node.randomAccount().publicKey;
-
 			testBody = {
 				blockId: '1465651642158264047',
 				type: 0,
