@@ -84,6 +84,12 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     });
   });
 
+  before(function (done) {
+    node.onNewBlock(function () {
+      done();
+    });
+  });
+
   // send a message from a recipient1 to recipient2
   before(function (done) {
     const transaction = node.createChatTransaction({
@@ -96,6 +102,12 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     postMessage(transaction, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
       node.expect(res.body).to.have.property('transactionId').that.is.not.empty;
+      done();
+    });
+  });
+
+  before(function (done) {
+    node.onNewBlock(function () {
       done();
     });
   });
@@ -138,6 +150,17 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     });
   });
 
+  // send ADM from sender to recipient1
+  before(function (done) {
+    sendADM({
+      secret: sender.password,
+      amount: node.fees.transactionFee,
+      recipientId: recipient1.address
+    }, function () {
+      done();
+    });
+  });
+
   before(function (done) {
     node.onNewBlock(function () {
       done();
@@ -160,17 +183,6 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     });
   });
 
-  // send ADM to message sender
-  before(function (done) {
-    sendADM({
-      secret: sender.password,
-      amount: node.fees.transactionFee,
-      recipientId: recipient1.address
-    }, function () {
-      done();
-    });
-  });
-
   before(function (done) {
     node.onNewBlock(function () {
       done();
@@ -184,14 +196,14 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
       node.expect(res.body).to.have.property('chats').to.have.lengthOf(3);
       for (let i = 0; i < res.body.chats.length; i++) {
         node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
-        if (res.body.chats[i].participants[0].address !== 'U5338684603617333081') {
+        if (res.body.chats[i].participants[0].address !== node.iAccount.address) { // if it's a message
           node.expect(res.body.chats[i].participants[0].address).to.equal(sender.address);
           node.expect(res.body.chats[i].participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
           node.expect(res.body.chats[i].lastTransaction.asset).to.have.property('chat').to.be.an('object');
           node.expect(res.body.chats[i].lastTransaction.asset.chat).to.have.property('message').to.not.equal(null);
           node.expect(res.body.chats[i].lastTransaction.asset.chat).to.have.property('own_message').to.not.equal(null);
           node.expect(res.body.chats[i].lastTransaction.asset.chat).to.have.property('type').to.not.equal(null);
-        } else {
+        } else { // if it is a direct transfer from node.iAccount.address
           node.expect(res.body.chats[i].participants[0].address).to.equal(node.iAccount.address);
           node.expect(res.body.chats[i].participants[0].publicKey).to.equal(node.iAccount.publicKey);
           node.expect(res.body.chats[i].participants[1].address).to.equal(sender.address);
@@ -221,6 +233,10 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
         node.expect(res.body.chats[i].lastTransaction.timestamp).to.not.equal(null);
         node.expect(res.body.chats[i].lastTransaction.fee).to.not.equal(null);
         node.expect(res.body.chats[i].lastTransaction.amount).to.not.equal(null);
+      }
+      let pTimestamp = res.body.chats[0].lastTransaction.timestamp;
+      for (let i = 1; i < res.body.chats.length; i++) {
+        node.expect(res.body.chats[i].lastTransaction).to.have.property('timestamp').to.be.below(pTimestamp);  
       }
       done();
     }, { orderBy: 'timestamp:desc' });
@@ -274,16 +290,35 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
     }, { offset: 1 });
   });
 
+  it('should return the chat list for sender with both limit and offset', function (done) {
+    getChats(sender.address, function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('count').to.equal('3');
+      node.expect(res.body).to.have.property('chats').to.have.lengthOf(1);
+      for (let i = 0; i < res.body.chats.length; i++) {
+        node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
+        for (let y = 0; y < res.body.chats[i].participants.length; y++) {
+          node.expect(res.body.chats[i].participants[y].publicKey).to.not.equal(null);
+        }
+      }
+      done();
+    }, { limit: 1, offset: 1 });
+  });  
+
   it('should return the chat list for sender with orderBy=timestamp:desc', function (done) {
     getChats(sender.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
       node.expect(res.body).to.have.property('count').to.equal('3');
       node.expect(res.body).to.have.property('chats').to.have.lengthOf(3);
       for (let i = 0; i < res.body.chats.length; i++) {
-        node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
+        node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);        
         for (let y = 0; y < res.body.chats[i].participants.length; y++) {
           node.expect(res.body.chats[i].participants[y].publicKey).to.not.equal(null);
         }
+      }
+      let pTimestamp = res.body.chats[0].lastTransaction.timestamp;
+      for (let i = 1; i < res.body.chats.length; i++) {
+        node.expect(res.body.chats[i].lastTransaction).to.have.property('timestamp').to.be.below(pTimestamp);  
       }
       done();
     }, { orderBy: 'timestamp:desc' });
@@ -299,6 +334,10 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
         for (let y = 0; y < res.body.chats[i].participants.length; y++) {
           node.expect(res.body.chats[i].participants[y].publicKey).to.not.equal(null);
         }
+      }
+      let pTimestamp = res.body.chats[0].lastTransaction.timestamp;
+      for (let i = 1; i < res.body.chats.length; i++) {
+        node.expect(res.body.chats[i].lastTransaction).to.have.property('timestamp').to.be.above(pTimestamp);  
       }
       done();
     }, { orderBy: 'timestamp:asc' });
@@ -375,6 +414,10 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
       node.expect(res.body.participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
       node.expect(res.body.participants[1].address).to.equal(recipient1.address);
       node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
+      let pTimestamp = res.body.messages[0].timestamp;
+      for (let i = 1; i < res.body.messages.length; i++) {
+        node.expect(res.body.messages[i]).to.have.property('timestamp').to.be.below(pTimestamp);  
+      }
       done();
     }, {
       orderBy: 'timestamp:desc'
@@ -391,6 +434,10 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
       node.expect(res.body.participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
       node.expect(res.body.participants[1].address).to.equal(recipient1.address);
       node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
+      let pTimestamp = res.body.messages[0].timestamp;
+      for (let i = 1; i < res.body.messages.length; i++) {
+        node.expect(res.body.messages[i]).to.have.property('timestamp').to.be.above(pTimestamp);  
+      }
       done();
     }, {
       orderBy: 'timestamp:asc'
@@ -457,6 +504,10 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
       node.expect(res.body.participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
       node.expect(res.body.participants[1].address).to.equal(recipient1.address);
       node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
+      let pTimestamp = res.body.messages[0].timestamp;
+      for (let i = 1; i < res.body.messages.length; i++) {
+        node.expect(res.body.messages[i]).to.have.property('timestamp').to.be.below(pTimestamp);  
+      }
       done();
     }, {
       withoutDirectTransfers: true,
@@ -474,6 +525,10 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
       node.expect(res.body.participants[0].publicKey).to.equal(sender.publicKey.toString('hex'));
       node.expect(res.body.participants[1].address).to.equal(recipient1.address);
       node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
+      let pTimestamp = res.body.messages[0].timestamp;
+      for (let i = 1; i < res.body.messages.length; i++) {
+        node.expect(res.body.messages[i]).to.have.property('timestamp').to.be.above(pTimestamp);  
+      }
       done();
     }, {
       withoutDirectTransfers: true,
