@@ -7,7 +7,7 @@ var exceptions = require('../../../../helpers/exceptions.js');
 
 var previousBlock = {
 	blockSignature: 'a74cd53bebf9cf003cfd5fed8c053e1b64660e89a654078ff3341348145bbb0f34d1bde4a254b139ebae03117b346a2aab77fc8607eed9c7431db5eb4d4cbe0b',
-	generatorPublicKey:'377bfcc233fdba3039d9fbb8c7d8d97e1087d52941e5661b9c55b59c57f8fafe',
+	generatorPublicKey: '377bfcc233fdba3039d9fbb8c7d8d97e1087d52941e5661b9c55b59c57f8fafe',
 	height: 42394,
 	id: '1553572419982003786',
 	numberOfTransactions: 0,
@@ -40,35 +40,35 @@ var validBlock = {
 };
 
 var blockRewardInvalid = {
-    blockSignature: '08d70794b3fd90be5d14fd02f512c56485d4bac071ccf98188833242a7d84dfd9c98bc3cf6b7eecb6231dc94da82a275002d1913f60809e98d64f9892e98d303',
-    generatorPublicKey: '747d370dc479a7d684e3b61d8c75716f3bc91afcf9e5d3eeaeb557753d757ac4',
-    numberOfTransactions: 0,
-    payloadHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-    payloadLength: 0,
-    previousBlock: '1553572419982003786',
-    reward: 0,
-    timestamp: 39674950,
-    totalAmount: 0,
-    totalFee: 0,
-    transactions: [],
-    version: 0,
-    id: '10000428847403166564'
+	blockSignature: '08d70794b3fd90be5d14fd02f512c56485d4bac071ccf98188833242a7d84dfd9c98bc3cf6b7eecb6231dc94da82a275002d1913f60809e98d64f9892e98d303',
+	generatorPublicKey: '747d370dc479a7d684e3b61d8c75716f3bc91afcf9e5d3eeaeb557753d757ac4',
+	numberOfTransactions: 0,
+	payloadHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+	payloadLength: 0,
+	previousBlock: '1553572419982003786',
+	reward: 0,
+	timestamp: 39674950,
+	totalAmount: 0,
+	totalFee: 0,
+	transactions: [],
+	version: 0,
+	id: '10000428847403166564'
 };
 
 var validBlockWithPayload = {
-    blockSignature: '25ea76424044e76a47ab2f1854d553f3aa24437f37af7acbabeb50ce27c42f340ad890103d1c96862224dbd4590c787cf47497131214842c57a0cc8801366e0a',
-    generatorPublicKey: '7c7b92b7d2159e5652bc942fdb9d6dbee77d1b120f488960966ce0850d819b05',
-    numberOfTransactions: 3,
+	blockSignature: '25ea76424044e76a47ab2f1854d553f3aa24437f37af7acbabeb50ce27c42f340ad890103d1c96862224dbd4590c787cf47497131214842c57a0cc8801366e0a',
+	generatorPublicKey: '7c7b92b7d2159e5652bc942fdb9d6dbee77d1b120f488960966ce0850d819b05',
+	numberOfTransactions: 3,
 	height: 24134,
-    payloadHash: '81de7bd1606eaca88b8f835b11682668afba47439a5468fce5288b5b7b6280d4',
-    payloadLength: 364,
-    previousBlock: '8741947515519892818',
-    reward: 0,
-    timestamp: 39555010,
-    totalAmount: 0,
-    totalFee: 300000,
-    transactions: [
-        {
+	payloadHash: '81de7bd1606eaca88b8f835b11682668afba47439a5468fce5288b5b7b6280d4',
+	payloadLength: 364,
+	previousBlock: '8741947515519892818',
+	reward: 0,
+	timestamp: 39555010,
+	totalAmount: 0,
+	totalFee: 300000,
+	transactions: [
+		{
 			type: 8,
 			amount: 0,
 			fee: 100000,
@@ -85,8 +85,8 @@ var validBlockWithPayload = {
 			}
 		}
 	],
-    version: 0,
-    id: '15642998233669588601'
+	version: 0,
+	id: '15642998233669588601'
 };
 
 describe('blocks/verify', function () {
@@ -105,16 +105,16 @@ describe('blocks/verify', function () {
 			blockLogic = __blockLogic;
 
 			modulesLoader.initModules([
-				{blocks: require('../../../../modules/blocks')},
-				{accounts: require('../../../../modules/accounts')},
-				{delegates: require('../../../../modules/delegates')},
-				{transactions: require('../../../../modules/transactions')},
-				{transport: require('../../../../modules/transport')},
-				{system: require('../../../../modules/system')},
+				{ blocks: require('../../../../modules/blocks') },
+				{ accounts: require('../../../../modules/accounts') },
+				{ delegates: require('../../../../modules/delegates') },
+				{ transactions: require('../../../../modules/transactions') },
+				{ transport: require('../../../../modules/transport') },
+				{ system: require('../../../../modules/system') },
 			], [
-				{'block': require('../../../../logic/block')},
-				{'transaction': require('../../../../logic/transaction')},
-				{'account': require('../../../../logic/account')},
+				{ 'block': require('../../../../logic/block') },
+				{ 'transaction': require('../../../../logic/transaction') },
+				{ 'account': require('../../../../logic/account') },
 			], {}, function (err, __modules) {
 				if (err) {
 					return done(err);
@@ -127,7 +127,7 @@ describe('blocks/verify', function () {
 				blocks = __modules.blocks;
 				blocksVerify = __modules.blocks.verify;
 				accounts = __modules.accounts;
-				delegates = __modules.delegates;
+				// delegates = __modules.delegates;
 
 				done();
 			});
@@ -416,8 +416,8 @@ describe('blocks/verify', function () {
 	function testVerifyBlockSlot (functionName) {
 		it('should fail when block timestamp is less than previousBlock timestamp', function () {
 			var timestamp = validBlock.timestamp;
-			validBlock.timestamp = 32578350;
-
+			validBlock.timestamp = timestamp - 1000;
+			// validBlock.timestamp = 32578350;
 			var result = blocksVerify[functionName](validBlock);
 
 			expect(result.verified).to.be.false;
@@ -425,7 +425,7 @@ describe('blocks/verify', function () {
 			expect(result.errors[0]).to.equal('Invalid block timestamp');
 			expect(result.errors[1]).to.equal('Failed to verify block signature');
 
-			validBlock.timestamp  = timestamp;
+			validBlock.timestamp = timestamp;
 		});
 	}
 
@@ -447,9 +447,9 @@ describe('blocks/verify', function () {
 
 		describe('calling verifyPayload()', testVerifyPayload.bind(null, 'verifyReceipt'));
 
-		describe.skip('calling verifyForkOne()', testVerifyForkOne);
+		describe('calling verifyForkOne()', testVerifyForkOne.bind(null, 'verifyBlock'));
 
-		describe.skip('calling verifyBlockSlot()', testVerifyBlockSlot);
+		describe('calling verifyBlockSlot()', testVerifyBlockSlot.bind(null, 'verifyBlock'));
 	});
 
 	describe('verifyBlock() when block is valid', testValid.bind(null, 'verifyBlock'));
