@@ -8,18 +8,18 @@ var schema = require('../../schema/accounts.js');
  * Binds api with modules and creates common url.
  * - End point: `/api/accounts`
  * - Public API:
-	- post 	/open
- 	- post  /new
-	- get 	/getBalance
-	- get 	/getPublicKey
-	- post 	/generatePublicKey
-	- get 	/delegates
-	- get 	/delegates/fee
-	- put 	/delegates
- 	- post 	/delegates
-	- get 	/
+  - post   /open
+   - post  /new
+  - get   /getBalance
+  - get   /getPublicKey
+  - post   /generatePublicKey
+  - get   /delegates
+  - get   /delegates/fee
+  - put   /delegates
+   - post   /delegates
+  - get   /
  * - Private API:
- * 	- get 	/count
+ *   - get   /count
  * @memberof module:accounts
  * @requires helpers/Router
  * @requires helpers/httpApi
@@ -30,34 +30,34 @@ var schema = require('../../schema/accounts.js');
 
 function AccountsHttpApi (accountsModule, app) {
 
-	var router = new Router();
+  var router = new Router();
 
-	router.map(accountsModule.shared, {
-		'post /open': 'open',
+  router.map(accountsModule.shared, {
+    'post /open': 'open',
         'post /new': 'new',
-		'get /getBalance': 'getBalance',
-		'get /getPublicKey': 'getPublickey',
-		'post /generatePublicKey': 'generatePublicKey',
-		'get /delegates': 'getDelegates',
-		'get /delegates/fee': 'getDelegatesFee',
-		'put /delegates': 'addDelegates',
+    'get /getBalance': 'getBalance',
+    'get /getPublicKey': 'getPublickey',
+    'post /generatePublicKey': 'generatePublicKey',
+    'get /delegates': 'getDelegates',
+    'get /delegates/fee': 'getDelegatesFee',
+    'put /delegates': 'addDelegates',
         'post /delegates': 'voteForDelegates',
-		'get /': 'getAccount'
-	});
+    'get /': 'getAccount'
+  });
 
-	router.map(accountsModule.internal, {
-		'get /count': 'count'
-	});
+  router.map(accountsModule.internal, {
+    'get /count': 'count'
+  });
 
-	if (process.env.DEBUG && process.env.DEBUG.toUpperCase() === 'TRUE') {
-		router.map(accountsModule.internal, {'get /getAllAccounts': 'getAllAccounts'});
-	}
+  if (process.env.DEBUG && process.env.DEBUG.toUpperCase() === 'TRUE') {
+    router.map(accountsModule.internal, {'get /getAllAccounts': 'getAllAccounts'});
+  }
 
-	if (process.env.TOP && process.env.TOP.toUpperCase() === 'TRUE') {
-		router.get('/top', httpApi.middleware.sanitize('query', schema.top, accountsModule.internal.top));
-	}
+  if (process.env.TOP && process.env.TOP.toUpperCase() === 'TRUE') {
+    router.get('/top', httpApi.middleware.sanitize('query', schema.top, accountsModule.internal.top));
+  }
 
-	httpApi.registerEndpoint('/api/accounts', app, router, accountsModule.isLoaded);
+  httpApi.registerEndpoint('/api/accounts', app, router, accountsModule.isLoaded);
 }
 
 module.exports = AccountsHttpApi;

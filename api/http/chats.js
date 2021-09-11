@@ -8,13 +8,13 @@ var schema = require('../../schema/dapps');
  * Binds api with modules and creates common url.
  * - End point: `/api/chats`
  * - Private API:
- * 	- post	/normalize
- * 	- post	/finalize
+ *   - post  /normalize
+ *   - post  /finalize
  *
  * - Sanitized
- * 	- get	/
- * 	- put	/
- * 	- get	/get
+ *   - get  /
+ *   - put  /
+ *   - get  /get
  * @memberof module:chats
  * @requires helpers/Router
  * @requires helpers/httpApi

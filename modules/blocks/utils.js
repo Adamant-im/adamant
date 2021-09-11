@@ -21,20 +21,20 @@ var modules, library, self, __private = {};
  * @param {Object} genesisblock
  */
 function Utils (logger, block, transaction, db, dbSequence, genesisblock) {
-	library = {
-		logger: logger,
-		db: db,
-		dbSequence: dbSequence,
-		genesisblock: genesisblock,
-		logic: {
-			block: block,
-			transaction: transaction,
-		},
-	};
-	self = this;
+  library = {
+    logger: logger,
+    db: db,
+    dbSequence: dbSequence,
+    genesisblock: genesisblock,
+    logic: {
+      block: block,
+      transaction: transaction,
+    },
+  };
+  self = this;
 
-	library.logger.trace('Blocks->Utils: Submodule initialized.');
-	return self;
+  library.logger.trace('Blocks->Utils: Submodule initialized.');
+  return self;
 }
 
 /**
@@ -47,51 +47,51 @@ function Utils (logger, block, transaction, db, dbSequence, genesisblock) {
  * @return {Object} blocks Normalized list of blocks with transactions
  */
 Utils.prototype.readDbRows = function (rows) {
-	var blocks = {};
-	var order = [];
+  var blocks = {};
+  var order = [];
 
-	for (var i = 0, length = rows.length; i < length; i++) {
-		// Normalize block
-		// FIXME: Can have poor performance because it performs SHA256 hash calculation for each block
-		var block = library.logic.block.dbRead(rows[i]);
+  for (var i = 0, length = rows.length; i < length; i++) {
+    // Normalize block
+    // FIXME: Can have poor performance because it performs SHA256 hash calculation for each block
+    var block = library.logic.block.dbRead(rows[i]);
 
-		if (block) {
-			// If block is not already in the list...
-			if (!blocks[block.id]) {
-				if (block.id === library.genesisblock.block.id) {
-					// Generate fake signature for genesis block
-					block.generationSignature = (new Array(65)).join('0');
-				}
+    if (block) {
+      // If block is not already in the list...
+      if (!blocks[block.id]) {
+        if (block.id === library.genesisblock.block.id) {
+          // Generate fake signature for genesis block
+          block.generationSignature = (new Array(65)).join('0');
+        }
 
-				// Add block ID to order list
-				order.push(block.id);
-				// Add block to list
-				blocks[block.id] = block;
-			}
+        // Add block ID to order list
+        order.push(block.id);
+        // Add block to list
+        blocks[block.id] = block;
+      }
 
-			// Normalize transaction
-			var transaction = library.logic.transaction.dbRead(rows[i]);
-			// Set empty object if there are no transactions in block
-			blocks[block.id].transactions = blocks[block.id].transactions || {};
+      // Normalize transaction
+      var transaction = library.logic.transaction.dbRead(rows[i]);
+      // Set empty object if there are no transactions in block
+      blocks[block.id].transactions = blocks[block.id].transactions || {};
 
-			if (transaction) {
-				// Add transaction to block if not there already
-				if (!blocks[block.id].transactions[transaction.id]) {
-					blocks[block.id].transactions[transaction.id] = transaction;
-				}
-			}
-		}
-	}
+      if (transaction) {
+        // Add transaction to block if not there already
+        if (!blocks[block.id].transactions[transaction.id]) {
+          blocks[block.id].transactions[transaction.id] = transaction;
+        }
+      }
+    }
+  }
 
-	// Reorganize list
-	blocks = order.map(function (v) {
-		blocks[v].transactions = Object.keys(blocks[v].transactions).map(function (t) {
-			return blocks[v].transactions[t];
-		});
-		return blocks[v];
-	});
+  // Reorganize list
+  blocks = order.map(function (v) {
+    blocks[v].transactions = Object.keys(blocks[v].transactions).map(function (t) {
+      return blocks[v].transactions[t];
+    });
+    return blocks[v];
+  });
 
-	return blocks;
+  return blocks;
 };
 
 /**
@@ -109,16 +109,16 @@ Utils.prototype.readDbRows = function (rows) {
  * @return {Object}   cb.rows List of normalized blocks
  */
 Utils.prototype.loadBlocksPart = function (filter, cb) {
-	self.loadBlocksData(filter, function (err, rows) {
-		var blocks = [];
+  self.loadBlocksData(filter, function (err, rows) {
+    var blocks = [];
 
-		if (!err) {
-			// Normalize list of blocks
-			blocks = self.readDbRows(rows);
-		}
+    if (!err) {
+      // Normalize list of blocks
+      blocks = self.readDbRows(rows);
+    }
 
-		return setImmediate(cb, err, blocks);
-	});
+    return setImmediate(cb, err, blocks);
+  });
 };
 
 /**
@@ -134,36 +134,36 @@ Utils.prototype.loadBlocksPart = function (filter, cb) {
  * @return {Object}   cb.block Full normalized last block
  */
 Utils.prototype.loadLastBlock = function (cb) {
-	library.dbSequence.add(function (cb) {
-		// Get full last block from database
-		// FIXME: Ordering in that SQL - to rewrite
-		library.db.query(sql.loadLastBlock).then(function (rows) {
-			// Normalize block
-			var block = modules.blocks.utils.readDbRows(rows)[0];
+  library.dbSequence.add(function (cb) {
+    // Get full last block from database
+    // FIXME: Ordering in that SQL - to rewrite
+    library.db.query(sql.loadLastBlock).then(function (rows) {
+      // Normalize block
+      var block = modules.blocks.utils.readDbRows(rows)[0];
 
-			// Sort block's transactions
-			block.transactions = block.transactions.sort(function (a, b) {
-				if (block.id === library.genesisblock.block.id) {
-					if (a.type === transactionTypes.VOTE) {
-						return 1;
-					}
-				}
+      // Sort block's transactions
+      block.transactions = block.transactions.sort(function (a, b) {
+        if (block.id === library.genesisblock.block.id) {
+          if (a.type === transactionTypes.VOTE) {
+            return 1;
+          }
+        }
 
-				if (a.type === transactionTypes.SIGNATURE) {
-					return 1;
-				}
+        if (a.type === transactionTypes.SIGNATURE) {
+          return 1;
+        }
 
-				return 0;
-			});
+        return 0;
+      });
 
-			// Update last block
-			modules.blocks.lastBlock.set(block);
-			return setImmediate(cb, null, block);
-		}).catch(function (err) {
-			library.logger.error(err.stack);
-			return setImmediate(cb, 'Blocks#loadLastBlock error');
-		});
-	}, cb);
+      // Update last block
+      modules.blocks.lastBlock.set(block);
+      return setImmediate(cb, null, block);
+    }).catch(function (err) {
+      library.logger.error(err.stack);
+      return setImmediate(cb, 'Blocks#loadLastBlock error');
+    });
+  }, cb);
 };
 
 /**
@@ -181,49 +181,49 @@ Utils.prototype.loadLastBlock = function (cb) {
  * @return {string}   cb.res.ids Comma separated list of blocks IDs
  */
 Utils.prototype.getIdSequence = function (height, cb) {
-	var lastBlock = modules.blocks.lastBlock.get();
-	// Get IDs of first blocks of (n) last rounds, descending order
-	// EXAMPLE: For height 2000000 (round 19802) we will get IDs of blocks at height: 1999902, 1999801, 1999700, 1999599, 1999498
-	library.db.query(sql.getIdSequence(), {height: height, limit: 5, delegates: constants.activeDelegates}).then(function (rows) {
-		if (rows.length === 0) {
-			return setImmediate(cb, 'Failed to get id sequence for height: ' + height);
-		}
+  var lastBlock = modules.blocks.lastBlock.get();
+  // Get IDs of first blocks of (n) last rounds, descending order
+  // EXAMPLE: For height 2000000 (round 19802) we will get IDs of blocks at height: 1999902, 1999801, 1999700, 1999599, 1999498
+  library.db.query(sql.getIdSequence(), {height: height, limit: 5, delegates: constants.activeDelegates}).then(function (rows) {
+    if (rows.length === 0) {
+      return setImmediate(cb, 'Failed to get id sequence for height: ' + height);
+    }
 
-		var ids = [];
+    var ids = [];
 
-		// Add genesis block at the end if the set doesn't contain it already
-		if (library.genesisblock && library.genesisblock.block) {
-			var __genesisblock = {
-				id: library.genesisblock.block.id,
-				height: library.genesisblock.block.height
-			};
+    // Add genesis block at the end if the set doesn't contain it already
+    if (library.genesisblock && library.genesisblock.block) {
+      var __genesisblock = {
+        id: library.genesisblock.block.id,
+        height: library.genesisblock.block.height
+      };
 
-			if (!_.includes(rows, __genesisblock.id)) {
-				rows.push(__genesisblock);
-			}
-		}
+      if (!_.includes(rows, __genesisblock.id)) {
+        rows.push(__genesisblock);
+      }
+    }
 
-		// Add last block at the beginning if the set doesn't contain it already
-		if (lastBlock && !_.includes(rows, lastBlock.id)) {
-			rows.unshift({
-				id: lastBlock.id,
-				height: lastBlock.height
-			});
-		}
+    // Add last block at the beginning if the set doesn't contain it already
+    if (lastBlock && !_.includes(rows, lastBlock.id)) {
+      rows.unshift({
+        id: lastBlock.id,
+        height: lastBlock.height
+      });
+    }
 
-		// Extract blocks IDs
-		rows.forEach(function (row) {
-			//FIXME: Looks like double check
-			if (!_.includes(ids, row.id)) {
-				ids.push(row.id);
-			}
-		});
+    // Extract blocks IDs
+    rows.forEach(function (row) {
+      //FIXME: Looks like double check
+      if (!_.includes(ids, row.id)) {
+        ids.push(row.id);
+      }
+    });
 
-		return setImmediate(cb, null, { firstHeight: rows[0].height, ids: ids.join(',') });
-	}).catch(function (err) {
-		library.logger.error(err.stack);
-		return setImmediate(cb, 'Blocks#getIdSequence error');
-	});
+    return setImmediate(cb, null, { firstHeight: rows[0].height, ids: ids.join(',') });
+  }).catch(function (err) {
+    library.logger.error(err.stack);
+    return setImmediate(cb, 'Blocks#getIdSequence error');
+  });
 };
 
 /**
@@ -242,47 +242,47 @@ Utils.prototype.getIdSequence = function (height, cb) {
  * @return {Object}   cb.rows List of blocks
  */
 Utils.prototype.loadBlocksData = function (filter, options, cb) {
-	//FIXME: options is not used
-	if (arguments.length < 3) {
-		cb = options;
-		options = {};
-	}
+  //FIXME: options is not used
+  if (arguments.length < 3) {
+    cb = options;
+    options = {};
+  }
 
-	options = options || {};
+  options = options || {};
 
-	var params = { limit: filter.limit || 1 };
+  var params = { limit: filter.limit || 1 };
 
-	//FIXME: filter.id is not used
-	if (filter.id && filter.lastId) {
-		return setImmediate(cb, 'Invalid filter: Received both id and lastId');
-	} else if (filter.id) {
-		params.id = filter.id;
-	} else if (filter.lastId) {
-		params.lastId = filter.lastId;
-	}
+  //FIXME: filter.id is not used
+  if (filter.id && filter.lastId) {
+    return setImmediate(cb, 'Invalid filter: Received both id and lastId');
+  } else if (filter.id) {
+    params.id = filter.id;
+  } else if (filter.lastId) {
+    params.lastId = filter.lastId;
+  }
 
-	// Execute in sequence via dbSequence
-	library.dbSequence.add(function (cb) {
-		// Get height of block with supplied ID
-		library.db.query(sql.getHeightByLastId, { lastId: filter.lastId || null }).then(function (rows) {
+  // Execute in sequence via dbSequence
+  library.dbSequence.add(function (cb) {
+    // Get height of block with supplied ID
+    library.db.query(sql.getHeightByLastId, { lastId: filter.lastId || null }).then(function (rows) {
 
-			var height = rows.length ? rows[0].height : 0;
-			// Calculate max block height for database query
-			var realLimit = height + (parseInt(filter.limit) || 1);
+      var height = rows.length ? rows[0].height : 0;
+      // Calculate max block height for database query
+      var realLimit = height + (parseInt(filter.limit) || 1);
 
-			params.limit = realLimit;
-			params.height = height;
+      params.limit = realLimit;
+      params.height = height;
 
-			// Retrieve blocks from database
-			// FIXME: That SQL query have mess logic, need to be refactored
-			library.db.query(sql.loadBlocksData(filter), params).then(function (rows) {
-				return setImmediate(cb, null, rows);
-			});
-		}).catch(function (err ) {
-			library.logger.error(err.stack);
-			return setImmediate(cb, 'Blocks#loadBlockData error');
-		});
-	}, cb);
+      // Retrieve blocks from database
+      // FIXME: That SQL query have mess logic, need to be refactored
+      library.db.query(sql.loadBlocksData(filter), params).then(function (rows) {
+        return setImmediate(cb, null, rows);
+      });
+    }).catch(function (err ) {
+      library.logger.error(err.stack);
+      return setImmediate(cb, 'Blocks#loadBlockData error');
+    });
+  }, cb);
 };
 
 /**
@@ -295,42 +295,42 @@ Utils.prototype.loadBlocksData = function (filter, options, cb) {
  * @return {BlockProgressLogger}
  */
 Utils.prototype.getBlockProgressLogger = function (transactionsCount, logsFrequency, msg) {
-	function BlockProgressLogger (transactionsCount, logsFrequency, msg) {
-		this.target = transactionsCount;
-		this.step = Math.floor(transactionsCount / logsFrequency);
-		this.applied = 0;
+  function BlockProgressLogger (transactionsCount, logsFrequency, msg) {
+    this.target = transactionsCount;
+    this.step = Math.floor(transactionsCount / logsFrequency);
+    this.applied = 0;
 
-		/**
-		 * Resets applied transactions
-		 */
-		this.reset = function () {
-			this.applied = 0;
-		};
+    /**
+     * Resets applied transactions
+     */
+    this.reset = function () {
+      this.applied = 0;
+    };
 
-		/**
-		 * Increments applied transactions and logs the progress
-		 * - For the first and last transaction
-		 * - With given frequency
-		 */
-		this.applyNext = function () {
-			if (this.applied >= this.target) {
-				throw new Error('Cannot apply transaction over the limit: ' + this.target);
-			}
-			this.applied += 1;
-			if (this.applied === 1 || this.applied === this.target || this.applied % this.step === 1) {
-				this.log();
-			}
-		};
+    /**
+     * Increments applied transactions and logs the progress
+     * - For the first and last transaction
+     * - With given frequency
+     */
+    this.applyNext = function () {
+      if (this.applied >= this.target) {
+        throw new Error('Cannot apply transaction over the limit: ' + this.target);
+      }
+      this.applied += 1;
+      if (this.applied === 1 || this.applied === this.target || this.applied % this.step === 1) {
+        this.log();
+      }
+    };
 
-		/**
-		 * Logs the progress
-		 */
-		this.log = function () {
-			library.logger.info(msg, ((this.applied / this.target) *  100).toPrecision(4)+ ' %' + ': applied ' + this.applied + ' of ' + this.target + ' transactions' );
-		};
-	}
+    /**
+     * Logs the progress
+     */
+    this.log = function () {
+      library.logger.info(msg, ((this.applied / this.target) *  100).toPrecision(4)+ ' %' + ': applied ' + this.applied + ' of ' + this.target + ' transactions' );
+    };
+  }
 
-	return new BlockProgressLogger(transactionsCount, logsFrequency, msg);
+  return new BlockProgressLogger(transactionsCount, logsFrequency, msg);
 };
 
 /**
@@ -352,31 +352,31 @@ Utils.prototype.getBlockProgressLogger = function (transactionsCount, logsFreque
  * @return {number}   cb.data.count Blocks count
  */
 Utils.prototype.aggregateBlocksReward = function (filter, cb) {
-	var params = {};
+  var params = {};
 
-	params.generatorPublicKey = filter.generatorPublicKey;
-	params.delegates = constants.activeDelegates;
+  params.generatorPublicKey = filter.generatorPublicKey;
+  params.delegates = constants.activeDelegates;
 
-	if (filter.start !== undefined) {
-		params.start = filter.start - constants.epochTime.getTime () / 1000;
-	}
+  if (filter.start !== undefined) {
+    params.start = filter.start - constants.epochTime.getTime () / 1000;
+  }
 
-	if (filter.end !== undefined) {
-		params.end = filter.end - constants.epochTime.getTime () / 1000;
-	}
+  if (filter.end !== undefined) {
+    params.end = filter.end - constants.epochTime.getTime () / 1000;
+  }
 
-	// Get calculated rewards
-	library.db.query(sql.aggregateBlocksReward(params), params).then(function (rows) {
-		var data = rows[0];
-		if (data.delegate === null) {
-			return setImmediate(cb, 'Account not found or is not a delegate');
-		}
-		data = { fees: data.fees || '0', rewards: data.rewards || '0', count: data.count || '0' };
-		return setImmediate(cb, null, data);
-	}).catch(function (err) {
-		library.logger.error(err.stack);
-		return setImmediate(cb, 'Blocks#aggregateBlocksReward error');
-	});
+  // Get calculated rewards
+  library.db.query(sql.aggregateBlocksReward(params), params).then(function (rows) {
+    var data = rows[0];
+    if (data.delegate === null) {
+      return setImmediate(cb, 'Account not found or is not a delegate');
+    }
+    data = { fees: data.fees || '0', rewards: data.rewards || '0', count: data.count || '0' };
+    return setImmediate(cb, null, data);
+  }).catch(function (err) {
+    library.logger.error(err.stack);
+    return setImmediate(cb, 'Blocks#aggregateBlocksReward error');
+  });
 };
 
 /**
@@ -385,13 +385,13 @@ Utils.prototype.aggregateBlocksReward = function (filter, cb) {
  * @param {modules} scope Exposed modules
  */
 Utils.prototype.onBind = function (scope) {
-	library.logger.trace('Blocks->Utils: Shared modules bind.');
-	modules = {
-		blocks: scope.blocks
-	};
+  library.logger.trace('Blocks->Utils: Shared modules bind.');
+  modules = {
+    blocks: scope.blocks
+  };
 
-	// Set module as loaded
-	__private.loaded = true;
+  // Set module as loaded
+  __private.loaded = true;
 };
 
 module.exports = Utils;

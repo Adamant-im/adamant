@@ -33,12 +33,12 @@ ed.createPassPhraseHash = function (passPhrase) {
  * @return {Object} publicKey, privateKey
  */
 ed.makeKeypair = function (hash) {
-	var keypair = sodium.crypto_sign_seed_keypair(hash);
+  var keypair = sodium.crypto_sign_seed_keypair(hash);
 
-	return {
-		publicKey: keypair.publicKey,
-		privateKey: keypair.secretKey
-	};
+  return {
+    publicKey: keypair.publicKey,
+    privateKey: keypair.secretKey
+  };
 };
 
 /**
@@ -49,7 +49,7 @@ ed.makeKeypair = function (hash) {
  * @return {signature} signature
  */
 ed.sign = function (hash, keypair) {
-	return sodium.crypto_sign_detached(hash, Buffer.from(keypair.privateKey, 'hex'));
+  return sodium.crypto_sign_detached(hash, Buffer.from(keypair.privateKey, 'hex'));
 };
 
 /**
@@ -60,7 +60,7 @@ ed.sign = function (hash, keypair) {
  * @return {Boolean} true id verified
  */
 ed.verify = function (hash, signatureBuffer, publicKeyBuffer) {
-	return sodium.crypto_sign_verify_detached(signatureBuffer, hash, publicKeyBuffer);
+  return sodium.crypto_sign_verify_detached(signatureBuffer, hash, publicKeyBuffer);
 };
 
 module.exports = ed;

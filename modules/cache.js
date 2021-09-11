@@ -14,11 +14,11 @@ var cacheEnabled;
  * @param {Object} scope
  */
 function Cache (cb, scope) {
-	self = this;
-	client = scope.cache.client;
-	logger = scope.logger;
-	cacheEnabled = scope.cache.cacheEnabled;
-	setImmediate(cb, null, self);
+  self = this;
+  client = scope.cache.client;
+  logger = scope.logger;
+  cacheEnabled = scope.cache.cacheEnabled;
+  setImmediate(cb, null, self);
 }
 
 /**
@@ -26,8 +26,8 @@ function Cache (cb, scope) {
  * @returns {Boolean} status
  */
 Cache.prototype.isConnected = function () {
-	// using client.ready because this variable is updated on client connected
-	return cacheEnabled && client && client.ready;
+  // using client.ready because this variable is updated on client connected
+  return cacheEnabled && client && client.ready;
 };
 
 /**
@@ -35,7 +35,7 @@ Cache.prototype.isConnected = function () {
  * @returns {Boolean} status
  */
 Cache.prototype.isReady = function () {
-	return cacheReady && self.isConnected();
+  return cacheReady && self.isConnected();
 };
 
 /**
@@ -45,16 +45,16 @@ Cache.prototype.isReady = function () {
  * @returns {Function} cb
  */
 Cache.prototype.getJsonForKey = function (key, cb) {
-	if (!self.isConnected()) { 
-		return cb(errorCacheDisabled); 
-	}
-	client.get(key, function (err, value) {
-		if (err) {
-			return cb(err, value);
-		}
-		// parsing string to json
-		return cb(null, JSON.parse(value));
-	});
+  if (!self.isConnected()) { 
+    return cb(errorCacheDisabled); 
+  }
+  client.get(key, function (err, value) {
+    if (err) {
+      return cb(err, value);
+    }
+    // parsing string to json
+    return cb(null, JSON.parse(value));
+  });
 };
  
 /**
@@ -64,11 +64,11 @@ Cache.prototype.getJsonForKey = function (key, cb) {
  * @param {Function} cb
  */
 Cache.prototype.setJsonForKey = function (key, value, cb) {
-	if (!self.isConnected()) {
-		return cb(errorCacheDisabled);
-	} 
-	// redis calls toString on objects, which converts it to object [object] so calling stringify before saving
-	client.set(key, JSON.stringify(value), cb);
+  if (!self.isConnected()) {
+    return cb(errorCacheDisabled);
+  } 
+  // redis calls toString on objects, which converts it to object [object] so calling stringify before saving
+  client.set(key, JSON.stringify(value), cb);
 };
 
 /**
@@ -76,10 +76,10 @@ Cache.prototype.setJsonForKey = function (key, value, cb) {
  * @param {String} key
  */
 Cache.prototype.deleteJsonForKey = function (key, cb) {
-	if (!self.isConnected()) {
-		return cb(errorCacheDisabled);
-	}
-	client.del(key, cb);
+  if (!self.isConnected()) {
+    return cb(errorCacheDisabled);
+  }
+  client.del(key, cb);
 };
 
 /**
@@ -88,27 +88,27 @@ Cache.prototype.deleteJsonForKey = function (key, cb) {
  * @param {Function} cb
  */
 Cache.prototype.removeByPattern = function (pattern, cb) {
-	if (!self.isConnected()) {
-		return cb(errorCacheDisabled);
-	}
-	var keys, cursor = 0;
-	async.doWhilst(function iteratee (whilstCb) {
-		client.scan(cursor, 'MATCH', pattern, function (err, res) {
-			if (err) {
-				return whilstCb(err);
-			} else {
-				cursor = Number(res.shift());
-				keys = res.shift();
-				if (keys.length > 0 ) {
-					client.del(keys, whilstCb);
-				} else {
-					return whilstCb();
-				}
-			}
-		});
-	}, function test () {
-		return cursor > 0;
-	}, cb);
+  if (!self.isConnected()) {
+    return cb(errorCacheDisabled);
+  }
+  var keys, cursor = 0;
+  async.doWhilst(function iteratee (whilstCb) {
+    client.scan(cursor, 'MATCH', pattern, function (err, res) {
+      if (err) {
+        return whilstCb(err);
+      } else {
+        cursor = Number(res.shift());
+        keys = res.shift();
+        if (keys.length > 0 ) {
+          client.del(keys, whilstCb);
+        } else {
+          return whilstCb();
+        }
+      }
+    });
+  }, function test () {
+    return cursor > 0;
+  }, cb);
 };
 
 /**
@@ -116,10 +116,10 @@ Cache.prototype.removeByPattern = function (pattern, cb) {
  * @param {Function} cb
  */
 Cache.prototype.flushDb = function (cb) {
-	if (!self.isConnected()) { 
-		return cb(errorCacheDisabled); 
-	}
-	client.flushdb(cb);
+  if (!self.isConnected()) { 
+    return cb(errorCacheDisabled); 
+  }
+  client.flushdb(cb);
 };
 
 /**
@@ -127,7 +127,7 @@ Cache.prototype.flushDb = function (cb) {
  * @param {Function} cb
  */
 Cache.prototype.cleanup = function (cb) {
-	self.quit(cb);
+  self.quit(cb);
 };
 
 /**
@@ -135,11 +135,11 @@ Cache.prototype.cleanup = function (cb) {
  * @param {Function} cb
  */
 Cache.prototype.quit = function (cb) {
-	if (!self.isConnected()) {
-		// because connection isn't established in the first place.
-		return cb();
-	}
-	client.quit(cb);
+  if (!self.isConnected()) {
+    // because connection isn't established in the first place.
+    return cb();
+  }
+  client.quit(cb);
 };
 
 /**
@@ -149,19 +149,19 @@ Cache.prototype.quit = function (cb) {
  * @param {Function} cb
  */
 Cache.prototype.onNewBlock = function (block, broadcast, cb) {
-	cb = cb || function () {};
+  cb = cb || function () {};
 
-	if(!self.isReady()) { return cb(errorCacheDisabled); }
-	async.map(['/api/blocks*', '/api/transactions*'], function (pattern, mapCb) {
-		self.removeByPattern(pattern, function (err) {
-			if (err) {
-				logger.error(['Error clearing keys with pattern:', pattern, ' on new block'].join(' '));
-			} else {
-				logger.debug(['keys with pattern:', pattern, 'cleared from cache on new block'].join(' '));
-			}
-			mapCb(err);
-		});
-	}, cb);
+  if(!self.isReady()) { return cb(errorCacheDisabled); }
+  async.map(['/api/blocks*', '/api/transactions*'], function (pattern, mapCb) {
+    self.removeByPattern(pattern, function (err) {
+      if (err) {
+        logger.error(['Error clearing keys with pattern:', pattern, ' on new block'].join(' '));
+      } else {
+        logger.debug(['keys with pattern:', pattern, 'cleared from cache on new block'].join(' '));
+      }
+      mapCb(err);
+    });
+  }, cb);
 };
 
 /**
@@ -170,18 +170,18 @@ Cache.prototype.onNewBlock = function (block, broadcast, cb) {
  * @param {Function} cb
  */
 Cache.prototype.onFinishRound = function (round, cb) {
-	cb = cb || function () {};
+  cb = cb || function () {};
 
-	if(!self.isReady()) { return cb(errorCacheDisabled); }
-	var pattern = '/api/delegates*';
-	self.removeByPattern(pattern, function (err) {
-		if (err) {
-			logger.error(['Error clearing keys with pattern:', pattern, ' round finish'].join(' '));
-		} else {
-			logger.debug(['keys with pattern: ', pattern, 'cleared from cache new Round'].join(' '));
-		}
-		return cb(err);
-	});
+  if(!self.isReady()) { return cb(errorCacheDisabled); }
+  var pattern = '/api/delegates*';
+  self.removeByPattern(pattern, function (err) {
+    if (err) {
+      logger.error(['Error clearing keys with pattern:', pattern, ' round finish'].join(' '));
+    } else {
+      logger.debug(['keys with pattern: ', pattern, 'cleared from cache new Round'].join(' '));
+    }
+    return cb(err);
+  });
 };
 
 
@@ -191,41 +191,41 @@ Cache.prototype.onFinishRound = function (round, cb) {
  * @param {Function} cb
  */
 Cache.prototype.onTransactionsSaved = function (transactions, cb) {
-	cb = cb || function () {};
+  cb = cb || function () {};
 
-	if(!self.isReady()) { return cb(errorCacheDisabled); }
-	var pattern = '/api/delegates*';
+  if(!self.isReady()) { return cb(errorCacheDisabled); }
+  var pattern = '/api/delegates*';
 
-	var delegateTransaction = transactions.find(function (trs) {
-		return !!trs && trs.type === transactionTypes.DELEGATE;
-	});
+  var delegateTransaction = transactions.find(function (trs) {
+    return !!trs && trs.type === transactionTypes.DELEGATE;
+  });
 
-	if (!!delegateTransaction) {
-		self.removeByPattern(pattern, function (err) {
-			if (err) {
-				logger.error(['Error clearing keys with pattern:', pattern, ' on delegate trs'].join(' '));
-			} else {
-				logger.debug(['keys with pattern:', pattern, 'cleared from cache on delegate trs'].join(' '));
-			}
-			return cb(err);
-		});
-	} else {
-		cb();
-	}
+  if (!!delegateTransaction) {
+    self.removeByPattern(pattern, function (err) {
+      if (err) {
+        logger.error(['Error clearing keys with pattern:', pattern, ' on delegate trs'].join(' '));
+      } else {
+        logger.debug(['keys with pattern:', pattern, 'cleared from cache on delegate trs'].join(' '));
+      }
+      return cb(err);
+    });
+  } else {
+    cb();
+  }
 };
 
 /**
  * Disable any changes in cache while syncing
  */
 Cache.prototype.onSyncStarted = function () {
-	cacheReady = false;
+  cacheReady = false;
 };
 
 /**
  * Enable changes in cache after syncing finished
  */
 Cache.prototype.onSyncFinished = function () {
-	cacheReady = true;
+  cacheReady = true;
 };
 
 module.exports = Cache;

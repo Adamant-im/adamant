@@ -7,10 +7,10 @@ var httpApi = require('../../helpers/httpApi');
  * Binds api with modules and creates common url.
  * - End point: `/api/multisignatures`
  * - Public API:
- * 	- get	/pending
- * 	- post	/sign
- * 	- put	/
- * 	- get	/accounts
+ *   - get  /pending
+ *   - post  /sign
+ *   - put  /
+ *   - get  /accounts
  * @memberof module:multisignatures
  * @requires helpers/Router
  * @requires helpers/httpApi
@@ -22,16 +22,16 @@ var httpApi = require('../../helpers/httpApi');
 // Constructor
 function MultisignaturesHttpApi (mutlisignaturesModule, app) {
 
-	var router = new Router();
+  var router = new Router();
 
-	router.map(mutlisignaturesModule.shared, {
-		'get /pending': 'pending',
-		'post /sign': 'sign',
-		'put /': 'addMultisignature',
-		'get /accounts': 'getAccounts'
-	});
+  router.map(mutlisignaturesModule.shared, {
+    'get /pending': 'pending',
+    'post /sign': 'sign',
+    'put /': 'addMultisignature',
+    'get /accounts': 'getAccounts'
+  });
 
-	httpApi.registerEndpoint('/api/multisignatures', app, router, mutlisignaturesModule.isLoaded);
+  httpApi.registerEndpoint('/api/multisignatures', app, router, mutlisignaturesModule.isLoaded);
 }
 
 module.exports = MultisignaturesHttpApi;

@@ -8,11 +8,11 @@ var httpApi = require('../../helpers/httpApi');
  * Binds api with modules and creates common url.
  * - End point: `/api/states`
  * - Private API:
- * 	- post	/normalize
- * 	- post	/finalize
+ *   - post  /normalize
+ *   - post  /finalize
  *
  * - Sanitized
- * 	- get	/get
+ *   - get  /get
  * @memberof module:states
  * @requires helpers/Router
  * @requires helpers/httpApi

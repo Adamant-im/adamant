@@ -12,6 +12,15 @@
     "ecmaVersion": 12
   },
   "rules": {
+    "max-len": ["error",
+      { "code": 125,
+        "ignoreTrailingComments": true,
+        "ignoreUrls": true,
+        "ignoreStrings": true,
+        "ignoreTemplateLiterals": true,
+        "ignoreRegExpLiterals": true
+      }],
+    "require-jsdoc": ["off"],
     "semi": "error",
     "no-eq-null": "off",
     "indent": ["off", 4],

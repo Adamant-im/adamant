@@ -1,26 +1,26 @@
 'use strict';
 
 var ChatsSql = {
-	sortFields: ['type','timestamp'],
+  sortFields: ['type','timestamp'],
     chatroomsSortDefaults: {
         sortField: 'timestamp',
         sortMethod: 'desc'
     },
-	countByTransactionId: 'SELECT COUNT(*)::int AS "count" FROM chats WHERE "transactionId" = ${id}',
+  countByTransactionId: 'SELECT COUNT(*)::int AS "count" FROM chats WHERE "transactionId" = ${id}',
 
 
-	search: function (params) {
-		return [
-			'SELECT "transactionId", "message", "own_message","senderId","recipientId", "type" ',
-			'FROM chats WHERE to_tsvector("message" || \' \' || "own_message" || \' \' ) @@ to_tsquery(${q})',
+  search: function (params) {
+    return [
+      'SELECT "transactionId", "message", "own_message","senderId","recipientId", "type" ',
+      'FROM chats WHERE to_tsvector("message" || \' \' || "own_message" || \' \' ) @@ to_tsquery(${q})',
       '',
-			'LIMIT ${limit}'
-		].filter(Boolean).join(' ');
-	},
+      'LIMIT ${limit}'
+    ].filter(Boolean).join(' ');
+  },
 
-	get: 'SELECT "message", "own_message",  "type", "senderId","recipientId", "transactionId" FROM chats WHERE "transactionId" = ${id}',
+  get: 'SELECT "message", "own_message",  "type", "senderId","recipientId", "transactionId" FROM chats WHERE "transactionId" = ${id}',
 
-	getByIds: 'SELECT "message", "own_message",  "type", "senderId","recipientId", "transactionId" FROM chats WHERE "transactionId" IN ($1:csv)',
+  getByIds: 'SELECT "message", "own_message",  "type", "senderId","recipientId", "transactionId" FROM chats WHERE "transactionId" IN ($1:csv)',
 
     countList: function (params) {
         return [
@@ -89,7 +89,7 @@ var ChatsSql = {
     },
     listChats: function (params) {
 
-	    let y = [
+      let y = [
             'SELECT',
             'CONCAT(LEAST("t_senderId", "t_recipientId"), GREATEST("t_senderId", "t_recipientId")) as "srt",',
             'first("t_id" ORDER BY b_height DESC, t_timestamp DESC) as "t_id",',
@@ -118,10 +118,10 @@ var ChatsSql = {
             (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
             'LIMIT ${limit} OFFSET ${offset}'
         ].filter(Boolean).join(' ');
-	    return y;
+      return y;
     },
 
-	getGenesis: 'SELECT b."height" AS "height", b."id" AS "id", t."senderId" AS "authorId" FROM trs t INNER JOIN blocks b ON t."blockId" = b."id" WHERE t."id" = ${id}'
+  getGenesis: 'SELECT b."height" AS "height", b."id" AS "id", t."senderId" AS "authorId" FROM trs t INNER JOIN blocks b ON t."blockId" = b."id" WHERE t."id" = ${id}'
 
 };
 

@@ -108,19 +108,19 @@ module.exports = {
             }
         }
     },
-	get: {
-		id: 'states.get',
-		type: 'object',
-		properties: {
-			id: {
-				type: 'string',
-				format: 'id',
-				minLength: 1,
-				maxLength: 20
-			}
-		},
-		required: ['id']
-	},
+  get: {
+    id: 'states.get',
+    type: 'object',
+    properties: {
+      id: {
+        type: 'string',
+        format: 'id',
+        minLength: 1,
+        maxLength: 20
+      }
+    },
+    required: ['id']
+  },
     normalize: {
         id: 'states.normalize',
         type: 'object',

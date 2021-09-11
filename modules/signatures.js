@@ -25,25 +25,25 @@ __private.assetTypes = {};
  */
 // Constructor
 function Signatures (cb, scope) {
-	library = {
-		schema: scope.schema,
-		ed: scope.ed,
-		balancesSequence: scope.balancesSequence,
-		logic: {
-			transaction: scope.logic.transaction,
-		},
-	};
-	self = this;
+  library = {
+    schema: scope.schema,
+    ed: scope.ed,
+    balancesSequence: scope.balancesSequence,
+    logic: {
+      transaction: scope.logic.transaction,
+    },
+  };
+  self = this;
 
-	__private.assetTypes[transactionTypes.SIGNATURE] = library.logic.transaction.attachAssetType(
-		transactionTypes.SIGNATURE,
-		new Signature(
-			scope.schema,
-			scope.logger
-		)
-	);
+  __private.assetTypes[transactionTypes.SIGNATURE] = library.logic.transaction.attachAssetType(
+    transactionTypes.SIGNATURE,
+    new Signature(
+      scope.schema,
+      scope.logger
+    )
+  );
 
-	setImmediate(cb, null, self);
+  setImmediate(cb, null, self);
 }
 
 // Public methods
@@ -52,7 +52,7 @@ function Signatures (cb, scope) {
  * @return {boolean} True if `modules` is loaded.
  */
 Signatures.prototype.isLoaded = function () {
-	return !!modules;
+  return !!modules;
 };
 
 /**
@@ -63,7 +63,7 @@ Signatures.prototype.isLoaded = function () {
  * @param {function} cb - Callback function.
  */
 Signatures.prototype.sandboxApi = function (call, args, cb) {
-	sandboxHelper.callMethod(shared, call, args, cb);
+  sandboxHelper.callMethod(shared, call, args, cb);
 };
 
 // Events
@@ -73,14 +73,14 @@ Signatures.prototype.sandboxApi = function (call, args, cb) {
  * @param {modules} scope - Loaded modules.
  */
 Signatures.prototype.onBind = function (scope) {
-	modules = {
-		accounts: scope.accounts,
-		transactions: scope.transactions,
-	};
+  modules = {
+    accounts: scope.accounts,
+    transactions: scope.transactions,
+  };
 
-	__private.assetTypes[transactionTypes.SIGNATURE].bind(
-		scope.accounts
-	);
+  __private.assetTypes[transactionTypes.SIGNATURE].bind(
+    scope.accounts
+  );
 };
 
 // Shared API
@@ -89,128 +89,128 @@ Signatures.prototype.onBind = function (scope) {
  * @see {@link http://apidocjs.com/}
  */
 Signatures.prototype.shared = {
-	getFee: function (req, cb) {
-		var fee = constants.fees.secondsignature;
+  getFee: function (req, cb) {
+    var fee = constants.fees.secondsignature;
 
-		return setImmediate(cb, null, {fee: fee});
-	},
+    return setImmediate(cb, null, {fee: fee});
+  },
 
-	addSignature: function (req, cb) {
-		library.schema.validate(req.body, schema.addSignature, function (err) {
-			if (err) {
-				return setImmediate(cb, err[0].message);
-			}
+  addSignature: function (req, cb) {
+    library.schema.validate(req.body, schema.addSignature, function (err) {
+      if (err) {
+        return setImmediate(cb, err[0].message);
+      }
 
             var hash = library.ed.createPassPhraseHash(req.body.secret);
-			var keypair = library.ed.makeKeypair(hash);
+      var keypair = library.ed.makeKeypair(hash);
 
-			if (req.body.publicKey) {
-				if (keypair.publicKey.toString('hex') !== req.body.publicKey) {
-					return setImmediate(cb, 'Invalid passphrase');
-				}
-			}
+      if (req.body.publicKey) {
+        if (keypair.publicKey.toString('hex') !== req.body.publicKey) {
+          return setImmediate(cb, 'Invalid passphrase');
+        }
+      }
 
-			library.balancesSequence.add(function (cb) {
-				if (req.body.multisigAccountPublicKey && req.body.multisigAccountPublicKey !== keypair.publicKey.toString('hex')) {
-					modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey}, function (err, account) {
-						if (err) {
-							return setImmediate(cb, err);
-						}
+      library.balancesSequence.add(function (cb) {
+        if (req.body.multisigAccountPublicKey && req.body.multisigAccountPublicKey !== keypair.publicKey.toString('hex')) {
+          modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey}, function (err, account) {
+            if (err) {
+              return setImmediate(cb, err);
+            }
 
-						if (!account || !account.publicKey) {
-							return setImmediate(cb, 'Multisignature account not found');
-						}
+            if (!account || !account.publicKey) {
+              return setImmediate(cb, 'Multisignature account not found');
+            }
 
-						if (!account.multisignatures || !account.multisignatures) {
-							return setImmediate(cb, 'Account does not have multisignatures enabled');
-						}
+            if (!account.multisignatures || !account.multisignatures) {
+              return setImmediate(cb, 'Account does not have multisignatures enabled');
+            }
 
-						if (account.multisignatures.indexOf(keypair.publicKey.toString('hex')) < 0) {
-							return setImmediate(cb, 'Account does not belong to multisignature group');
-						}
+            if (account.multisignatures.indexOf(keypair.publicKey.toString('hex')) < 0) {
+              return setImmediate(cb, 'Account does not belong to multisignature group');
+            }
 
-						if (account.secondSignature || account.u_secondSignature) {
-							return setImmediate(cb, 'Account already has a second passphrase');
-						}
+            if (account.secondSignature || account.u_secondSignature) {
+              return setImmediate(cb, 'Account already has a second passphrase');
+            }
 
-						modules.accounts.getAccount({publicKey: keypair.publicKey}, function (err, requester) {
-							if (err) {
-								return setImmediate(cb, err);
-							}
+            modules.accounts.getAccount({publicKey: keypair.publicKey}, function (err, requester) {
+              if (err) {
+                return setImmediate(cb, err);
+              }
 
-							if (!requester || !requester.publicKey) {
-								return setImmediate(cb, 'Requester not found');
-							}
+              if (!requester || !requester.publicKey) {
+                return setImmediate(cb, 'Requester not found');
+              }
 
-							if (requester.secondSignature && !req.body.secondSecret) {
-								return setImmediate(cb, 'Missing requester second passphrase');
-							}
+              if (requester.secondSignature && !req.body.secondSecret) {
+                return setImmediate(cb, 'Missing requester second passphrase');
+              }
 
-							if (requester.publicKey === account.publicKey) {
-								return setImmediate(cb, 'Invalid requester public key');
-							}
+              if (requester.publicKey === account.publicKey) {
+                return setImmediate(cb, 'Invalid requester public key');
+              }
 
                             var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
-							var secondKeypair = library.ed.makeKeypair(secondHash);
-							var transaction;
+              var secondKeypair = library.ed.makeKeypair(secondHash);
+              var transaction;
 
-							try {
-								transaction = library.logic.transaction.create({
-									type: transactionTypes.SIGNATURE,
-									sender: account,
-									keypair: keypair,
-									requester: keypair,
-									secondKeypair: secondKeypair,
+              try {
+                transaction = library.logic.transaction.create({
+                  type: transactionTypes.SIGNATURE,
+                  sender: account,
+                  keypair: keypair,
+                  requester: keypair,
+                  secondKeypair: secondKeypair,
 
-								});
-							} catch (e) {
-								return setImmediate(cb, e.toString());
-							}
+                });
+              } catch (e) {
+                return setImmediate(cb, e.toString());
+              }
 
-							modules.transactions.receiveTransactions([transaction], true, cb);
-						});
-					});
-				} else {
-					modules.accounts.setAccountAndGet({publicKey: keypair.publicKey.toString('hex')}, function (err, account) {
-						if (err) {
-							return setImmediate(cb, err);
-						}
+              modules.transactions.receiveTransactions([transaction], true, cb);
+            });
+          });
+        } else {
+          modules.accounts.setAccountAndGet({publicKey: keypair.publicKey.toString('hex')}, function (err, account) {
+            if (err) {
+              return setImmediate(cb, err);
+            }
 
-						if (!account || !account.publicKey) {
-							return setImmediate(cb, 'Account not found');
-						}
+            if (!account || !account.publicKey) {
+              return setImmediate(cb, 'Account not found');
+            }
 
-						if (account.secondSignature || account.u_secondSignature) {
-							return setImmediate(cb, 'Account already has a second passphrase');
-						}
+            if (account.secondSignature || account.u_secondSignature) {
+              return setImmediate(cb, 'Account already has a second passphrase');
+            }
 
                         var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
-						var secondKeypair = library.ed.makeKeypair(secondHash);
-						var transaction;
+            var secondKeypair = library.ed.makeKeypair(secondHash);
+            var transaction;
 
-						try {
-							transaction = library.logic.transaction.create({
-								type: transactionTypes.SIGNATURE,
-								sender: account,
-								keypair: keypair,
-								secondKeypair: secondKeypair
-							});
-						} catch (e) {
-							return setImmediate(cb, e.toString());
-						}
-						modules.transactions.receiveTransactions([transaction], true, cb);
-					});
-				}
+            try {
+              transaction = library.logic.transaction.create({
+                type: transactionTypes.SIGNATURE,
+                sender: account,
+                keypair: keypair,
+                secondKeypair: secondKeypair
+              });
+            } catch (e) {
+              return setImmediate(cb, e.toString());
+            }
+            modules.transactions.receiveTransactions([transaction], true, cb);
+          });
+        }
 
-			}, function (err, transaction) {
-				if (err) {
-					return setImmediate(cb, err);
-				}
-				return setImmediate(cb, null, {transaction: transaction[0]});
-			});
+      }, function (err, transaction) {
+        if (err) {
+          return setImmediate(cb, err);
+        }
+        return setImmediate(cb, null, {transaction: transaction[0]});
+      });
 
-		});
-	}
+    });
+  }
 };
 
 // Export

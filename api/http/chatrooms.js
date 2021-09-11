@@ -8,8 +8,8 @@ const httpApi = require('../../helpers/httpApi');
  * - End point: `/api/chatrooms`
  *
  * - Sanitized
- * 	- get	/:ID
- * 	- get	/:ID/:ID
+ *   - get  /:ID
+ *   - get  /:ID/:ID
  * @memberof module:chatrooms
  * @requires helpers/Router
  * @requires helpers/httpApi

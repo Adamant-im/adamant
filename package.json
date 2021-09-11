@@ -11,6 +11,7 @@
     "test:all": "./node_modules/.bin/mocha test/unit/**/* test/api/**/*",
     "eslint": "./node_modules/.bin/grunt eslint-nofix --verbose",
     "eslint:fix": "./node_modules/.bin/grunt eslint-fix --verbose",
+    "lint:fixrule": "npx eslint -f visualstudio --no-eslintrc --fix --env browser,node,es2021,commonjs --parser-options=ecmaVersion:12 --rule",
     "fetchCoverage": "./node_modules/.bin/grunt exec:fetchCoverage --verbose",
     "jsdoc": "jsdoc -c docs/conf.json --verbose --pedantic",
     "server-docs": "npm run jsdoc && http-server docs/jsdoc/"

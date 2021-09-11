@@ -8,7 +8,7 @@ var schema = require('../../schema/node.js');
  * Binds api with modules and creates common url.
  * - End point: `/api/node`
  * - Public API:
-	- get 	/status
+  - get   /status
  * @memberof module:node
  * @requires helpers/Router
  * @requires helpers/httpApi
@@ -19,14 +19,14 @@ var schema = require('../../schema/node.js');
 
 function NodeHttpApi (nodeModule, app) {
 
-	var router = new Router();
+  var router = new Router();
 
-	router.map(nodeModule.shared, {
-		'get /status': 'getStatus',
-	});
+  router.map(nodeModule.shared, {
+    'get /status': 'getStatus',
+  });
 
 
-	httpApi.registerEndpoint('/api/node', app, router, nodeModule.isLoaded);
+  httpApi.registerEndpoint('/api/node', app, router, nodeModule.isLoaded);
 }
 
 module.exports = NodeHttpApi;

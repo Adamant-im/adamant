@@ -6,10 +6,10 @@ var httpApi = require('../../helpers/httpApi');
  * Binds api with modules and creates common url.
  * - End point: `/api/loader`
  * - Public API:
- * 	- get	/status
- * 	- get	/status/sync
+ *   - get  /status
+ *   - get  /status/sync
  * - Private API:
- * 	- get	/status/ping
+ *   - get  /status/ping
  * @memberof module:loader
  * @requires helpers/Router
  * @requires helpers/httpApi
@@ -20,19 +20,19 @@ var httpApi = require('../../helpers/httpApi');
 // Constructor
 function LoaderHttpApi (loaderModule, app) {
 
-	var router = new Router();
+  var router = new Router();
 
-	router.map(loaderModule.shared, {
-		'get /status': 'status',
-		'get /status/sync': 'sync'
-	});
+  router.map(loaderModule.shared, {
+    'get /status': 'status',
+    'get /status/sync': 'sync'
+  });
 
-	router.get('/status/ping', function (req, res) {
-		var status = loaderModule.internal.statusPing();
-		return res.status(status ? 200 : 503).json({success: status});
-	});
+  router.get('/status/ping', function (req, res) {
+    var status = loaderModule.internal.statusPing();
+    return res.status(status ? 200 : 503).json({success: status});
+  });
 
-	httpApi.registerEndpoint('/api/loader', app, router, loaderModule.isLoaded);
+  httpApi.registerEndpoint('/api/loader', app, router, loaderModule.isLoaded);
 }
 
 module.exports = LoaderHttpApi;
