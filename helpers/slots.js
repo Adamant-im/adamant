@@ -7,7 +7,7 @@ var constants = require('./constants.js');
  */
 /**
  * Gets constant time from ADAMANT epoch.
- * @returns {number} epochTime from constants.
+ * @return {number} epochTime from constants.
  */
 function beginEpochTime () {
   var d = constants.epochTime;
@@ -18,7 +18,7 @@ function beginEpochTime () {
 /**
  * Calculates time since ADAMANT epoch.
  * @param {number|undefined} time - Time in unix seconds.
- * @returns {number} current time - ADAMANT epoch time.
+ * @return {number} current time - ADAMANT epoch time.
  */
 function getEpochTime (time) {
   if (time === undefined) {

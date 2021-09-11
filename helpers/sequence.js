@@ -5,7 +5,7 @@ var util = require('util');
 
 /**
  * Creates a FIFO sequence array and default settings with config values.
- * Calls __tick with 3 
+ * Calls __tick with 3
  * @memberof module:helpers
  * @constructor
  * @param {string} config
@@ -63,7 +63,7 @@ Sequence.prototype.add = function (worker, args, done) {
     args = undefined;
   }
   if (worker && typeof(worker) === 'function') {
-    var task = {worker: worker, done: done};
+    var task = { worker: worker, done: done };
     if (util.isArray(args)) {
       task.args = args;
     }
@@ -73,7 +73,7 @@ Sequence.prototype.add = function (worker, args, done) {
 
 /**
  * Gets pending task in sequence.
- * @return {number} sequence lenght.
+ * @return {number} sequence length.
  */
 Sequence.prototype.count = function () {
   return this.sequence.length;

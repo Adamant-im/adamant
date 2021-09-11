@@ -58,10 +58,10 @@ module.exports = {
     delegate: 300000000000,
     multisignature: 500000000,
     dapp: 2500000000,
-        old_chat_message: 500000,
+    old_chat_message: 500000,
     chat_message: 100000,
-        state_store: 100000,
-      profile_update:  5000000,
+    state_store: 100000,
+    profile_update: 5000000,
     avatar_upload: 10000000
   },
   feeStart: 1,
@@ -88,17 +88,17 @@ module.exports = {
   // WARNING: When changing rewards you also need to change getBlockRewards(int) SQL function!
   rewards: {
     milestones: [
-        50000000, // Initial Reward
-            45000000, // Milestone 1
-            40000000, // Milestone 2
-            35000000, // Milestone 3
-            30000000,  // Milestone 4
-            25000000,  // Milestone 5
-            20000000,  // Milestone 6
-            15000000,  // Milestone 7
-            10000000  // Milestone 8
+      50000000, // Initial Reward
+      45000000, // Milestone 1
+      40000000, // Milestone 2
+      35000000, // Milestone 3
+      30000000, // Milestone 4
+      25000000, // Milestone 5
+      20000000, // Milestone 6
+      15000000, // Milestone 7
+      10000000 // Milestone 8
     ],
-    offset: 2000000,   // Start rewards at block (n)
+    offset: 2000000, // Start rewards at block (n)
     distance: 6300000 // Distance between each milestone
   },
   signatureLength: 196,

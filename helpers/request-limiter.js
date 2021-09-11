@@ -13,7 +13,7 @@ var defaults = {
  * Returns limits object from input or default values.
  * @private
  * @param {Object} [limits]
- * @returns {Object} max, delayMs, delayAfter, windowMs
+ * @return {Object} max, delayMs, delayAfter, windowMs
  */
 function applyLimits (limits) {
   if (typeof limits === 'object') {

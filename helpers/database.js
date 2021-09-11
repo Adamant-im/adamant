@@ -17,7 +17,7 @@ var path = require('path');
  */
 function Migrator (pgp, db) {
   /**
-   * Gets one record from `migrations` trable
+   * Gets one record from `migrations` table
    * @method
    * @param {function} waterCb - Callback function
    * @return {function} waterCb with error | Boolean
@@ -31,7 +31,7 @@ function Migrator (pgp, db) {
   };
 
   /**
-   * Gets last migration record from `migrations` trable.
+   * Gets last migration record from `migrations` table.
    * @method
    * @param {Boolean} hasMigrations
    * @param {function} waterCb - Callback function
@@ -52,7 +52,7 @@ function Migrator (pgp, db) {
   };
 
   /**
-   * Reads folder `sql/migrations` and returns files grather than 
+   * Reads folder `sql/migrations` and returns files rather than
    * lastMigration id.
    * @method
    * @param {Object} lastMigration
@@ -103,7 +103,7 @@ function Migrator (pgp, db) {
   /**
    * Creates and execute a db query for each pending migration.
    * @method
-   * @param {Array} pendingMigrations 
+   * @param {Array} pendingMigrations
    * @param {function} waterCb - Callback function
    * @return {function} waterCb with error | appliedMigrations
    */
@@ -111,7 +111,7 @@ function Migrator (pgp, db) {
     var appliedMigrations = [];
 
     async.eachSeries(pendingMigrations, function (file, eachCb) {
-      var sql = new pgp.QueryFile(file.path, {minify: true});
+      var sql = new pgp.QueryFile(file.path, { minify: true });
 
       db.query(sql).then(function () {
         appliedMigrations.push(file);
@@ -127,7 +127,7 @@ function Migrator (pgp, db) {
   /**
    * Inserts into `migrations` table the previous applied migrations.
    * @method
-   * @param {Array} appliedMigrations 
+   * @param {Array} appliedMigrations
    * @param {function} waterCb - Callback function
    * @return {function} waterCb with error
    */
@@ -151,7 +151,7 @@ function Migrator (pgp, db) {
    */
   this.applyRuntimeQueryFile = function (waterCb) {
     var dirname = path.basename(__dirname) === 'helpers' ? path.join(__dirname, '..') : __dirname;
-    var sql = new pgp.QueryFile(path.join(dirname, 'sql', 'runtime.sql'), {minify: true});
+    var sql = new pgp.QueryFile(path.join(dirname, 'sql', 'runtime.sql'), { minify: true });
 
     db.query(sql).then(function () {
       return waterCb();
@@ -190,7 +190,7 @@ module.exports.connect = function (config, logger, cb) {
   monitor.attach(pgOptions, config.logEvents);
   monitor.setTheme('matrix');
 
-  monitor.log = function (msg, info){
+  monitor.log = function (msg, info) {
     logger.log(info.event, info.text);
     info.display = false;
   };

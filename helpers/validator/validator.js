@@ -63,7 +63,7 @@ Validator.prototype.reporter = null;
 /**
  * Check whether rule exists.
  * @param {string} name
- * @returns {boolean}
+ * @return {boolean}
  */
 Validator.prototype.hasRule = function (name) {
   return name in this.rules;
@@ -72,7 +72,7 @@ Validator.prototype.hasRule = function (name) {
 /**
  * Get rule descriptor.
  * @param {string} name
- * @returns {*}
+ * @return {*}
  */
 Validator.prototype.getRule = function (name) {
   if (name in this.rules === false) {
@@ -86,9 +86,9 @@ Validator.prototype.getRule = function (name) {
  * @param {*} value
  * @param {object} rules Set of rules
  * @param {function} callback Result callback (err:Error,report:Array,output:*)=
- * @returns {object} report
+ * @return {object} report
  * @throws {err} If finish err parameter is true
- * @throws {Error} If callback, async and finished are not valids
+ * @throws {Error} If callback, async and finished are not valid
  * @todo debug this function and adjust callback function parameter
  */
 Validator.prototype.validate = function (value, rules, callback) {
@@ -157,7 +157,7 @@ Validator.prototype.Field = Field;
  * @param {*} value Validated value
  * @param {object} rules Rule set
  * @param {*=} thisArg This reference for Validation methods. Optional
- * @returns {Validator.Field}
+ * @return {Validator.Field}
  */
 Validator.prototype.createField = function (path, value, rules, thisArg) {
   return new this.Field(this, path, value, rules, thisArg);
@@ -206,7 +206,7 @@ Validator.addRule = function (name, descriptor) {
  */
 Validator.addAlias = function (name, origin) {
   Object.defineProperty(this.prototype.rules, name, {
-    get : function () {
+    get: function () {
       return this[origin];
     }
   });
@@ -226,10 +226,10 @@ Validator.fieldProperty = function (name, value) {
  * @type {{forceAsync: boolean, skipMissed: boolean}}
  */
 Validator.options = {
-  forceAsync : false,
-  skipMissed : false,
-  execRules  : true,
-  reporter   : null
+  forceAsync: false,
+  skipMissed: false,
+  execRules: true,
+  reporter: null
 };
 
 /**
@@ -238,7 +238,7 @@ Validator.options = {
  * @param {object} rules Set of rules
  * @param {object} customRules Customized rule set. Optional
  * @param {function} callback assign customRules if it is a function
- * @returns {instance} instance
+ * @return {instance} instance
  */
 Validator.validate = function (value, rules, customRules, callback) {
   if (typeof customRules === 'function') {
@@ -247,7 +247,7 @@ Validator.validate = function (value, rules, customRules, callback) {
   }
 
   var instance = new this(extend({}, this.options, {
-    rules : customRules
+    rules: customRules
   }));
 
   return instance.validate(value, rules, callback);
@@ -256,8 +256,8 @@ Validator.validate = function (value, rules, customRules, callback) {
 // Default rules
 
 Validator.addRule('defaults', {
-  description : 'Set default value if passed value is undefined',
-  filter : function (accept, value) {
+  description: 'Set default value if passed value is undefined',
+  filter: function (accept, value) {
     if (typeof value === 'undefined') {
       return accept;
     } else {
@@ -267,54 +267,54 @@ Validator.addRule('defaults', {
 });
 
 Validator.addRule('type', {
-  description : 'Check value type',
-  validate : function (accept, value) {
+  description: 'Check value type',
+  validate: function (accept, value) {
     return typeof value === accept;
   }
 });
 
 Validator.addRule('equal', {
-  description : 'Check if value equals acceptable value',
-  validate : function (accept, value) {
+  description: 'Check if value equals acceptable value',
+  validate: function (accept, value) {
     return value === accept;
   }
 });
 
 Validator.addRule('notEqual', {
-  description : 'Check if value not equals acceptable value',
-  validate : function (accept, value) {
+  description: 'Check if value not equals acceptable value',
+  validate: function (accept, value) {
     return typeof value !== accept;
   }
 });
 
 Validator.addRule('greater', {
-  description : 'Check if value is greater then acceptable value',
-  aliases : ['>', 'gt'],
-  validate : function (accept, value) {
+  description: 'Check if value is greater then acceptable value',
+  aliases: ['>', 'gt'],
+  validate: function (accept, value) {
     return typeof value > accept;
   }
 });
 
 Validator.addRule('greaterOrEqual', {
-  description : 'Check if value is greater then or equal acceptable value',
-  aliases : ['>=', 'gte'],
-  validate : function (accept, value) {
+  description: 'Check if value is greater then or equal acceptable value',
+  aliases: ['>=', 'gte'],
+  validate: function (accept, value) {
     return typeof value >= accept;
   }
 });
 
 Validator.addRule('less', {
-  description : 'Check if value is less then acceptable value',
-  aliases : ['<', 'lt'],
-  validate : function (accept, value) {
+  description: 'Check if value is less then acceptable value',
+  aliases: ['<', 'lt'],
+  validate: function (accept, value) {
     return typeof value < accept;
   }
 });
 
 Validator.addRule('lessOrEqual', {
-  description : 'Check if value is less then or equal acceptable value',
-  aliases : ['<=', 'lte'],
-  validate : function (accept, value) {
+  description: 'Check if value is less then or equal acceptable value',
+  aliases: ['<=', 'lte'],
+  validate: function (accept, value) {
     return typeof value <= accept;
   }
 });

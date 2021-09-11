@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Middleware functions to add cors, log errors and conections, send status
+ * Middleware functions to add cors, log errors and connections, send status
  * and setup router.
  * @memberof module:helpers
  * @module helpers/httpApi
@@ -38,7 +38,7 @@ var middleware = {
   errorLogger: function (logger, err, req, res, next) {
     if (!err) { return next(); }
     logger.error('API error ' + req.url, err.message);
-    res.status(500).send({success: false, error: 'API error: ' + err.message});
+    res.status(500).send({ success: false, error: 'API error: ' + err.message });
   },
 
   /**
@@ -64,7 +64,7 @@ var middleware = {
    */
   blockchainReady: function (isLoaded, req, res, next) {
     if (isLoaded()) { return next(); }
-    res.status(500).send({success: false, error: 'Blockchain is loading'});
+    res.status(500).send({ success: false, error: 'Blockchain is loading' });
   },
 
   /**
@@ -74,7 +74,7 @@ var middleware = {
    * @param {Function} next
    */
   notFound: function (req, res, next) {
-    return res.status(500).send({success: false, error: 'API endpoint not found'});
+    return res.status(500).send({ success: false, error: 'API endpoint not found' });
   },
 
   /**
@@ -88,7 +88,7 @@ var middleware = {
     return function (req, res, next) {
       req.sanitize(req[property], schema, function (err, report, sanitized) {
         if (!report.isValid) {
-          return res.json({success: false, error: report.issues});
+          return res.json({ success: false, error: report.issues });
         }
         return cb(sanitized, respond.bind(null, res));
       });
@@ -96,7 +96,7 @@ var middleware = {
   },
 
   /**
-   * Attachs header to response.
+   * Attaches header to response.
    * @param {string} headerKey
    * @param {string} headerValue
    * @param {Object} req
@@ -126,8 +126,8 @@ var middleware = {
 
     function rejectDisallowed (apiAllowed, isEnabled) {
       return apiAllowed ? next() : isEnabled ?
-        res.status(403).send({success: false, error: 'API access denied'}) :
-        res.status(500).send({success: false, error: 'API access disabled'});
+        res.status(403).send({ success: false, error: 'API access denied' }) :
+        res.status(500).send({ success: false, error: 'API access disabled' });
     }
   },
 
@@ -157,7 +157,7 @@ var middleware = {
 
     var key = req.originalUrl;
     cache.getJsonForKey(key, function (err, cachedValue) {
-      //there was an error or value doesn't exist for key
+      // there was an error or value doesn't exist for key
       if (err || !cachedValue) {
         // Monkey patching res.json function only if we expect to cache response
         var expressSendJson = res.json;
@@ -185,9 +185,9 @@ var middleware = {
  */
 function respond (res, err, response) {
   if (err) {
-    res.json({'success': false, 'nodeTimestamp': slots.getTime(), 'error': err});
+    res.json({ 'success': false, 'nodeTimestamp': slots.getTime(), 'error': err });
   } else {
-    return res.json(extend({}, {'success': true, 'nodeTimestamp': slots.getTime()}, response));
+    return res.json(extend({}, { 'success': true, 'nodeTimestamp': slots.getTime() }, response));
   }
 }
 

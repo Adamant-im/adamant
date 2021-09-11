@@ -21,13 +21,13 @@ var ed = {};
  */
 
 ed.createPassPhraseHash = function (passPhrase) {
-    var secretMnemonic=new mnemonic(passPhrase,mnemonic.Words.ENGLISH);
-    return crypto.createHash('sha256').update(secretMnemonic.toSeed().toString('hex'), 'hex').digest();
+  var secretMnemonic=new mnemonic(passPhrase, mnemonic.Words.ENGLISH);
+  return crypto.createHash('sha256').update(secretMnemonic.toSeed().toString('hex'), 'hex').digest();
 };
 
 
 /**
- * Creates a keypar based on a hash.
+ * Creates a keypair based on a hash.
  * @implements {sodium}
  * @param {hash} hash
  * @return {Object} publicKey, privateKey

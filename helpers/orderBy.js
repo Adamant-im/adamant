@@ -10,7 +10,7 @@
  */
 function OrderBy (orderBy, options) {
   options = (typeof options === 'object') ? options : {};
-  options.sortField  = options.sortField  || null;
+  options.sortField = options.sortField || null;
   options.sortMethod = options.sortMethod || null;
   options.sortFields = Array.isArray(options.sortFields) ? options.sortFields : [];
 

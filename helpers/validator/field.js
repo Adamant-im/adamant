@@ -30,7 +30,7 @@ function Field (validator, path, value, rules, thisArg) {
  * @param {*} value Validated value
  * @param {object} rules Set of rules
  * @param {*} thisArg Value used as this reference within rule callback calls.
- * @returns {Validator.Field}
+ * @return {Validator.Field}
  */
 Field.prototype.child = function (path, value, rules, thisArg) {
   var field = this.validator.createField(this.path.concat(path), value, rules, thisArg);
@@ -90,9 +90,9 @@ Field.prototype.validate = function (callback) {
 
       if (result === false) {
         report.push({
-          path : this.path,
-          rule : rule,
-          accept : accept
+          path: this.path,
+          rule: rule,
+          accept: accept
         });
 
         this.hasError = true;
@@ -101,8 +101,8 @@ Field.prototype.validate = function (callback) {
     } catch (err) {
       if (!err.field) {
         Object.defineProperty(err, 'field', {
-          enumerable : false,
-          value : this
+          enumerable: false,
+          value: this
         });
       }
       this.validator.onError(this, err);
@@ -144,7 +144,7 @@ Field.prototype.end = function (err) {
 Field.prototype.async = function (callback) {
   this.isAsync = true;
   var self = this;
-  callback(function (err){
+  callback(function (err) {
     if (arguments.length > 1) {
       self.value = arguments[1];
     }
@@ -154,8 +154,8 @@ Field.prototype.async = function (callback) {
     if (err) {
       if (!err.hasOwnProperty('field')) {
         Object.defineProperty(err, 'field', {
-          enumerable : false,
-          value : self
+          enumerable: false,
+          value: self
         });
         self.validator.onError(self, err);
       }
@@ -170,7 +170,7 @@ Field.prototype.async = function (callback) {
  * Report an invalid validation result
  * @param {{}} report Validation report object
  */
-Field.prototype.issue = function (report){
+Field.prototype.issue = function (report) {
   this.hasError = true;
   report.path = this.path.concat(report.path);
   this.report.push(report);

@@ -7,7 +7,7 @@ var extend = require('extend');
  * Express.js router wrapper.
  * @memberof module:helpers
  * @function
- * @returns {Object} router express
+ * @return {Object} router express
  * @throws {Error} If config is invalid
  */
 var Router = function () {
@@ -29,7 +29,7 @@ var Router = function () {
           method: req.method,
           path: req.path
         };
-        root[config[params]](extend({}, reqRelevantInfo, {'body': route[0] === 'get' ? req.query : req.body}), httpApi.respond.bind(null, res));
+        root[config[params]](extend({}, reqRelevantInfo, { 'body': route[0] === 'get' ? req.query : req.body }), httpApi.respond.bind(null, res));
       });
     });
   };
