@@ -125,7 +125,7 @@ module.exports = function (grunt) {
 
 	grunt.loadTasks('tasks');
 
-	grunt.loadNpmTasks('grunt-obfuscator');
+	grunt.loadNpmTasks('grunt-contrib-obfuscator');
 	grunt.loadNpmTasks('grunt-exec');
 	grunt.loadNpmTasks('grunt-contrib-compress');
 	grunt.loadNpmTasks('grunt-eslint');

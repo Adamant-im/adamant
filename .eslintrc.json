@@ -1,7 +1,15 @@
 {
+  "env": {
+    "commonjs": true,
+    "es2021": true,
+    "browser": true,
+    "node": true
+  },
+  "extends": [
+    "google"
+  ],
   "parserOptions": {
-    "ecmaVersion": 5,
-    "sourceType": "module"
+    "ecmaVersion": 12
   },
   "rules": {
     "semi": "error",
@@ -22,10 +30,6 @@
     "no-mixed-requires": "off",
     "no-new-require": "off"
   },
-  "env": {
-    "browser": true,
-    "node": true
-  },
   "globals": {
     "it": true,
     "describe": true,
@@ -35,5 +39,4 @@
     "afterEach": true
   },
   "plugins": []
-
 }
