@@ -21,6 +21,8 @@
         "ignoreRegExpLiterals": true
       }],
     "require-jsdoc": ["off"],
+    "no-var": ["off"],
+    "comma-dangle": ["error", "never"],
     "semi": "error",
     "no-eq-null": "off",
     "indent": ["off", 4],
