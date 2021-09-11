@@ -88,7 +88,6 @@ describe('PUT /api/accounts/delegates with funds', function () {
 			amount: node.randomLISK(),
 			recipientId: account.address
 		}, function (err, res) {
-			console.log('res.body', res.body);
 			node.expect(res.body).to.have.property('success').to.be.ok;
 			node.expect(res.body).to.have.property('transactionId');
 			node.expect(res.body.transactionId).to.be.not.empty;
@@ -103,7 +102,7 @@ describe('PUT /api/accounts/delegates with funds', function () {
 	});
 
 	it('when upvoting same delegate multiple times should fail', function (done) {
-		var votedDelegate = Array.apply(null, Array(2)).map(function () { return '+' + node.eAccount.publicKey;});
+		var votedDelegate = Array.apply(null, Array(2)).map(function () { return '+' + node.eAccount.publicKey; });
 
 		putAccountsDelegates({
 			secret: account.password,
@@ -116,7 +115,7 @@ describe('PUT /api/accounts/delegates with funds', function () {
 	});
 
 	it('when downvoting same delegate multiple times should fail', function (done) {
-		var votedDelegate = Array.apply(null, Array(2)).map(function () { return '-' + node.eAccount.publicKey;});
+		var votedDelegate = Array.apply(null, Array(2)).map(function () { return '-' + node.eAccount.publicKey; });
 
 		putAccountsDelegates({
 			secret: account.password,
@@ -429,7 +428,7 @@ describe('GET /api/delegates (cache)', function () {
 		orderBy = 'unknown:asc';
 		params = 'orderBy=' + orderBy;
 
-		node.get(url+ params, function (err, res) {
+		node.get(url + params, function (err, res) {
 			node.expect(res.body).to.have.property('success').to.be.not.ok;
 			node.expect(res.body).to.have.property('error').to.equal('Invalid sort field');
 			cache.getJsonForKey(url + params, function (err, res) {
@@ -550,40 +549,60 @@ describe('GET /api/delegates', function () {
 		});
 	});
 
-	// it('using orderBy == "vote:asc" should be ok', function (done) {
-	// 	var orderBy = 'vote:asc';
-	// 	var params = 'orderBy=' + orderBy;
-	//
-	// 	node.get('/api/delegates?' + params, function (err, res) {
-	// 		node.expect(res.body).to.have.property('success').to.be.ok;
-	// 		node.expect(res.body).to.have.property('delegates').that.is.an('array');
-	// 		node.expect(res.body.delegates).to.have.lengthOf(101);
-	// 		for (var i = 0; i < res.body.delegates.length; i++) {
-	// 			if (res.body.delegates[i + 1] != null) {
-	// 				node.expect(res.body.delegates[i].vote).to.be.at.most(res.body.delegates[i + 1].vote);
-	// 			}
-	// 		}
-	// 		done();
-	// 	});
-	// });
+	it('using orderBy == "vote:asc" should be ok', function (done) {
+		var orderBy = 'vote:asc';
+		var params = 'orderBy=' + orderBy;
 
-	// it('using orderBy == "vote:desc" should be ok', function (done) {
-	// 	var orderBy = 'vote:desc';
-	// 	var params = 'orderBy=' + orderBy;
-	//
-	// 	node.get('/api/delegates?' + params, function (err, res) {
-	// 		node.expect(res.body).to.have.property('success').to.be.ok;
-	// 		node.expect(res.body).to.have.property('delegates').that.is.an('array');
-	// 		node.expect(res.body.delegates).to.have.lengthOf(101);
-	// 		const delegates = res.body.delegates.sort((x,y) => parseInt(y.vote)-parseInt(x.vote));
-	// 		for (var i = delegates.length-1; i > 0; i--) {
-	// 			if (delegates[i - 1] != null) {
-	// 				node.expect(delegates[i].vote).to.be.at.least(delegates[i - 1].vote);
-	// 			}
-	// 		}
-	// 		done();
-	// 	});
-	// });
+		node.get('/api/delegates?' + params, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('delegates').that.is.an('array');
+			node.expect(res.body.delegates).to.have.lengthOf(101);
+			for (var i = 0; i < res.body.delegates.length; i++) {
+				if (res.body.delegates[i + 1]) {
+					node.expect(Number(res.body.delegates[i].vote)).to.be.at.most(Number(res.body.delegates[i + 1].vote));
+				}
+			}
+			done();
+		});
+	});
+
+	it('using orderBy == "vote:desc" should be ok', function (done) {
+		var orderBy = 'vote:desc';
+		var params = 'orderBy=' + orderBy;
+
+		node.get('/api/delegates?' + params, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('delegates').that.is.an('array');
+			node.expect(res.body.delegates).to.have.lengthOf(101);
+			for (var i = 0; i < res.body.delegates.length; i++) {
+				if (res.body.delegates[i + 1]) {
+					node.expect(Number(res.body.delegates[i].vote)).to.be.at.least(Number(res.body.delegates[i + 1].vote));
+				}
+			}
+			done();
+		});
+	});
+
+	// Sorting via votesWeight is not yet implemented
+
+	/*
+	it('using orderBy == "votesWeight:asc" should be ok', function (done) {
+		var orderBy = 'votesWeight:asc';
+		var params = 'orderBy=' + orderBy;
+	
+		node.get('/api/delegates?' + params, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('delegates').that.is.an('array');
+			node.expect(res.body.delegates).to.have.lengthOf(101);
+			for (var i = 0; i < res.body.delegates.length; i++) {
+				if (res.body.delegates[i + 1]) {
+					node.expect(Number(res.body.delegates[i].votesWeight)).to.be.at.most(Number(res.body.delegates[i + 1].votesWeight));
+				}
+			}
+			done();
+		});
+	});
+	*/
 
 	it('using orderBy == "username:asc" should be ok', function (done) {
 		var orderBy = 'username:asc';
@@ -733,7 +752,7 @@ describe('GET /api/delegates', function () {
 				var dividedIndices = res.body.delegates.reduce(function (memo, peer, index) {
 					memo[peer[sortField] === null ? 'nullIndices' : 'notNullIndices'].push(index);
 					return memo;
-				}, {notNullIndices: [], nullIndices: []});
+				}, { notNullIndices: [], nullIndices: [] });
 
 				if (dividedIndices.nullIndices.length && dividedIndices.notNullIndices.length) {
 					var ascOrder = function (a, b) { return a - b; };
@@ -832,296 +851,257 @@ describe('GET /api/delegates/voters', function () {
 	});
 });
 
-// describe('GET /api/delegates/search', function () {
-//
-// 	const accounts = Array.from(Array(101)).map(() => node.randomAccount());
-//
-// 	before(function (done) {
-// 		for (let i = 0; i < 101; i++) {
-// 			const account = accounts[i];
-// 			sendADM({
-// 				secret: "echo indoor minute album notice pear prosper situate alcohol vintage athlete crouch",
-// 				amount: node.constants.fees.delegate,
-// 				recipientId: account.address
-// 			}, (err, res) => {
-//                 node.expect(res.body).to.have.property('success');
-// 				node.waitForBlocks(2, () => {
-//                     const params = {
-//                         secret: account.password,
-//                         username: `genesis_${i+1}`
-//                     };
-//                     putDelegates(params, (err, res) => {
-//                         node.expect(res.body).to.have.property('success');
-//                     });
-// 				});
-//             });
-// 		}
-// 		done();
-//     });
-//
-//     before(function (done) {
-//         node.waitForBlocks(101, done);
-//     });
-//
-//     // before(function (done) {
-//     // 	accounts.forEach((account,i) => {
-//     //
-// 	// 	});
-//     //     // node.onNewBlock(done);
-// 	// 	done();
-//     // });
-// 	//
-//     // before(function (done) {
-//     //     node.waitForBlocks(101, done);
-//     // });
-//
-// 	it('using no criteria should fail', function (done) {
-// 		node.get('/api/delegates/search', function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.not.ok;
-// 			node.expect(res.body).to.have.property('error');
-// 			done();
-// 		});
-// 	});
-//
-// 	it('using blank criteria should fail', function (done) {
-// 		var q = '';
-//
-// 		node.get('/api/delegates/search?q=' + q, function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.not.ok;
-// 			node.expect(res.body).to.have.property('error');
-// 			done();
-// 		});
-// 	});
-//
-// 	it('using wildcard criteria should be ok', function (done) {
-// 		var q = '%'; // 1 character
-//
-// 		node.get('/api/delegates/search?q=' + q, function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.ok;
-// 			node.expect(res.body).to.have.property('delegates').that.is.an('array');
-// 			done();
-// 		});
-// 	});
-//
-// 	it('using criteria with length == 1 should be ok', function (done) {
-// 		var q = 'g'; // 1 character
-//
-// 		node.get('/api/delegates/search?q=' + q, function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.ok;
-// 			node.expect(res.body).to.have.property('delegates').that.is.an('array');
-// 			done();
-// 		});
-// 	});
-//
-// 	it('using criteria with length == 20 should be ok', function (done) {
-// 		var q = 'genesis_123456789012'; // 20 characters
-//
-// 		node.get('/api/delegates/search?q=' + q, function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.ok;
-// 			node.expect(res.body).to.have.property('delegates').that.is.an('array');
-// 			done();
-// 		});
-// 	});
-//
-// 	it('using criteria with length > 20 should fail', function (done) {
-// 		var q = 'genesis_1234567890123'; // 21 characters
-//
-// 		node.get('/api/delegates/search?q=' + q, function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.not.ok;
-// 			node.expect(res.body).to.have.property('error');
-// 			done();
-// 		});
-// 	});
-//
-// 	it('using criteria == "lo" should return 2 delegates', function (done) {
-// 		var q = 'lo';
-//
-// 		node.get('/api/delegates/search?q=' + q, function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.ok;
-// 			node.expect(res.body).to.have.property('delegates').that.is.an('array');
-// 			node.expect(res.body.delegates).to.have.length(2);
-// 			done();
-// 		});
-// 	});
-//
-// 	it('using criteria == "love" should return 1 delegate', function (done) {
-// 		var q = 'love';
-//
-// 		node.get('/api/delegates/search?q=' + q, function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.ok;
-// 			node.expect(res.body).to.have.property('delegates').that.is.an('array');
-// 			node.expect(res.body.delegates).to.have.length(1);
-// 			done();
-// 		});
-// 	});
-//
-// 	it('using criteria == "genesis_101" should have all properties', function (done) {
-// 		var q = 'genesis_101';
-//
-// 		node.get('/api/delegates/search?q=' + q, function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.ok;
-// 			node.expect(res.body).to.have.property('delegates').that.is.an('array');
-// 			node.expect(res.body.delegates).to.have.length(1);
-// 			node.expect(res.body.delegates[0]).to.have.property('rank').that.is.an('number');
-// 			node.expect(res.body.delegates[0]).to.have.property('username').that.is.an('string');
-// 			node.expect(res.body.delegates[0]).to.have.property('address').that.is.an('string');
-// 			node.expect(res.body.delegates[0]).to.have.property('publicKey').that.is.an('string');
-// 			node.expect(res.body.delegates[0]).to.have.property('vote').that.is.an('string');
-// 			node.expect(res.body.delegates[0]).to.have.property('producedblocks').that.is.an('number');
-// 			node.expect(res.body.delegates[0]).to.have.property('missedblocks').that.is.an('number');
-// 			node.expect(res.body.delegates[0]).to.have.property('approval').that.is.an('number');
-// 			node.expect(res.body.delegates[0]).to.have.property('productivity').that.is.an('number');
-// 			node.expect(res.body.delegates[0]).to.have.property('voters_cnt').that.is.an('number');
-// 			node.expect(res.body.delegates[0]).to.have.property('register_timestamp').that.is.an('number');
-// 			done();
-// 		});
-// 	});
-//
-// 	it('using no limit should be ok', function (done) {
-// 		var q = 'genesis_';
-//
-// 		node.get('/api/delegates/search?q=' + q, function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.ok;
-// 			node.expect(res.body).to.have.property('delegates').that.is.an('array');
-// 			node.expect(res.body.delegates).to.have.length(101);
-// 			done();
-// 		});
-// 	});
-//
-// 	it('using string limit should fail', function (done) {
-// 		var q = 'genesis_';
-// 		var limit = 'one';
-//
-// 		node.get('/api/delegates/search?q=' + q + '&limit=' + limit, function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.not.ok;
-// 			node.expect(res.body).to.have.property('error');
-// 			done();
-// 		});
-// 	});
-//
-// 	it('using limit == -100 should fail', function (done) {
-// 		var q = 'genesis_';
-// 		var limit = -100;
-//
-// 		node.get('/api/delegates/search?q=' + q + '&limit=' + limit, function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.not.ok;
-// 			node.expect(res.body).to.have.property('error');
-// 			done();
-// 		});
-// 	});
-//
-// 	it('using limit == -1 should fail', function (done) {
-// 		var q = 'genesis_';
-// 		var limit = -1;
-//
-// 		node.get('/api/delegates/search?q=' + q + '&limit=' + limit, function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.not.ok;
-// 			node.expect(res.body).to.have.property('error');
-// 			done();
-// 		});
-// 	});
-//
-// 	it('using limit == 0 should fail', function (done) {
-// 		var q = 'genesis_';
-// 		var limit = 0;
-//
-// 		node.get('/api/delegates/search?q=' + q + '&limit=' + limit, function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.not.ok;
-// 			node.expect(res.body).to.have.property('error');
-// 			done();
-// 		});
-// 	});
-//
-// 	it('using limit == 1 should be ok', function (done) {
-// 		var q = 'genesis_';
-// 		var limit = 1;
-//
-// 		node.get('/api/delegates/search?q=' + q + '&limit=' + limit, function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.ok;
-// 			node.expect(res.body).to.have.property('delegates').that.is.an('array');
-// 			node.expect(res.body.delegates).to.have.length(1);
-// 			done();
-// 		});
-// 	});
-//
-// 	// it('using limit == 1000 should be ok', function (done) {
-// 	// 	var q = 'genesis_';
-// 	// 	var limit = 1000;
-// 	//
-// 	// 	node.get('/api/delegates/search?q=' + q + '&limit=' + limit, function (err, res) {
-// 	// 		node.expect(res.body).to.have.property('success').to.be.ok;
-// 	// 		node.expect(res.body).to.have.property('delegates').that.is.an('array');
-// 	// 		node.expect(res.body.delegates).to.have.length(101);
-// 	// 		done();
-// 	// 	});
-// 	// });
-//
-// 	it('using limit > 1000 should fail', function (done) {
-// 		var q = 'genesis_';
-// 		var limit = 1001;
-//
-// 		node.get('/api/delegates/search?q=' + q + '&limit=' + limit, function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.not.ok;
-// 			node.expect(res.body).to.have.property('error');
-// 			done();
-// 		});
-// 	});
-//
-// 	it('using orderBy == "unknown:asc" should fail', function (done) {
-// 		var q = 'genesis_';
-//
-// 		node.get('/api/delegates/search?q=' + q + '&orderBy=unknown:asc', function (err, res) {
-// 			node.expect(res.body).to.have.property('success').to.be.not.ok;
-// 			node.expect(res.body).to.have.property('error');
-// 			done();
-// 		});
-// 	});
-//
-// 	// it('using no orderBy should be ordered by ascending username', function (done) {
-// 	// 	var q = 'genesis_';
-// 	//
-// 	// 	node.get('/api/delegates/search?q=' + q, function (err, res) {
-// 	// 		node.expect(res.body).to.have.property('success').to.be.ok;
-// 	// 		node.expect(res.body).to.have.property('delegates').that.is.an('array');
-// 	// 		node.expect(res.body.delegates).to.have.length(101);
-// 	// 		node.expect(res.body.delegates[0]).to.have.property('username');
-// 	// 		node.expect(res.body.delegates[0].username).to.equal('genesis_1');
-// 	// 		node.expect(res.body.delegates[24]).to.have.property('username');
-// 	// 		node.expect(res.body.delegates[24].username).to.equal('genesis_3');
-// 	// 		done();
-// 	// 	});
-// 	// });
-// 	//
-// 	// it('using orderBy == "username:asc" should be ordered by ascending username', function (done) {
-// 	// 	var q = 'genesis_';
-// 	//
-// 	// 	node.get('/api/delegates/search?q=' + q + '&orderBy=username:asc', function (err, res) {
-// 	// 		node.expect(res.body).to.have.property('success').to.be.ok;
-// 	// 		node.expect(res.body).to.have.property('delegates').that.is.an('array');
-// 	// 		node.expect(res.body.delegates).to.have.length(101);
-// 	// 		node.expect(res.body.delegates[0]).to.have.property('username');
-// 	// 		node.expect(res.body.delegates[0].username).to.equal('genesis_1');
-// 	// 		node.expect(res.body.delegates[24]).to.have.property('username');
-// 	// 		node.expect(res.body.delegates[24].username).to.equal('genesis_3');
-// 	// 		done();
-// 	// 	});
-// 	// });
-// 	//
-// 	// it('using orderBy == "username:desc" should be ordered by descending username', function (done) {
-// 	// 	var q = 'genesis_';
-// 	//
-// 	// 	node.get('/api/delegates/search?q=' + q + '&orderBy=username:desc', function (err, res) {
-// 	// 		node.expect(res.body).to.have.property('success').to.be.ok;
-// 	// 		node.expect(res.body).to.have.property('delegates').that.is.an('array');
-// 	// 		node.expect(res.body.delegates).to.have.length(101);
-// 	// 		node.expect(res.body.delegates[0]).to.have.property('username');
-// 	// 		node.expect(res.body.delegates[0].username).to.equal('genesis_99');
-// 	// 		node.expect(res.body.delegates[24]).to.have.property('username');
-// 	// 		node.expect(res.body.delegates[24].username).to.equal('genesis_77');
-// 	// 		done();
-// 	// 	});
-// 	// });
-// });
+describe('GET /api/delegates/search', function () {
+
+	const accounts = Array.from(Array(101)).map(() => node.randomAccount());
+
+	it('using no criteria should fail', function (done) {
+		node.get('/api/delegates/search', function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.not.ok;
+			node.expect(res.body).to.have.property('error');
+			done();
+		});
+	});
+
+	it('using blank criteria should fail', function (done) {
+		var q = '';
+
+		node.get('/api/delegates/search?q=' + q, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.not.ok;
+			node.expect(res.body).to.have.property('error');
+			done();
+		});
+	});
+
+	it('using wildcard criteria should be ok', function (done) {
+		var q = '%'; // 1 character
+
+		node.get('/api/delegates/search?q=' + q, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('delegates').that.is.an('array');
+			done();
+		});
+	});
+
+	it('using criteria with length == 1 should be ok', function (done) {
+		var q = 'g'; // 1 character
+
+		node.get('/api/delegates/search?q=' + q, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('delegates').that.is.an('array');
+			done();
+		});
+	});
+
+	it('using criteria with length == 20 should be ok', function (done) {
+		var q = 'genesis_123456789012'; // 20 characters
+
+		node.get('/api/delegates/search?q=' + q, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('delegates').that.is.an('array');
+			done();
+		});
+	});
+
+	it('using criteria with length > 20 should fail', function (done) {
+		var q = 'genesis_1234567890123'; // 21 characters
+
+		node.get('/api/delegates/search?q=' + q, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.not.ok;
+			node.expect(res.body).to.have.property('error');
+			done();
+		});
+	});
+
+	it('using criteria == "lo" should return 2 delegates', function (done) {
+		var q = 'lo';
+
+		node.get('/api/delegates/search?q=' + q, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('delegates').that.is.an('array');
+			node.expect(res.body.delegates).to.have.length(2);
+			done();
+		});
+	});
+
+	it('using criteria == "love" should return 1 delegate', function (done) {
+		var q = 'love';
+
+		node.get('/api/delegates/search?q=' + q, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('delegates').that.is.an('array');
+			node.expect(res.body.delegates).to.have.length(1);
+			done();
+		});
+	});
+
+	it('using criteria == "market" should have all properties', function (done) {
+		var q = 'market';
+
+		node.get('/api/delegates/search?q=' + q, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('delegates').that.is.an('array');
+			node.expect(res.body.delegates).to.have.length(1);
+			node.expect(res.body.delegates[0]).to.have.property('rank').that.is.an('number');
+			node.expect(res.body.delegates[0]).to.have.property('username').that.is.an('string');
+			node.expect(res.body.delegates[0]).to.have.property('address').that.is.an('string');
+			node.expect(res.body.delegates[0]).to.have.property('publicKey').that.is.an('string');
+			node.expect(res.body.delegates[0]).to.have.property('vote').that.is.an('string');
+			node.expect(res.body.delegates[0]).to.have.property('producedblocks').that.is.an('number');
+			node.expect(res.body.delegates[0]).to.have.property('missedblocks').that.is.an('number');
+			node.expect(res.body.delegates[0]).to.have.property('approval').that.is.an('number');
+			node.expect(res.body.delegates[0]).to.have.property('productivity').that.is.an('number');
+			node.expect(res.body.delegates[0]).to.have.property('voters_cnt').that.is.an('number');
+			node.expect(res.body.delegates[0]).to.have.property('register_timestamp').that.is.an('number');
+			done();
+		});
+	});
+
+	it('using no limit should be ok', function (done) {
+		var q = '%';
+
+		node.get('/api/delegates/search?q=' + q, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('delegates').that.is.an('array');
+			node.expect(res.body.delegates).to.have.length(101);
+			done();
+		});
+	});
+
+	it('using string limit should fail', function (done) {
+		var q = '%';
+		var limit = 'one';
+
+		node.get('/api/delegates/search?q=' + q + '&limit=' + limit, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.not.ok;
+			node.expect(res.body).to.have.property('error');
+			done();
+		});
+	});
+
+	it('using limit == -100 should fail', function (done) {
+		var q = '%';
+		var limit = -100;
+
+		node.get('/api/delegates/search?q=' + q + '&limit=' + limit, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.not.ok;
+			node.expect(res.body).to.have.property('error');
+			done();
+		});
+	});
+
+	it('using limit == -1 should fail', function (done) {
+		var q = '%';
+		var limit = -1;
+
+		node.get('/api/delegates/search?q=' + q + '&limit=' + limit, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.not.ok;
+			node.expect(res.body).to.have.property('error');
+			done();
+		});
+	});
+
+	it('using limit == 0 should fail', function (done) {
+		var q = '%';
+		var limit = 0;
+
+		node.get('/api/delegates/search?q=' + q + '&limit=' + limit, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.not.ok;
+			node.expect(res.body).to.have.property('error');
+			done();
+		});
+	});
+
+	it('using limit == 1 should be ok', function (done) {
+		var q = '%';
+		var limit = 1;
+
+		node.get('/api/delegates/search?q=' + q + '&limit=' + limit, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('delegates').that.is.an('array');
+			node.expect(res.body.delegates).to.have.length(1);
+			done();
+		});
+	});
+
+	it('using limit == 1000 should be ok', function (done) {
+		var q = '%';
+		var limit = 1000;
+	
+		node.get('/api/delegates/search?q=' + q + '&limit=' + limit, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('delegates').that.is.an('array');
+			node.expect(res.body.delegates.length).to.be.at.least(101);
+			done();
+		});
+	});
+
+	it('using limit > 1000 should fail', function (done) {
+		var q = '%';
+		var limit = 1001;
+
+		node.get('/api/delegates/search?q=' + q + '&limit=' + limit, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.not.ok;
+			node.expect(res.body).to.have.property('error');
+			done();
+		});
+	});
+
+	it('using orderBy == "unknown:asc" should fail', function (done) {
+		var q = '%';
+
+		node.get('/api/delegates/search?q=' + q + '&orderBy=unknown:asc', function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.not.ok;
+			node.expect(res.body).to.have.property('error');
+			done();
+		});
+	});
+
+	it('using no orderBy should be ordered by ascending username', function (done) {
+		var q = '%';
+	
+		node.get('/api/delegates/search?q=' + q, function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('delegates').that.is.an('array');
+			node.expect(res.body.delegates).to.have.length(101);
+			node.expect(res.body.delegates[0]).to.have.property('username');
+			node.expect(res.body.delegates[0].username).to.be.at.most(res.body.delegates[1].username);
+			node.expect(res.body.delegates[24]).to.have.property('username');
+			node.expect(res.body.delegates[24].username).to.be.at.most(res.body.delegates[25].username);
+			done();
+		});
+	});
+	
+	it('using orderBy == "username:asc" should be ordered by ascending username', function (done) {
+		var q = '%';
+	
+		node.get('/api/delegates/search?q=' + q + '&orderBy=username:asc', function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('delegates').that.is.an('array');
+			node.expect(res.body.delegates).to.have.length(101);
+			node.expect(res.body.delegates[0]).to.have.property('username');
+			node.expect(res.body.delegates[0].username).to.be.at.most(res.body.delegates[1].username);
+			node.expect(res.body.delegates[24]).to.have.property('username');
+			node.expect(res.body.delegates[24].username).to.be.at.most(res.body.delegates[25].username);
+			done();
+		});
+	});
+	
+	it('using orderBy == "username:desc" should be ordered by descending username', function (done) {
+		var q = '%';
+	
+		node.get('/api/delegates/search?q=' + q + '&orderBy=username:desc', function (err, res) {
+			node.expect(res.body).to.have.property('success').to.be.ok;
+			node.expect(res.body).to.have.property('delegates').that.is.an('array');
+			node.expect(res.body.delegates).to.have.length(101);
+			node.expect(res.body.delegates[0]).to.have.property('username');
+			node.expect(res.body.delegates[0].username).to.be.at.least(res.body.delegates[1].username);
+			node.expect(res.body.delegates[24]).to.have.property('username');
+			node.expect(res.body.delegates[24].username).to.be.at.least(res.body.delegates[25].username);
+			done();
+		});
+	});
+});
 
 describe('GET /api/delegates/forging/status', function () {
 	it('using no params should be ok', function (done) {
@@ -1236,7 +1216,7 @@ describe('POST /api/delegates/forging/enable', function () {
 					done();
 				});
 			} else {
-                done();
+				done();
 			}
 		});
 	});
