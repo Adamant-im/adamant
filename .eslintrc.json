@@ -25,7 +25,6 @@
     "comma-dangle": ["error", "never"],
     "semi": "error",
     "no-eq-null": "off",
-    "indent": ["off", 4],
     "eqeqeq": "off",
     "curly": "error",
     "no-undef": "error",
