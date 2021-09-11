@@ -33,14 +33,14 @@ function AccountsHttpApi (accountsModule, app) {
 
   router.map(accountsModule.shared, {
     'post /open': 'open',
-        'post /new': 'new',
+    'post /new': 'new',
     'get /getBalance': 'getBalance',
     'get /getPublicKey': 'getPublickey',
     'post /generatePublicKey': 'generatePublicKey',
     'get /delegates': 'getDelegates',
     'get /delegates/fee': 'getDelegatesFee',
     'put /delegates': 'addDelegates',
-        'post /delegates': 'voteForDelegates',
+    'post /delegates': 'voteForDelegates',
     'get /': 'getAccount'
   });
 

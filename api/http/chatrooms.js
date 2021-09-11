@@ -19,15 +19,15 @@ const httpApi = require('../../helpers/httpApi');
  */
 // Constructor
 function ChatroomsHttpApi (chatroomsModule, app) {
-    const router = new Router();
+  const router = new Router();
 
-    router.map(chatroomsModule.internal, {
-        'get /U*/U*': 'getMessages',
-        'get /U*': 'getChats',
-    });
+  router.map(chatroomsModule.internal, {
+    'get /U*/U*': 'getMessages',
+    'get /U*': 'getChats'
+  });
 
 
-    httpApi.registerEndpoint('/api/chatrooms', app, router, chatroomsModule.isLoaded);
+  httpApi.registerEndpoint('/api/chatrooms', app, router, chatroomsModule.isLoaded);
 }
 
 module.exports = ChatroomsHttpApi;

@@ -24,18 +24,18 @@ var schema = require('../../schema/dapps');
  */
 // Constructor
 function ChatsHttpApi (chatsModule, app) {
-    var router = new Router();
+  var router = new Router();
 
-    router.map(chatsModule.internal, {
-        'get /senders': 'senders',
-        'get /get': 'getTransactions',
-        'get /messages': 'messages',
-        'post /normalize': 'normalize',
-        'post /process': 'process'
-    });
+  router.map(chatsModule.internal, {
+    'get /senders': 'senders',
+    'get /get': 'getTransactions',
+    'get /messages': 'messages',
+    'post /normalize': 'normalize',
+    'post /process': 'process'
+  });
 
 
-    httpApi.registerEndpoint('/api/chats', app, router, chatsModule.isLoaded);
+  httpApi.registerEndpoint('/api/chats', app, router, chatsModule.isLoaded);
 }
 
 module.exports = ChatsHttpApi;

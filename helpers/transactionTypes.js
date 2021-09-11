@@ -10,7 +10,7 @@ module.exports = {
   IN_TRANSFER: 6,
   OUT_TRANSFER: 7,
   CHAT_MESSAGE: 8,
-    STATE: 9,
+  STATE: 9,
   CHAT_MESSAGE_TYPES: {
     LEGACY_MESSAGE: 0,
     ORDINARY_MESSAGE: 1,

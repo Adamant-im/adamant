@@ -21,7 +21,7 @@ function NodeHttpApi (nodeModule, app) {
   var router = new Router();
 
   router.map(nodeModule.shared, {
-    'get /status': 'getStatus',
+    'get /status': 'getStatus'
   });
 
 

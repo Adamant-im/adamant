@@ -18,7 +18,7 @@ var schema = require('../../schema/dapps');
  *   - post  /launch
  *   - put  /transaction
  *   - put  /withdrawal
- *   
+ *
  * - Sanitized
  *   - get  /
  *   - put  /

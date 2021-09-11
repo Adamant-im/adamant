@@ -22,17 +22,17 @@ var httpApi = require('../../helpers/httpApi');
  */
 // Constructor
 function StatesHttpApi (statesModule, app) {
-    var router = new Router();
+  var router = new Router();
 
-    router.map(statesModule.internal, {
-        'get /get': 'getTransactions',
-        'post /get': 'getTransactions',
-        'post /normalize': 'normalize',
-        'post /store': 'store'
-    });
+  router.map(statesModule.internal, {
+    'get /get': 'getTransactions',
+    'post /get': 'getTransactions',
+    'post /normalize': 'normalize',
+    'post /store': 'store'
+  });
 
 
-    httpApi.registerEndpoint('/api/states', app, router, statesModule.isLoaded);
+  httpApi.registerEndpoint('/api/states', app, router, statesModule.isLoaded);
 }
 
 module.exports = StatesHttpApi;
