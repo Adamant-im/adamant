@@ -5,13 +5,15 @@
   "scripts": {
     "start": "node app.js",
     "start:testnet": "node app.js --config test/config.json --genesis test/genesisBlock.json",
-    "test": "./node_modules/.bin/grunt test --verbose",
-    "jenkins": "./node_modules/.bin/grunt jenkins --verbose",
+    "test:full": "./node_modules/.bin/grunt test --verbose",
+    "test:single": "./node_modules/.bin/grunt test-single --verbose",
+    "test:fast": "./node_modules/.bin/mocha --exclude test/unit/sql/blockRewards.js --exclude test/api/delegates.js --exclude test/api/peer.transactions.stress.js --exclude test/api/peer.transactions.votes.js test/unit/**/* test/api/**/*",
+    "test:all": "./node_modules/.bin/mocha test/unit/**/* test/api/**/*",
     "eslint": "./node_modules/.bin/grunt eslint-nofix --verbose",
+    "eslint:fix": "./node_modules/.bin/grunt eslint-fix --verbose",
     "fetchCoverage": "./node_modules/.bin/grunt exec:fetchCoverage --verbose",
     "jsdoc": "jsdoc -c docs/conf.json --verbose --pedantic",
-    "server-docs": "npm run jsdoc && http-server docs/jsdoc/",
-    "fasttest": "./node_modules/.bin/mocha --exclude test/unit/sql/blockRewards.js --exclude test/api/delegates.js --exclude test/api/peer.transactions.stress.js --exclude test/api/peer.transactions.votes.js test/unit/**/* test/api/**/*"
+    "server-docs": "npm run jsdoc && http-server docs/jsdoc/"
   },
   "author": "ADAMANT Tech Labs <devs@adamant.im>, Lisk Foundation <admin@lisk.io>, lightcurve GmbH <admin@lightcurve.io>",
   "license": "GPL-3.0",

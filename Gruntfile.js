@@ -15,12 +15,12 @@ module.exports = function (grunt) {
 		'app.js'
 	];
 
-	var today = moment().format('HH:mm:ss DD/MM/YYYY');
+	var today = moment().format('YYYY-MM-DD HH:mm:ss');
 
 	var config = require('./config.json');
 
 	var release_dir = __dirname + '/release/';
-	var version_dir = release_dir + config.version;
+	var version_dir = release_dir + 'current';
 
 	var maxBufferSize = require('buffer').kMaxLength - 1;
 
@@ -100,7 +100,7 @@ module.exports = function (grunt) {
 					level: 6
 				},
 				files: [
-					{ expand: true, cwd: release_dir, src: [config.version + '/**'], dest: './' }
+					{ expand: true, cwd: release_dir, src: ['current' + '/**'], dest: './' }
 				]
 			}
 		},
@@ -132,7 +132,7 @@ module.exports = function (grunt) {
 
 	grunt.registerTask('default', ['release']);
 	grunt.registerTask('release', ['exec:folder', 'obfuscator', 'exec:package', 'exec:build', 'compress']);
-	grunt.registerTask('jenkins', ['exec:coverageSingle']);
+	grunt.registerTask('test-single', ['exec:coverageSingle']);
 	grunt.registerTask('eslint-nofix', ['eslint']);
 	grunt.registerTask('test', ['eslint', 'exec:coverage']);
 
