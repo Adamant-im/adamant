@@ -46,7 +46,6 @@ var validTransaction = {
 };
 
 describe('cache', function () {
-
 	var cache;
 
 	before(function (done) {
@@ -77,7 +76,6 @@ describe('cache', function () {
 	});
 
 	describe('setJsonForKey', function () {
-
 		it('should set the key value correctly', function (done) {
 			var key = 'test_key';
 			var value = {testObject: 'testValue'};
@@ -92,11 +90,9 @@ describe('cache', function () {
 				});
 			});
 		});
-
 	});
 
 	describe('getJsonForKey', function () {
-
 		it('should return null for non-existent key', function (done) {
 			var key = 'test_key';
 
@@ -124,7 +120,6 @@ describe('cache', function () {
 	});
 
 	describe('flushDb', function () {
-
 		it('should remove all keys from cache', function (done) {
 			var key1 = 'test_key1';
 			var key2 = 'test_key2';
@@ -170,7 +165,6 @@ describe('cache', function () {
 	});
 
 	describe('removeByPattern', function () {
-
 		it('should remove keys matching the pattern', function (done) {
 			var key = '/api/transactions?123';
 			var value = {testObject: 'testValue'};
@@ -208,11 +202,9 @@ describe('cache', function () {
 				});
 			});
 		});
-
 	});
 	
 	describe('onNewBlock', function () {
-
 		it('should remove all keys matching pattern /api/transactions', function (done) {
 			var key = '/api/transactions?123';
 			var value = {testObject: 'testValue'};
@@ -291,7 +283,6 @@ describe('cache', function () {
 	});
 
 	describe('onFinishRound', function (done) {
-
 		it('should remove all keys matching pattern /api/delegates', function (done) {
 			var key = '/api/delegates?123';
 			var value = {testObject: 'testValue'};
@@ -349,11 +340,9 @@ describe('cache', function () {
 				});
 			});
 		});
-
 	});
 
 	describe('onTransactionsSaved', function (done) {
-
 		it('shouldnt remove keys with pattern /api/delegate if there is no type 2 trs', function (done) {
 			var key = '/api/delegates?123';
 			var value = {testObject: 'testValue'};

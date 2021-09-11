@@ -5,7 +5,6 @@ var node = require('./../node.js');
 var account = node.randomAccount();
 
 describe('POST /api/accounts/open', function () {
-
   function openAccount (params, done) {
     node.post('/api/accounts/open', params, done);
   }
@@ -95,7 +94,6 @@ describe('POST /api/accounts/open', function () {
 });
 
 describe('GET /api/accounts/getBalance?address=', function () {
-
   function getBalance (address, done) {
     node.get('/api/accounts/getBalance?address=' + address, done);
   }
@@ -139,7 +137,6 @@ describe('GET /api/accounts/getBalance?address=', function () {
 });
 
 describe('GET /api/accounts/getPublicKey?address=', function () {
-
   function getPublicKey (address, done) {
     node.get('/api/accounts/getPublicKey?address=' + address, done);
   }
@@ -179,7 +176,6 @@ describe('GET /api/accounts/getPublicKey?address=', function () {
 });
 
 describe('POST /api/accounts/generatePublicKey', function () {
-
   function generatePublicKey (params, done) {
     node.post('/api/accounts/generatePublicKey', params, done);
   }
@@ -235,7 +231,6 @@ describe('POST /api/accounts/generatePublicKey', function () {
 });
 
 describe('GET /accounts', function () {
-
   function getAccounts (params, done) {
     node.get('/api/accounts?' + params, done);
   }
@@ -411,5 +406,4 @@ describe('GET /accounts', function () {
       done();
     });
   });
-
 });

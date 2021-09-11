@@ -74,7 +74,6 @@ function Broadcaster (broadcasts, force, peers, transaction, logger) {
 	}
 
 	jobsQueue.register('broadcasterNextRelease', nextRelease, self.config.broadcastInterval);
-
 }
 
 // Public methods

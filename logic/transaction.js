@@ -528,7 +528,6 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
 	var multisignatures = sender.multisignatures || sender.u_multisignatures || [];
 	if (multisignatures.length === 0) {
 		if (trs.asset && trs.asset.multisignature && trs.asset.multisignature.keysgroup) {
-
 			for (var i = 0; i < trs.asset.multisignature.keysgroup.length; i++) {
 				var key = trs.asset.multisignature.keysgroup[i];
 
@@ -882,7 +881,6 @@ Transaction.prototype.undo = function (trs, block, sender, cb) {
  * @return {setImmediateCallback} for errors | cb
  */
 Transaction.prototype.applyUnconfirmed = function (trs, sender, requester, cb) {
-
 	if (typeof requester === 'function') {
 		cb = requester;
 	}

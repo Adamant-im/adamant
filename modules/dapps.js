@@ -621,7 +621,6 @@ __private.createRoutes = function (dapp, cb) {
       routes.forEach(function (router) {
         if (router.method === 'get' || router.method === 'post' || router.method === 'put') {
           __private.routes[dapp.transactionId][router.method](router.path, function (req, res) {
-
             self.request(dapp.transactionId, router.method, router.path, (router.method === 'get') ? req.query : req.body, function (err, body) {
               if (!err && body.error) {
                 err = body.error;
@@ -1415,7 +1414,6 @@ DApps.prototype.internal = {
   },
 
   stop: function (params, cb) {
-
     if (!__private.launched[params.id]) {
       return setImmediate(cb, 'Application not launched');
     }

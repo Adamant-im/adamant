@@ -29,7 +29,6 @@ var schema = require('../../schema/accounts.js');
  */
 
 function AccountsHttpApi (accountsModule, app) {
-
   var router = new Router();
 
   router.map(accountsModule.shared, {

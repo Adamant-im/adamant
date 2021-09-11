@@ -29,7 +29,6 @@ function postSignature (transaction, signature, done) {
 }
 
 describe('GET /peer/signatures', function () {
-
   it('using incorrect nethash in headers should fail', function (done) {
     node.get('/peer/signatures')
       .set('nethash', 'incorrect')
@@ -66,7 +65,6 @@ describe('GET /peer/signatures', function () {
 });
 
 describe('POST /peer/signatures', function () {
-
   var validParams;
 
   var randomAccount = node.randomAccount();
@@ -313,5 +311,4 @@ describe('POST /peer/signatures', function () {
     it('with processable signature should be ok');
   });
   */
-
 });

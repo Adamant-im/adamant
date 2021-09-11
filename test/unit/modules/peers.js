@@ -14,7 +14,6 @@ var modulesLoader = require('../../common/initModule').modulesLoader;
 var currentPeers = [];
 
 describe('peers', function () {
-
 	var peers, modules;
 
 	var NONCE = randomString.generate(16);
@@ -47,7 +46,6 @@ describe('peers', function () {
 	});
 
 	describe('sandboxApi', function (done) {
-
 		it('should pass the call', function () {
 			var sandboxHelper = require('../../../helpers/sandbox.js');
 			sinon.stub(sandboxHelper, 'callMethod').returns(true);
@@ -58,7 +56,6 @@ describe('peers', function () {
 	});
 
 	describe('update', function () {
-
 		it('should insert new peer', function (done) {
 			peers.update(randomPeer);
 
@@ -171,7 +168,6 @@ describe('peers', function () {
 	});
 
 	describe('remove', function () {
-
 		before(function (done) {
 			peers.update(randomPeer);
 			done();
@@ -197,7 +193,6 @@ describe('peers', function () {
 	});
 
 	describe('acceptable', function () {
-
 		before(function () {
 			process.env['NODE_ENV'] = 'DEV';
 		});
@@ -242,7 +237,6 @@ describe('peers', function () {
 	});
 
 	describe('ping', function () {
-
 		it('should accept peer with public ip', function (done) {
 			sinon.stub(modules.transport, 'getFromPeer').callsArgWith(2, null, {
 				success: true,
@@ -262,7 +256,6 @@ describe('peers', function () {
 	});
 
 	describe('onBlockchainReady', function () {
-
 		before(function () {
 			modules.transport.onBind(modules);
 		});
@@ -284,7 +277,6 @@ describe('peers', function () {
 	});
 
 	describe('onPeersReady', function () {
-
 		before(function () {
 			modules.transport.onBind(modules);
 		});

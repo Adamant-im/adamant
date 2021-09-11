@@ -17,9 +17,7 @@ function sendADM (params, done) {
 }
 
 describe('POST /peer/transactions', function () {
-
   describe('registering a delegate', function () {
-
     it('using undefined transaction', function (done) {
       postTransaction(undefined, function (err, res) {
         node.expect(res.body).to.have.property('success').to.be.not.ok;
@@ -45,7 +43,6 @@ describe('POST /peer/transactions', function () {
     });
 
     describe('when account has no funds', function () {
-
       it('should fail', function (done) {
         const account = node.randomAccount();
         let transaction = node.createDelegateTransaction({
@@ -62,7 +59,6 @@ describe('POST /peer/transactions', function () {
     });
 
     describe('when account has funds', function () {
-
       let account = node.randomAccount();
       account.username = node.randomDelegateName();
 
@@ -138,7 +134,6 @@ describe('POST /peer/transactions', function () {
     });
 
     describe('twice for the same account', function () {
-
       let account = node.randomAccount();
 
       before(function (done) {

@@ -5,7 +5,6 @@ var ip = require('ip');
 var packageJSON = require('./../../package.json');
 
 describe('GET /peer/list', function () {
-
   before(function (done) {
     node.addPeers(2, '0.0.0.0', done);
   });
@@ -73,7 +72,6 @@ describe('GET /peer/list', function () {
 });
 
 describe('GET /peer/height', function () {
-
   it('using incorrect nethash in headers should fail', function (done) {
     node.get('/peer/height')
       .set('nethash', 'incorrect')

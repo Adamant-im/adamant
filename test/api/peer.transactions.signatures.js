@@ -36,9 +36,7 @@ function sendLISK (params, done) {
 }
 
 describe('POST /peer/transactions', function () {
-
   describe('enabling second signature', function () {
-
     it('using undefined transaction', function (done) {
       postTransaction(undefined, function (err, res) {
         node.expect(res.body).to.have.property('success').to.be.not.ok;
@@ -61,7 +59,6 @@ describe('POST /peer/transactions', function () {
     // });
 
     describe('when account has no funds', function () {
-
       it('should fail', function (done) {
         var transaction = {
           secret: account.password,
@@ -77,7 +74,6 @@ describe('POST /peer/transactions', function () {
     });
 
     describe('when account has funds', function () {
-
       before(function (done) {
         sendLISK({
           secret: node.iAccount.password,
@@ -108,7 +104,6 @@ describe('POST /peer/transactions', function () {
   });
 
   describe('using second signature', function () {
-
     before(function (done) {
       node.onNewBlock(function (err) {
         done();

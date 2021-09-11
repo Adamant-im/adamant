@@ -36,7 +36,6 @@ var schema = require('../../schema/dapps');
  */
 // Constructor
 function DappsHttpApi (dappsModule, app) {
-
   var router = new Router();
 
   router.map(dappsModule.internal, {

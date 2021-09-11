@@ -21,7 +21,6 @@ var httpApi = require('../../helpers/httpApi');
  */
 // Constructor
 function MultisignaturesHttpApi (mutlisignaturesModule, app) {
-
   var router = new Router();
 
   router.map(mutlisignaturesModule.shared, {

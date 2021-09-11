@@ -87,7 +87,6 @@ beforeEach(function (done) {
 });
 
 describe('PUT /dapps', function () {
-
   var validParams;
 
   beforeEach(function (done) {
@@ -282,7 +281,6 @@ describe('PUT /dapps', function () {
 });
 
 describe('PUT /api/dapps/transaction', function () {
-
   function putTransaction (params, done) {
     node.put('/api/dapps/transaction', params, done);
   }
@@ -466,7 +464,6 @@ describe('PUT /api/dapps/transaction', function () {
 });
 
 describe('PUT /api/dapps/withdrawal', function () {
-
   function putWithdrawal (params, done) {
     node.put('/api/dapps/withdrawal', params, done);
   }
@@ -797,7 +794,6 @@ describe('PUT /api/dapps/withdrawal', function () {
 });
 
 describe('GET /dapps', function () {
-
   before(function (done) {
     node.onNewBlock(done);
   });
@@ -954,7 +950,6 @@ describe('GET /dapps', function () {
 });
 
 describe('GET /dapps?id=', function () {
-
   function getDapps (id, done) {
     node.get('/api/dapps?id=' + id, done);
   }
@@ -996,7 +991,6 @@ describe('GET /dapps?id=', function () {
 });
 
 describe('POST /api/dapps/install', function () {
-
   function postInstall (params, done) {
     node.post('/api/dapps/install', params, done);
   }
@@ -1074,7 +1068,6 @@ describe('POST /api/dapps/install', function () {
 });
 
 describe('GET /api/dapps/installed', function () {
-
   it('should be ok', function (done) {
     var flag = 0;
 
@@ -1095,7 +1088,6 @@ describe('GET /api/dapps/installed', function () {
 });
 
 describe('GET /api/dapps/installedIds', function () {
-
   it('should be ok', function (done) {
     var flag = 0;
 
@@ -1116,7 +1108,6 @@ describe('GET /api/dapps/installedIds', function () {
 });
 
 describe('GET /api/dapps/search?q=', function () {
-
   function getSearch (params, done) {
     node.get('/api/dapps/search?' + params, done);
   }
@@ -1165,7 +1156,6 @@ describe('GET /api/dapps/search?q=', function () {
 });
 
 describe('POST /api/dapps/launch', function () {
-
   function postLaunch (params, done) {
     node.post('/api/dapps/launch', params, done);
   }
@@ -1240,7 +1230,6 @@ describe('POST /api/dapps/launch', function () {
 });
 
 describe('POST /api/dapps/stop', function () {
-
   function postStop (params, done) {
     node.post('/api/dapps/stop', params, done);
   }
@@ -1291,7 +1280,6 @@ describe('POST /api/dapps/stop', function () {
 });
 
 describe('GET /api/dapps/categories', function () {
-
   it('should be ok', function (done) {
     node.get('/api/dapps/categories', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -1305,7 +1293,6 @@ describe('GET /api/dapps/categories', function () {
 });
 
 describe('POST /api/dapps/uninstall', function () {
-
   function postUninstall (params, done) {
     node.post('/api/dapps/uninstall', params, done);
   }

@@ -4,7 +4,6 @@ var node = require('./../node.js');
 var peersSortFields = require('../../sql/peers').sortFields;
 
 describe('GET /api/peers/version', function () {
-
   it('should be ok', function (done) {
     node.get('/api/peers/version', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -17,7 +16,6 @@ describe('GET /api/peers/version', function () {
 });
 
 describe('GET /api/peers/count', function () {
-
   it('should be ok', function (done) {
     node.get('/api/peers/count', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -30,7 +28,6 @@ describe('GET /api/peers/count', function () {
 });
 
 describe('GET /api/peers', function () {
-
   it('using invalid ip should fail', function (done) {
     var ip = 'invalid';
     var params = 'ip=' + ip;
@@ -478,7 +475,6 @@ describe('GET /api/peers', function () {
 });
 
 describe('GET /api/peers/get', function () {
-
   var validParams, frozenPeerPort = 9999;
 
   before(function (done) {
@@ -522,7 +518,6 @@ describe('GET /api/peers/get', function () {
 });
 
 describe('GET /api/peers/unknown', function () {
-
   it('should not to do anything', function (done) {
     node.get('/api/peers/unknown', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.not.ok;

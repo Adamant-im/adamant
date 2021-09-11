@@ -12,7 +12,6 @@ var Peers = require('../../../logic/peers.js');
 var Peer = require('../../../logic/peer.js');
 
 describe('peers', function () {
-
 	var peers;
 
 	before(function (done) {
@@ -94,7 +93,6 @@ describe('peers', function () {
 	});
 
 	describe('upsert', function () {
-
 		it('should insert new peers', function () {
 			removeAll();
 			peers.upsert(randomPeer);
@@ -196,7 +194,6 @@ describe('peers', function () {
 	});
 
 	describe('exists', function () {
-
 		it('should return true if peer is on the list', function () {
 			removeAll();
 
@@ -212,7 +209,6 @@ describe('peers', function () {
 	});
 
 	describe('get', function () {
-
 		it('should return inserted peer', function () {
 			removeAll();
 			peers.upsert(randomPeer);
@@ -225,7 +221,6 @@ describe('peers', function () {
 			peers.upsert(randomPeer);
 			var insertedPeer = peers.get(randomPeer.ip + ':' + randomPeer.port);
 			expect(arePeersEqual(insertedPeer, randomPeer)).to.be.ok;
-
 		});
 
 		it('should return undefined if peer is not inserted', function () {
@@ -235,7 +230,6 @@ describe('peers', function () {
 	});
 
 	describe('remove', function () {
-
 		it('should remove added peer', function () {
 			removeAll();
 			peers.upsert(randomPeer);
@@ -252,5 +246,4 @@ describe('peers', function () {
 			expect(peers.list().length).equal(0);
 		});
 	});
-
 });

@@ -24,7 +24,6 @@ var schema = require('../../schema/dapps');
  */
 // Constructor
 function ChatsHttpApi (chatsModule, app) {
-
     var router = new Router();
 
     router.map(chatsModule.internal, {

@@ -80,7 +80,6 @@ function registerDelegate (account, done) {
 }
 
 describe('POST /peer/transactions', function () {
-
   before(function (done) {
     sendADM({
       secret: node.iAccount.password,
@@ -369,7 +368,6 @@ describe('POST /peer/transactions', function () {
 });
 
 describe('POST /peer/transactions after registering a new delegate', function () {
-
   before(function (done) {
     getDelegates(function (err, res) {
       delegates = res.body.delegates.map(function (delegate) {

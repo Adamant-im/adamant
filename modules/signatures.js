@@ -201,14 +201,12 @@ Signatures.prototype.shared = {
             modules.transactions.receiveTransactions([transaction], true, cb);
           });
         }
-
       }, function (err, transaction) {
         if (err) {
           return setImmediate(cb, err);
         }
         return setImmediate(cb, null, {transaction: transaction[0]});
       });
-
     });
   }
 };

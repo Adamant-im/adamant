@@ -77,7 +77,6 @@ var existedDelegateKey = '81dd616f47bda681c929b9035aa1cbc9c41ba9d4af91f04744d132
 var invalidDelegateKey = 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30fg';
 
 describe('vote', function () {
-
 	var voteBindings;
 	var vote;
 	var accountsModule;
@@ -228,7 +227,6 @@ describe('vote', function () {
 	});
 
 	describe('bind', function () {
-
 		it('should be okay with correct params', function () {
 			expect(function () {
 				vote.bind(voteBindings.delegate, voteBindings.rounds);
@@ -241,7 +239,6 @@ describe('vote', function () {
 	});
 
 	describe('create', function () {
-
 		it('should throw with empty parameters', function () {
 			expect(function () {
 				vote.create();
@@ -387,7 +384,6 @@ describe('vote', function () {
 	});
 
 	describe('verifyVote', function () {
-
 		it('should throw if vote is of invalid length', function (done) {
 			var invalidVote = '-01389197bbaf1afb0acd47bbfeabb34aca80fb372a8f694a1c0716b3398d746';
 			vote.verifyVote(invalidVote, function (err) {
@@ -443,11 +439,9 @@ describe('vote', function () {
                 });
             });
 		});
-
 	});
 
 	describe('checkConfirmedDelegates (remove vote)', function () {
-
 		it('should return err if vote is not made for a delegate', function (done) {
 			var trs = _.cloneDeep(validTransaction);
 			trs.asset.votes = ['-9f2fcc688518324273da230afff9756312bf23592174896fab669c2d78b1533c'];
@@ -465,7 +459,6 @@ describe('vote', function () {
 	});
 
 	describe('checkUnconfirmedDelegates (add vote)', function () {
-
 		it('should return err if vote is already made to a delegate', function (done) {
 			var trs = _.cloneDeep(validTransaction);
 			trs.asset.votes = votedDelegates.map(function (v) {
@@ -498,11 +491,9 @@ describe('vote', function () {
                 });
             });
 		});
-
 	});
 
 	describe('checkUnconfirmedDelegates (remove vote)', function () {
-
 		it('should return err if vote is not made for a delegate', function (done) {
 			var trs = _.cloneDeep(validTransaction);
 			trs.asset.votes = ['-9f2fcc688518324273da230afff9756312bf23592174896fab669c2d78b1533c'];
@@ -528,7 +519,6 @@ describe('vote', function () {
 	});
 
 	describe('apply', function () {
-
 		it('should remove votes for delegates', function (done) {
 			var trs = _.clone(validTransaction);
 			trs.asset.votes = votedDelegates.map(function (v) { return '-' + v; });
@@ -547,7 +537,6 @@ describe('vote', function () {
 	});
 
 	describe('undo', function () {
-
 		it('should undo remove votes for delegates', function (done) {
 			var trs = _.clone(validTransaction);
 			trs.asset.votes = votedDelegates.map(function (v) { return '-' + v; });
@@ -566,7 +555,6 @@ describe('vote', function () {
 	});
 
 	describe('applyUnconfirmed', function () {
-
 		it('should remove votes for delegates', function (done) {
 			var trs = _.clone(validTransaction);
 			trs.asset.votes = votedDelegates.map(function (v) { return '-' + v; });
@@ -585,7 +573,6 @@ describe('vote', function () {
 	});
 
 	describe('undoUnconfirmed', function () {
-
 		it('should undo remove votes for delegates', function (done) {
 			var trs = _.clone(validTransaction);
 			trs.asset.votes = votedDelegates.map(function (v) { return '-' + v; });
@@ -604,7 +591,6 @@ describe('vote', function () {
 	});
 
 	describe('objectNormalize', function () {
-
 		it('should normalize object for valid trs', function () {
 			expect(vote.objectNormalize.call(transaction, validTransaction)).to.eql(validTransaction);
 		});
@@ -629,7 +615,6 @@ describe('vote', function () {
 	});
 
 	describe('dbRead', function () {
-
 		it('should read votes correct', function () {
 			var rawVotes = '+9d3058175acab969f41ad9b86f7a2926c74258670fe56b37c429c01fca9f2f0f,+141b16ac8d5bd150f16b1caa08f689057ca4c4434445e56661831f4e671b7c0a,+3ff32442bb6da7d60c1b7752b24e6467813c9b698e0f278d48c43580da972135';
 			expect(vote.dbRead({
@@ -647,7 +632,6 @@ describe('vote', function () {
 	});
 
 	describe('dbSave', function () {
-
 		it('should create return db save promise', function () {
 			var valuesKeys = ['votes', 'transactionId'];
 			var savePromise = vote.dbSave(validTransaction);
@@ -657,7 +641,6 @@ describe('vote', function () {
 		});
 	});
 	describe('ready', function () {
-
 		it('should return true for single signature trs', function () {
 			expect(vote.ready(validTransaction, validSender)).to.equal(true);
 		});

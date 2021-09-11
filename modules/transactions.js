@@ -863,11 +863,9 @@ Transactions.prototype.shared = {
                             return setImmediate(cb, e.toString());
                         }
                         return setImmediate(cb, null, {transaction: transaction});
-
                     });
                 }
             });
-
         });
     },
     processTransactions: function (req, cb) {
@@ -952,7 +950,6 @@ Transactions.prototype.shared = {
                             });
                         });
                     } else {
-
                         modules.accounts.setAccountAndGet({publicKey: req.body.transaction.senderPublicKey}, function (err, account) {
                             if (err) {
                                 return setImmediate(cb, err);

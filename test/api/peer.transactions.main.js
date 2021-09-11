@@ -16,7 +16,6 @@ function getAddress (address, done) {
 }
 
 describe('GET /peer/transactions', function () {
-
   it('using incorrect nethash in headers should fail', function (done) {
     node.get('/peer/transactions')
       .set('nethash', 'incorrect')
@@ -52,7 +51,6 @@ describe('GET /peer/transactions', function () {
 });
 
 describe('POST /peer/transactions', function () {
-
   it('using incorrect nethash in headers should fail', function (done) {
     node.post('/peer/transactions')
       .set('nethash', 'incorrect')
@@ -375,7 +373,6 @@ describe('POST /peer/transactions', function () {
   });
 
   describe('from the genesis account', function () {
-
     var account = node.randomAccount();
     var transaction = node.createSendTransaction({
       keyPair: node.gAccount.keypair,

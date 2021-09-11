@@ -9,7 +9,6 @@ var sinon = require('sinon');
 var modulesLoader = require('../../common/initModule').modulesLoader;
 
 describe('blocks', function () {
-
 	var blocks;
 
 	before(function (done) {
@@ -29,7 +28,6 @@ describe('blocks', function () {
 	});
 
 	describe('getBlockProgressLogger', function () {
-
 		it('should logs correctly', function () {
 			var tracker = blocks.utils.getBlockProgressLogger(5, 2, '');
 			tracker.log = sinon.spy();

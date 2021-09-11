@@ -28,7 +28,6 @@ var httpApi = require('../../helpers/httpApi');
  */
 // Constructor
 function BlocksHttpApi (blocksModule, app, logger, cache) {
-
   var router = new Router();
 
   // attach a middlware to endpoints

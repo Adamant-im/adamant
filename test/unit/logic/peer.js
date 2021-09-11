@@ -11,7 +11,6 @@ var randomPeer = require('../../common/objectStubs').randomPeer;
 var Peer = require('../../../logic/peer.js');
 
 describe('peer', function () {
-
 	var peer;
 
 	beforeEach(function () {
@@ -19,7 +18,6 @@ describe('peer', function () {
 	});
 
 	describe('accept', function () {
-
 		it('should accept valid peer', function () {
 			var peer = new Peer({});
 			var __peer = peer.accept(randomPeer);
@@ -52,7 +50,6 @@ describe('peer', function () {
 	});
 
 	describe('parseInt', function () {
-
 		it('should always return a number', function () {
 			expect(peer.parseInt('1')).to.equal(1);
 			expect(peer.parseInt(1)).to.equal(1);
@@ -66,7 +63,6 @@ describe('peer', function () {
 	});
 
 	describe('applyHeaders', function () {
-
 		it('should not apply random values to the peer scope', function () {
 			peer.applyHeaders({headerA: 'HeaderA'});
 			expect(peer.headerA).to.not.exist;
@@ -105,7 +101,6 @@ describe('peer', function () {
 	});
 
 	describe('update', function () {
-
 		it('should not apply random values to the peer scope', function () {
 			peer.update({someProp: 'someValue'});
 			expect(peer.someProp).to.not.exist;
@@ -164,7 +159,6 @@ describe('peer', function () {
 	});
 
 	describe('object', function () {
-
 		it('should create proper copy of peer', function () {
 			var __peer = new Peer(randomPeer);
 			var peerCopy = __peer.object();

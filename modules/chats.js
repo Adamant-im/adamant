@@ -451,11 +451,9 @@ Chats.prototype.internal = {
                             return setImmediate(cb, e.toString());
                         }
                         return setImmediate(cb, null, {transaction: transaction});
-
                     });
                 }
             });
-
         });
     },
     process: function (req, cb) {
@@ -540,7 +538,6 @@ Chats.prototype.internal = {
                             });
                         });
                     } else {
-
                         modules.accounts.setAccountAndGet({publicKey: req.body.transaction.senderPublicKey}, function (err, account) {
                             if (err) {
                                 return setImmediate(cb, err);

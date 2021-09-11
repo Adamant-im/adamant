@@ -51,7 +51,6 @@ Delegate.prototype.create = function (data, trs) {
 };
 
 Delegate.prototype.publish = function (data) {
-
     if (!data.senderId) {
         throw 'Invalid sender';
     }

@@ -15,11 +15,9 @@ function milestoneSupply (milestoneNum, step) {
 }
 
 describe('BlockReward', function () {
-
 	var blockReward = new BlockReward();
 
 	describe('returning calcMilestone', function () {
-
 		it('when height is undefined should throw an error', function () {
 			expect(blockReward.calcMilestone).to.throw(/Invalid block height/);
 		});
@@ -182,7 +180,6 @@ describe('BlockReward', function () {
 	});
 
 	describe('returning calcReward', function () {
-
 		it('when height is undefined should throw an error', function () {
 			expect(blockReward.calcReward).to.throw(/Invalid block height/);
 		});
@@ -345,7 +342,6 @@ describe('BlockReward', function () {
 	});
 
 	describe('returning calcSupply', function () {
-
 		it('when height is undefined should throw an error', function () {
 			expect(blockReward.calcSupply).to.throw(/Invalid block height/);
 		});
@@ -900,9 +896,7 @@ describe('BlockReward', function () {
         );
 
 		describe('completely', function () {
-
 			describe('before reward offset', function () {
-
 				it('should be ok', function () {
 					var supply = blockReward.calcSupply(1);
 					var prev = supply;
@@ -916,7 +910,6 @@ describe('BlockReward', function () {
 			});
 
 			describe('for milestone 0', function () {
-
 				it('should be ok', function () {
 					var supply = blockReward.calcSupply(constants.rewards.offset-1);
 					var prev = supply;
@@ -930,7 +923,6 @@ describe('BlockReward', function () {
 			});
 
 			describe('for milestone 1', function () {
-
 				it('should be ok', function () {
 					var supply = blockReward.calcSupply(constants.rewards.offset+constants.rewards.distance-1);
 					var prev = supply;
@@ -944,7 +936,6 @@ describe('BlockReward', function () {
 			});
 
 			describe('for milestone 2', function () {
-
 				it('should be ok', function () {
 					var supply = blockReward.calcSupply(constants.rewards.offset+constants.rewards.distance*2-1);
 					var prev = supply;
@@ -958,7 +949,6 @@ describe('BlockReward', function () {
 			});
 
 			describe('for milestone 3', function () {
-
 				it('should be ok', function () {
 					var supply = blockReward.calcSupply(constants.rewards.offset+constants.rewards.distance*3-1);
 					var prev = supply;
@@ -972,7 +962,6 @@ describe('BlockReward', function () {
 			});
 
             describe('for milestone 4', function () {
-
                 it('should be ok', function () {
                     var supply = blockReward.calcSupply(constants.rewards.offset+constants.rewards.distance*4-1);
                     var prev = supply;
@@ -987,7 +976,6 @@ describe('BlockReward', function () {
             });
 
             describe('for milestone 5', function () {
-
                 it('should be ok', function () {
                     var supply = blockReward.calcSupply(constants.rewards.offset+constants.rewards.distance*5-1);
                     var prev = supply;
@@ -1002,7 +990,6 @@ describe('BlockReward', function () {
             });
 
             describe('for milestone 6', function () {
-
                 it('should be ok', function () {
                     var supply = blockReward.calcSupply(constants.rewards.offset+constants.rewards.distance*6-1);
                     var prev = supply;
@@ -1017,7 +1004,6 @@ describe('BlockReward', function () {
             });
 
             describe('for milestone 7', function () {
-
                 it('should be ok', function () {
                     var supply = blockReward.calcSupply(constants.rewards.offset+constants.rewards.distance*7-1);
                     var prev = supply;
@@ -1032,7 +1018,6 @@ describe('BlockReward', function () {
             });
 
             describe('for milestone 8 and beyond', function () {
-
                 it('should be ok', function () {
                     var supply = blockReward.calcSupply(constants.rewards.offset+constants.rewards.distance*8-1);
                     var prev = supply;

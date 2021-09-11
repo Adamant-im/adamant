@@ -8,7 +8,6 @@ var Rounds = require('../../../modules/rounds.js');
 var modulesLoader = require('../../common/initModule').modulesLoader;
 
 describe('rounds', function () {
-
 	var rounds;
 
 	before(function (done) {
@@ -22,7 +21,6 @@ describe('rounds', function () {
 	});
 
 	describe('calc', function () {
-
 		it('should calculate round number from given block height', function () {
 			node.expect(rounds.calc(100)).equal(1);
 			node.expect(rounds.calc(200)).equal(2);

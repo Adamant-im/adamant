@@ -381,11 +381,9 @@ States.prototype.internal = {
                             return setImmediate(cb, e.toString());
                         }
                         return setImmediate(cb, null, {transaction: transaction});
-
                     });
                 }
             });
-
         });
     },
     store: function (req, cb) {
@@ -397,8 +395,6 @@ States.prototype.internal = {
             var query = {address: req.body.transaction.senderId};
             var keypair = {};
             library.balancesSequence.add(function (cb) {
-
-
                     if (req.body.multisigAccountPublicKey && req.body.multisigAccountPublicKey !== req.body.transaction.publicKey) {
                         modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey}, function (err, account) {
                             if (err) {
@@ -461,7 +457,6 @@ States.prototype.internal = {
                             });
                         });
                     } else {
-
                         modules.accounts.setAccountAndGet({publicKey: req.body.transaction.senderPublicKey}, function (err, account) {
                             if (err) {
                                 return setImmediate(cb, err);
@@ -493,7 +488,6 @@ States.prototype.internal = {
                             modules.transactions.receiveTransactions([transaction], true, cb);
                         });
                     }
-
             }, function (err, transaction) {
                 if (err) {
                     return setImmediate(cb, err);

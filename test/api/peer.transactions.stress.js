@@ -25,9 +25,7 @@ function sendADM (params, done) {
 
 
 describe('POST /peer/transactions', function () {
-
   describe('sending 100 bundled transfers to random addresses', function () {
-
     var transactions = [];
     var maximum = 100;
     var count = 1;
@@ -85,7 +83,6 @@ describe('POST /peer/transactions', function () {
   });
 
   describe('sending 100 single transfers to random addresses', function () {
-
     var transactions = [];
     var maximum = 100;
     var count = 1;

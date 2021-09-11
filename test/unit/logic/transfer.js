@@ -304,14 +304,12 @@ describe('transfer', function () {
 	});
 
 	describe('applyUnconfirmed', function () {
-
 		it('should be okay with valid params', function (done) {
 			transfer.applyUnconfirmed.call(transaction, validTransaction, validSender, done);
 		});
 	});
 
 	describe('undoUnconfirmed', function () {
-
 		it('should be okay with valid params', function (done) {
 			transfer.undoUnconfirmed.call(transaction, validTransaction, validSender, done);
 		});

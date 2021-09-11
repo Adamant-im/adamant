@@ -279,7 +279,6 @@ Rounds.prototype.tick = function (block, done) {
       } else {
         return setImmediate(cb);
       }
-
     }
   ], function (err) {
     // Stop round ticking

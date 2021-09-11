@@ -88,7 +88,6 @@ State.prototype.calculateFee = function (trs, sender) {
  * @return {setImmediateCallback} errors | trs
  */
 State.prototype.verify = function (trs, sender, cb) {
-
     if (!trs.asset || !trs.asset.state) {
         return setImmediate(cb, 'Invalid transaction asset');
     }

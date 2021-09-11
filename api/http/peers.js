@@ -20,7 +20,6 @@ var httpApi = require('../../helpers/httpApi');
  */
 // Constructor
 function PeersHttpApi (peersModule, app) {
-
   var router = new Router();
 
   router.map(peersModule.shared, {

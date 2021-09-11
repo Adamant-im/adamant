@@ -88,7 +88,6 @@ var ChatsSql = {
         return x;
     },
     listChats: function (params) {
-
       let y = [
             'SELECT',
             'CONCAT(LEAST("t_senderId", "t_recipientId"), GREATEST("t_senderId", "t_recipientId")) as "srt",',

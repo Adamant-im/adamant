@@ -18,7 +18,6 @@ var httpApi = require('../../helpers/httpApi');
  */
 // Constructor
 function SignaturesHttpApi (signaturesModule, app) {
-
   var router = new Router();
 
   router.map(signaturesModule.shared, {

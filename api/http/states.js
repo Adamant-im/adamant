@@ -22,7 +22,6 @@ var httpApi = require('../../helpers/httpApi');
  */
 // Constructor
 function StatesHttpApi (statesModule, app) {
-
     var router = new Router();
 
     router.map(statesModule.internal, {

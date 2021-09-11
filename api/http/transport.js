@@ -30,7 +30,6 @@ var schema = require('../../schema/transport');
  */
 // Constructor
 function TransportHttpApi (transportModule, app, logger, cache) {
-
   var router = new Router();
 
   router.use(httpApi.middleware.attachResponseHeaders.bind(null, transportModule.headers));

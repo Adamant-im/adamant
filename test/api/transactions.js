@@ -169,7 +169,6 @@ describe('GET /api/transactions (cache)', function () {
 });
 
 describe('GET /api/transactions', function () {
-
   before(function (done) {
     node.onNewBlock(done);
   });
@@ -610,7 +609,6 @@ describe('GET /api/transactions', function () {
 });
 
 describe('GET /api/transactions/get?id=', function () {
-
   it('using valid id should be ok', function (done) {
     var transactionInCheck = transactionList[0];
     var params = 'id=' + transactionInCheck.txId;
@@ -640,7 +638,6 @@ describe('GET /api/transactions/get?id=', function () {
 });
 
 describe('GET /api/transactions/count', function () {
-
   it('should be ok', function (done) {
     node.get('/api/transactions/count', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -654,7 +651,6 @@ describe('GET /api/transactions/count', function () {
 });
 
 describe('GET /api/transactions/queued/get?id=', function () {
-
   it('using unknown id should be ok', function (done) {
     var params = 'id=' + '1234';
 
@@ -667,7 +663,6 @@ describe('GET /api/transactions/queued/get?id=', function () {
 });
 
 describe('GET /api/transactions/queued', function () {
-
   it('should be ok', function (done) {
     node.get('/api/transactions/queued', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -679,7 +674,6 @@ describe('GET /api/transactions/queued', function () {
 });
 
 describe('GET /api/transactions/multisignatures/get?id=', function () {
-
   it('using unknown id should be ok', function (done) {
     var params = 'id=' + '1234';
 
@@ -692,7 +686,6 @@ describe('GET /api/transactions/multisignatures/get?id=', function () {
 });
 
 describe('GET /api/transactions/multisignatures', function () {
-
   it('should be ok', function (done) {
     node.get('/api/transactions/multisignatures', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -704,7 +697,6 @@ describe('GET /api/transactions/multisignatures', function () {
 });
 
 describe('GET /api/transactions/unconfirmed/get?id=', function () {
-
   it('using valid id should be ok', function (done) {
     var params = 'id=' + transactionList[transactionList.length - 1].txId;
 
@@ -722,7 +714,6 @@ describe('GET /api/transactions/unconfirmed/get?id=', function () {
 });
 
 describe('GET /api/transactions/unconfirmed', function () {
-
   it('should be ok', function (done) {
     node.get('/api/transactions/unconfirmed', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -734,7 +725,6 @@ describe('GET /api/transactions/unconfirmed', function () {
 });
 
 describe('PUT /api/transactions', function () {
-
   it('using valid parameters should be ok', function (done) {
     var amountToSend = 100000000;
     var expectedFee = node.expectedFee(amountToSend);
@@ -917,7 +907,6 @@ describe('PUT /api/transactions', function () {
 });
 
 describe('POST /api/transactions', function () {
-
   var account4 = node.randomAccount();
   var transaction;
 
@@ -1082,6 +1071,5 @@ describe('POST /api/transactions', function () {
       node.expect(res.body).to.have.property('transactionId');
       done();
     });
-
   });
 });

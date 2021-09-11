@@ -90,7 +90,6 @@ var validBlockWithPayload = {
 };
 
 describe('blocks/verify (one may fail with Cannot read property sockets of undefined)', function () {
-
 	var blocksVerify;
 	var blocks;
 	var blockLogic;
@@ -432,7 +431,6 @@ describe('blocks/verify (one may fail with Cannot read property sockets of undef
 	describe('verifyReceipt() when block is valid', testValid.bind(null, 'verifyReceipt'));
 
 	describe('verifyReceipt() when block is invalid', function () {
-
 		describe('calling setHeight()', testSetHeight.bind(null, 'verifyReceipt'));
 
 		describe('calling verifySignature()', testVerifySignature.bind(null, 'verifyReceipt'));
@@ -455,7 +453,6 @@ describe('blocks/verify (one may fail with Cannot read property sockets of undef
 	describe('verifyBlock() when block is valid', testValid.bind(null, 'verifyBlock'));
 
 	describe('verifyBlock() when block is invalid', function () {
-
 		describe('calling setHeight()', testSetHeight.bind(null, 'verifyBlock'));
 
 		describe('calling verifySignature()', testVerifySignature.bind(null, 'verifyBlock'));

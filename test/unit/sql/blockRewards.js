@@ -98,9 +98,7 @@ function milestoneSupply (milestoneNum, step) {
 }
 
 describe('BlockRewardsSQL', function () {
-
 	describe('checking SQL function getBlockRewards()', function () {
-
 		it('SQL rewards should be equal to those in constants', function (done) {
 			db.query(sql.getBlockRewards).then(function (rows) {
 				expect(rows).to.be.array;
@@ -126,7 +124,6 @@ describe('BlockRewardsSQL', function () {
 	});
 
 	describe('checking SQL function calcBlockReward(int)', function () {
-
 		it('when height is undefined should return null', function (done) {
 			// Height, expected reward, callback
 			calcBlockReward(undefined, null, done);
@@ -286,7 +283,6 @@ describe('BlockRewardsSQL', function () {
 	});
 
 	describe('checking SQL function calcSupply(int)', function () {
-
 		it('when height is undefined should return null', function (done) {
 			calcSupply(undefined, null, done);
 		});
@@ -672,9 +668,7 @@ describe('BlockRewardsSQL', function () {
 	});
 
 	describe('checking completely SQL functions calcSupply(int) and calcBlockReward(int)', function () {
-
 		describe('check if calcBlockReward_test can fail', function () {
-
 			it('calcBlockReward_test should return 1000 for 1000 not matching block rewards', function (done) {
 				db.query(sql.calcBlockReward_test, {height_start: 1, height_end: 1000, expected_reward: 1}).then(function (rows) {
 					expect(rows).to.be.array;
@@ -689,7 +683,6 @@ describe('BlockRewardsSQL', function () {
 		});
 
 		describe('before reward offset', function () {
-
 			it('calcBlockReward_test should return 0', function (done) {
 				calcBlockReward_test(1, constants.rewards.offset-1, 0, done);
 			});
@@ -704,7 +697,6 @@ describe('BlockRewardsSQL', function () {
 		});
 
 		describe('for milestone 0', function () {
-
 			it('calcBlockReward_test should return 0', function (done) {
 				calcBlockReward_test(constants.rewards.offset, constants.rewards.offset-1, constants.rewards.milestones[0], done);
 			});
@@ -719,7 +711,6 @@ describe('BlockRewardsSQL', function () {
 		});
 
 		describe('for milestone 1', function () {
-
 			it('calcBlockReward_test should return 0', function (done) {
 				calcBlockReward_test(constants.rewards.offset+constants.rewards.distance, constants.rewards.offset+constants.rewards.distance*2-1, constants.rewards.milestones[1], done);
 			});
@@ -734,7 +725,6 @@ describe('BlockRewardsSQL', function () {
 		});
 
 		describe('for milestone 2', function () {
-
 			it('calcBlockReward_test should return 0', function (done) {
 				calcBlockReward_test(constants.rewards.offset+constants.rewards.distance*2, constants.rewards.offset+constants.rewards.distance*3-1, constants.rewards.milestones[2], done);
 			});
@@ -749,7 +739,6 @@ describe('BlockRewardsSQL', function () {
 		});
 
 		describe('for milestone 3', function () {
-
 			it('calcBlockReward_test should return 0', function (done) {
 				calcBlockReward_test(constants.rewards.offset+constants.rewards.distance*3, constants.rewards.offset+constants.rewards.distance*4-1, constants.rewards.milestones[3], done);
 			});
@@ -764,7 +753,6 @@ describe('BlockRewardsSQL', function () {
 		});
 
         describe('for milestone 4', function () {
-
             it('calcBlockReward_test should return 0', function (done) {
                 calcBlockReward_test(constants.rewards.offset+constants.rewards.distance*4, constants.rewards.offset+constants.rewards.distance*5-1, constants.rewards.milestones[4], done);
             });
@@ -779,7 +767,6 @@ describe('BlockRewardsSQL', function () {
         });
 
         describe('for milestone 5', function () {
-
             it('calcBlockReward_test should return 0', function (done) {
                 calcBlockReward_test(constants.rewards.offset+constants.rewards.distance*5, constants.rewards.offset+constants.rewards.distance*6-1, constants.rewards.milestones[5], done);
             });
@@ -794,7 +781,6 @@ describe('BlockRewardsSQL', function () {
         });
 
         describe('for milestone 6', function () {
-
             it('calcBlockReward_test should return 0', function (done) {
                 calcBlockReward_test(constants.rewards.offset+constants.rewards.distance*6, constants.rewards.offset+constants.rewards.distance*7-1, constants.rewards.milestones[6], done);
             });
@@ -809,7 +795,6 @@ describe('BlockRewardsSQL', function () {
         });
 
         describe('for milestone 7', function () {
-
             it('calcBlockReward_test should return 0', function (done) {
                 calcBlockReward_test(constants.rewards.offset+constants.rewards.distance*7, constants.rewards.offset+constants.rewards.distance*8-1, constants.rewards.milestones[7], done);
             });
@@ -824,7 +809,6 @@ describe('BlockRewardsSQL', function () {
         });
 
 		describe('for milestone 8 and beyond', function () {
-
 			it('calcBlockReward_test should return 0', function (done) {
 				calcBlockReward_test(constants.rewards.offset+constants.rewards.distance*8, (constants.rewards.offset+constants.rewards.distance*8 + 100), constants.rewards.milestones[8], done);
 			});

@@ -5,7 +5,6 @@ var expect = require('chai').expect;
 var validator = new ZSchema();
 
 describe('dapp', function () {
-
 	// TODO: Add tests for other dapps schemas
 
 	/*

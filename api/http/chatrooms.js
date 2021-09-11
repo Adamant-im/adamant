@@ -19,7 +19,6 @@ const httpApi = require('../../helpers/httpApi');
  */
 // Constructor
 function ChatroomsHttpApi (chatroomsModule, app) {
-
     const router = new Router();
 
     router.map(chatroomsModule.internal, {

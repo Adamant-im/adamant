@@ -147,7 +147,6 @@ var genesisTrs = {
 
 
 describe('transaction', function () {
-
 	var transaction;
 	var accountModule;
 
@@ -188,7 +187,6 @@ describe('transaction', function () {
 	});
 
 	describe('create', function () {
-
 		it('should throw an error with no param', function () {
 			expect(transaction.create).to.throw();
 		});
@@ -215,7 +213,6 @@ describe('transaction', function () {
 	});
 
 	describe('attachAssetType', function () {
-
 		it('should attach all transaction types', function () {
 			var appliedLogic;
 			appliedLogic = transaction.attachAssetType(transactionTypes.VOTE, new Vote());
@@ -279,7 +276,6 @@ describe('transaction', function () {
 	*/
 
 	describe('getId', function () {
-
 		it('should throw an error with no param', function () {
 			expect(transaction.getId).to.throw();
 		});
@@ -297,7 +293,6 @@ describe('transaction', function () {
 	});
 
 	describe('getHash', function () {
-
 		it('should throw an error with no param', function () {
 			expect(transaction.getHash).to.throw();
 		});
@@ -317,7 +312,6 @@ describe('transaction', function () {
 	});
 
 	describe('getBytes', function () {
-
 		it('should throw an error with no param', function () {
 			expect(transaction.getBytes).to.throw();
 		});
@@ -335,7 +329,6 @@ describe('transaction', function () {
 	});
 
 	describe('transaction.ready', function () {
-
 		it('should throw an error with no param', function () {
 			expect(transaction.ready).to.throw();
 		});
@@ -361,7 +354,6 @@ describe('transaction', function () {
 	});
 
 	describe('countById', function () {
-
 		it('should throw an error with no param', function () {
 			expect(transaction.countById).to.throw();
 		});
@@ -384,7 +376,6 @@ describe('transaction', function () {
 	});
 
 	describe('checkConfirmed', function () {
-
 		it('should throw an error with no param', function () {
 			expect(transaction.checkConfirmed).to.throw();
 		});
@@ -409,7 +400,6 @@ describe('transaction', function () {
 	});
 
 	describe('checkBalance', function () {
-
 		it('should throw an error with no param', function () {
 			expect(transaction.checkBalance).to.throw();
 		});
@@ -445,7 +435,6 @@ describe('transaction', function () {
 	});
 
 	describe('transaction.process', function () {
-
 		it('should throw an error with no param', function () {
 			expect(transaction.process).to.throw();
 		});
@@ -487,7 +476,6 @@ describe('transaction', function () {
 	});
 
 	describe('transaction.verify', function () {
-
 		function createAndProcess (trsData, sender, cb) {
 			var trs = transaction.create(trsData);
 			transaction.process(trs, sender, function (err, __trs) {
@@ -778,7 +766,6 @@ describe('transaction', function () {
 	});
 
 	describe('verifySignature', function () {
-
 		it('should throw an error with no param', function () {
 			expect(transaction.verifySignature).to.throw();
 		});
@@ -809,7 +796,6 @@ describe('transaction', function () {
 	});
 
 	describe('verifySecondSignature', function () {
-	
 		it('should throw an error with no param', function () {
 			expect(transaction.verifySecondSignature).to.throw();
 		});
@@ -821,7 +807,6 @@ describe('transaction', function () {
 	});
 
 	describe('verifyBytes', function () {
-
 		it('should throw an error with no param', function () {
 			expect(transaction.verifyBytes).to.throw();
 		});
@@ -909,7 +894,6 @@ describe('transaction', function () {
 		});
 
 		it('should not update sender balance when transaction is invalid', function (done) {
-
 			var trs = _.cloneDeep(validUnconfirmedTrs);
 			var amount = new bignum(trs.amount.toString()).plus(trs.fee.toString());
 			delete trs.recipientId;
@@ -950,7 +934,6 @@ describe('transaction', function () {
 	});
 
 	describe('applyUnconfirmed', function () {
-
 		function undoUnconfirmedTransaction (trs, sender, done) {
 			transaction.undoUnconfirmed(trs, sender, done);
 		}
@@ -983,7 +966,6 @@ describe('transaction', function () {
 	});
 
 	describe('undoUnconfirmed', function () {
-
 		function applyUnconfirmedTransaction (trs, sender, done) {
 			transaction.applyUnconfirmed(trs, sender, done);
 		}
@@ -993,7 +975,6 @@ describe('transaction', function () {
 		});
 
 		it('should be okay with valid params', function (done) {
-
 			transaction.undoUnconfirmed(validUnconfirmedTrs, testSender, function (err) {
 				expect(err).to.not.exist;
 				applyUnconfirmedTransaction(validUnconfirmedTrs, testSender, done);
@@ -1002,7 +983,6 @@ describe('transaction', function () {
 	});
 
 	describe('dbSave', function () {
-
 		it('should throw an error with no param', function () {
 			expect(transaction.dbSave).to.throw();
 		});
@@ -1059,7 +1039,6 @@ describe('transaction', function () {
 	});
 
 	describe('afterSave', function () {
-
 		it('should throw an error with no param', function () {
 			expect(transaction.afterSave).to.throw();
 		});
@@ -1070,7 +1049,6 @@ describe('transaction', function () {
 	});
 
 	describe('objectNormalize', function () {
-
 		it('should throw an error with no param', function () {
 			expect(transaction.objectNormalize).to.throw();
 		});
@@ -1095,7 +1073,6 @@ describe('transaction', function () {
 	});
 
 	describe('dbRead', function () {
-
 		it('should throw an error with no param', function () {
 			expect(transaction.dbRead).to.throw();
 		});

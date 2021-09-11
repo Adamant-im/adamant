@@ -14,7 +14,6 @@ var block = {
 var testBlocksUnder101 = false;
 
 describe('GET /api/blocks/getBroadhash', function () {
-
   it('should be ok', function (done) {
     node.get('/api/blocks/getBroadhash', function (err, res) {
       node.expect(res.body).to.have.property('broadhash').to.be.a('string');
@@ -24,7 +23,6 @@ describe('GET /api/blocks/getBroadhash', function () {
 });
 
 describe('GET /api/blocks/getEpoch', function () {
-
   it('should be ok', function (done) {
     node.get('/api/blocks/getEpoch', function (err, res) {
       node.expect(res.body).to.have.property('epoch').to.be.a('string');
@@ -34,7 +32,6 @@ describe('GET /api/blocks/getEpoch', function () {
 });
 
 describe('GET /api/blocks/getHeight', function () {
-
   it('should be ok', function (done) {
     node.get('/api/blocks/getHeight', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -52,7 +49,6 @@ describe('GET /api/blocks/getHeight', function () {
 });
 
 describe('GET /api/blocks/getFee', function () {
-
   it('should be ok', function (done) {
     node.get('/api/blocks/getFee', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -64,7 +60,6 @@ describe('GET /api/blocks/getFee', function () {
 });
 
 describe('GET /api/blocks/getfees', function () {
-
   it('should be ok', function (done) {
     node.get('/api/blocks/getFees', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -81,7 +76,6 @@ describe('GET /api/blocks/getfees', function () {
 });
 
 describe('GET /api/blocks/getNethash', function () {
-
   it('should be ok', function (done) {
     node.get('/api/blocks/getNethash', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -93,7 +87,6 @@ describe('GET /api/blocks/getNethash', function () {
 });
 
 describe('GET /api/blocks/getMilestone', function () {
-
   it('should be ok', function (done) {
     node.get('/api/blocks/getMilestone', function (err, res) {
       node.expect(res.body).to.have.property('milestone').to.be.a('number');
@@ -103,7 +96,6 @@ describe('GET /api/blocks/getMilestone', function () {
 });
 
 describe('GET /api/blocks/getReward', function () {
-
   it('should be ok', function (done) {
     node.get('/api/blocks/getReward', function (err, res) {
       node.expect(res.body).to.have.property('reward').to.be.a('number');
@@ -113,7 +105,6 @@ describe('GET /api/blocks/getReward', function () {
 });
 
 describe('GET /api/blocks/getSupply', function () {
-
   it('should be ok', function (done) {
     node.get('/api/blocks/getSupply', function (err, res) {
       node.expect(res.body).to.have.property('supply').to.be.a('number');
@@ -123,7 +114,6 @@ describe('GET /api/blocks/getSupply', function () {
 });
 
 describe('GET /api/blocks/getStatus', function () {
-
   it('should be ok', function (done) {
     node.get('/api/blocks/getStatus', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -141,7 +131,6 @@ describe('GET /api/blocks/getStatus', function () {
 });
 
 describe('GET /blocks (cache)', function () {
-
   var cache;
 
   before(function (done) {
@@ -227,7 +216,6 @@ describe('GET /blocks (cache)', function () {
 });
 
 describe('GET /blocks', function () {
-
   function getBlocks (params, done) {
     node.get('/api/blocks?' + params, done);
   }
@@ -372,7 +360,6 @@ describe('GET /blocks', function () {
 });
 
 describe('GET /api/blocks/get?id=', function () {
-
   function getBlocks (id, done) {
     node.get('/api/blocks/get?id=' + id, done);
   }

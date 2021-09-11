@@ -569,7 +569,6 @@ Accounts.prototype.shared = {
 
 
             library.balancesSequence.add(function (cb) {
-
                     self.setAccountAndGet({ publicKey: keypair.publicKey.toString('hex') }, function (err, account) {
                         if (err) {
                             return setImmediate(cb, err);
@@ -600,7 +599,6 @@ Accounts.prototype.shared = {
 
                         modules.transactions.receiveTransactions([transaction], true, cb);
                     });
-
             }, function (err, transaction) {
                 if (err) {
                     return setImmediate(cb, err);

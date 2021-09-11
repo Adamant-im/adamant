@@ -7,7 +7,6 @@ var express = require('express');
 var RequestLimiter = require('../../../helpers/request-limiter.js');
 
 describe('RequestLimiter', function () {
-
 	var app;
 
 	beforeEach(function () {
@@ -15,7 +14,6 @@ describe('RequestLimiter', function () {
 	});
 
 	describe('when config.trustProxy is undefined', function () {
-
 		it('should not enable trust proxy', function () {
 			RequestLimiter(app, {});
 			expect(app.enabled('trust proxy')).to.be.false;
@@ -23,7 +21,6 @@ describe('RequestLimiter', function () {
 	});
 
 	describe('when config.trustProxy is == false', function () {
-
 		it('should not enable trust proxy', function () {
 			RequestLimiter(app, { trustProxy: false });
 			expect(app.enabled('trust proxy')).to.be.false;
@@ -31,7 +28,6 @@ describe('RequestLimiter', function () {
 	});
 
 	describe('when config.trustProxy is == true', function () {
-
 		it('should enable trust proxy', function () {
 			RequestLimiter(app, { trustProxy: true });
 			expect(app.enabled('trust proxy')).to.be.true;
@@ -39,7 +35,6 @@ describe('RequestLimiter', function () {
 	});
 
 	describe('when limits are undefined', function () {
-
 		var limiter;
 
 		beforeEach(function () {
@@ -76,7 +71,6 @@ describe('RequestLimiter', function () {
 	});
 
 	describe('when limits are defined', function () {
-
 		var limits, options, limiter;
 
 		beforeEach(function () {

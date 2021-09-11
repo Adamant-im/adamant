@@ -26,7 +26,6 @@ function Vote (logger, schema) {
 		logger: logger,
 		schema: schema,
 	};
-
 }
 
 // Public methods
@@ -63,7 +62,6 @@ Vote.prototype.create = function (data, trs) {
  * @return {transaction} trs with new data
  */
 Vote.prototype.publish = function (data) {
-
     if (!data.senderId) {
         throw 'Invalid sender';
     }
@@ -133,7 +131,6 @@ Vote.prototype.verify = function (trs, sender, cb) {
 		if (err) {
 			return setImmediate(cb, err);
 		} else {
-
 			if (trs.asset.votes.length > _.uniqBy(trs.asset.votes, function (v) { return v.slice(1); }).length) {
 				return setImmediate(cb, 'Multiple votes for same delegate are not allowed');
 			}

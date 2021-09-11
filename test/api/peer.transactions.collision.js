@@ -11,9 +11,7 @@ function postTransaction (transaction, done) {
 }
 
 describe('POST /peer/transactions', function () {
-
   describe('when two passphrases collide into the same address', function () {
-
     // I don't have two passphrases for single address yet
     var collision = {
       address: 'U8790402293675124834',
@@ -80,7 +78,6 @@ describe('POST /peer/transactions', function () {
     // });
 
     describe('when transaction is valid', function () {
-
       beforeEach(function (done) {
         node.onNewBlock(done);
       });

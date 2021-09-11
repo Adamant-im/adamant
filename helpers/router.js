@@ -50,7 +50,6 @@ var Router = function () {
   };
 
   return router;
-
 };
 
 module.exports = Router;

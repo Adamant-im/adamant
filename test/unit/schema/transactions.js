@@ -8,7 +8,6 @@ var constants = require('../../../helpers/constants.js');
 var validator = new ZSchema();
 
 describe('transactions', function () {
-
 	// TODO: Add tests for other transaction schemas
 
 	/*

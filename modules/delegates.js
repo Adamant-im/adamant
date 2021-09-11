@@ -600,7 +600,6 @@ Delegates.prototype.onBlockchainReady = function () {
   __private.loaded = true;
 
   __private.loadDelegates(function (err) {
-
     function nextForge (cb) {
       if (err) {
         library.logger.error('Failed to load delegates', err);

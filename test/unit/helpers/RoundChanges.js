@@ -8,7 +8,6 @@ var node = require('../../node.js');
 var RoundChanges = require('../../../helpers/RoundChanges.js');
 
 describe('RoundChanges', function () {
-
 	var validScope;
 
 	beforeEach(function () {
@@ -20,7 +19,6 @@ describe('RoundChanges', function () {
 	});
 
 	describe('constructor', function () {
-
 		it('should accept valid scope', function () {
 			var roundChanges = new RoundChanges(validScope);
 
@@ -54,7 +52,6 @@ describe('RoundChanges', function () {
 	});
 
 	describe('at', function () {
-
 		it('should calculate round changes from valid scope', function () {
 			var roundChanges = new RoundChanges(validScope);
 			var rewardsAt = 2;

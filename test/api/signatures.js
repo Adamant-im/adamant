@@ -44,7 +44,6 @@ before(function (done) {
   }, 2000);
 
   describe('PUT /api/transactions from account with second signature enabled', function () {
-  
     before(function (done) {
       node.onNewBlock(done);
     });
@@ -81,11 +80,9 @@ before(function (done) {
       });
     });
   });
-
 });
 
 describe('PUT /api/signatures', function () {
-
   before(function (done) {
     node.onNewBlock(done);
   });
@@ -145,7 +142,6 @@ describe('PUT /api/signatures', function () {
 });
 
 describe('PUT /api/delegates from account with second signature enabled', function () {
-
   var validParams;
 
   beforeEach(function (done) {

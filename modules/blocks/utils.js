@@ -265,7 +265,6 @@ Utils.prototype.loadBlocksData = function (filter, options, cb) {
   library.dbSequence.add(function (cb) {
     // Get height of block with supplied ID
     library.db.query(sql.getHeightByLastId, { lastId: filter.lastId || null }).then(function (rows) {
-
       var height = rows.length ? rows[0].height : 0;
       // Calculate max block height for database query
       var realLimit = height + (parseInt(filter.limit) || 1);

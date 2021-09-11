@@ -18,7 +18,6 @@ var schema = require('../../schema/node.js');
  */
 
 function NodeHttpApi (nodeModule, app) {
-
   var router = new Router();
 
   router.map(nodeModule.shared, {

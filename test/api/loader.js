@@ -3,7 +3,6 @@
 var node = require('./../node.js');
 
 describe('GET /api/loader/status/ping', function () {
-
   it('should be ok', function (done) {
     node.get('/api/loader/status/ping', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -13,7 +12,6 @@ describe('GET /api/loader/status/ping', function () {
 });
 
 describe('GET /api/loader/status/sync', function () {
-
   it('should be ok', function (done) {
     node.get('/api/loader/status/sync', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;

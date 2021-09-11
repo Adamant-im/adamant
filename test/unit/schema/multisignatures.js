@@ -7,7 +7,6 @@ var expect = require('chai').expect;
 var validator = new ZSchema();
 
 describe('multisignatures', function () {
-
 	// TODO: Add tests for other multisignature schemas
 
 	/*
@@ -39,7 +38,6 @@ describe('multisignatures', function () {
 		});
 
 		describe('min', function () {
-
 			it('should return error when min is not an integer', function () {
 				testBody.min = '';
 				validator.validate(testBody, schema.addMultisignature);
@@ -66,7 +64,6 @@ describe('multisignatures', function () {
 		});
 
 		describe('keysgroup', function () {
-
 			it('should return error when keysgroup is not an array', function () {
 				testBody.keysgroup = '';
 				validator.validate(testBody, schema.addMultisignature);

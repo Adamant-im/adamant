@@ -464,7 +464,6 @@ describe('GET /api/delegates (cache)', function () {
 });
 
 describe('GET /api/delegates', function () {
-
   it('using no params should be ok', function (done) {
     node.get('/api/delegates', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -771,7 +770,6 @@ describe('GET /api/delegates', function () {
 });
 
 describe('GET /api/delegates/count', function () {
-
   it('should be ok', function (done) {
     node.get('/api/delegates/count', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -852,7 +850,6 @@ describe('GET /api/delegates/voters', function () {
 });
 
 describe('GET /api/delegates/search', function () {
-
   const accounts = Array.from(Array(101)).map(() => node.randomAccount());
 
   it('using no criteria should fail', function (done) {
@@ -1253,7 +1250,6 @@ describe('POST /api/delegates/forging/enable', function () {
 });
 
 describe('GET /api/delegates/forging/getForgedByAccount', function () {
-
   var validParams;
 
   beforeEach(function () {
@@ -1384,7 +1380,6 @@ describe('GET /api/delegates/forging/getForgedByAccount', function () {
 });
 
 describe('GET /api/delegates/getNextForgers', function () {
-
   it('using no params should be ok', function (done) {
     node.get('/api/delegates/getNextForgers', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;

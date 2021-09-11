@@ -25,7 +25,6 @@ var testBlock = {
 };
 
 describe('GET /peer/blocks', function () {
-
   it('using valid headers should be ok', function (done) {
     node.get('/peer/blocks')
       .end(function (err, res) {
@@ -81,7 +80,6 @@ describe('GET /peer/blocks', function () {
 });
 
 describe('GET /peer/blocks/common', function () {
-
   it('using incorrect nethash in headers should fail', function (done) {
     node.get('/peer/blocks/common')
       .set('nethash', 'incorrect')
@@ -189,7 +187,6 @@ describe('GET /peer/blocks/common', function () {
 });
 
 describe('POST /peer/blocks', function () {
-
   it('using incorrect nethash in headers should fail', function (done) {
     node.post('/peer/blocks', { dummy: 'dummy' })
       .set('nethash', 'incorrect')

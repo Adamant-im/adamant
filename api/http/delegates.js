@@ -33,7 +33,6 @@ var httpApi = require('../../helpers/httpApi');
  */
 // Constructor
 function DelegatesHttpApi (delegatesModule, app, logger, cache) {
-
   var router = new Router();
 
   // attach a middlware to endpoints

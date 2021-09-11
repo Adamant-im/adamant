@@ -19,7 +19,6 @@ var httpApi = require('../../helpers/httpApi');
  */
 // Constructor
 function LoaderHttpApi (loaderModule, app) {
-
   var router = new Router();
 
   router.map(loaderModule.shared, {

@@ -555,7 +555,6 @@ d.run(function () {
      * @param {nodeStyleCallback} cb - Callback function with resulted load.
      */
     modules: ['network', 'connect', 'config', 'logger', 'bus', 'sequence', 'dbSequence', 'balancesSequence', 'db', 'logic', 'cache', function (scope, cb) {
-
       var tasks = {};
 
       Object.keys(config.modules).forEach(function (name) {

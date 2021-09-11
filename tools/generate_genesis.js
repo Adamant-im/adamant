@@ -20,7 +20,6 @@ function shuffle (array) {
 
     // While there remain elements to shuffle...
     while (0 !== currentIndex) {
-
         // Pick a remaining element...
         randomIndex = Math.floor(Math.random() * currentIndex);
         currentIndex -= 1;
@@ -159,14 +158,10 @@ function getBlockBytes (block)
     }
 
     return b;
-
 }
 
 function getBlockHash (block) {
-
     return crypto.createHash('sha256').update(getBlockBytes(block)).digest();
-
-
 }
 function getBytes (transaction) {
     var skipSignature=false;
@@ -251,7 +246,6 @@ function getBytes (transaction) {
     }
 
     return new Buffer(buffer);
-
 }
 function getId (transaction) {
     var hash = crypto.createHash('sha256').update(getBytes(transaction).toString('hex'), 'hex').digest();
@@ -372,7 +366,6 @@ var transactions=[];
 for (var j in transfer_addresses) {
     var transfer=transfer_addresses[j];
     transactions[transactions.length]=createTransaction(transfer.address, transfer.amount, genesis.secret,0,{});
-
 }
 
 var vote_for=[];
@@ -385,7 +378,6 @@ for (var l in delegates) {
     });
     vote_for[vote_for.length] = '+' + delegate.publicKey;
     transactions[transactions.length]=transaction;
-
 }
 
 for (var m in delegates) {

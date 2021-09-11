@@ -22,7 +22,6 @@ var Account = require('../../logic/account.js');
 var accounts = require('../../helpers/accounts');
 
 var modulesLoader = new function () {
-
 	this.db = null;
 	this.logger = new Logger({ echo: null, errorLevel: config.fileLogLevel, filename: config.logFileName });
 	this.scope = {
