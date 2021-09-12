@@ -55,15 +55,15 @@ if (typeof gc !== 'undefined') {
 }
 
 program
-  .version(packageJson.version)
-  .option('-c, --config <path>', 'config.json file path')
-  .option('-g, --genesis <path>', 'genesisBlock.json file path')
-  .option('-p, --port <port>', 'listening port number')
-  .option('-a, --address <ip>', 'listening host name or ip')
-  .option('-x, --peers [peers...]', 'peers list')
-  .option('-l, --log <level>', 'log level')
-  .option('-s, --snapshot <round>', 'verify snapshot')
-  .parse(process.argv);
+    .version(packageJson.version)
+    .option('-c, --config <path>', 'config.json file path')
+    .option('-g, --genesis <path>', 'genesisBlock.json file path')
+    .option('-p, --port <port>', 'listening port number')
+    .option('-a, --address <ip>', 'listening host name or ip')
+    .option('-x, --peers [peers...]', 'peers list')
+    .option('-l, --log <level>', 'log level')
+    .option('-s, --snapshot <round>', 'verify snapshot')
+    .parse(process.argv);
 
 /**
  * @property {object} - The default list of configuration options. Can be updated by CLI.
@@ -100,7 +100,7 @@ if (program.log) {
 
 if (program.snapshot) {
   appConfig.loading.snapshot = Math.abs(
-    Math.floor(program.snapshot)
+      Math.floor(program.snapshot)
   );
 }
 
@@ -137,9 +137,9 @@ var config = {
     rounds: './modules/rounds.js',
     multisignatures: './modules/multisignatures.js',
     dapps: './modules/dapps.js',
-        chats: './modules/chats.js',
+    chats: './modules/chats.js',
     chatrooms: './modules/chatrooms.js',
-        states: './modules/states.js',
+    states: './modules/states.js',
     node: './modules/node.js',
     chats: './modules/chats.js',
     crypto: './modules/crypto.js',
@@ -150,10 +150,10 @@ var config = {
     accounts: { http: './api/http/accounts.js' },
     blocks: { http: './api/http/blocks.js' },
     dapps: { http: './api/http/dapps.js' },
-        chats: { http: './api/http/chats.js' },
+    chats: { http: './api/http/chats.js' },
     chatrooms: { http: './api/http/chatrooms.js' },
-        states: { http: './api/http/states.js' },
-        node: { http: './api/http/node.js' },
+    states: { http: './api/http/states.js' },
+    node: { http: './api/http/node.js' },
     delegates: { http: './api/http/delegates.js' },
     loader: { http: './api/http/loader.js' },
     multisignatures: { http: './api/http/multisignatures.js' },
@@ -257,10 +257,10 @@ d.run(function () {
         block: genesisblock
       });
     },
-        packageJson: function (cb) {
-            cb(null, packageJson);
-        },
-      public: function (cb) {
+    packageJson: function (cb) {
+      cb(null, packageJson);
+    },
+    public: function (cb) {
       cb(null, path.join(__dirname, 'public'));
     },
 
@@ -270,9 +270,9 @@ d.run(function () {
 
     /**
      * ws client PWA,
-     * @method clientWs 
+     * @method clientWs
      * @param {object} wsconfig - config from ws client PWA,
-     * @param {nodeStyleCallback} cb - Callback function with created Method: 
+     * @param {nodeStyleCallback} cb - Callback function with created Method:
      * `emit`.
      */
     clientWs: ['config', function (scope, cb) {
@@ -284,7 +284,7 @@ d.run(function () {
      * @method network
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
-     * @param {nodeStyleCallback} cb - Callback function with created Object: 
+     * @param {nodeStyleCallback} cb - Callback function with created Object:
      * `{express, app, server, io, https, https_io}`.
      */
     network: ['config', function (scope, cb) {
@@ -367,7 +367,7 @@ d.run(function () {
      * Once config, public, genesisblock, logger, build and network are completed,
      * adds configuration to `network.app`.
      * @method connect
-     * @param {object} scope - The results from current execution, 
+     * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {function} cb - Callback function.
      */
@@ -410,11 +410,11 @@ d.run(function () {
             return value;
           }
 
-          /*eslint-disable eqeqeq */
+          /* eslint-disable eqeqeq */
           if (isNaN(value) || parseInt(value) != value || isNaN(parseInt(value, radix))) {
             return value;
           }
-          /*eslint-enable eqeqeq */
+          /* eslint-enable eqeqeq */
           return parseInt(value);
         }
       }));
@@ -489,7 +489,7 @@ d.run(function () {
      * Once db, bus, schema and genesisblock are completed,
      * loads transaction, block, account and peers from logic folder.
      * @method logic
-     * @param {object} scope - The results from current execution, 
+     * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {function} cb - Callback function.
      */
@@ -586,7 +586,7 @@ d.run(function () {
      * Loads api from `api` folder using `config.api`, once modules, logger and
      * network are completed.
      * @method api
-     * @param {object} scope - The results from current execution, 
+     * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {function} cb - Callback function.
      */
@@ -618,7 +618,7 @@ d.run(function () {
      * Once 'ready' is completed, binds and listens for connections on the
      * specified host and port for `scope.network.server`.
      * @method listen
-     * @param {object} scope - The results from current execution, 
+     * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {nodeStyleCallback} cb - Callback function with `scope.network`.
      */

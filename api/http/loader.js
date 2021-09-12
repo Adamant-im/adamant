@@ -28,7 +28,7 @@ function LoaderHttpApi (loaderModule, app) {
 
   router.get('/status/ping', function (req, res) {
     var status = loaderModule.internal.statusPing();
-    return res.status(status ? 200 : 503).json({success: status});
+    return res.status(status ? 200 : 503).json({ success: status });
   });
 
   httpApi.registerEndpoint('/api/loader', app, router, loaderModule.isLoaded);

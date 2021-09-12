@@ -20,12 +20,12 @@ function ServerHttpApi (serverModule, app) {
 
   router.use(function (req, res, next) {
     if (serverModule.areModulesReady()) { return next(); }
-    res.status(500).send({success: false, error: 'Blockchain is loading'});
+    res.status(500).send({ success: false, error: 'Blockchain is loading' });
   });
 
   router.get('/', function (req, res) {
     if (serverModule.isLoaded()) {
-      res.render('wallet.html', {layout: false});
+      res.render('wallet.html', { layout: false });
     } else {
       res.render('loading.html');
     }

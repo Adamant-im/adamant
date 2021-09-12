@@ -49,7 +49,7 @@ function AccountsHttpApi (accountsModule, app) {
   });
 
   if (process.env.DEBUG && process.env.DEBUG.toUpperCase() === 'TRUE') {
-    router.map(accountsModule.internal, {'get /getAllAccounts': 'getAllAccounts'});
+    router.map(accountsModule.internal, { 'get /getAllAccounts': 'getAllAccounts' });
   }
 
   if (process.env.TOP && process.env.TOP.toUpperCase() === 'TRUE') {

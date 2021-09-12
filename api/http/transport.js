@@ -57,7 +57,7 @@ function TransportHttpApi (transportModule, app, logger, cache) {
   });
 
   router.post('/signatures', function (req, res) {
-    transportModule.internal.postSignatures({signatures: req.body.signatures, signature: req.body.signature}, httpApi.respond.bind(null, res));
+    transportModule.internal.postSignatures({ signatures: req.body.signatures, signature: req.body.signature }, httpApi.respond.bind(null, res));
   });
 
   router.post('/transactions', function (req, res) {
@@ -101,12 +101,12 @@ function TransportHttpApi (transportModule, app, logger, cache) {
   function getCommonBlocksMiddleware (req, res, next) {
     req.sanitize(req.query, schema.commonBlock, function (err, report, query) {
       if (err) {
-        logger.debug('Common block request validation failed', {err: err.toString(), req: req.query});
+        logger.debug('Common block request validation failed', { err: err.toString(), req: req.query });
         return next(err);
       }
       if (!report.isValid) {
-        logger.debug('Common block request validation failed', {err: report, req: req.query});
-        return res.json({success: false, error: report.issues});
+        logger.debug('Common block request validation failed', { err: report, req: req.query });
+        return res.json({ success: false, error: report.issues });
       }
 
       return transportModule.internal.blocksCommon(query.ids, req.peer, req.method + ' ' + req.url, httpApi.respond.bind(null, res));
