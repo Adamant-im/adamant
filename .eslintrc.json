@@ -38,22 +38,11 @@
     "guard-for-in": ["off"],
     "valid-jsdoc": ["off"],
     "prefer-spread": ["off"],
-    "semi": "error",
-    "no-eq-null": "off",
-    "eqeqeq": "off",
-    "curly": "error",
-    "no-undef": "error",
-    "quotes": ["error", "single"],
     "space-before-function-paren": ["error", {
       "anonymous": "always",
       "named": "always",
       "asyncArrow": "ignore"
-    }],
-    "callback-return": "off",
-    "global-require": "off",
-    "handle-callback-err": "off",
-    "no-mixed-requires": "off",
-    "no-new-require": "off"
+    }]
   },
   "globals": {
     "PR": true,
