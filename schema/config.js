@@ -36,7 +36,7 @@ module.exports = {
         type: 'object',
         properties: {
           host: {
-            type: 'string',
+            type: 'string'
           },
           port: {
             type: 'integer',
@@ -72,7 +72,7 @@ module.exports = {
         properties: {
           host: {
             type: 'string',
-            format: 'ip',
+            format: 'ip'
           },
           port: {
             type: 'integer',
@@ -271,7 +271,7 @@ module.exports = {
               },
               address: {
                 type: 'string',
-                format: 'ip',
+                format: 'ip'
               },
               key: {
                 type: 'string'

@@ -13,17 +13,17 @@ module.exports = {
     },
     required: ['secret']
   },
-    new: {
-        id: 'accounts.newAccount',
-        type: 'object',
-        properties: {
-            publicKey: {
-                type: 'string',
-                format: 'publicKey'
-            }
-        },
-        required: ['publicKey']
+  new: {
+    id: 'accounts.newAccount',
+    type: 'object',
+    properties: {
+      publicKey: {
+        type: 'string',
+        format: 'publicKey'
+      }
     },
+    required: ['publicKey']
+  },
   getBalance: {
     id: 'accounts.getBalance',
     type: 'object',
@@ -95,16 +95,16 @@ module.exports = {
       }
     }
   },
-    voteForDelegates: {
-        id: 'accounts.voteForDelegates',
-        type: 'object',
-        properties: {
-            senderPublicKey: {
-                type: 'string',
-                format: 'publicKey'
-            }
-        }
-    },
+  voteForDelegates: {
+    id: 'accounts.voteForDelegates',
+    type: 'object',
+    properties: {
+      senderPublicKey: {
+        type: 'string',
+        format: 'publicKey'
+      }
+    }
+  },
   getAccount: {
     id: 'accounts.getAccount',
     type: 'object',

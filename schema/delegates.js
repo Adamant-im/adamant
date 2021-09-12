@@ -150,19 +150,19 @@ module.exports = {
     },
     required: ['secret']
   },
-    registerDelegate: {
-        id: 'delegates.registerDelegate',
-        type: 'object',
-        properties: {
-            senderPublicKey: {
-                type: 'string',
-                format: 'publicKey'
-            },
-            signature: {
-                type: 'string',
-                format: 'signature'
-            }
-        },
-        required: ['senderPublicKey', 'signature']
-    }
+  registerDelegate: {
+    id: 'delegates.registerDelegate',
+    type: 'object',
+    properties: {
+      senderPublicKey: {
+        type: 'string',
+        format: 'publicKey'
+      },
+      signature: {
+        type: 'string',
+        format: 'signature'
+      }
+    },
+    required: ['senderPublicKey', 'signature']
+  }
 };

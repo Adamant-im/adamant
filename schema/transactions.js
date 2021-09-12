@@ -18,11 +18,11 @@ module.exports = {
         minimum: 0,
         maximum: 10
       },
-            inId: {
-                type: 'string',
-                format: 'address',
-                minLength: 1,
-                maxLength: 22
+      inId: {
+        type: 'string',
+        format: 'address',
+        minLength: 1,
+        maxLength: 22
       },
       senderId: {
         type: 'string',
@@ -220,39 +220,39 @@ module.exports = {
       }
     }
   },
-    processTransactions: {
-        id: 'transactions.processTransactions',
-        type: 'object',
-        properties: {
-            signature: {
-                type: 'string',
-                format: 'signature'
-            },
-        },
-        required: ['signature']
+  processTransactions: {
+    id: 'transactions.processTransactions',
+    type: 'object',
+    properties: {
+      signature: {
+        type: 'string',
+        format: 'signature'
+      }
     },
-    normalizeTransactions: {
-        id: 'transactions.normalizeTransactions',
-        type: 'object',
-        properties: {
-            amount: {
-                type: 'integer',
-                minimum: 1,
-                maximum: constants.totalAmount
-            },
-            recipientId: {
-                type: 'string',
-                format: 'address',
-                minLength: 1,
-                maxLength: 40
-            },
-            publicKey: {
-                type: 'string',
-                format: 'publicKey'
-            }
-        },
-        required: ['amount', 'recipientId', 'publicKey']
+    required: ['signature']
+  },
+  normalizeTransactions: {
+    id: 'transactions.normalizeTransactions',
+    type: 'object',
+    properties: {
+      amount: {
+        type: 'integer',
+        minimum: 1,
+        maximum: constants.totalAmount
+      },
+      recipientId: {
+        type: 'string',
+        format: 'address',
+        minLength: 1,
+        maxLength: 40
+      },
+      publicKey: {
+        type: 'string',
+        format: 'publicKey'
+      }
     },
+    required: ['amount', 'recipientId', 'publicKey']
+  },
   addTransactions: {
     id: 'transactions.addTransactions',
     type: 'object',

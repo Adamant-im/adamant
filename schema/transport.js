@@ -65,7 +65,7 @@ module.exports = {
         minLength: 1,
         maxLength: 20
       }
-    },
+    }
   },
   transactions: {
     id: 'transport.transactions',

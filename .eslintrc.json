@@ -34,6 +34,7 @@
     "no-throw-literal": ["off"],
     "object-curly-spacing": ["error", "always"],
     "prefer-const": ["off"],
+    "quote-props": ["off"],
     "semi": "error",
     "no-eq-null": "off",
     "eqeqeq": "off",
