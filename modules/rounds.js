@@ -24,7 +24,7 @@ __private.ticking = false;
  * @todo apply node pattern for callbacks: callback always at the end.
  */
 // Constructor
-function Rounds (cb, scope) {
+function Rounds(cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
@@ -74,7 +74,7 @@ Rounds.prototype.calc = function (height) {
  * 
  */
 Rounds.prototype.flush = function (round, cb) {
-  library.db.none(sql.flush, {round: round}).then(function () {
+  library.db.none(sql.flush, { round: round }).then(function () {
     return setImmediate(cb);
   }).catch(function (err) {
     library.logger.error(err.stack);
@@ -113,7 +113,7 @@ Rounds.prototype.backwardTick = function (block, previousBlock, done) {
     (prevRound === round && nextRound !== round) || (block.height === 1 || block.height === 101)
   );
 
-  function BackwardTick (t) {
+  function BackwardTick(t) {
     var promised = new Round(scope, t);
 
     library.logger.debug('Performing backward tick');
@@ -208,7 +208,7 @@ Rounds.prototype.tick = function (block, done) {
     (round !== nextRound) || (block.height === 1 || block.height === 101)
   );
 
-  function Tick (t) {
+  function Tick(t) {
     var promised = new Round(scope, t);
 
     library.logger.debug('Performing forward tick');
@@ -259,7 +259,7 @@ Rounds.prototype.tick = function (block, done) {
     },
     function (cb) {
       // Check if we are one block before last block of round, if yes - perform round snapshot
-      if ((block.height+1) % slots.delegates === 0) {
+      if ((block.height + 1) % slots.delegates === 0) {
         library.logger.debug('Performing round snapshot...');
 
         library.db.tx(function (t) {
@@ -335,7 +335,7 @@ Rounds.prototype.onBlockchainReady = function () {
  * @emits rounds/change
  */
 Rounds.prototype.onFinishRound = function (round) {
-  library.network.io.sockets.emit('rounds/change', {number: round});
+  library.network.io.sockets.emit('rounds/change', { number: round });
 };
 
 /**

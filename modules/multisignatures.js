@@ -26,7 +26,7 @@ __private.assetTypes = {};
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
-function Multisignatures (cb, scope) {
+function Multisignatures(cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
@@ -66,7 +66,7 @@ function Multisignatures (cb, scope) {
 Multisignatures.prototype.processSignature = function (tx, cb) {
   var transaction = modules.transactions.getMultisignatureTransaction(tx.transaction);
 
-  function done (cb) {
+  function done(cb) {
     library.balancesSequence.add(function (cb) {
       var transaction = modules.transactions.getMultisignatureTransaction(tx.transaction);
 
@@ -86,7 +86,7 @@ Multisignatures.prototype.processSignature = function (tx, cb) {
           transaction.signatures.push(tx.signature);
           transaction.ready = Multisignature.prototype.ready(transaction, sender);
 
-          library.bus.message('signature', {transaction: tx.transaction, signature: tx.signature}, true);
+          library.bus.message('signature', { transaction: tx.transaction, signature: tx.signature }, true);
           return setImmediate(cb);
         }
       });
@@ -268,7 +268,7 @@ Multisignatures.prototype.shared = {
       if (err) {
         return setImmediate(cb, err);
       } else {
-        return setImmediate(cb, null, {accounts: scope.accounts});
+        return setImmediate(cb, null, { accounts: scope.accounts });
       }
     });
   },
@@ -355,26 +355,26 @@ Multisignatures.prototype.shared = {
         });
       }
     }, function (err) {
-      return setImmediate(cb, err, {transactions: scope.pending});
+      return setImmediate(cb, err, { transactions: scope.pending });
     });
   },
 
   sign: function (req, cb) {
     var scope = {};
 
-    function checkGroupPermisions (cb) {
+    function checkGroupPermisions(cb) {
       var permissionDenied = (
-      scope.transaction.asset.multisignature.keysgroup.indexOf('+' + scope.keypair.publicKey.toString('hex')) === -1
-    );
+        scope.transaction.asset.multisignature.keysgroup.indexOf('+' + scope.keypair.publicKey.toString('hex')) === -1
+      );
 
       if (permissionDenied) {
         return setImmediate(cb, 'Permission to sign transaction denied');
       }
 
       var alreadySigned = (
-      Array.isArray(scope.transaction.signatures) &&
-      scope.transaction.signatures.indexOf(scope.signature.toString('hex')) !== -1
-    );
+        Array.isArray(scope.transaction.signatures) &&
+        scope.transaction.signatures.indexOf(scope.signature.toString('hex')) !== -1
+      );
 
       if (alreadySigned) {
         return setImmediate(cb, 'Transaction already signed');
@@ -383,20 +383,20 @@ Multisignatures.prototype.shared = {
       return setImmediate(cb);
     }
 
-    function checkTransactionPermissions (cb) {
+    function checkTransactionPermissions(cb) {
       var permissionDenied = true;
 
       if (!scope.transaction.requesterPublicKey) {
         permissionDenied = (
-        (!Array.isArray(scope.sender.multisignatures) || scope.sender.multisignatures.indexOf(scope.keypair.publicKey.toString('hex')) === -1)
-      );
+          (!Array.isArray(scope.sender.multisignatures) || scope.sender.multisignatures.indexOf(scope.keypair.publicKey.toString('hex')) === -1)
+        );
       } else {
         permissionDenied = (
-        (scope.sender.publicKey !== scope.keypair.publicKey.toString('hex') || (scope.transaction.senderPublicKey !== scope.keypair.publicKey.toString('hex')))
-      );
+          (scope.sender.publicKey !== scope.keypair.publicKey.toString('hex') || (scope.transaction.senderPublicKey !== scope.keypair.publicKey.toString('hex')))
+        );
       }
 
-      if (permissionDenied)  {
+      if (permissionDenied) {
         return setImmediate(cb, 'Permission to sign transaction denied');
       }
 
@@ -477,10 +477,10 @@ Multisignatures.prototype.shared = {
         transaction.signatures.push(scope.signature);
         transaction.ready = Multisignature.prototype.ready(transaction, scope.sender);
 
-        library.bus.message('signature', {transaction: transaction.id, signature: scope.signature}, true);
+        library.bus.message('signature', { transaction: transaction.id, signature: scope.signature }, true);
         library.network.io.sockets.emit('multisignatures/signature/change', transaction);
 
-        return setImmediate(cb, null, {transactionId: transaction.id});
+        return setImmediate(cb, null, { transactionId: transaction.id });
       });
     }, cb);
   },
@@ -511,7 +511,7 @@ Multisignatures.prototype.shared = {
             }
           }
 
-          modules.accounts.setAccountAndGet({publicKey: scope.keypair.publicKey.toString('hex')}, function (err, account) {
+          modules.accounts.setAccountAndGet({ publicKey: scope.keypair.publicKey.toString('hex') }, function (err, account) {
             if (err) {
               return setImmediate(seriesCb, err);
             }
@@ -555,7 +555,7 @@ Multisignatures.prototype.shared = {
           return setImmediate(cb, err);
         } else {
           library.network.io.sockets.emit('multisignatures/change', scope.transaction);
-          return setImmediate(cb, null, {transactionId: scope.transaction.id});
+          return setImmediate(cb, null, { transactionId: scope.transaction.id });
         }
       });
     }, cb);

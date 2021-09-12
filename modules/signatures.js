@@ -24,7 +24,7 @@ __private.assetTypes = {};
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
-function Signatures (cb, scope) {
+function Signatures(cb, scope) {
   library = {
     schema: scope.schema,
     ed: scope.ed,
@@ -92,7 +92,7 @@ Signatures.prototype.shared = {
   getFee: function (req, cb) {
     var fee = constants.fees.secondsignature;
 
-    return setImmediate(cb, null, {fee: fee});
+    return setImmediate(cb, null, { fee: fee });
   },
 
   addSignature: function (req, cb) {
@@ -101,7 +101,7 @@ Signatures.prototype.shared = {
         return setImmediate(cb, err[0].message);
       }
 
-            var hash = library.ed.createPassPhraseHash(req.body.secret);
+      var hash = library.ed.createPassPhraseHash(req.body.secret);
       var keypair = library.ed.makeKeypair(hash);
 
       if (req.body.publicKey) {
@@ -112,7 +112,7 @@ Signatures.prototype.shared = {
 
       library.balancesSequence.add(function (cb) {
         if (req.body.multisigAccountPublicKey && req.body.multisigAccountPublicKey !== keypair.publicKey.toString('hex')) {
-          modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey}, function (err, account) {
+          modules.accounts.getAccount({ publicKey: req.body.multisigAccountPublicKey }, function (err, account) {
             if (err) {
               return setImmediate(cb, err);
             }
@@ -133,7 +133,7 @@ Signatures.prototype.shared = {
               return setImmediate(cb, 'Account already has a second passphrase');
             }
 
-            modules.accounts.getAccount({publicKey: keypair.publicKey}, function (err, requester) {
+            modules.accounts.getAccount({ publicKey: keypair.publicKey }, function (err, requester) {
               if (err) {
                 return setImmediate(cb, err);
               }
@@ -150,7 +150,7 @@ Signatures.prototype.shared = {
                 return setImmediate(cb, 'Invalid requester public key');
               }
 
-                            var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
+              var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
               var secondKeypair = library.ed.makeKeypair(secondHash);
               var transaction;
 
@@ -171,7 +171,7 @@ Signatures.prototype.shared = {
             });
           });
         } else {
-          modules.accounts.setAccountAndGet({publicKey: keypair.publicKey.toString('hex')}, function (err, account) {
+          modules.accounts.setAccountAndGet({ publicKey: keypair.publicKey.toString('hex') }, function (err, account) {
             if (err) {
               return setImmediate(cb, err);
             }
@@ -184,7 +184,7 @@ Signatures.prototype.shared = {
               return setImmediate(cb, 'Account already has a second passphrase');
             }
 
-                        var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
+            var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
             var secondKeypair = library.ed.makeKeypair(secondHash);
             var transaction;
 
@@ -205,7 +205,7 @@ Signatures.prototype.shared = {
         if (err) {
           return setImmediate(cb, err);
         }
-        return setImmediate(cb, null, {transaction: transaction[0]});
+        return setImmediate(cb, null, { transaction: transaction[0] });
       });
     });
   }

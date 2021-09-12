@@ -28,7 +28,7 @@ var modules, library, self, __private = {}, shared = {};
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
-function Peers (cb, scope) {
+function Peers(cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
@@ -73,7 +73,7 @@ __private.countByFilter = function (filter, cb) {
  */
 __private.getByFilter = function (filter, cb) {
   var allowedFields = ['ip', 'port', 'state', 'os', 'version', 'broadhash', 'height', 'nonce'];
-  var limit  = filter.limit ? Math.abs(filter.limit) : null;
+  var limit = filter.limit ? Math.abs(filter.limit) : null;
   var offset = filter.offset ? Math.abs(filter.offset) : 0;
 
   // Sorting peers
@@ -82,12 +82,12 @@ __private.getByFilter = function (filter, cb) {
       var sort_res =
         // Nulls last
         a[field] === b[field] ? 0 :
-        a[field] === null ? 1 :
-        b[field] === null ? -1 :
-        // Ascending
-        asc ? (a[field] < b[field] ? -1 : 1) :
-        // Descending
-        (a[field] < b[field] ? 1 : -1);
+          a[field] === null ? 1 :
+            b[field] === null ? -1 :
+              // Ascending
+              asc ? (a[field] < b[field] ? -1 : 1) :
+                // Descending
+                (a[field] < b[field] ? 1 : -1);
       return sort_res;
     };
   };
@@ -138,7 +138,7 @@ __private.getByFilter = function (filter, cb) {
     }
   } else {
     // Sort randomly by default
-    peers = shuffle (peers);
+    peers = shuffle(peers);
   }
 
   // Apply limit if supplied
@@ -168,7 +168,7 @@ __private.insertSeeds = function (cb) {
       return setImmediate(eachCb);
     });
   }, function (err) {
-    library.logger.trace('Peers->insertSeeds - Peers discovered', {updated: updated, total: library.config.peers.list.length});
+    library.logger.trace('Peers->insertSeeds - Peers discovered', { updated: updated, total: library.config.peers.list.length });
     return setImmediate(cb);
   });
 };
@@ -185,8 +185,8 @@ __private.dbLoad = function (cb) {
   var updated = 0;
   library.logger.trace('Importing peers from database');
   library.db.any(sql.getAll).then(function (rows) {
-    library.logger.info('Imported peers from database', {count: rows.length});
-    async.each (rows, function (peer, eachCb) {
+    library.logger.info('Imported peers from database', { count: rows.length });
+    async.each(rows, function (peer, eachCb) {
       peer = library.logic.peers.create(peer);
 
       if (library.logic.peers.exists(peer)) {
@@ -206,11 +206,11 @@ __private.dbLoad = function (cb) {
         });
       }
     }, function (err) {
-      library.logger.trace('Peers->dbLoad Peers discovered', {updated: updated, total: rows.length});
+      library.logger.trace('Peers->dbLoad Peers discovered', { updated: updated, total: rows.length });
       return setImmediate(cb);
     });
   }).catch(function (err) {
-    library.logger.error('Import peers from database failed', {error: err.message || err});
+    library.logger.error('Import peers from database failed', { error: err.message || err });
     return setImmediate(cb);
   });
 };
@@ -235,10 +235,12 @@ __private.dbSave = function (cb) {
   // Creating set of columns
   var cs = new pgp.helpers.ColumnSet([
     'ip', 'port', 'state', 'height', 'os', 'version', 'clock',
-    {name: 'broadhash', init: function (col) {
-      return col.value ? Buffer.from(col.value, 'hex') : null;
-    }}
-  ], {table: 'peers'});
+    {
+      name: 'broadhash', init: function (col) {
+        return col.value ? Buffer.from(col.value, 'hex') : null;
+      }
+    }
+  ], { table: 'peers' });
 
   // Wrap sql queries in transaction and execute
   library.db.tx(function (t) {
@@ -256,7 +258,7 @@ __private.dbSave = function (cb) {
     _.each(peers, function (peer) {
       if (peer.dappid) {
         // If there are dapps on peer - push separately for every dapp
-        _.each (peer.dappid, function (dappid) {
+        _.each(peer.dappid, function (dappid) {
           var dapp_peer = peer;
           dapp_peer.dappid = dappid;
           queries.push(t.none(sql.addDapp, peer));
@@ -269,7 +271,7 @@ __private.dbSave = function (cb) {
     library.logger.info('Peers exported to database');
     return setImmediate(cb);
   }).catch(function (err) {
-    library.logger.error('Export peers to database failed', {error: err.message || err});
+    library.logger.error('Export peers to database failed', { error: err.message || err });
     return setImmediate(cb);
   });
 };
@@ -312,7 +314,7 @@ Peers.prototype.remove = function (pip, port) {
     // FIXME: Keeping peer frozen is bad idea at all
     library.logger.debug('Cannot remove frozen peer', pip + ':' + port);
   } else {
-    return library.logic.peers.remove ({ip: pip, port: port});
+    return library.logic.peers.remove({ ip: pip, port: port });
   }
 };
 
@@ -345,7 +347,7 @@ Peers.prototype.ping = function (peer, cb) {
  */
 Peers.prototype.discover = function (cb) {
   library.logger.trace('Peers->discover');
-  function getFromRandomPeer (waterCb) {
+  function getFromRandomPeer(waterCb) {
     modules.transport.getFromRandomPeer({
       api: '/list',
       method: 'GET'
@@ -354,26 +356,26 @@ Peers.prototype.discover = function (cb) {
     });
   }
 
-  function validatePeersList (res, waterCb) {
+  function validatePeersList(res, waterCb) {
     library.schema.validate(res.body, schema.discover.peers, function (err) {
       return setImmediate(waterCb, err, res.body.peers);
     });
   }
 
-  function pickPeers (peers, waterCb) {
+  function pickPeers(peers, waterCb) {
     var picked = self.acceptable(peers);
     library.logger.debug(['Picked', picked.length, 'of', peers.length, 'peers'].join(' '));
     return setImmediate(waterCb, null, picked);
   }
 
-  function updatePeers (peers, waterCb) {
+  function updatePeers(peers, waterCb) {
     var updated = 0;
     async.each(peers, function (peer, eachCb) {
       peer = library.logic.peers.create(peer);
 
       library.schema.validate(peer, schema.discover.peer, function (err) {
         if (err) {
-          library.logger.warn(['Rejecting invalid peer:', peer.string].join(' '), {err: err});
+          library.logger.warn(['Rejecting invalid peer:', peer.string].join(' '), { err: err });
           return setImmediate(eachCb);
         }
 
@@ -433,9 +435,9 @@ Peers.prototype.list = function (options, cb) {
   options.attempt = 0;
   options.matched = 0;
 
-  function randomList (options, peers, cb) {
+  function randomList(options, peers, cb) {
     // Get full peers list (random)
-    __private.getByFilter ({}, function (err, peersList) {
+    __private.getByFilter({}, function (err, peersList) {
       var accepted, found, matched, picked;
 
       found = peersList.length;
@@ -446,8 +448,8 @@ Peers.prototype.list = function (options, cb) {
           return options.allowedStates.indexOf(peer.state) !== -1 && (
             // Matched broadhash when attempt 0
             options.attempt === 0 ? (peer.broadhash === options.broadhash) :
-            // Unmatched broadhash when attempt 1
-            options.attempt === 1 ? (peer.broadhash !== options.broadhash) : false
+              // Unmatched broadhash when attempt 1
+              options.attempt === 1 ? (peer.broadhash !== options.broadhash) : false
           );
         } else {
           // Skip banned and disconnected peers (state 0 and 1)
@@ -459,7 +461,7 @@ Peers.prototype.list = function (options, cb) {
       peersList = peersList.slice(0, options.limit);
       picked = peersList.length;
       accepted = self.acceptable(peers.concat(peersList));
-      library.logger.debug('Listing peers', {attempt: options.attempts[options.attempt], found: found, matched: matched, picked: picked, accepted: accepted.length});
+      library.logger.debug('Listing peers', { attempt: options.attempts[options.attempt], found: found, matched: matched, picked: picked, accepted: accepted.length });
       return setImmediate(cb, null, accepted);
     });
   }
@@ -467,7 +469,7 @@ Peers.prototype.list = function (options, cb) {
   async.waterfall([
     function (waterCb) {
       // Matched broadhash
-      return randomList (options, [], waterCb);
+      return randomList(options, [], waterCb);
     },
     function (peers, waterCb) {
       options.matched = peers.length;
@@ -516,12 +518,12 @@ Peers.prototype.onBlockchainReady = function () {
       });
     },
     importFromDatabase: function (seriesCb) {
-      __private.dbLoad (function (err) {
+      __private.dbLoad(function (err) {
         return setImmediate(seriesCb);
       });
     },
     discoverNew: function (seriesCb) {
-      self.discover (function (err) {
+      self.discover(function (err) {
         return setImmediate(seriesCb);
       });
     }
@@ -535,7 +537,7 @@ Peers.prototype.onBlockchainReady = function () {
  */
 Peers.prototype.onPeersReady = function () {
   library.logger.trace('Peers ready');
-  function peersDiscoveryAndUpdate (cb) {
+  function peersDiscoveryAndUpdate(cb) {
     async.series({
       discoverPeers: function (seriesCb) {
         library.logger.trace('Discovering new peers...');
@@ -550,7 +552,7 @@ Peers.prototype.onPeersReady = function () {
         var updated = 0;
         var peers = library.logic.peers.list();
 
-        library.logger.trace('Updating peers', {count: peers.length});
+        library.logger.trace('Updating peers', { count: peers.length });
 
         async.each(peers, function (peer, eachCb) {
           // If peer is not banned and not been updated during last 3 sec - ping
@@ -564,7 +566,7 @@ Peers.prototype.onPeersReady = function () {
             return setImmediate(eachCb);
           }
         }, function () {
-          library.logger.trace('Peers updated', {updated: updated, total: peers.length});
+          library.logger.trace('Peers updated', { updated: updated, total: peers.length });
           return setImmediate(seriesCb);
         });
       }
@@ -582,7 +584,7 @@ Peers.prototype.onPeersReady = function () {
  */
 Peers.prototype.cleanup = function (cb) {
   // Save peers on exit
-  __private.dbSave (function () {
+  __private.dbSave(function () {
     return setImmediate(cb);
   });
 };
@@ -604,13 +606,13 @@ Peers.prototype.shared = {
   count: function (req, cb) {
     async.series({
       connected: function (cb) {
-        __private.countByFilter({state: Peer.STATE.CONNECTED}, cb);
+        __private.countByFilter({ state: Peer.STATE.CONNECTED }, cb);
       },
       disconnected: function (cb) {
-        __private.countByFilter({state: Peer.STATE.DISCONNECTED}, cb);
+        __private.countByFilter({ state: Peer.STATE.DISCONNECTED }, cb);
       },
       banned: function (cb) {
-        __private.countByFilter({state: Peer.STATE.BANNED}, cb);
+        __private.countByFilter({ state: Peer.STATE.BANNED }, cb);
       }
     }, function (err, res) {
       if (err) {
@@ -636,7 +638,7 @@ Peers.prototype.shared = {
           return setImmediate(cb, 'Failed to get peers');
         }
 
-        return setImmediate(cb, null, {peers: peers});
+        return setImmediate(cb, null, { peers: peers });
       });
     });
   },
@@ -656,7 +658,7 @@ Peers.prototype.shared = {
         }
 
         if (peers.length) {
-          return setImmediate(cb, null, {success: true, peer: peers[0]});
+          return setImmediate(cb, null, { success: true, peer: peers[0] });
         } else {
           return setImmediate(cb, 'Peer not found');
         }

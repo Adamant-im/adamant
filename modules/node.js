@@ -25,7 +25,7 @@ __private.blockReward = new BlockReward();
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
-function Node (cb, scope) {
+function Node(cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
@@ -33,12 +33,12 @@ function Node (cb, scope) {
     bus: scope.bus,
     nonce: scope.nonce,
     build: scope.build,
-        logic: scope.logic,
+    logic: scope.logic,
     lastCommit: scope.lastCommit,
     config: {
       peers: scope.config.peers,
       version: scope.packageJson.version,
-            wsClient: scope.config.wsClient
+      wsClient: scope.config.wsClient
     },
   };
   self = this;
@@ -108,37 +108,37 @@ Node.prototype.shared = {
    * @return {String}   cb.obj.version.commit Hash of last git commit (if available, otherwise '')
    * @return {String}   cb.obj.version.version ADAMANT version from package.json
    */
-    getStatus: function (req, cb) {
-        var lastBlock = modules.blocks.lastBlock.get();
-        var wsClientOptions = {
-            enabled: false
-        };
-        if (library.config.wsClient) {
-            if (library.config.wsClient.enabled) {
-                wsClientOptions.enabled = true;
-                wsClientOptions.port = library.config.wsClient.portWS;
-            }
-        }
-        return setImmediate(cb, null,
-            {
-              network: {
-                    broadhash: modules.system.getBroadhash(),
-                    epoch: constants.epochTime,
-                    height: lastBlock.height,
-                    fee: library.logic.block.calculateFee(),
-                    milestone: __private.blockReward.calcMilestone(lastBlock.height),
-                    nethash: modules.system.getNethash(),
-                    reward: __private.blockReward.calcReward(lastBlock.height),
-                    supply: __private.blockReward.calcSupply(lastBlock.height)
-        },
-              version: {
-                    build: library.build,
-                    commit: library.lastCommit,
-                    version: library.config.version
-                },
-                wsClient: wsClientOptions
-            });
+  getStatus: function (req, cb) {
+    var lastBlock = modules.blocks.lastBlock.get();
+    var wsClientOptions = {
+      enabled: false
+    };
+    if (library.config.wsClient) {
+      if (library.config.wsClient.enabled) {
+        wsClientOptions.enabled = true;
+        wsClientOptions.port = library.config.wsClient.portWS;
+      }
     }
+    return setImmediate(cb, null,
+      {
+        network: {
+          broadhash: modules.system.getBroadhash(),
+          epoch: constants.epochTime,
+          height: lastBlock.height,
+          fee: library.logic.block.calculateFee(),
+          milestone: __private.blockReward.calcMilestone(lastBlock.height),
+          nethash: modules.system.getNethash(),
+          reward: __private.blockReward.calcReward(lastBlock.height),
+          supply: __private.blockReward.calcSupply(lastBlock.height)
+        },
+        version: {
+          build: library.build,
+          commit: library.lastCommit,
+          version: library.config.version
+        },
+        wsClient: wsClientOptions
+      });
+  }
 };
 
 // Export

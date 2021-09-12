@@ -55,7 +55,7 @@ __private.routes = {};
  * @todo add 'use strict';
  */
 // Constructor
-function DApps (cb, scope) {
+function DApps(cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
@@ -76,15 +76,15 @@ function DApps (cb, scope) {
   __private.assetTypes[transactionTypes.DAPP] = library.logic.transaction.attachAssetType(
     transactionTypes.DAPP,
     new DApp(
-      scope.db, 
-      scope.logger, 
-      scope.schema, 
+      scope.db,
+      scope.logger,
+      scope.schema,
       scope.network
     )
   );
 
   __private.assetTypes[transactionTypes.IN_TRANSFER] = library.logic.transaction.attachAssetType(
-    transactionTypes.IN_TRANSFER, 
+    transactionTypes.IN_TRANSFER,
     new InTransfer(
       scope.db,
       scope.schema
@@ -92,7 +92,7 @@ function DApps (cb, scope) {
   );
 
   __private.assetTypes[transactionTypes.OUT_TRANSFER] = library.logic.transaction.attachAssetType(
-    transactionTypes.OUT_TRANSFER, 
+    transactionTypes.OUT_TRANSFER,
     new OutTransfer(
       scope.db,
       scope.schema,
@@ -150,7 +150,7 @@ function DApps (cb, scope) {
  * @return {setImmediateCallback} error description | row data
  */
 __private.get = function (id, cb) {
-  library.db.query(sql.get, {id: id}).then(function (rows) {
+  library.db.query(sql.get, { id: id }).then(function (rows) {
     if (rows.length === 0) {
       return setImmediate(cb, 'Application not found');
     } else {
@@ -234,8 +234,8 @@ __private.list = function (filter, cb) {
 
   var orderBy = OrderBy(
     filter.orderBy, {
-      sortFields: sql.sortFields
-    }
+    sortFields: sql.sortFields
+  }
   );
 
   if (orderBy.error) {
@@ -354,7 +354,7 @@ __private.getInstalledIds = function (cb) {
 __private.removeDApp = function (dapp, cb) {
   var dappPath = path.join(__private.dappsPath, dapp.transactionId);
 
-  function remove (err) {
+  function remove(err) {
     if (err) {
       library.logger.error('Failed to uninstall application');
     }
@@ -410,7 +410,7 @@ __private.downloadLink = function (dapp, dappPath, cb) {
         if (exists) {
           return setImmediate(serialCb, null);
         } else {
-          fs.mkdir(tmpDir , function (err) {
+          fs.mkdir(tmpDir, function (err) {
             if (err) {
               return setImmediate(serialCb, 'Failed to make tmp directory');
             } else {
@@ -423,7 +423,7 @@ __private.downloadLink = function (dapp, dappPath, cb) {
     performDownload: function (serialCb) {
       library.logger.info(dapp.transactionId, 'Downloading: ' + dapp.link);
 
-      function cleanup (err) {
+      function cleanup(err) {
         library.logger.error(dapp.transactionId, 'Download failed: ' + err.message);
 
         fs.exists(tmpPath, function (exists) {
@@ -434,7 +434,7 @@ __private.downloadLink = function (dapp, dappPath, cb) {
 
       var request = popsicle.get({
         url: dapp.link,
-        transport: popsicle.createTransport({type: 'stream'})
+        transport: popsicle.createTransport({ type: 'stream' })
       });
 
       request.then(function (res) {
@@ -487,9 +487,9 @@ __private.downloadLink = function (dapp, dappPath, cb) {
       });
     }
   },
-  function (err) {
-    return setImmediate(cb, err);
-  });
+    function (err) {
+      return setImmediate(cb, err);
+    });
 };
 
 /**
@@ -529,13 +529,13 @@ __private.installDApp = function (dapp, cb) {
       return __private.downloadLink(dapp, dappPath, serialCb);
     }
   },
-  function (err) {
-    if (err) {
-      return setImmediate(cb, dapp.transactionId + ' Installation failed: ' + err);
-    } else {
-      return setImmediate(cb, null, dappPath);
-    }
-  });
+    function (err) {
+      if (err) {
+        return setImmediate(cb, dapp.transactionId + ' Installation failed: ' + err);
+      } else {
+        return setImmediate(cb, null, dappPath);
+      }
+    });
 };
 
 /**
@@ -587,7 +587,7 @@ __private.apiHandler = function (message, callback) {
       return setImmediate(callback, 'Module does not have sandbox api');
     }
 
-    modules[module].sandboxApi(call, {'body': message.args, 'dappid': message.dappid}, callback);
+    modules[module].sandboxApi(call, { 'body': message.args, 'dappid': message.dappid }, callback);
   } catch (e) {
     return setImmediate(callback, 'Invalid call ' + e.toString());
   }
@@ -626,7 +626,7 @@ __private.createRoutes = function (dapp, cb) {
                 err = body.error;
               }
               if (err) {
-                body = {error: err};
+                body = { error: err };
               }
               body.success = !err;
               res.json(body);
@@ -639,7 +639,7 @@ __private.createRoutes = function (dapp, cb) {
       library.network.app.use(function (err, req, res, next) {
         if (!err) { return next(); }
         library.logger.error('API error ' + req.url, err.message);
-        res.status(500).send({success: false, error: 'API error: ' + err.message});
+        res.status(500).send({ success: false, error: 'API error: ' + err.message });
       });
 
       return setImmediate(cb);
@@ -1007,7 +1007,7 @@ DApps.prototype.onDeleteBlocksBefore = function (block) {
   Object.keys(__private.sandboxes).forEach(function (dappId) {
     self.request(dappId, 'post', '/message', {
       topic: 'rollback',
-      message: {pointId: block.id, pointHeight: block.height}
+      message: { pointId: block.id, pointHeight: block.height }
     }, function (err) {
       if (err) {
         library.logger.error('DApps#onDeleteBlocksBefore error', err);
@@ -1027,7 +1027,7 @@ DApps.prototype.onNewBlock = function (block, broadcast) {
     if (broadcast) {
       self.request(dappId, 'post', '/message', {
         topic: 'point',
-        message: {id: block.id, height: block.height}
+        message: { id: block.id, height: block.height }
       }, function (err) {
         if (err) {
           library.logger.error('DApps#onNewBlock error:', err);
@@ -1054,7 +1054,7 @@ DApps.prototype.isLoaded = function () {
  */
 DApps.prototype.internal = {
   put: function (dapp, cb) {
-        var hash = library.ed.createPassPhraseHash(dapp.secret);
+    var hash = library.ed.createPassPhraseHash(dapp.secret);
     var keypair = library.ed.makeKeypair(hash);
 
     if (dapp.publicKey) {
@@ -1064,7 +1064,7 @@ DApps.prototype.internal = {
     }
 
     library.balancesSequence.add(function (cb) {
-      modules.accounts.setAccountAndGet({publicKey: keypair.publicKey.toString('hex')}, function (err, account) {
+      modules.accounts.setAccountAndGet({ publicKey: keypair.publicKey.toString('hex') }, function (err, account) {
         if (err) {
           return setImmediate(cb, err);
         }
@@ -1080,7 +1080,7 @@ DApps.prototype.internal = {
         var secondKeypair = null;
 
         if (account.secondSignature) {
-                    var secondHash = library.ed.createPassPhraseHash(dapp.secondSecret);
+          var secondHash = library.ed.createPassPhraseHash(dapp.secondSecret);
           secondKeypair = library.ed.makeKeypair(secondHash);
         }
 
@@ -1108,9 +1108,9 @@ DApps.prototype.internal = {
       });
     }, function (err, transaction) {
       if (err) {
-        return setImmediate(cb, null, {success: false, error: err});
+        return setImmediate(cb, null, { success: false, error: err });
       } else {
-        return setImmediate(cb, null, {success: true, transaction: transaction[0]});
+        return setImmediate(cb, null, { success: true, transaction: transaction[0] });
       }
     });
   },
@@ -1118,9 +1118,9 @@ DApps.prototype.internal = {
   get: function (query, cb) {
     __private.get(query.id, function (err, dapp) {
       if (err) {
-        return setImmediate(cb, null, {success: false, error: err});
+        return setImmediate(cb, null, { success: false, error: err });
       } else {
-        return setImmediate(cb, null, {success: true, dapp: dapp});
+        return setImmediate(cb, null, { success: true, dapp: dapp });
       }
     });
   },
@@ -1130,7 +1130,7 @@ DApps.prototype.internal = {
       if (err) {
         return setImmediate(cb, 'Application not found');
       } else {
-        return setImmediate(cb, null, {success: true, dapps: dapps});
+        return setImmediate(cb, null, { success: true, dapps: dapps });
       }
     });
   },
@@ -1143,7 +1143,7 @@ DApps.prototype.internal = {
       }
 
       if (ids.length === 0) {
-        return setImmediate(cb, null, {success: true, dapps: []});
+        return setImmediate(cb, null, { success: true, dapps: [] });
       }
 
       __private.getByIds(ids, function (err, dapps) {
@@ -1151,7 +1151,7 @@ DApps.prototype.internal = {
           library.logger.error(err);
           return setImmediate(cb, 'Failed to get applications by id');
         } else {
-          return setImmediate(cb, null, {success: true, dapps: dapps});
+          return setImmediate(cb, null, { success: true, dapps: dapps });
         }
       });
     });
@@ -1174,11 +1174,11 @@ DApps.prototype.internal = {
 
       library.db.query(sql.search(params), params).then(function (rows) {
         if (rows.length === 0) {
-          return setImmediate(cb, null, {success: true, dapps: rows});
+          return setImmediate(cb, null, { success: true, dapps: rows });
         }
 
         if (query.installed === null || typeof query.installed === 'undefined') {
-          return setImmediate(cb, null, {success: true, dapps: rows});
+          return setImmediate(cb, null, { success: true, dapps: rows });
         } else if (query.installed === 1) {
           __private.getInstalledIds(function (err, installed) {
             if (err) {
@@ -1196,7 +1196,7 @@ DApps.prototype.internal = {
               }
             });
 
-            return setImmediate(cb, null, {success: true, dapps: dapps});
+            return setImmediate(cb, null, { success: true, dapps: dapps });
           });
         } else {
           __private.getInstalledIds(function (err, installed) {
@@ -1214,7 +1214,7 @@ DApps.prototype.internal = {
               }
             });
 
-            return setImmediate(cb, null, {success: true, dapps: dapps});
+            return setImmediate(cb, null, { success: true, dapps: dapps });
           });
         }
       }).catch(function (err) {
@@ -1230,13 +1230,13 @@ DApps.prototype.internal = {
         library.logger.error(err);
         return setImmediate(cb, 'Failed to get installed application ids');
       } else {
-        return setImmediate(cb, null, {success: true, ids: ids});
+        return setImmediate(cb, null, { success: true, ids: ids });
       }
     });
   },
 
   isMasterPasswordEnabled: function (req, cb) {
-    return setImmediate(cb, null, {success: true, enabled: !!library.config.dapp.masterpassword});
+    return setImmediate(cb, null, { success: true, enabled: !!library.config.dapp.masterpassword });
   },
 
   install: function (params, cb) {
@@ -1247,13 +1247,13 @@ DApps.prototype.internal = {
     __private.get(params.id, function (err, dapp) {
       if (err) {
         library.logger.error(err);
-        return setImmediate(cb, null, {success: false, error: err});
+        return setImmediate(cb, null, { success: false, error: err });
       }
 
       __private.getInstalledIds(function (err, ids) {
         if (err) {
           library.logger.error(err);
-          return setImmediate(cb, null, {success: false, error: err});
+          return setImmediate(cb, null, { success: false, error: err });
         }
 
         if (ids.indexOf(params.id) >= 0) {
@@ -1269,7 +1269,7 @@ DApps.prototype.internal = {
         __private.installDApp(dapp, function (err, dappPath) {
           if (err) {
             __private.loading[params.id] = false;
-            return setImmediate(cb, null, {success: false, error: err});
+            return setImmediate(cb, null, { success: false, error: err });
           } else {
             if (dapp.type === 0) {
               __private.installDependencies(dapp, function (err) {
@@ -1293,14 +1293,14 @@ DApps.prototype.internal = {
                   library.network.io.sockets.emit('dapps/change', dapp);
 
                   __private.loading[params.id] = false;
-                  return setImmediate(cb, null, {success: true, path: dappPath});
+                  return setImmediate(cb, null, { success: true, path: dappPath });
                 }
               });
             } else {
               library.network.io.sockets.emit('dapps/change', dapp);
 
               __private.loading[params.id] = false;
-              return setImmediate(cb, null, {success: true, path: dappPath});
+              return setImmediate(cb, null, { success: true, path: dappPath });
             }
           }
         });
@@ -1316,11 +1316,11 @@ DApps.prototype.internal = {
     __private.get(params.id, function (err, dapp) {
       if (err) {
         library.logger.error(err);
-        return setImmediate(cb, null, {success: false, error: err});
+        return setImmediate(cb, null, { success: false, error: err });
       }
 
       if (__private.loading[params.id] || __private.uninstalling[params.id]) {
-        return setImmediate(cb, null, {success: true, error: 'Application is loading or being uninstalled'});
+        return setImmediate(cb, null, { success: true, error: 'Application is loading or being uninstalled' });
       }
 
       __private.uninstalling[params.id] = true;
@@ -1336,11 +1336,11 @@ DApps.prototype.internal = {
               __private.uninstalling[params.id] = false;
 
               if (err) {
-                return setImmediate(cb, null, {success: false, error: err});
+                return setImmediate(cb, null, { success: false, error: err });
               } else {
                 library.network.io.sockets.emit('dapps/change', dapp);
 
-                return setImmediate(cb, null, {success: true});
+                return setImmediate(cb, null, { success: true });
               }
             });
           }
@@ -1350,11 +1350,11 @@ DApps.prototype.internal = {
           __private.uninstalling[params.id] = false;
 
           if (err) {
-            return setImmediate(cb, null, {success: false, error: err});
+            return setImmediate(cb, null, { success: false, error: err });
           } else {
             library.network.io.sockets.emit('dapps/change', dapp);
 
-            return setImmediate(cb, null, {success: true});
+            return setImmediate(cb, null, { success: true });
           }
         });
       }
@@ -1368,10 +1368,10 @@ DApps.prototype.internal = {
 
     __private.launchDApp(req.body, function (err) {
       if (err) {
-        return setImmediate(cb, null, {'success': false, 'error': err});
+        return setImmediate(cb, null, { 'success': false, 'error': err });
       } else {
         library.network.io.sockets.emit('dapps/change', {});
-        return setImmediate(cb, null, {'success': true});
+        return setImmediate(cb, null, { 'success': true });
       }
     });
   },
@@ -1384,7 +1384,7 @@ DApps.prototype.internal = {
       }
     }
 
-    return setImmediate(cb, null, {success: true, installing: ids});
+    return setImmediate(cb, null, { success: true, installing: ids });
   },
 
   uninstalling: function (req, cb) {
@@ -1395,7 +1395,7 @@ DApps.prototype.internal = {
       }
     }
 
-    return setImmediate(cb, null, {success: true, uninstalling: ids});
+    return setImmediate(cb, null, { success: true, uninstalling: ids });
   },
 
   launched: function (req, cb) {
@@ -1406,11 +1406,11 @@ DApps.prototype.internal = {
       }
     }
 
-    return setImmediate(cb, null, {success: true, launched: ids});
+    return setImmediate(cb, null, { success: true, launched: ids });
   },
 
   categories: function (req, cb) {
-    return setImmediate(cb, null, {success: true, categories: dappCategories});
+    return setImmediate(cb, null, { success: true, categories: dappCategories });
   },
 
   stop: function (params, cb) {
@@ -1434,7 +1434,7 @@ DApps.prototype.internal = {
           } else {
             library.network.io.sockets.emit('dapps/change', dapp);
             __private.launched[params.id] = false;
-            return setImmediate(cb, null, {success: true});
+            return setImmediate(cb, null, { success: true });
           }
         });
       }
@@ -1447,7 +1447,7 @@ DApps.prototype.internal = {
         return setImmediate(cb, err[0].message);
       }
 
-            var hash = library.ed.createPassPhraseHash(req.body.secret);
+      var hash = library.ed.createPassPhraseHash(req.body.secret);
       var keypair = library.ed.makeKeypair(hash);
 
       if (req.body.publicKey) {
@@ -1460,7 +1460,7 @@ DApps.prototype.internal = {
 
       library.balancesSequence.add(function (cb) {
         if (req.body.multisigAccountPublicKey && req.body.multisigAccountPublicKey !== keypair.publicKey.toString('hex')) {
-          modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey}, function (err, account) {
+          modules.accounts.getAccount({ publicKey: req.body.multisigAccountPublicKey }, function (err, account) {
             if (err) {
               return setImmediate(cb, err);
             }
@@ -1477,7 +1477,7 @@ DApps.prototype.internal = {
               return setImmediate(cb, 'Account does not belong to multisignature group');
             }
 
-            modules.accounts.getAccount({publicKey: keypair.publicKey}, function (err, requester) {
+            modules.accounts.getAccount({ publicKey: keypair.publicKey }, function (err, requester) {
               if (err) {
                 return setImmediate(cb, err);
               }
@@ -1497,7 +1497,7 @@ DApps.prototype.internal = {
               var secondKeypair = null;
 
               if (requester.secondSignature) {
-                                var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
+                var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
                 secondKeypair = library.ed.makeKeypair(secondHash);
               }
 
@@ -1521,7 +1521,7 @@ DApps.prototype.internal = {
             });
           });
         } else {
-          modules.accounts.setAccountAndGet({publicKey: keypair.publicKey.toString('hex')}, function (err, account) {
+          modules.accounts.setAccountAndGet({ publicKey: keypair.publicKey.toString('hex') }, function (err, account) {
             if (err) {
               return setImmediate(cb, err);
             }
@@ -1537,7 +1537,7 @@ DApps.prototype.internal = {
             var secondKeypair = null;
 
             if (account.secondSignature) {
-                            var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
+              var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
               secondKeypair = library.ed.makeKeypair(secondHash);
             }
 
@@ -1564,7 +1564,7 @@ DApps.prototype.internal = {
           return setImmediate(cb, err);
         }
 
-        return setImmediate(cb, null, {transactionId: transaction[0].id});
+        return setImmediate(cb, null, { transactionId: transaction[0].id });
       });
     });
   },
@@ -1576,13 +1576,13 @@ DApps.prototype.internal = {
         return setImmediate(cb, err[0].message);
       }
 
-            var hash = library.ed.createPassPhraseHash(req.body.secret);
+      var hash = library.ed.createPassPhraseHash(req.body.secret);
       var keypair = library.ed.makeKeypair(hash);
       var query = {};
 
       library.balancesSequence.add(function (cb) {
         if (req.body.multisigAccountPublicKey && req.body.multisigAccountPublicKey !== keypair.publicKey.toString('hex')) {
-          modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey}, function (err, account) {
+          modules.accounts.getAccount({ publicKey: req.body.multisigAccountPublicKey }, function (err, account) {
             if (err) {
               return setImmediate(cb, err);
             }
@@ -1599,7 +1599,7 @@ DApps.prototype.internal = {
               return setImmediate(cb, 'Account does not belong to multisignature group');
             }
 
-            modules.accounts.getAccount({publicKey: keypair.publicKey}, function (err, requester) {
+            modules.accounts.getAccount({ publicKey: keypair.publicKey }, function (err, requester) {
               if (err) {
                 return setImmediate(cb, err);
               }
@@ -1619,7 +1619,7 @@ DApps.prototype.internal = {
               var secondKeypair = null;
 
               if (requester.secondSignature) {
-                                var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
+                var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
                 secondKeypair = library.ed.makeKeypair(secondHash);
               }
 
@@ -1645,7 +1645,7 @@ DApps.prototype.internal = {
             });
           });
         } else {
-          modules.accounts.setAccountAndGet({publicKey: keypair.publicKey.toString('hex')}, function (err, account) {
+          modules.accounts.setAccountAndGet({ publicKey: keypair.publicKey.toString('hex') }, function (err, account) {
             if (err) {
               return setImmediate(cb, err);
             }
@@ -1661,7 +1661,7 @@ DApps.prototype.internal = {
             var secondKeypair = null;
 
             if (account.secondSignature) {
-                            var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
+              var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
               secondKeypair = library.ed.makeKeypair(secondHash);
             }
 
@@ -1690,7 +1690,7 @@ DApps.prototype.internal = {
           return setImmediate(cb, err);
         }
 
-        return setImmediate(cb, null, {transactionId: transaction[0].id});
+        return setImmediate(cb, null, { transactionId: transaction[0].id });
       });
     });
   }
