@@ -38,8 +38,8 @@ function System (cb, scope) {
       version: scope.packageJson.version,
       port: scope.config.port,
       nethash: scope.config.nethash,
-      minVersion: scope.packageJson.config.minVersion,
-    },
+      minVersion: scope.packageJson.config.minVersion
+    }
   };
   self = this;
 
@@ -236,7 +236,7 @@ System.prototype.sandboxApi = function (call, args, cb) {
 System.prototype.onBind = function (scope) {
   modules = {
     blocks: scope.blocks,
-    transport: scope.transport,
+    transport: scope.transport
   };
 };
 

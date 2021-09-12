@@ -28,7 +28,7 @@ var modules, library, self, __private = {}, shared = {};
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
-function Peers(cb, scope) {
+function Peers (cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
@@ -38,12 +38,12 @@ function Peers(cb, scope) {
     build: scope.build,
     lastCommit: scope.lastCommit,
     logic: {
-      peers: scope.logic.peers,
+      peers: scope.logic.peers
     },
     config: {
       peers: scope.config.peers,
-      version: scope.packageJson.version,
-    },
+      version: scope.packageJson.version
+    }
   };
   self = this;
 
@@ -56,7 +56,7 @@ function Peers(cb, scope) {
  * @private
  * @param {Object} filter
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} peers length
+ * @return {setImmediateCallback} peers length
  */
 __private.countByFilter = function (filter, cb) {
   __private.getByFilter(filter, function (err, peers) {
@@ -69,7 +69,7 @@ __private.countByFilter = function (filter, cb) {
  * @private
  * @param {Object} filter
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} peers
+ * @return {setImmediateCallback} peers
  */
 __private.getByFilter = function (filter, cb) {
   var allowedFields = ['ip', 'port', 'state', 'os', 'version', 'broadhash', 'height', 'nonce'];
@@ -155,7 +155,7 @@ __private.getByFilter = function (filter, cb) {
  * Pings to every member of peers list.
  * @private
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} cb
+ * @return {setImmediateCallback} cb
  */
 __private.insertSeeds = function (cb) {
   var updated = 0;
@@ -343,11 +343,11 @@ Peers.prototype.ping = function (peer, cb) {
 /**
  * Discovers peers by getting list and validates them.
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} cb | error
+ * @return {setImmediateCallback} cb | error
  */
 Peers.prototype.discover = function (cb) {
   library.logger.trace('Peers->discover');
-  function getFromRandomPeer(waterCb) {
+  function getFromRandomPeer (waterCb) {
     modules.transport.getFromRandomPeer({
       api: '/list',
       method: 'GET'
@@ -356,19 +356,19 @@ Peers.prototype.discover = function (cb) {
     });
   }
 
-  function validatePeersList(res, waterCb) {
+  function validatePeersList (res, waterCb) {
     library.schema.validate(res.body, schema.discover.peers, function (err) {
       return setImmediate(waterCb, err, res.body.peers);
     });
   }
 
-  function pickPeers(peers, waterCb) {
+  function pickPeers (peers, waterCb) {
     var picked = self.acceptable(peers);
     library.logger.debug(['Picked', picked.length, 'of', peers.length, 'peers'].join(' '));
     return setImmediate(waterCb, null, picked);
   }
 
-  function updatePeers(peers, waterCb) {
+  function updatePeers (peers, waterCb) {
     var updated = 0;
     async.each(peers, function (peer, eachCb) {
       peer = library.logic.peers.create(peer);
@@ -408,24 +408,24 @@ Peers.prototype.discover = function (cb) {
  */
 Peers.prototype.acceptable = function (peers) {
   return _(peers)
-    .uniqWith(function (a, b) {
+      .uniqWith(function (a, b) {
       // Removing non-unique peers
-      return (a.ip + a.port) === (b.ip + b.port);
-    })
-    .filter(function (peer) {
+        return (a.ip + a.port) === (b.ip + b.port);
+      })
+      .filter(function (peer) {
       // Removing peers with private address or nonce equal to self
-      if ((process.env['NODE_ENV'] || '').toUpperCase() === 'TEST') {
-        return peer.nonce !== modules.system.getNonce() && (peer.os !== 'lisk-js-api');
-      }
-      return !ip.isPrivate(peer.ip) && peer.nonce !== modules.system.getNonce() && (peer.os !== 'lisk-js-api');
-    }).value();
+        if ((process.env['NODE_ENV'] || '').toUpperCase() === 'TEST') {
+          return peer.nonce !== modules.system.getNonce() && (peer.os !== 'lisk-js-api');
+        }
+        return !ip.isPrivate(peer.ip) && peer.nonce !== modules.system.getNonce() && (peer.os !== 'lisk-js-api');
+      }).value();
 };
 
 /**
  * Gets peers list and calculated consensus.
- * @param {Object} options - Constains limit, broadhash.
+ * @param {Object} options - Contains limit, broadhash.
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} error | peers, consensus
+ * @return {setImmediateCallback} error | peers, consensus
  */
 Peers.prototype.list = function (options, cb) {
   options.limit = options.limit || constants.maxPeers;
@@ -435,7 +435,7 @@ Peers.prototype.list = function (options, cb) {
   options.attempt = 0;
   options.matched = 0;
 
-  function randomList(options, peers, cb) {
+  function randomList (options, peers, cb) {
     // Get full peers list (random)
     __private.getByFilter({}, function (err, peersList) {
       var accepted, found, matched, picked;
@@ -500,7 +500,7 @@ Peers.prototype.list = function (options, cb) {
 Peers.prototype.onBind = function (scope) {
   modules = {
     transport: scope.transport,
-    system: scope.system,
+    system: scope.system
   };
 };
 
@@ -537,7 +537,7 @@ Peers.prototype.onBlockchainReady = function () {
  */
 Peers.prototype.onPeersReady = function () {
   library.logger.trace('Peers ready');
-  function peersDiscoveryAndUpdate(cb) {
+  function peersDiscoveryAndUpdate (cb) {
     async.series({
       discoverPeers: function (seriesCb) {
         library.logger.trace('Discovering new peers...');

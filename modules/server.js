@@ -19,7 +19,7 @@ __private.loaded = false;
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
-function Server(cb, scope) {
+function Server (cb, scope) {
   self = this;
 
   setImmediate(cb, null, self);

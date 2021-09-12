@@ -38,7 +38,7 @@ __private.assetTypes = {};
  * @todo add 'use strict';
  */
 // Constructor
-function States(cb, scope) {
+function States (cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
@@ -55,13 +55,13 @@ function States(cb, scope) {
   self = this;
 
   __private.assetTypes[transactionTypes.STATE] = library.logic.transaction.attachAssetType(
-    transactionTypes.STATE,
-    new State(
-      scope.db,
-      scope.logger,
-      scope.schema,
-      scope.network
-    )
+      transactionTypes.STATE,
+      new State(
+          scope.db,
+          scope.logger,
+          scope.schema,
+          scope.network
+      )
   );
   setImmediate(cb, null, self);
 }
@@ -159,9 +159,9 @@ __private.list = function (filter, cb) {
   }
 
   var orderBy = OrderBy(
-    filter.orderBy, {
-    sortFields: sql.sortFields
-  }
+      filter.orderBy, {
+        sortFields: sql.sortFields
+      }
   );
 
   if (orderBy.error) {
@@ -204,7 +204,7 @@ States.prototype.onBind = function (scope) {
     transactions: scope.transactions,
     accounts: scope.accounts,
     peers: scope.peers,
-    sql: scope.sql,
+    sql: scope.sql
   };
 };
 

@@ -13,7 +13,7 @@ var cacheEnabled;
  * @param {Function} cb
  * @param {Object} scope
  */
-function Cache(cb, scope) {
+function Cache (cb, scope) {
   self = this;
   client = scope.cache.client;
   logger = scope.logger;
@@ -23,7 +23,7 @@ function Cache(cb, scope) {
 
 /**
  * It gets the status of the redis connection
- * @returns {Boolean} status
+ * @return {Boolean} status
  */
 Cache.prototype.isConnected = function () {
   // using client.ready because this variable is updated on client connected
@@ -32,7 +32,7 @@ Cache.prototype.isConnected = function () {
 
 /**
  * It gets the caching readiness and the connection of redis
- * @returns {Boolean} status
+ * @return {Boolean} status
  */
 Cache.prototype.isReady = function () {
   return cacheReady && self.isConnected();
@@ -42,7 +42,7 @@ Cache.prototype.isReady = function () {
  * It gets the json value for a key from redis
  * @param {String} key
  * @param {Function} cb
- * @returns {Function} cb
+ * @return {Function} cb
  */
 Cache.prototype.getJsonForKey = function (key, cb) {
   if (!self.isConnected()) {
@@ -92,7 +92,7 @@ Cache.prototype.removeByPattern = function (pattern, cb) {
     return cb(errorCacheDisabled);
   }
   var keys, cursor = 0;
-  async.doWhilst(function iteratee(whilstCb) {
+  async.doWhilst(function iteratee (whilstCb) {
     client.scan(cursor, 'MATCH', pattern, function (err, res) {
       if (err) {
         return whilstCb(err);
@@ -106,7 +106,7 @@ Cache.prototype.removeByPattern = function (pattern, cb) {
         }
       }
     });
-  }, function test() {
+  }, function test () {
     return cursor > 0;
   }, cb);
 };

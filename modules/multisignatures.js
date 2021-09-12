@@ -26,7 +26,7 @@ __private.assetTypes = {};
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
-function Multisignatures(cb, scope) {
+function Multisignatures (cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
@@ -36,20 +36,20 @@ function Multisignatures(cb, scope) {
     bus: scope.bus,
     balancesSequence: scope.balancesSequence,
     logic: {
-      transaction: scope.logic.transaction,
-    },
+      transaction: scope.logic.transaction
+    }
   };
   genesisblock = library.genesisblock;
   self = this;
 
   __private.assetTypes[transactionTypes.MULTI] = library.logic.transaction.attachAssetType(
-    transactionTypes.MULTI,
-    new Multisignature(
-      scope.schema,
-      scope.network,
-      scope.logic.transaction,
-      scope.logger
-    )
+      transactionTypes.MULTI,
+      new Multisignature(
+          scope.schema,
+          scope.network,
+          scope.logic.transaction,
+          scope.logger
+      )
   );
 
   setImmediate(cb, null, self);
@@ -60,13 +60,13 @@ function Multisignatures(cb, scope) {
  * Gets transaction from transaction id and add it to sequence and bus.
  * @param {Object} tx - Contains transaction and signature.
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} err messages| cb
+ * @return {setImmediateCallback} err messages| cb
  * @todo test function!.
  */
 Multisignatures.prototype.processSignature = function (tx, cb) {
   var transaction = modules.transactions.getMultisignatureTransaction(tx.transaction);
 
-  function done(cb) {
+  function done (cb) {
     library.balancesSequence.add(function (cb) {
       var transaction = modules.transactions.getMultisignatureTransaction(tx.transaction);
 
@@ -186,12 +186,12 @@ Multisignatures.prototype.sandboxApi = function (call, args, cb) {
 Multisignatures.prototype.onBind = function (scope) {
   modules = {
     transactions: scope.transactions,
-    accounts: scope.accounts,
+    accounts: scope.accounts
   };
 
   __private.assetTypes[transactionTypes.MULTI].bind(
-    scope.rounds,
-    scope.accounts
+      scope.rounds,
+      scope.accounts
   );
 };
 
@@ -362,7 +362,7 @@ Multisignatures.prototype.shared = {
   sign: function (req, cb) {
     var scope = {};
 
-    function checkGroupPermisions(cb) {
+    function checkGroupPermisions (cb) {
       var permissionDenied = (
         scope.transaction.asset.multisignature.keysgroup.indexOf('+' + scope.keypair.publicKey.toString('hex')) === -1
       );
@@ -383,7 +383,7 @@ Multisignatures.prototype.shared = {
       return setImmediate(cb);
     }
 
-    function checkTransactionPermissions(cb) {
+    function checkTransactionPermissions (cb) {
       var permissionDenied = true;
 
       if (!scope.transaction.requesterPublicKey) {

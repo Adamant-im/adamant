@@ -55,7 +55,7 @@ __private.routes = {};
  * @todo add 'use strict';
  */
 // Constructor
-function DApps(cb, scope) {
+function DApps (cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
@@ -65,39 +65,39 @@ function DApps(cb, scope) {
     ed: scope.ed,
     balancesSequence: scope.balancesSequence,
     logic: {
-      transaction: scope.logic.transaction,
+      transaction: scope.logic.transaction
     },
     config: {
-      dapp: scope.config.dapp,
-    },
+      dapp: scope.config.dapp
+    }
   };
   self = this;
 
   __private.assetTypes[transactionTypes.DAPP] = library.logic.transaction.attachAssetType(
-    transactionTypes.DAPP,
-    new DApp(
-      scope.db,
-      scope.logger,
-      scope.schema,
-      scope.network
-    )
+      transactionTypes.DAPP,
+      new DApp(
+          scope.db,
+          scope.logger,
+          scope.schema,
+          scope.network
+      )
   );
 
   __private.assetTypes[transactionTypes.IN_TRANSFER] = library.logic.transaction.attachAssetType(
-    transactionTypes.IN_TRANSFER,
-    new InTransfer(
-      scope.db,
-      scope.schema
-    )
+      transactionTypes.IN_TRANSFER,
+      new InTransfer(
+          scope.db,
+          scope.schema
+      )
   );
 
   __private.assetTypes[transactionTypes.OUT_TRANSFER] = library.logic.transaction.attachAssetType(
-    transactionTypes.OUT_TRANSFER,
-    new OutTransfer(
-      scope.db,
-      scope.schema,
-      scope.logger
-    )
+      transactionTypes.OUT_TRANSFER,
+      new OutTransfer(
+          scope.db,
+          scope.schema,
+          scope.logger
+      )
   );
   /**
    * Receives an 'exit' signal and calls stopDApp for each launched app.
@@ -233,9 +233,9 @@ __private.list = function (filter, cb) {
   }
 
   var orderBy = OrderBy(
-    filter.orderBy, {
-    sortFields: sql.sortFields
-  }
+      filter.orderBy, {
+        sortFields: sql.sortFields
+      }
   );
 
   if (orderBy.error) {
@@ -265,9 +265,9 @@ __private.list = function (filter, cb) {
  */
 __private.createBasePaths = function (cb) {
   var basePaths = [
-    __private.dappsPath,                             // -> /dapps
+    __private.dappsPath, // -> /dapps
     path.join(__private.appPath, 'public', 'dapps'), // -> /public/dapps
-    path.join(library.public, 'images', 'dapps'),    // -> /public/images/dapps
+    path.join(library.public, 'images', 'dapps') // -> /public/images/dapps
   ];
 
   async.eachSeries(basePaths, function (path, eachSeriesCb) {
@@ -354,7 +354,7 @@ __private.getInstalledIds = function (cb) {
 __private.removeDApp = function (dapp, cb) {
   var dappPath = path.join(__private.dappsPath, dapp.transactionId);
 
-  function remove(err) {
+  function remove (err) {
     if (err) {
       library.logger.error('Failed to uninstall application');
     }
@@ -423,7 +423,7 @@ __private.downloadLink = function (dapp, dappPath, cb) {
     performDownload: function (serialCb) {
       library.logger.info(dapp.transactionId, 'Downloading: ' + dapp.link);
 
-      function cleanup(err) {
+      function cleanup (err) {
         library.logger.error(dapp.transactionId, 'Download failed: ' + err.message);
 
         fs.exists(tmpPath, function (exists) {
@@ -487,9 +487,9 @@ __private.downloadLink = function (dapp, dappPath, cb) {
       });
     }
   },
-    function (err) {
-      return setImmediate(cb, err);
-    });
+  function (err) {
+    return setImmediate(cb, err);
+  });
 };
 
 /**
@@ -529,17 +529,17 @@ __private.installDApp = function (dapp, cb) {
       return __private.downloadLink(dapp, dappPath, serialCb);
     }
   },
-    function (err) {
-      if (err) {
-        return setImmediate(cb, dapp.transactionId + ' Installation failed: ' + err);
-      } else {
-        return setImmediate(cb, null, dappPath);
-      }
-    });
+  function (err) {
+    if (err) {
+      return setImmediate(cb, dapp.transactionId + ' Installation failed: ' + err);
+    } else {
+      return setImmediate(cb, null, dappPath);
+    }
+  });
 };
 
 /**
- * Creates a public link (symbolic link) between public path and 
+ * Creates a public link (symbolic link) between public path and
  * public dapps with transaction id.
  * @private
  * @param {dapp} dapp
@@ -650,7 +650,7 @@ __private.createRoutes = function (dapp, cb) {
 };
 
 /**
- * Launchs daap steps:
+ * Launches dapp steps:
  * - validate schema parameter
  * - check if application is already launched
  * - get the application
@@ -769,7 +769,7 @@ __private.launchDApp = function (body, cb) {
  * Opens dapp `config.json` file and for each peer calls update.
  * Once all peers are updated, opens `blockchain.json` file, calls
  * createTables and creates sandbox.
- * Listens sanbox events 'exit' and 'error' to stop dapp.
+ * Listens sandbox events 'exit' and 'error' to stop dapp.
  * @private
  * @implements {modules.peers.update}
  * @implements {modules.sql.createTables}
@@ -859,7 +859,7 @@ __private.createSandbox = function (dapp, params, cb) {
 /**
  * Stops dapp:
  * - check public/dapps id is installed
- * - delete sandbox after exit() from sanbox
+ * - delete sandbox after exit() from sandbox
  * - delete routes
  * @private
  * @implements {sandboxes.exit}
@@ -956,19 +956,19 @@ DApps.prototype.onBind = function (scope) {
     transactions: scope.transactions,
     accounts: scope.accounts,
     peers: scope.peers,
-    sql: scope.sql,
+    sql: scope.sql
   };
 
   __private.assetTypes[transactionTypes.IN_TRANSFER].bind(
-    scope.accounts,
-    scope.rounds,
-    shared
+      scope.accounts,
+      scope.rounds,
+      shared
   );
 
   __private.assetTypes[transactionTypes.OUT_TRANSFER].bind(
-    scope.accounts,
-    scope.rounds,
-    scope.dapps
+      scope.accounts,
+      scope.rounds,
+      scope.dapps
   );
 };
 

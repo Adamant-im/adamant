@@ -34,7 +34,7 @@ __private.assetTypes = {};
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
-function Transactions(cb, scope) {
+function Transactions (cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
@@ -42,7 +42,7 @@ function Transactions(cb, scope) {
     ed: scope.ed,
     balancesSequence: scope.balancesSequence,
     logic: {
-      transaction: scope.logic.transaction,
+      transaction: scope.logic.transaction
     },
     genesisblock: scope.genesisblock
   };
@@ -50,15 +50,15 @@ function Transactions(cb, scope) {
   self = this;
 
   __private.transactionPool = new TransactionPool(
-    scope.config.broadcasts.broadcastInterval,
-    scope.config.broadcasts.releaseLimit,
-    scope.logic.transaction,
-    scope.bus,
-    scope.logger
+      scope.config.broadcasts.broadcastInterval,
+      scope.config.broadcasts.releaseLimit,
+      scope.logic.transaction,
+      scope.bus,
+      scope.logger
   );
 
   __private.assetTypes[transactionTypes.SEND] = library.logic.transaction.attachAssetType(
-    transactionTypes.SEND, new Transfer()
+      transactionTypes.SEND, new Transfer()
   );
 
   setImmediate(cb, null, self);
@@ -70,7 +70,7 @@ function Transactions(cb, scope) {
  * @private
  * @param {Object} filter
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} error | data: {transactions, count}
+ * @return {setImmediateCallback} error | data: {transactions, count}
  */
 __private.list = function (filter, cb) {
   var params = {};
@@ -126,7 +126,7 @@ __private.list = function (filter, cb) {
       throw new Error('Invalid parameter supplied: ' + key);
     }
 
-    // Mutating parametres when unix timestamp is supplied
+    // Mutating parameters when unix timestamp is supplied
     if (_.includes(['fromUnixTime', 'toUnixTime'], field[1])) {
       // Lisk epoch is 1464109200 as unix timestamp
       value = value - constants.epochTime.getTime() / 1000;
@@ -180,18 +180,18 @@ __private.list = function (filter, cb) {
   }
 
   var orderBy = OrderBy(
-    filter.orderBy, {
-    sortFields: sql.sortFields,
-    fieldPrefix: function (sortField) {
-      if (['height'].indexOf(sortField) > -1) {
-        return 'b_' + sortField;
-      } else if (['confirmations'].indexOf(sortField) > -1) {
-        return sortField;
-      } else {
-        return 't_' + sortField;
+      filter.orderBy, {
+        sortFields: sql.sortFields,
+        fieldPrefix: function (sortField) {
+          if (['height'].indexOf(sortField) > -1) {
+            return 'b_' + sortField;
+          } else if (['confirmations'].indexOf(sortField) > -1) {
+            return sortField;
+          } else {
+            return 't_' + sortField;
+          }
+        }
       }
-    }
-  }
   );
 
   if (orderBy.error) {
@@ -240,7 +240,7 @@ __private.list = function (filter, cb) {
  * @private
  * @param {string} id
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} error | data: {transaction}
+ * @return {setImmediateCallback} error | data: {transaction}
  */
 __private.getById = function (id, cb) {
   library.db.query(sql.getById, { id: id }).then(function (rows) {
@@ -262,7 +262,7 @@ __private.getById = function (id, cb) {
  * @private
  * @param {string} id
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} error | data: {transaction}
+ * @return {setImmediateCallback} error | data: {transaction}
  */
 __private.getByIdFullAsset = function (id, cb) {
   library.db.query(sql.getByIdFull, { id: id }).then(function (rows) {
@@ -283,7 +283,7 @@ __private.getByIdFullAsset = function (id, cb) {
  * @private
  * @param {transaction} transaction
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} error | data: {added, deleted}
+ * @return {setImmediateCallback} error | data: {added, deleted}
  */
 __private.getVotesById = function (transaction, cb) {
   library.db.query(sql.getVotesById, { id: transaction.id }).then(function (rows) {
@@ -318,7 +318,7 @@ __private.getVotesById = function (transaction, cb) {
  * @param {Object} method
  * @param {Object} req
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} error | data: {transaction}
+ * @return {setImmediateCallback} error | data: {transaction}
  */
 __private.getPooledTransaction = function (method, req, cb) {
   library.schema.validate(req.body, schema.getPooledTransaction, function (err) {
@@ -343,7 +343,7 @@ __private.getPooledTransaction = function (method, req, cb) {
  * @param {Object} method
  * @param {Object} req
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} error | data: {transactions, count}
+ * @return {setImmediateCallback} error | data: {transactions, count}
  */
 __private.getPooledTransactions = function (method, req, cb) {
   library.schema.validate(req.body, schema.getPooledTransactions, function (err) {
@@ -627,13 +627,13 @@ Transactions.prototype.onBind = function (scope) {
   };
 
   __private.transactionPool.bind(
-    scope.accounts,
-    scope.transactions,
-    scope.loader
+      scope.accounts,
+      scope.transactions,
+      scope.loader
   );
   __private.assetTypes[transactionTypes.SEND].bind(
-    scope.accounts,
-    scope.rounds
+      scope.accounts,
+      scope.rounds
   );
 };
 
@@ -661,7 +661,7 @@ Transactions.prototype.shared = {
         });
 
         if (params.types) {
-          params.types = params.types.map(x => parseInt(x));
+          params.types = params.types.map((x) => parseInt(x));
         }
 
         library.schema.validate(params, schema.getTransactions, function (err) {

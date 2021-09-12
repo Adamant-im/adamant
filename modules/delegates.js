@@ -37,7 +37,7 @@ __private.tmpKeypairs = {};
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
-function Delegates(cb, scope) {
+function Delegates (cb, scope) {
   library = {
     logger: scope.logger,
     sequence: scope.sequence,
@@ -47,24 +47,24 @@ function Delegates(cb, scope) {
     schema: scope.schema,
     balancesSequence: scope.balancesSequence,
     logic: {
-      transaction: scope.logic.transaction,
+      transaction: scope.logic.transaction
     },
     config: {
       forging: {
         secret: scope.config.forging.secret,
         access: {
-          whiteList: scope.config.forging.access.whiteList,
-        },
-      },
-    },
+          whiteList: scope.config.forging.access.whiteList
+        }
+      }
+    }
   };
   self = this;
 
   __private.assetTypes[transactionTypes.DELEGATE] = library.logic.transaction.attachAssetType(
-    transactionTypes.DELEGATE,
-    new Delegate(
-      scope.schema
-    )
+      transactionTypes.DELEGATE,
+      new Delegate(
+          scope.schema
+      )
   );
 
   setImmediate(cb, null, self);
@@ -75,7 +75,7 @@ function Delegates(cb, scope) {
  * Gets delegate public keys sorted by vote descending.
  * @private
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} 
+ * @return {setImmediateCallback}
  */
 __private.getKeysSortByVote = function (cb) {
   modules.accounts.getAccounts({
@@ -96,7 +96,7 @@ __private.getKeysSortByVote = function (cb) {
  * Gets delegate public keys sorted by votesWeight descending.
  * @private
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback}
+ * @return {setImmediateCallback}
  */
 __private.getKeysSortByVotesWeight = function (cb) {
   modules.accounts.getAccounts({
@@ -119,7 +119,7 @@ __private.getKeysSortByVotesWeight = function (cb) {
  * @param {number} slot
  * @param {number} height
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} error | cb | object {time, keypair}.
+ * @return {setImmediateCallback} error | cb | object {time, keypair}.
  */
 __private.getBlockSlotData = function (slot, height, cb) {
   self.generateDelegateList(height, function (err, activeDelegates) {
@@ -144,11 +144,11 @@ __private.getBlockSlotData = function (slot, height, cb) {
 };
 
 /**
- * Gets peers, checks consensus and generates new block, once delegates 
+ * Gets peers, checks consensus and generates new block, once delegates
  * are enabled, client is ready to forge and is the correct slot.
  * @private
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} 
+ * @return {setImmediateCallback}
  */
 __private.forge = function (cb) {
   if (!Object.keys(__private.keypairs).length) {
@@ -313,7 +313,7 @@ __private.checkDelegates = function (publicKey, votes, state, cb) {
  * Loads delegates from config and stores in private `keypairs`.
  * @private
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} 
+ * @return {setImmediateCallback}
  */
 __private.loadDelegates = function (cb) {
   var secrets;
@@ -364,7 +364,7 @@ __private.loadDelegates = function (cb) {
  * Gets delegate list by vote and changes order.
  * @param {number} height
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} err | truncated delegate list.
+ * @return {setImmediateCallback} err | truncated delegate list.
  * @todo explain seed.
  */
 Delegates.prototype.generateDelegateList = function (height, cb) {
@@ -389,8 +389,7 @@ Delegates.prototype.generateDelegateList = function (height, cb) {
 
       return setImmediate(cb, null, truncDelegateList);
     });
-  }
-  else {
+  } else {
     __private.getKeysSortByVote(function (err, truncDelegateList) {
       if (err) {
         return setImmediate(cb, err);
@@ -419,7 +418,7 @@ Delegates.prototype.generateDelegateList = function (height, cb) {
  * Orders delegates as per criteria.
  * @param {Object} query
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} error| object with delegates ordered, offset, count, limit.
+ * @return {setImmediateCallback} error| object with delegates ordered, offset, count, limit.
  * @todo OrderBy does not affects data? What is the impact?.
  */
 Delegates.prototype.getDelegates = function (query, cb) {
@@ -457,8 +456,7 @@ Delegates.prototype.getDelegates = function (query, cb) {
       delegates[i].rank = i + 1;
       if (modules.blocks.lastBlock.get().height > constants.fairSystemActivateBlock) {
         delegates[i].approval = (delegates[i].votesWeight / totalSupply) * 100;
-      }
-      else {
+      } else {
         delegates[i].approval = (delegates[i].vote / totalSupply) * 100;
       }
       delegates[i].approval = Math.round(delegates[i].approval * 1e2) / 1e2;
@@ -539,7 +537,7 @@ Delegates.prototype.fork = function (block, cause) {
  * matches delegate id.
  * @param {block} block
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} error message | cb
+ * @return {setImmediateCallback} error message | cb
  */
 Delegates.prototype.validateBlockSlot = function (block, cb) {
   self.generateDelegateList(block.height, function (err, activeDelegates) {
@@ -584,11 +582,11 @@ Delegates.prototype.onBind = function (scope) {
     blocks: scope.blocks,
     transport: scope.transport,
     transactions: scope.transactions,
-    delegates: scope.delegates,
+    delegates: scope.delegates
   };
 
   __private.assetTypes[transactionTypes.DELEGATE].bind(
-    scope.accounts
+      scope.accounts
   );
 };
 
@@ -600,7 +598,7 @@ Delegates.prototype.onBlockchainReady = function () {
   __private.loaded = true;
 
   __private.loadDelegates(function (err) {
-    function nextForge(cb) {
+    function nextForge (cb) {
       if (err) {
         library.logger.error('Failed to load delegates', err);
       }
@@ -815,10 +813,10 @@ Delegates.prototype.shared = {
       }
 
       var orderBy = OrderBy(
-        req.body.orderBy, {
-        sortFields: sql.sortFields,
-        sortField: 'username'
-      }
+          req.body.orderBy, {
+            sortFields: sql.sortFields,
+            sortField: 'username'
+          }
       );
 
       if (orderBy.error) {
@@ -885,7 +883,7 @@ Delegates.prototype.shared = {
           return setImmediate(cb, err);
         }
 
-        function compareNumber(a, b) {
+        function compareNumber (a, b) {
           var sorta = parseFloat(a[data.sortField]);
           var sortb = parseFloat(b[data.sortField]);
           if (data.sortMethod === 'ASC') {
@@ -895,7 +893,7 @@ Delegates.prototype.shared = {
           }
         }
 
-        function compareString(a, b) {
+        function compareString (a, b) {
           var sorta = a[data.sortField];
           var sortb = b[data.sortField];
           if (data.sortMethod === 'ASC') {

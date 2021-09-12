@@ -39,7 +39,7 @@ __private.assetTypes = {};
  * @todo add 'use strict';
  */
 // Constructor
-function Chats(cb, scope) {
+function Chats (cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
@@ -56,16 +56,16 @@ function Chats(cb, scope) {
   self = this;
 
   __private.assetTypes[transactionTypes.CHAT_MESSAGE] = library.logic.transaction.attachAssetType(
-    transactionTypes.CHAT_MESSAGE,
-    new Chat(
-      scope.db,
-      scope.logger,
-      scope.schema,
-      scope.network
-    )
+      transactionTypes.CHAT_MESSAGE,
+      new Chat(
+          scope.db,
+          scope.logger,
+          scope.schema,
+          scope.network
+      )
   );
   __private.assetTypes[transactionTypes.SEND] = library.logic.transaction.attachAssetType(
-    transactionTypes.SEND, new Transfer()
+      transactionTypes.SEND, new Transfer()
   );
   setImmediate(cb, null, self);
 }
@@ -124,8 +124,7 @@ __private.list = function (filter, cb) {
   if (filter.type >= 0) {
     where.push('"c_type" = ${type}');
     params.type = filter.type;
-  }
-  else {
+  } else {
     // message type=3 is reserved for system messages, and shouldn't be retrieved without a filter
     where.push('NOT ("c_type" = 3)');
   }
@@ -164,9 +163,9 @@ __private.list = function (filter, cb) {
   }
 
   var orderBy = OrderBy(
-    filter.orderBy, {
-    sortFields: sql.sortFields
-  }
+      filter.orderBy, {
+        sortFields: sql.sortFields
+      }
   );
 
   if (orderBy.error) {
@@ -209,11 +208,11 @@ Chats.prototype.onBind = function (scope) {
     transactions: scope.transactions,
     accounts: scope.accounts,
     peers: scope.peers,
-    sql: scope.sql,
+    sql: scope.sql
   };
   __private.assetTypes[transactionTypes.CHAT_MESSAGE].bind(
-    scope.accounts,
-    scope.rounds
+      scope.accounts,
+      scope.rounds
   );
 };
 

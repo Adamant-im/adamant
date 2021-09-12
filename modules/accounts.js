@@ -27,7 +27,7 @@ __private.blockReward = new BlockReward();
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
-function Accounts(cb, scope) {
+function Accounts (cb, scope) {
   library = {
     ed: scope.ed,
     accounts: scope.accounts,
@@ -35,17 +35,17 @@ function Accounts(cb, scope) {
     balancesSequence: scope.balancesSequence,
     logic: {
       account: scope.logic.account,
-      transaction: scope.logic.transaction,
-    },
+      transaction: scope.logic.transaction
+    }
   };
   self = this;
 
   __private.assetTypes[transactionTypes.VOTE] = library.logic.transaction.attachAssetType(
-    transactionTypes.VOTE,
-    new Vote(
-      scope.logger,
-      scope.schema
-    )
+      transactionTypes.VOTE,
+      new Vote(
+          scope.logger,
+          scope.schema
+      )
   );
 
   setImmediate(cb, null, self);
@@ -57,7 +57,7 @@ function Accounts(cb, scope) {
  * @private
  * @param {function} publicKey
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} As per logic new|current account data object.
+ * @return {setImmediateCallback} As per logic new|current account data object.
  */
 __private.newAccount = function (publicKey, cb) {
   self.setAccountAndGet({ publicKey: publicKey }, function (err, account) {
@@ -92,7 +92,7 @@ __private.newAccount = function (publicKey, cb) {
  * @private
  * @param {function} secret
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} As per logic new|current account data object.
+ * @return {setImmediateCallback} As per logic new|current account data object.
  */
 __private.openAccount = function (secret, cb) {
   var hash = library.ed.createPassPhraseHash(secret);
@@ -128,7 +128,7 @@ __private.openAccount = function (secret, cb) {
 /**
  * Generates address based on public key.
  * @param {publicKey} publicKey - PublicKey.
- * @returns {address} Address generated.
+ * @return {address} Address generated.
  * @throws {string} If address is invalid throws `Invalid public key`.
  */
 Accounts.prototype.generateAddressByPublicKey = function (publicKey) {
@@ -267,12 +267,12 @@ Accounts.prototype.onBind = function (scope) {
   modules = {
     delegates: scope.delegates,
     accounts: scope.accounts,
-    transactions: scope.transactions,
+    transactions: scope.transactions
   };
 
   __private.assetTypes[transactionTypes.VOTE].bind(
-    scope.delegates,
-    scope.rounds
+      scope.delegates,
+      scope.rounds
   );
 };
 /**

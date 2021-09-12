@@ -29,7 +29,7 @@ __private.assetTypes = {};
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
-function Chatrooms(cb, scope) {
+function Chatrooms (cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
@@ -46,16 +46,16 @@ function Chatrooms(cb, scope) {
   self = this;
 
   __private.assetTypes[transactionTypes.CHAT_MESSAGE] = library.logic.transaction.attachAssetType(
-    transactionTypes.CHAT_MESSAGE,
-    new Chat(
-      scope.db,
-      scope.logger,
-      scope.schema,
-      scope.network
-    )
+      transactionTypes.CHAT_MESSAGE,
+      new Chat(
+          scope.db,
+          scope.logger,
+          scope.schema,
+          scope.network
+      )
   );
   __private.assetTypes[transactionTypes.SEND] = library.logic.transaction.attachAssetType(
-    transactionTypes.SEND, new Transfer()
+      transactionTypes.SEND, new Transfer()
   );
   setImmediate(cb, null, self);
 }
@@ -106,7 +106,7 @@ __private.listChats = function (filter, cb) {
   }
 
   const orderBy = OrderBy(
-    filter.orderBy, sql.chatroomsSortDefaults
+      filter.orderBy, sql.chatroomsSortDefaults
   );
 
   if (orderBy.error) {
@@ -204,7 +204,7 @@ __private.listMessages = function (filter, cb) {
   }
 
   const orderBy = OrderBy(
-    filter.orderBy, sql.chatroomsSortDefaults
+      filter.orderBy, sql.chatroomsSortDefaults
   );
 
   if (orderBy.error) {
@@ -250,11 +250,11 @@ Chatrooms.prototype.onBind = function (scope) {
     transactions: scope.transactions,
     accounts: scope.accounts,
     peers: scope.peers,
-    sql: scope.sql,
+    sql: scope.sql
   };
   __private.assetTypes[transactionTypes.CHAT_MESSAGE].bind(
-    scope.accounts,
-    scope.rounds
+      scope.accounts,
+      scope.rounds
   );
 };
 

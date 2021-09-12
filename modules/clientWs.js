@@ -1,5 +1,5 @@
 class ClientWs {
-  constructor(config, logger, cb) {
+  constructor (config, logger, cb) {
     if (!config || !config.enabled) {
       return false;
     }
@@ -11,7 +11,7 @@ class ClientWs {
       try {
         let address = '';
         let aId = '';
-        socket.on('address', a => {
+        socket.on('address', (a) => {
           address = a;
           aId = address + '_' + socket.id;
           this.describes[aId] = socket;
@@ -29,14 +29,14 @@ class ClientWs {
     }
   }
 
-  emit(t) {
+  emit (t) {
     if (lastTransactionsIds[t.id]) {
       return;
     }
     lastTransactionsIds[t.id] = getUTime();
     try {
       const subs = findSubs(t.recipientId, t.senderId, this.describes);
-      subs.forEach(s => {
+      subs.forEach((s) => {
         s.emit('newTrans', t);
       });
     } catch (e) {
@@ -55,11 +55,11 @@ setInterval(() => {
   }
 }, 60 * 1000);
 
-function getUTime() {
+function getUTime () {
   return new Date().getTime() / 1000;
 }
 
-function findSubs(address1, address2, subs) {
+function findSubs (address1, address2, subs) {
   const filterred = [];
   for (let aId in subs) {
     if (aId.startsWith(address1) || aId.startsWith(address2)) {

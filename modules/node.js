@@ -25,7 +25,7 @@ __private.blockReward = new BlockReward();
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
-function Node(cb, scope) {
+function Node (cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
@@ -39,7 +39,7 @@ function Node(cb, scope) {
       peers: scope.config.peers,
       version: scope.packageJson.version,
       wsClient: scope.config.wsClient
-    },
+    }
   };
   self = this;
 
@@ -120,24 +120,24 @@ Node.prototype.shared = {
       }
     }
     return setImmediate(cb, null,
-      {
-        network: {
-          broadhash: modules.system.getBroadhash(),
-          epoch: constants.epochTime,
-          height: lastBlock.height,
-          fee: library.logic.block.calculateFee(),
-          milestone: __private.blockReward.calcMilestone(lastBlock.height),
-          nethash: modules.system.getNethash(),
-          reward: __private.blockReward.calcReward(lastBlock.height),
-          supply: __private.blockReward.calcSupply(lastBlock.height)
-        },
-        version: {
-          build: library.build,
-          commit: library.lastCommit,
-          version: library.config.version
-        },
-        wsClient: wsClientOptions
-      });
+        {
+          network: {
+            broadhash: modules.system.getBroadhash(),
+            epoch: constants.epochTime,
+            height: lastBlock.height,
+            fee: library.logic.block.calculateFee(),
+            milestone: __private.blockReward.calcMilestone(lastBlock.height),
+            nethash: modules.system.getNethash(),
+            reward: __private.blockReward.calcReward(lastBlock.height),
+            supply: __private.blockReward.calcSupply(lastBlock.height)
+          },
+          version: {
+            build: library.build,
+            commit: library.lastCommit,
+            version: library.config.version
+          },
+          wsClient: wsClientOptions
+        });
   }
 };
 

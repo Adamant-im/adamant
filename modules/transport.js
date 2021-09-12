@@ -32,7 +32,7 @@ __private.messages = {};
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
-function Transport(cb, scope) {
+function Transport (cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
@@ -43,24 +43,24 @@ function Transport(cb, scope) {
     logic: {
       block: scope.logic.block,
       transaction: scope.logic.transaction,
-      peers: scope.logic.peers,
+      peers: scope.logic.peers
     },
     config: {
       peers: {
         options: {
-          timeout: scope.config.peers.options.timeout,
-        },
-      },
-    },
+          timeout: scope.config.peers.options.timeout
+        }
+      }
+    }
   };
   self = this;
 
   __private.broadcaster = new Broadcaster(
-    scope.config.broadcasts,
-    scope.config.forging.force,
-    scope.logic.peers,
-    scope.logic.transaction,
-    scope.logger
+      scope.config.broadcasts,
+      scope.config.forging.force,
+      scope.logic.peers,
+      scope.logic.transaction,
+      scope.logger
   );
 
   setImmediate(cb, null, self);
@@ -209,7 +209,7 @@ __private.receiveTransactions = function (query, peer, extraLogMessage, cb) {
 
 /**
  * Normalizes transaction and remove peer if it fails.
- * Calls balancesSequence.add to receive transaction and 
+ * Calls balancesSequence.add to receive transaction and
  * processUnconfirmedTransaction to confirm it.
  * @private
  * @implements {library.logic.transaction.objectNormalize}
@@ -366,49 +366,49 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
   }
 
   popsicle.request(req)
-    .use(popsicle.plugins.parse(['json'], false))
-    .then(function (res) {
-      if (res.status !== 200) {
+      .use(popsicle.plugins.parse(['json'], false))
+      .then(function (res) {
+        if (res.status !== 200) {
         // Remove peer
-        __private.removePeer({ peer: peer, code: 'ERESPONSE ' + res.status }, req.method + ' ' + req.url);
+          __private.removePeer({ peer: peer, code: 'ERESPONSE ' + res.status }, req.method + ' ' + req.url);
 
-        return setImmediate(cb, ['Received bad response code', res.status, req.method, req.url].join(' '));
-      } else {
-        var headers = peer.applyHeaders(res.headers);
+          return setImmediate(cb, ['Received bad response code', res.status, req.method, req.url].join(' '));
+        } else {
+          var headers = peer.applyHeaders(res.headers);
 
-        var report = library.schema.validate(headers, schema.headers);
-        if (!report) {
+          var report = library.schema.validate(headers, schema.headers);
+          if (!report) {
           // Remove peer
-          __private.removePeer({ peer: peer, code: 'EHEADERS' }, req.method + ' ' + req.url);
+            __private.removePeer({ peer: peer, code: 'EHEADERS' }, req.method + ' ' + req.url);
 
-          return setImmediate(cb, ['Invalid response headers', JSON.stringify(headers), req.method, req.url].join(' '));
+            return setImmediate(cb, ['Invalid response headers', JSON.stringify(headers), req.method, req.url].join(' '));
+          }
+
+          if (!modules.system.networkCompatible(headers.nethash)) {
+          // Remove peer
+            __private.removePeer({ peer: peer, code: 'ENETHASH' }, req.method + ' ' + req.url);
+
+            return setImmediate(cb, ['Peer is not on the same network', headers.nethash, req.method, req.url].join(' '));
+          }
+
+          if (!modules.system.versionCompatible(headers.version)) {
+          // Remove peer
+            __private.removePeer({ peer: peer, code: 'EVERSION:' + headers.version }, req.method + ' ' + req.url);
+
+            return setImmediate(cb, ['Peer is using incompatible version', headers.version, req.method, req.url].join(' '));
+          }
+
+          modules.peers.update(peer);
+
+          return setImmediate(cb, null, { body: res.body, peer: peer });
+        }
+      }).catch(function (err) {
+        if (peer) {
+          __private.removePeer({ peer: peer, code: err.code }, req.method + ' ' + req.url);
         }
 
-        if (!modules.system.networkCompatible(headers.nethash)) {
-          // Remove peer
-          __private.removePeer({ peer: peer, code: 'ENETHASH' }, req.method + ' ' + req.url);
-
-          return setImmediate(cb, ['Peer is not on the same network', headers.nethash, req.method, req.url].join(' '));
-        }
-
-        if (!modules.system.versionCompatible(headers.version)) {
-          // Remove peer
-          __private.removePeer({ peer: peer, code: 'EVERSION:' + headers.version }, req.method + ' ' + req.url);
-
-          return setImmediate(cb, ['Peer is using incompatible version', headers.version, req.method, req.url].join(' '));
-        }
-
-        modules.peers.update(peer);
-
-        return setImmediate(cb, null, { body: res.body, peer: peer });
-      }
-    }).catch(function (err) {
-      if (peer) {
-        __private.removePeer({ peer: peer, code: err.code }, req.method + ' ' + req.url);
-      }
-
-      return setImmediate(cb, [err.code, 'Request failed', req.method, req.url].join(' '));
-    });
+        return setImmediate(cb, [err.code, 'Request failed', req.method, req.url].join(' '));
+      });
 };
 
 /**
@@ -424,7 +424,7 @@ Transport.prototype.sandboxApi = function (call, args, cb) {
 
 // Events
 /**
- * Bounds scope to private broadcaster amd initialize headers.
+ * Bounds scope to private broadcaster and initialize headers.
  * @implements {modules.system.headers}
  * @implements {broadcaster.bind}
  * @param {modules} scope - Loaded modules.
@@ -436,14 +436,14 @@ Transport.prototype.onBind = function (scope) {
     peers: scope.peers,
     multisignatures: scope.multisignatures,
     transactions: scope.transactions,
-    system: scope.system,
+    system: scope.system
   };
 
   __private.headers = modules.system.headers();
   __private.broadcaster.bind(
-    scope.peers,
-    scope.transport,
-    scope.transactions
+      scope.peers,
+      scope.transport,
+      scope.transactions
   );
 };
 
@@ -534,7 +534,7 @@ Transport.prototype.cleanup = function (cb) {
 
 /**
  * Returns true if modules are loaded and private variable loaded is true.
- * @return {boolean} 
+ * @return {boolean}
  */
 Transport.prototype.isLoaded = function () {
   return modules && __private.loaded;
@@ -548,14 +548,14 @@ Transport.prototype.isLoaded = function () {
 Transport.prototype.internal = {
   blocksCommon: function (ids, peer, extraLogMessage, cb) {
     var escapedIds = ids
-      // Remove quotes
-      .replace(/['"]+/g, '')
-      // Separate by comma into an array
-      .split(',')
-      // Reject any non-numeric values
-      .filter(function (id) {
-        return /^[0-9]+$/.test(id);
-      });
+    // Remove quotes
+        .replace(/['"]+/g, '')
+    // Separate by comma into an array
+        .split(',')
+    // Reject any non-numeric values
+        .filter(function (id) {
+          return /^[0-9]+$/.test(id);
+        });
 
     if (!escapedIds.length) {
       library.logger.debug('Common block request validation failed', { err: 'ESCAPE', req: ids });
@@ -575,8 +575,8 @@ Transport.prototype.internal = {
 
   blocks: function (query, cb) {
     // Get 34 blocks with all data (joins) from provided block id
-    // According to maxium payload of 58150 bytes per block with every transaction being a vote
-    // Discounting maxium compression setting used in middleware
+    // According to maximum payload of 58150 bytes per block with every transaction being a vote
+    // Discounting maximum compression setting used in middleware
     // Maximum transport payload = 2000000 bytes
     modules.blocks.utils.loadBlocksData({
       limit: 34, // 1977100 bytes
@@ -755,10 +755,10 @@ Transport.prototype.internal = {
 
   handshake: function (ip, port, headers, validateHeaders, cb) {
     var peer = library.logic.peers.create(
-      {
-        ip: ip,
-        port: port
-      }
+        {
+          ip: ip,
+          port: port
+        }
     );
 
     var headers = peer.applyHeaders(headers);

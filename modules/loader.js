@@ -34,7 +34,7 @@ __private.retries = 5;
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
-function Loader(cb, scope) {
+function Loader (cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
@@ -47,14 +47,14 @@ function Loader(cb, scope) {
     logic: {
       transaction: scope.logic.transaction,
       account: scope.logic.account,
-      peers: scope.logic.peers,
+      peers: scope.logic.peers
     },
     config: {
       loading: {
         verifyOnLoading: scope.config.loading.verifyOnLoading,
-        snapshot: scope.config.loading.snapshot,
-      },
-    },
+        snapshot: scope.config.loading.snapshot
+      }
+    }
   };
   self = this;
 
@@ -94,7 +94,7 @@ __private.syncTrigger = function (turnOn) {
   }
   if (turnOn === true && !__private.syncIntervalId) {
     library.logger.trace('Setting sync interval');
-    setImmediate(function nextSyncTrigger() {
+    setImmediate(function nextSyncTrigger () {
       library.logger.trace('Sync trigger');
       library.network.io.sockets.emit('loader/sync', {
         blocks: __private.blocksToSync,
@@ -118,7 +118,7 @@ __private.syncTrigger = function (turnOn) {
 __private.syncTimer = function () {
   library.logger.trace('Setting sync timer');
 
-  function nextSync(cb) {
+  function nextSync (cb) {
     library.logger.trace('Sync timer trigger', { loaded: __private.loaded, syncing: self.syncing(), last_receipt: modules.blocks.lastReceipt.get() });
 
     if (__private.loaded && !self.syncing() && modules.blocks.lastReceipt.isStale()) {
@@ -293,10 +293,10 @@ __private.loadTransactions = function (cb) {
  * - get genesis block from `blocks` table
  * - count accounts from `mem_accounts` table by block id
  * - get rounds from `mem_round`
- * Matchs genesis block with database.
+ * Matches genesis block with database.
  * Verifies Snapshot mode.
- * Recreates memory tables when neccesary:
- *  - Calls logic.account to removeTables and createTables 
+ * Recreates memory tables when necessary:
+ *  - Calls logic.account to removeTables and createTables
  *  - Calls block to load block. When blockchain ready emits a bus message.
  * Detects orphaned blocks in `mem_accounts` and gets delegates.
  * Loads last block and emits a bus message blockchain is ready.
@@ -317,7 +317,7 @@ __private.loadBlockChain = function () {
   var offset = 0, limit = Number(library.config.loading.loadPerIteration) || 1000;
   var verify = Boolean(library.config.loading.verifyOnLoading);
 
-  function load(count) {
+  function load (count) {
     verify = true;
     __private.total = count;
 
@@ -342,25 +342,25 @@ __private.loadBlockChain = function () {
       },
       loadBlocksOffset: function (seriesCb) {
         async.until(
-          function () {
-            return count < offset;
-          }, function (cb) {
-            if (count > 1) {
-              library.logger.info('Rebuilding blockchain, current block height: ' + (offset + 1));
-            }
-            modules.blocks.process.loadBlocksOffset(limit, offset, verify, function (err, lastBlock) {
-              if (err) {
-                return setImmediate(cb, err);
+            function () {
+              return count < offset;
+            }, function (cb) {
+              if (count > 1) {
+                library.logger.info('Rebuilding blockchain, current block height: ' + (offset + 1));
               }
+              modules.blocks.process.loadBlocksOffset(limit, offset, verify, function (err, lastBlock) {
+                if (err) {
+                  return setImmediate(cb, err);
+                }
 
-              offset = offset + limit;
-              __private.lastBlock = lastBlock;
+                offset = offset + limit;
+                __private.lastBlock = lastBlock;
 
-              return setImmediate(cb);
-            });
-          }, function (err) {
-            return setImmediate(seriesCb, err);
-          }
+                return setImmediate(cb);
+              });
+            }, function (err) {
+              return setImmediate(seriesCb, err);
+            }
         );
       }
     }, function (err) {
@@ -380,7 +380,7 @@ __private.loadBlockChain = function () {
     });
   }
 
-  function reload(count, message) {
+  function reload (count, message) {
     if (message) {
       library.logger.warn(message);
       library.logger.warn('Recreating memory tables');
@@ -389,7 +389,7 @@ __private.loadBlockChain = function () {
     return load(count);
   }
 
-  function checkMemTables(t) {
+  function checkMemTables (t) {
     var promises = [
       t.one(sql.countBlocks),
       t.query(sql.getGenesisBlock),
@@ -401,7 +401,7 @@ __private.loadBlockChain = function () {
     return t.batch(promises);
   }
 
-  function matchGenesisBlock(row) {
+  function matchGenesisBlock (row) {
     if (row) {
       var matched = (
         row.id === __private.genesisBlock.block.id &&
@@ -416,7 +416,7 @@ __private.loadBlockChain = function () {
     }
   }
 
-  function verifySnapshot(count, round) {
+  function verifySnapshot (count, round) {
     if (library.config.loading.snapshot !== undefined || library.config.loading.snapshot > 0) {
       library.logger.info('Snapshot mode enabled');
 
@@ -477,7 +477,7 @@ __private.loadBlockChain = function () {
       return process.emit('exit');
     }
 
-    function updateMemAccounts(t) {
+    function updateMemAccounts (t) {
       var promises = [
         t.none(sql.updateMemAccounts),
         t.query(sql.getOrphanedMemAccounts),
@@ -532,57 +532,57 @@ __private.loadBlocksFromNetwork = function (cb) {
       return setImmediate(cb, err);
     } else {
       async.whilst(
-        function () {
-          return !loaded && errorCount < 5;
-        },
-        function (next) {
-          var peer = network.peers[Math.floor(Math.random() * network.peers.length)];
-          var lastBlock = modules.blocks.lastBlock.get();
+          function () {
+            return !loaded && errorCount < 5;
+          },
+          function (next) {
+            var peer = network.peers[Math.floor(Math.random() * network.peers.length)];
+            var lastBlock = modules.blocks.lastBlock.get();
 
-          function loadBlocks() {
-            __private.blocksToSync = peer.height;
+            function loadBlocks () {
+              __private.blocksToSync = peer.height;
 
-            modules.blocks.process.loadBlocksFromPeer(peer, function (err, lastValidBlock) {
-              if (err) {
-                library.logger.error(err.toString());
-                library.logger.error('Failed to load blocks from: ' + peer.string);
-                errorCount += 1;
-              }
-              loaded = lastValidBlock.id === lastBlock.id;
-              lastValidBlock = lastBlock = null;
-              next();
-            });
-          }
+              modules.blocks.process.loadBlocksFromPeer(peer, function (err, lastValidBlock) {
+                if (err) {
+                  library.logger.error(err.toString());
+                  library.logger.error('Failed to load blocks from: ' + peer.string);
+                  errorCount += 1;
+                }
+                loaded = lastValidBlock.id === lastBlock.id;
+                lastValidBlock = lastBlock = null;
+                next();
+              });
+            }
 
-          function getCommonBlock(cb) {
-            library.logger.info('Looking for common block with: ' + peer.string);
-            modules.blocks.process.getCommonBlock(peer, lastBlock.height, function (err, commonBlock) {
-              if (!commonBlock) {
-                if (err) { library.logger.error(err.toString()); }
-                library.logger.error('Failed to find common block with: ' + peer.string);
-                errorCount += 1;
-                return next();
-              } else {
-                library.logger.info(['Found common block:', commonBlock.id, 'with:', peer.string].join(' '));
-                return setImmediate(cb);
-              }
-            });
-          }
+            function getCommonBlock (cb) {
+              library.logger.info('Looking for common block with: ' + peer.string);
+              modules.blocks.process.getCommonBlock(peer, lastBlock.height, function (err, commonBlock) {
+                if (!commonBlock) {
+                  if (err) { library.logger.error(err.toString()); }
+                  library.logger.error('Failed to find common block with: ' + peer.string);
+                  errorCount += 1;
+                  return next();
+                } else {
+                  library.logger.info(['Found common block:', commonBlock.id, 'with:', peer.string].join(' '));
+                  return setImmediate(cb);
+                }
+              });
+            }
 
-          if (lastBlock.height === 1) {
-            loadBlocks();
-          } else {
-            getCommonBlock(loadBlocks);
+            if (lastBlock.height === 1) {
+              loadBlocks();
+            } else {
+              getCommonBlock(loadBlocks);
+            }
+          },
+          function (err) {
+            if (err) {
+              library.logger.error('Failed to load blocks from network', err);
+              return setImmediate(cb, err);
+            } else {
+              return setImmediate(cb);
+            }
           }
-        },
-        function (err) {
-          if (err) {
-            library.logger.error('Failed to load blocks from network', err);
-            return setImmediate(cb, err);
-          } else {
-            return setImmediate(cb);
-          }
-        }
       );
     }
   });
@@ -645,15 +645,15 @@ __private.sync = function (cb) {
   });
 };
 
-/* 
+/*
  * Given a list of peers (with associated blockchain height), we find a list
  * of good peers (likely to sync with), then perform a histogram cut, removing
  * peers far from the most common observed height. This is not as easy as it
- * sounds, since the histogram has likely been made accross several blocks,
+ * sounds, since the histogram has likely been made across several blocks,
  * therefore need to aggregate).
  */
 /**
- * Gets the list of good peers. 
+ * Gets the list of good peers.
  * @private
  * @implements {modules.blocks.lastBlock.get}
  * @implements {library.logic.peers.create}
@@ -789,7 +789,7 @@ Loader.prototype.onPeersReady = function () {
   // Enforce sync early
   __private.syncTimer();
 
-  setImmediate(function load() {
+  setImmediate(function load () {
     async.series({
       loadTransactions: function (seriesCb) {
         if (__private.loaded) {
@@ -840,7 +840,7 @@ Loader.prototype.onBind = function (scope) {
     rounds: scope.rounds,
     transport: scope.transport,
     multisignatures: scope.multisignatures,
-    system: scope.system,
+    system: scope.system
   };
 
   __private.loadBlockChain();

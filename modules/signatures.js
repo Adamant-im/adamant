@@ -24,23 +24,23 @@ __private.assetTypes = {};
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
-function Signatures(cb, scope) {
+function Signatures (cb, scope) {
   library = {
     schema: scope.schema,
     ed: scope.ed,
     balancesSequence: scope.balancesSequence,
     logic: {
-      transaction: scope.logic.transaction,
-    },
+      transaction: scope.logic.transaction
+    }
   };
   self = this;
 
   __private.assetTypes[transactionTypes.SIGNATURE] = library.logic.transaction.attachAssetType(
-    transactionTypes.SIGNATURE,
-    new Signature(
-      scope.schema,
-      scope.logger
-    )
+      transactionTypes.SIGNATURE,
+      new Signature(
+          scope.schema,
+          scope.logger
+      )
   );
 
   setImmediate(cb, null, self);
@@ -75,11 +75,11 @@ Signatures.prototype.sandboxApi = function (call, args, cb) {
 Signatures.prototype.onBind = function (scope) {
   modules = {
     accounts: scope.accounts,
-    transactions: scope.transactions,
+    transactions: scope.transactions
   };
 
   __private.assetTypes[transactionTypes.SIGNATURE].bind(
-    scope.accounts
+      scope.accounts
   );
 };
 
@@ -160,7 +160,7 @@ Signatures.prototype.shared = {
                   sender: account,
                   keypair: keypair,
                   requester: keypair,
-                  secondKeypair: secondKeypair,
+                  secondKeypair: secondKeypair
 
                 });
               } catch (e) {

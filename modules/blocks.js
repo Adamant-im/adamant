@@ -30,29 +30,29 @@ __private.isActive = false;
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
-function Blocks(cb, scope) {
+function Blocks (cb, scope) {
   library = {
-    logger: scope.logger,
+    logger: scope.logger
   };
 
   // Initialize submodules with library content
   this.submodules = {
     api: new blocksAPI(
-      scope.logger, scope.db, scope.logic.block, scope.schema, scope.dbSequence
+        scope.logger, scope.db, scope.logic.block, scope.schema, scope.dbSequence
     ),
     verify: new blocksVerify(scope.logger, scope.logic.block,
-      scope.logic.transaction, scope.db
+        scope.logic.transaction, scope.db
     ),
     process: new blocksProcess(
-      scope.logger, scope.logic.block, scope.logic.peers, scope.logic.transaction,
-      scope.schema, scope.db, scope.dbSequence, scope.sequence, scope.genesisblock
+        scope.logger, scope.logic.block, scope.logic.peers, scope.logic.transaction,
+        scope.schema, scope.db, scope.dbSequence, scope.sequence, scope.genesisblock
     ),
     utils: new blocksUtils(scope.logger, scope.logic.block, scope.logic.transaction,
-      scope.db, scope.dbSequence, scope.genesisblock
+        scope.db, scope.dbSequence, scope.genesisblock
     ),
     chain: new blocksChain(
-      scope.logger, scope.logic.block, scope.logic.transaction, scope.db,
-      scope.genesisblock, scope.bus, scope.balancesSequence
+        scope.logger, scope.logic.block, scope.logic.transaction, scope.db,
+        scope.genesisblock, scope.bus, scope.balancesSequence
     )
   };
 
@@ -152,7 +152,7 @@ Blocks.prototype.isCleaning = {
  * @public
  * @async
  * @method sandboxApi
- * @param  {string}   call Name of the function to be called 
+ * @param  {string}   call Name of the function to be called
  * @param  {Object}   args Arguments
  * @param  {Function} cb Callback function
  */
@@ -189,7 +189,7 @@ Blocks.prototype.cleanup = function (cb) {
     return setImmediate(cb);
   } else {
     // Module is not ready, repeat
-    setImmediate(function nextWatch() {
+    setImmediate(function nextWatch () {
       if (__private.isActive) {
         library.logger.info('Waiting for block processing to finish...');
         setTimeout(nextWatch, 10000); // 10 sec

@@ -24,7 +24,7 @@ __private.ticking = false;
  * @todo apply node pattern for callbacks: callback always at the end.
  */
 // Constructor
-function Rounds(cb, scope) {
+function Rounds (cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
@@ -32,9 +32,9 @@ function Rounds(cb, scope) {
     network: scope.network,
     config: {
       loading: {
-        snapshot: scope.config.loading.snapshot,
-      },
-    },
+        snapshot: scope.config.loading.snapshot
+      }
+    }
   };
   self = this;
 
@@ -71,7 +71,7 @@ Rounds.prototype.calc = function (height) {
  * @param {number} round
  * @param {function} cb
  * @return {setImmediateCallback} error message | cb
- * 
+ *
  */
 Rounds.prototype.flush = function (round, cb) {
   library.db.none(sql.flush, { round: round }).then(function () {
@@ -113,7 +113,7 @@ Rounds.prototype.backwardTick = function (block, previousBlock, done) {
     (prevRound === round && nextRound !== round) || (block.height === 1 || block.height === 101)
   );
 
-  function BackwardTick(t) {
+  function BackwardTick (t) {
     var promised = new Round(scope, t);
 
     library.logger.debug('Performing backward tick');
@@ -208,7 +208,7 @@ Rounds.prototype.tick = function (block, done) {
     (round !== nextRound) || (block.height === 1 || block.height === 101)
   );
 
-  function Tick(t) {
+  function Tick (t) {
     var promised = new Round(scope, t);
 
     library.logger.debug('Performing forward tick');
@@ -312,7 +312,7 @@ Rounds.prototype.onBind = function (scope) {
   modules = {
     blocks: scope.blocks,
     accounts: scope.accounts,
-    delegates: scope.delegates,
+    delegates: scope.delegates
   };
 };
 
