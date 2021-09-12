@@ -22,7 +22,7 @@ describe('GET /api/peers/count', function () {
       node.expect(res.body).to.have.property('connected').that.is.a('number');
       node.expect(res.body).to.have.property('disconnected').that.is.a('number');
       node.expect(res.body).to.have.property('banned').that.is.a('number');
-      done ();
+      done();
     });
   });
 });
@@ -90,7 +90,7 @@ describe('GET /api/peers', function () {
       node.expect(res.body).to.have.property('peers').that.is.an('array');
       if (res.body.peers.length > 0) {
         for (var i = 0; i < res.body.peers.length; i++) {
-           node.expect(res.body.peers[i].state).to.equal(parseInt(state));
+          node.expect(res.body.peers[i].state).to.equal(parseInt(state));
         }
       }
       done();
@@ -106,7 +106,7 @@ describe('GET /api/peers', function () {
       node.expect(res.body).to.have.property('peers').that.is.an('array');
       if (res.body.peers.length > 0) {
         for (var i = 0; i < res.body.peers.length; i++) {
-           node.expect(res.body.peers[i].state).to.equal(parseInt(state));
+          node.expect(res.body.peers[i].state).to.equal(parseInt(state));
         }
       }
       done();
@@ -122,7 +122,7 @@ describe('GET /api/peers', function () {
       node.expect(res.body).to.have.property('peers').that.is.an('array');
       if (res.body.peers.length > 0) {
         for (var i = 0; i < res.body.peers.length; i++) {
-           node.expect(res.body.peers[i].state).to.equal(parseInt(state));
+          node.expect(res.body.peers[i].state).to.equal(parseInt(state));
         }
       }
       done();
@@ -348,29 +348,29 @@ describe('GET /api/peers', function () {
   });
 
   it('using orderBy with any of sort fields should not place NULLs first', function (done) {
-      node.async.each(peersSortFields, function (sortField, cb) {
-        node.get('/api/peers?orderBy=' + sortField, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.ok;
-          node.expect(res.body).to.have.property('peers').that.is.an('array');
+    node.async.each(peersSortFields, function (sortField, cb) {
+      node.get('/api/peers?orderBy=' + sortField, function (err, res) {
+        node.expect(res.body).to.have.property('success').to.be.ok;
+        node.expect(res.body).to.have.property('peers').that.is.an('array');
 
-          var dividedIndices = res.body.peers.reduce(function (memo, peer, index) {
-            memo[peer[sortField] === null ? 'nullIndices' : 'notNullIndices'].push(index);
-            return memo;
-          }, {notNullIndices: [], nullIndices: []});
+        var dividedIndices = res.body.peers.reduce(function (memo, peer, index) {
+          memo[peer[sortField] === null ? 'nullIndices' : 'notNullIndices'].push(index);
+          return memo;
+        }, { notNullIndices: [], nullIndices: [] });
 
-          if (dividedIndices.nullIndices.length && dividedIndices.notNullIndices.length) {
-            var ascOrder = function (a, b) { return a - b; };
-            dividedIndices.notNullIndices.sort(ascOrder);
-            dividedIndices.nullIndices.sort(ascOrder);
+        if (dividedIndices.nullIndices.length && dividedIndices.notNullIndices.length) {
+          var ascOrder = function (a, b) { return a - b; };
+          dividedIndices.notNullIndices.sort(ascOrder);
+          dividedIndices.nullIndices.sort(ascOrder);
 
-            node.expect(dividedIndices.notNullIndices[dividedIndices.notNullIndices.length - 1])
+          node.expect(dividedIndices.notNullIndices[dividedIndices.notNullIndices.length - 1])
               .to.be.at.most(dividedIndices.nullIndices[0]);
-          }
-          cb();
-        });
-      }, function () {
-        done();
+        }
+        cb();
       });
+    }, function () {
+      done();
+    });
   });
 
   it('using string limit should fail', function (done) {

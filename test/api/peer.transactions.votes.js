@@ -265,7 +265,7 @@ describe('POST /peer/transactions', function () {
   it(['voting for', constants.maxVotesPerTransaction, 'delegates at once should be ok'].join(' '), function (done) {
     let transaction = node.createVoteTransaction({
       keyPair: account.keypair,
-      votes: delegates.slice(0, constants.maxVotesPerTransaction).map(x => `+${x}`)
+      votes: delegates.slice(0, constants.maxVotesPerTransaction).map((x) => `+${x}`)
     });
 
     postVote(transaction, function (err, res) {
@@ -283,7 +283,7 @@ describe('POST /peer/transactions', function () {
   it(['removing votes from', constants.maxVotesPerTransaction, 'delegates at once should be ok'].join(' '), function (done) {
     let transaction = node.createVoteTransaction({
       keyPair: account.keypair,
-      votes: delegates.slice(0, constants.maxVotesPerTransaction).map(x => `-${x}`)
+      votes: delegates.slice(0, constants.maxVotesPerTransaction).map((x) => `-${x}`)
     });
 
     postVote(transaction, function (err, res) {
@@ -301,7 +301,7 @@ describe('POST /peer/transactions', function () {
   it(['voting for', constants.maxVotesPerTransaction + 1, 'delegates at once should fail'].join(' '), function (done) {
     let transaction = node.createVoteTransaction({
       keyPair: account.keypair,
-      votes: delegates.slice(0, constants.maxVotesPerTransaction + 1).map(x => `+${x}`)
+      votes: delegates.slice(0, constants.maxVotesPerTransaction + 1).map((x) => `+${x}`)
     });
 
     postVote(transaction, function (err, res) {
@@ -335,7 +335,7 @@ describe('POST /peer/transactions', function () {
   it(['removing votes from', constants.maxVotesPerTransaction + 1, 'delegates at once should fail'].join(' '), function (done) {
     let transaction = node.createVoteTransaction({
       keyPair: account.keypair,
-      votes: delegates.slice(0, constants.maxVotesPerTransaction + 1).map(x => `-${x}`)
+      votes: delegates.slice(0, constants.maxVotesPerTransaction + 1).map((x) => `-${x}`)
     });
 
     postVote(transaction, function (err, res) {
@@ -441,7 +441,7 @@ describe('POST /peer/transactions after registering a new delegate', function ()
 
         let transaction = node.createVoteTransaction({
           keyPair: account.keypair,
-          votes: slicedDelegates.map(x => `+${x}`)
+          votes: slicedDelegates.map((x) => `+${x}`)
         });
 
         postVote(transaction, function (err, res) {

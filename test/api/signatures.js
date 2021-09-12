@@ -47,9 +47,9 @@ before(function (done) {
     before(function (done) {
       node.onNewBlock(done);
     });
-  
+
     var validParams;
-  
+
     beforeEach(function (done) {
       validParams = {
         secret: account.password,
@@ -59,20 +59,20 @@ before(function (done) {
       };
       done();
     });
-  
+
     it('using no second passphase should fail', function (done) {
       delete validParams.secondSecret;
-  
+
       putTransaction(validParams, function (err, res) {
         node.expect(res.body).to.have.property('success').to.be.not.ok;
         node.expect(res.body).to.have.property('error');
         done();
       });
     });
-  
+
     it('using second passphase but no primary passphase should fail', function (done) {
       delete validParams.secret;
-  
+
       putTransaction(validParams, function (err, res) {
         node.expect(res.body).to.have.property('success').to.be.not.ok;
         node.expect(res.body).to.have.property('error');

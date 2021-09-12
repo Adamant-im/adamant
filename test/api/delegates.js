@@ -588,7 +588,7 @@ describe('GET /api/delegates', function () {
   it('using orderBy == "votesWeight:asc" should be ok', function (done) {
     var orderBy = 'votesWeight:asc';
     var params = 'orderBy=' + orderBy;
-  
+
     node.get('/api/delegates?' + params, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
@@ -759,7 +759,7 @@ describe('GET /api/delegates', function () {
           dividedIndices.nullIndices.sort(ascOrder);
 
           node.expect(dividedIndices.notNullIndices[dividedIndices.notNullIndices.length - 1])
-            .to.be.at.most(dividedIndices.nullIndices[0]);
+              .to.be.at.most(dividedIndices.nullIndices[0]);
         }
         cb();
       });
@@ -1024,7 +1024,7 @@ describe('GET /api/delegates/search', function () {
   it('using limit == 1000 should be ok', function (done) {
     var q = '%';
     var limit = 1000;
-  
+
     node.get('/api/delegates/search?q=' + q + '&limit=' + limit, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
@@ -1056,7 +1056,7 @@ describe('GET /api/delegates/search', function () {
 
   it('using no orderBy should be ordered by ascending username', function (done) {
     var q = '%';
-  
+
     node.get('/api/delegates/search?q=' + q, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
@@ -1068,10 +1068,10 @@ describe('GET /api/delegates/search', function () {
       done();
     });
   });
-  
+
   it('using orderBy == "username:asc" should be ordered by ascending username', function (done) {
     var q = '%';
-  
+
     node.get('/api/delegates/search?q=' + q + '&orderBy=username:asc', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
@@ -1083,10 +1083,10 @@ describe('GET /api/delegates/search', function () {
       done();
     });
   });
-  
+
   it('using orderBy == "username:desc" should be ordered by descending username', function (done) {
     var q = '%';
-  
+
     node.get('/api/delegates/search?q=' + q + '&orderBy=username:desc', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
@@ -1264,7 +1264,7 @@ describe('GET /api/delegates/forging/getForgedByAccount', function () {
     return [
       'generatorPublicKey=' + validParams.generatorPublicKey,
       validParams.start !== undefined ? 'start=' + validParams.start : '',
-      validParams.end !== undefined ? 'end=' + validParams.end : '',
+      validParams.end !== undefined ? 'end=' + validParams.end : ''
     ].filter(Boolean).join('&');
   }
 

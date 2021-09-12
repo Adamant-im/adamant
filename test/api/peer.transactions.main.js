@@ -18,61 +18,61 @@ function getAddress (address, done) {
 describe('GET /peer/transactions', function () {
   it('using incorrect nethash in headers should fail', function (done) {
     node.get('/peer/transactions')
-      .set('nethash', 'incorrect')
-      .end(function (err, res) {
-        node.debug('> Response:'.grey, JSON.stringify(res.body));
-        node.expect(res.body).to.have.property('success').to.be.not.ok;
-        node.expect(res.body.expected).to.equal(node.config.nethash);
-        done();
-      });
+        .set('nethash', 'incorrect')
+        .end(function (err, res) {
+          node.debug('> Response:'.grey, JSON.stringify(res.body));
+          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body.expected).to.equal(node.config.nethash);
+          done();
+        });
   });
 
   it('using incompatible version in headers should fail', function (done) {
     node.get('/peer/transactions')
-      .set('version', '0.1.0a')
-      .end(function (err, res) {
-        node.debug('> Response:'.grey, JSON.stringify(res.body));
-        node.expect(res.body).to.have.property('success').to.be.not.ok;
-        node.expect(res.body).to.have.property('message').to.eql('Request is made from incompatible version');
-        node.expect(res.body).to.have.property('expected').to.eql('>=0.4.0');
-        node.expect(res.body).to.have.property('received').to.eql('0.1.0a');
-        done();
-      });
+        .set('version', '0.1.0a')
+        .end(function (err, res) {
+          node.debug('> Response:'.grey, JSON.stringify(res.body));
+          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('message').to.eql('Request is made from incompatible version');
+          node.expect(res.body).to.have.property('expected').to.eql('>=0.4.0');
+          node.expect(res.body).to.have.property('received').to.eql('0.1.0a');
+          done();
+        });
   });
 
   it('using valid headers should be ok', function (done) {
     node.get('/peer/transactions')
-      .end(function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.ok;
-        node.expect(res.body).to.have.property('transactions').to.be.an('array');
-        done();
-      });
+        .end(function (err, res) {
+          node.expect(res.body).to.have.property('success').to.be.ok;
+          node.expect(res.body).to.have.property('transactions').to.be.an('array');
+          done();
+        });
   });
 });
 
 describe('POST /peer/transactions', function () {
   it('using incorrect nethash in headers should fail', function (done) {
     node.post('/peer/transactions')
-      .set('nethash', 'incorrect')
-      .end(function (err, res) {
-        node.debug('> Response:'.grey, JSON.stringify(res.body));
-        node.expect(res.body).to.have.property('success').to.be.not.ok;
-        node.expect(res.body.expected).to.equal(node.config.nethash);
-        done();
-      });
+        .set('nethash', 'incorrect')
+        .end(function (err, res) {
+          node.debug('> Response:'.grey, JSON.stringify(res.body));
+          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body.expected).to.equal(node.config.nethash);
+          done();
+        });
   });
 
   it('using incompatible version in headers should fail', function (done) {
     node.post('/peer/transactions')
-      .set('version', '0.1.0a')
-      .end(function (err, res) {
-        node.debug('> Response:'.grey, JSON.stringify(res.body));
-        node.expect(res.body).to.have.property('success').to.be.not.ok;
-        node.expect(res.body).to.have.property('message').to.eql('Request is made from incompatible version');
-        node.expect(res.body).to.have.property('expected').to.eql('>=0.4.0');
-        node.expect(res.body).to.have.property('received').to.eql('0.1.0a');
-        done();
-      });
+        .set('version', '0.1.0a')
+        .end(function (err, res) {
+          node.debug('> Response:'.grey, JSON.stringify(res.body));
+          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('message').to.eql('Request is made from incompatible version');
+          node.expect(res.body).to.have.property('expected').to.eql('>=0.4.0');
+          node.expect(res.body).to.have.property('received').to.eql('0.1.0a');
+          done();
+        });
   });
 
   it('using valid headers should be ok', function (done) {

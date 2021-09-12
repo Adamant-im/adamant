@@ -236,7 +236,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
       }
       let pTimestamp = res.body.chats[0].lastTransaction.timestamp;
       for (let i = 1; i < res.body.chats.length; i++) {
-        node.expect(res.body.chats[i].lastTransaction).to.have.property('timestamp').to.be.below(pTimestamp);  
+        node.expect(res.body.chats[i].lastTransaction).to.have.property('timestamp').to.be.below(pTimestamp);
       }
       done();
     }, { orderBy: 'timestamp:desc' });
@@ -303,7 +303,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
       }
       done();
     }, { limit: 1, offset: 1 });
-  });  
+  });
 
   it('should return the chat list for sender with orderBy=timestamp:desc', function (done) {
     getChats(sender.address, function (err, res) {
@@ -311,14 +311,14 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
       node.expect(res.body).to.have.property('count').to.equal('3');
       node.expect(res.body).to.have.property('chats').to.have.lengthOf(3);
       for (let i = 0; i < res.body.chats.length; i++) {
-        node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);        
+        node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
         for (let y = 0; y < res.body.chats[i].participants.length; y++) {
           node.expect(res.body.chats[i].participants[y].publicKey).to.not.equal(null);
         }
       }
       let pTimestamp = res.body.chats[0].lastTransaction.timestamp;
       for (let i = 1; i < res.body.chats.length; i++) {
-        node.expect(res.body.chats[i].lastTransaction).to.have.property('timestamp').to.be.below(pTimestamp);  
+        node.expect(res.body.chats[i].lastTransaction).to.have.property('timestamp').to.be.below(pTimestamp);
       }
       done();
     }, { orderBy: 'timestamp:desc' });
@@ -337,7 +337,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
       }
       let pTimestamp = res.body.chats[0].lastTransaction.timestamp;
       for (let i = 1; i < res.body.chats.length; i++) {
-        node.expect(res.body.chats[i].lastTransaction).to.have.property('timestamp').to.be.above(pTimestamp);  
+        node.expect(res.body.chats[i].lastTransaction).to.have.property('timestamp').to.be.above(pTimestamp);
       }
       done();
     }, { orderBy: 'timestamp:asc' });
@@ -416,7 +416,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
       node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
       let pTimestamp = res.body.messages[0].timestamp;
       for (let i = 1; i < res.body.messages.length; i++) {
-        node.expect(res.body.messages[i]).to.have.property('timestamp').to.be.below(pTimestamp);  
+        node.expect(res.body.messages[i]).to.have.property('timestamp').to.be.below(pTimestamp);
       }
       done();
     }, {
@@ -436,7 +436,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
       node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
       let pTimestamp = res.body.messages[0].timestamp;
       for (let i = 1; i < res.body.messages.length; i++) {
-        node.expect(res.body.messages[i]).to.have.property('timestamp').to.be.above(pTimestamp);  
+        node.expect(res.body.messages[i]).to.have.property('timestamp').to.be.above(pTimestamp);
       }
       done();
     }, {
@@ -506,7 +506,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
       node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
       let pTimestamp = res.body.messages[0].timestamp;
       for (let i = 1; i < res.body.messages.length; i++) {
-        node.expect(res.body.messages[i]).to.have.property('timestamp').to.be.below(pTimestamp);  
+        node.expect(res.body.messages[i]).to.have.property('timestamp').to.be.below(pTimestamp);
       }
       done();
     }, {
@@ -527,7 +527,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
       node.expect(res.body.participants[1].publicKey).to.equal(recipient1.publicKey.toString('hex'));
       let pTimestamp = res.body.messages[0].timestamp;
       for (let i = 1; i < res.body.messages.length; i++) {
-        node.expect(res.body.messages[i]).to.have.property('timestamp').to.be.above(pTimestamp);  
+        node.expect(res.body.messages[i]).to.have.property('timestamp').to.be.above(pTimestamp);
       }
       done();
     }, {

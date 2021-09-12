@@ -134,7 +134,7 @@ describe('GET /api/transactions (cache)', function () {
     params = [
       'blockId=' + '1',
       'senderId=' + node.iAccount.address,
-      'recipientId=' + account.address,
+      'recipientId=' + account.address
     ];
 
     node.get(url + params.join('&'), function (err, res) {
@@ -261,7 +261,7 @@ describe('GET /api/transactions', function () {
     const limit = 10;
     const offset = 0;
     const orderBy = 'fee:asc';
-    const minFee = constants.fees.delegate;;
+    const minFee = constants.fees.delegate;
     const maxFee = constants.fees.delegate;
 
     var params = [
@@ -598,7 +598,7 @@ describe('GET /api/transactions', function () {
           dividedIndices.nullIndices.sort(ascOrder);
 
           node.expect(dividedIndices.notNullIndices[dividedIndices.notNullIndices.length - 1])
-            .to.be.at.most(dividedIndices.nullIndices[0]);
+              .to.be.at.most(dividedIndices.nullIndices[0]);
         }
         cb();
       });
@@ -994,7 +994,7 @@ describe('POST /api/transactions', function () {
     postTransaction({
       secret: account4.password,
       delegates: ['+' + node.eAccount.publicKey],
-      type: node.txTypes.VOTE,
+      type: node.txTypes.VOTE
     }, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
       node.expect(res.body).to.have.property('transaction').that.is.an('object');
