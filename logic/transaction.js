@@ -160,11 +160,11 @@ Transaction.prototype.normalize = function (data) {
  */
 Transaction.prototype.attachAssetType = function (typeId, instance) {
   if (instance && typeof instance.create === 'function' && typeof instance.getBytes === 'function' &&
-		typeof instance.calculateFee === 'function' && typeof instance.verify === 'function' &&
-		typeof instance.objectNormalize === 'function' && typeof instance.dbRead === 'function' &&
-		typeof instance.apply === 'function' && typeof instance.undo === 'function' &&
-		typeof instance.applyUnconfirmed === 'function' && typeof instance.undoUnconfirmed === 'function' &&
-		typeof instance.ready === 'function' && typeof instance.process === 'function'
+    typeof instance.calculateFee === 'function' && typeof instance.verify === 'function' &&
+    typeof instance.objectNormalize === 'function' && typeof instance.dbRead === 'function' &&
+    typeof instance.apply === 'function' && typeof instance.undo === 'function' &&
+    typeof instance.applyUnconfirmed === 'function' && typeof instance.undoUnconfirmed === 'function' &&
+    typeof instance.ready === 'function' && typeof instance.process === 'function'
   ) {
     __private.types[typeId] = instance;
     return instance;
@@ -412,7 +412,7 @@ Transaction.prototype.process = function (trs, sender, requester, cb) {
   }
 
   // if (!this.ready(trs, sender)) {
-  // 	return setImmediate(cb, 'Transaction is not ready: ' + trs.id);
+  //   return setImmediate(cb, 'Transaction is not ready: ' + trs.id);
   // }
 
   // Check sender
@@ -798,9 +798,9 @@ Transaction.prototype.apply = function (trs, block, sender, cb) {
       return setImmediate(cb, err);
     }
     /**
-		 * calls apply for Transfer, Signature, Delegate, Vote, Multisignature,
-		 * DApp, InTransfer or OutTransfer.
-		 */
+     * calls apply for Transfer, Signature, Delegate, Vote, Multisignature,
+     * DApp, InTransfer or OutTransfer.
+     */
     __private.types[trs.type].apply.call(this, trs, block, sender, function (err) {
       if (err) {
         this.scope.account.merge(sender.address, {

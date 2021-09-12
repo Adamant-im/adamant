@@ -8,43 +8,43 @@ describe('dapp', function () {
   // TODO: Add tests for other dapps schemas
 
   /*
-	describe('put', function () {
-		it('tests for schema');
-	});
+  describe('put', function () {
+    it('tests for schema');
+  });
 
-	describe('get', function () {
-		it('tests for schema');
-	});
+  describe('get', function () {
+    it('tests for schema');
+  });
 
-	describe('list', function () {
-		it('tests for schema');
-	});
+  describe('list', function () {
+    it('tests for schema');
+  });
 
-	describe('addTransactions', function () {
-		it('tests for schema');
-	});
+  describe('addTransactions', function () {
+    it('tests for schema');
+  });
 
-	describe('sendWithdrawal', function () {
-		it('tests for schema');
-	});
+  describe('sendWithdrawal', function () {
+    it('tests for schema');
+  });
 
-	describe('search', function () {
-		it('tests for schema');
-	});
+  describe('search', function () {
+    it('tests for schema');
+  });
 
-	describe('install', function () {
-		it('tests for schema');
-	});
+  describe('install', function () {
+    it('tests for schema');
+  });
 
-	describe('uninstall', function () {
-		it('tests for schema');
-	});
+  describe('uninstall', function () {
+    it('tests for schema');
+  });
 
-	describe('stop', function () {
-		it('tests for schema');
-	});
+  describe('stop', function () {
+    it('tests for schema');
+  });
 
-	*/
+  */
 
   describe('launch', function () {
     var testBody;

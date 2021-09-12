@@ -648,7 +648,7 @@ __private.getTransactionList = function (transactions, reverse, limit) {
   for (var i = 0; i < transactions.length; i++) {
     var transaction = transactions[i];
 
-    if (transaction !== false)	{
+    if (transaction !== false) {
       a.push(transaction);
     }
   }

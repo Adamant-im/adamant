@@ -43,67 +43,67 @@ var modulesLoader = new function () {
   };
 
   /**
-	 * Initializes Logic class with params
-	 *
-	 * @param {Function} Logic
-	 * @param {Object} scope
-	 * @param {Function} cb
-	 */
+   * Initializes Logic class with params
+   *
+   * @param {Function} Logic
+   * @param {Object} scope
+   * @param {Function} cb
+   */
   this.initLogic = function (Logic, scope, cb) {
     switch (Logic.name) {
-		 case 'Account':
+      case 'Account':
         new Logic(scope.db, scope.schema, scope.logger, cb);
         break;
-		 case 'Transaction':
-		 	async.series({
+      case 'Transaction':
+        async.series({
           account: function (cb) {
             new Account(scope.db, scope.schema, scope.logger, cb);
           }
-			 }, function (err, result) {
-				 // null is for clientWs
-				 new Logic(scope.db, scope.ed, scope.schema, scope.genesisblock, result.account, scope.logger, null, cb);
-			 });
+        }, function (err, result) {
+          // null is for clientWs
+          new Logic(scope.db, scope.ed, scope.schema, scope.genesisblock, result.account, scope.logger, null, cb);
+        });
         break;
-		 case 'Block':
-		 	async.waterfall([
+      case 'Block':
+        async.waterfall([
           function (waterCb) {
             return new Account(scope.db, scope.schema, scope.logger, waterCb);
           },
           function (account, waterCb) {
-				 // null is for clientWs
-				 return new Transaction(scope.db, scope.ed, scope.schema, scope.genesisblock, account, scope.logger, null, waterCb);
+            // null is for clientWs
+            return new Transaction(scope.db, scope.ed, scope.schema, scope.genesisblock, account, scope.logger, null, waterCb);
           }
-			 ], function (err, transaction) {
-				 new Logic(scope.ed, scope.schema, transaction, cb);
+        ], function (err, transaction) {
+          new Logic(scope.ed, scope.schema, transaction, cb);
         });
         break;
-		 case 'Peers':
+      case 'Peers':
         new Logic(scope.logger, cb);
         break;
-		 default:
-		 	console.log('no Logic case initLogic');
+      default:
+        console.log('no Logic case initLogic');
     }
   };
 
   /**
-	 * Initializes Module class with params
-	 *
-	 * @param {Function} Module
-	 * @param {Object} scope
-	 * @param {Function} cb
-	 */
+   * Initializes Module class with params
+   *
+   * @param {Function} Module
+   * @param {Object} scope
+   * @param {Function} cb
+   */
   this.initModule = function (Module, scope, cb) {
     return new Module(cb, scope);
   };
 
   /**
-	 * Initializes multiple Modules
-	 *
-	 * @param {Array<{name: Module}>} modules
-	 * @param {Array<{name: Logic}>} logic
-	 * @param {Object>} scope
-	 * @param {Function} cb
-	 */
+   * Initializes multiple Modules
+   *
+   * @param {Array<{name: Module}>} modules
+   * @param {Array<{name: Logic}>} logic
+   * @param {Object>} scope
+   * @param {Function} cb
+   */
   this.initModules = function (modules, logic, scope, cb) {
     async.waterfall([
       function (waterCb) {
@@ -145,11 +145,11 @@ var modulesLoader = new function () {
   };
 
   /**
-	 * Initializes all created Modules in directory
-	 *
-	 * @param {Function} cb
-	 * @param {object} [scope={}] scope
-	 */
+   * Initializes all created Modules in directory
+   *
+   * @param {Function} cb
+   * @param {object} [scope={}] scope
+   */
   this.initAllModules = function (cb, scope) {
     this.initModules([
       { accounts: require('../../modules/accounts') },
@@ -175,35 +175,35 @@ var modulesLoader = new function () {
   };
 
   /**
-	 * Initializes Module class with basic conf
-	 *
-	 * @param {Function} Module
-	 * @param {Function} cb
-	 * @param {Object=} scope
-	 */
+   * Initializes Module class with basic conf
+   *
+   * @param {Function} Module
+   * @param {Function} cb
+   * @param {Object=} scope
+   */
   this.initModuleWithDb = function (Module, cb, scope) {
     this.initWithDb(Module, this.initModule, cb, scope);
   };
 
   /**
-	 * Initializes Logic class with basic conf
-	 *
-	 * @param {Function} Logic
-	 * @param {Function} cb
-	 * @param {Object=} scope
-	 */
+   * Initializes Logic class with basic conf
+   *
+   * @param {Function} Logic
+   * @param {Function} cb
+   * @param {Object=} scope
+   */
   this.initLogicWithDb = function (Logic, cb, scope) {
     this.initWithDb(Logic, this.initLogic, cb, scope);
   };
 
   /**
-	 * Accepts Class to invoke (Logic or Module) and fills the scope with basic conf
-	 *
-	 * @param {Function} Klass
-	 * @param {Function} moduleConstructor
-	 * @param {Function} cb
-	 * @param {Object=} scope
-	 */
+   * Accepts Class to invoke (Logic or Module) and fills the scope with basic conf
+   *
+   * @param {Function} Klass
+   * @param {Function} moduleConstructor
+   * @param {Function} cb
+   * @param {Object=} scope
+   */
   this.initWithDb = function (Klass, moduleConstructor, cb, scope) {
     this.getDbConnection(function (err, db) {
       if (err) {
@@ -215,10 +215,10 @@ var modulesLoader = new function () {
   };
 
   /**
-	 * Starts and returns db connection
-	 *
-	 * @param {Function} cb
-	 */
+   * Starts and returns db connection
+   *
+   * @param {Function} cb
+   */
   this.getDbConnection = function (cb) {
     if (this.db) {
       return cb(null, this.db);
@@ -233,9 +233,9 @@ var modulesLoader = new function () {
   };
 
   /**
-	 * Initializes Cache module
-	 * @param {Function} cb
-	 */
+   * Initializes Cache module
+   * @param {Function} cb
+   */
   this.initCache = function (cb) {
     var cacheEnabled, cacheConfig;
     cacheEnabled = this.scope.config.cacheEnabled;

@@ -10,18 +10,18 @@ describe('multisignatures', function () {
   // TODO: Add tests for other multisignature schemas
 
   /*
-	describe('getAccounts', function () {
-		it('tests for schema');
-	});
+  describe('getAccounts', function () {
+    it('tests for schema');
+  });
 
-	describe('pending', function () {
-		it('tests for schema');
-	});
+  describe('pending', function () {
+    it('tests for schema');
+  });
 
-	describe('sign', function () {
-		it('tests for schema');
-	});
-	*/
+  describe('sign', function () {
+    it('tests for schema');
+  });
+  */
 
   describe('addMultisignatures', function () {
     var testBody;

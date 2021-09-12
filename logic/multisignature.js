@@ -114,7 +114,7 @@ Multisignature.prototype.verify = function (trs, sender, cb) {
   }
 
   if (trs.asset.multisignature.lifetime < constants.multisigConstraints.lifetime.minimum ||
-		trs.asset.multisignature.lifetime > constants.multisigConstraints.lifetime.maximum) {
+    trs.asset.multisignature.lifetime > constants.multisigConstraints.lifetime.maximum) {
     return setImmediate(cb, ['Invalid multisignature lifetime. Must be between', constants.multisigConstraints.lifetime.minimum, 'and',
       constants.multisigConstraints.lifetime.maximum].join(' '));
   }

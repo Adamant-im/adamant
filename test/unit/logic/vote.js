@@ -429,7 +429,7 @@ describe('vote', function () {
       // remove existed votes
       trs.asset.votes = votedDelegates.map(function (v) { return '-' + v; });
       vote.apply.call(transaction, trs, dummyBlock, validSender, function (err) {
-            	checkAccountVotes(trs.senderPublicKey, 'confirmed', trs.asset.votes, 'apply', () => null);
+        checkAccountVotes(trs.senderPublicKey, 'confirmed', trs.asset.votes, 'apply', () => null);
         trs.asset.votes = votedDelegates.map(function (v) { return '+' + v; });
         vote.checkConfirmedDelegates(trs, () => null);
         // restore votes

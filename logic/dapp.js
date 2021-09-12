@@ -121,8 +121,8 @@ DApp.prototype.verify = function (trs, sender, cb) {
 
     if (
       trs.asset.dapp.icon.indexOf('.png') !== length - 4 &&
-			trs.asset.dapp.icon.indexOf('.jpg') !== length - 4 &&
-			trs.asset.dapp.icon.indexOf('.jpeg') !== length - 5
+      trs.asset.dapp.icon.indexOf('.jpg') !== length - 4 &&
+      trs.asset.dapp.icon.indexOf('.jpeg') !== length - 5
     ) {
       return setImmediate(cb, 'Invalid application icon file type');
     }

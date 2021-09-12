@@ -416,8 +416,8 @@ describe('BlockReward', function () {
     function () {
       expect(blockReward.calcSupply(milestoneHeight(2))).to
           .equal(milestoneSupply(0, milestoneHeight(1)-constants.rewards.offset)+
-						(constants.rewards.milestones[1]*constants.rewards.distance)+
-						constants.rewards.milestones[2]);
+            (constants.rewards.milestones[1]*constants.rewards.distance)+
+            constants.rewards.milestones[2]);
     }
     );
 
@@ -427,8 +427,8 @@ describe('BlockReward', function () {
     function () {
       expect(blockReward.calcSupply(milestoneHeight(2)+1)).to
           .equal(milestoneSupply(0, milestoneHeight(1)-constants.rewards.offset)+
-                    	(constants.rewards.milestones[1]*constants.rewards.distance)+
-                    	constants.rewards.milestones[2]*2);
+                      (constants.rewards.milestones[1]*constants.rewards.distance)+
+                      constants.rewards.milestones[2]*2);
     }
     );
 
@@ -438,8 +438,8 @@ describe('BlockReward', function () {
     function () {
       expect(blockReward.calcSupply(milestoneHeight(3)-1)).to
           .equal(milestoneSupply(0, milestoneHeight(1)-constants.rewards.offset)+
-						(constants.rewards.milestones[1]*constants.rewards.distance)+
-						(constants.rewards.milestones[2]*constants.rewards.distance)-1);
+            (constants.rewards.milestones[1]*constants.rewards.distance)+
+            (constants.rewards.milestones[2]*constants.rewards.distance)-1);
     }
     );
 
@@ -450,9 +450,9 @@ describe('BlockReward', function () {
     function () {
       expect(blockReward.calcSupply(milestoneHeight(3))).to
           .equal(milestoneSupply(0, milestoneHeight(1)-constants.rewards.offset)+
-						(constants.rewards.milestones[1]*constants.rewards.distance)+
-						(constants.rewards.milestones[2]*constants.rewards.distance)+
-						constants.rewards.milestones[3]);
+            (constants.rewards.milestones[1]*constants.rewards.distance)+
+            (constants.rewards.milestones[2]*constants.rewards.distance)+
+            constants.rewards.milestones[3]);
     }
     );
 
@@ -463,9 +463,9 @@ describe('BlockReward', function () {
     function () {
       expect(blockReward.calcSupply(milestoneHeight(3)+1)).to
           .equal(milestoneSupply(0, milestoneHeight(1)-constants.rewards.offset)+
-						(constants.rewards.milestones[1]*constants.rewards.distance)+
-						(constants.rewards.milestones[2]*constants.rewards.distance)+
-						constants.rewards.milestones[3]*2);
+            (constants.rewards.milestones[1]*constants.rewards.distance)+
+            (constants.rewards.milestones[2]*constants.rewards.distance)+
+            constants.rewards.milestones[3]*2);
     }
     );
 
@@ -493,7 +493,7 @@ describe('BlockReward', function () {
                         (constants.rewards.milestones[1]*constants.rewards.distance)+
                         (constants.rewards.milestones[2]*constants.rewards.distance)+
                         (constants.rewards.milestones[3]*constants.rewards.distance)+
-						constants.rewards.milestones[4]);
+            constants.rewards.milestones[4]);
     }
     );
 
@@ -765,8 +765,8 @@ describe('BlockReward', function () {
                         (constants.rewards.milestones[5]*constants.rewards.distance)+
                         (constants.rewards.milestones[6]*constants.rewards.distance)+
                         (constants.rewards.milestones[7]*constants.rewards.distance)+
-             	   		constants.rewards.milestones[8]*milestoneHeight(8)+
-						constants.rewards.milestones[8]);
+                      constants.rewards.milestones[8]*milestoneHeight(8)+
+            constants.rewards.milestones[8]);
     }
     );
 
@@ -967,7 +967,7 @@ describe('BlockReward', function () {
           var prev = supply;
 
           for (var i = constants.rewards.offset+constants.rewards.distance*4;
-						 i < constants.rewards.offset+constants.rewards.distance*5; i++) {
+            i < constants.rewards.offset+constants.rewards.distance*5; i++) {
             supply = blockReward.calcSupply(i);
             expect(supply).to.equal(prev + constants.rewards.milestones[4]);
             prev = supply;

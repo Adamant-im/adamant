@@ -78,7 +78,7 @@ Block.prototype.create = function (data) {
   var nextHeight = (data.previousBlock) ? data.previousBlock.height + 1 : 1;
 
   var reward = __private.blockReward.calcReward(nextHeight),
-	    totalFee = 0, totalAmount = 0, size = 0;
+    totalFee = 0, totalAmount = 0, size = 0;
 
   var blockTransactions = [];
   var payloadHash = crypto.createHash('sha256');

@@ -11,22 +11,22 @@ describe('transactions', function () {
   // TODO: Add tests for other transaction schemas
 
   /*
-	describe('getTransaction', function () {
-		it('tests for schema');
-	});
+  describe('getTransaction', function () {
+    it('tests for schema');
+  });
 
-	describe('getPooledTransaction', function () {
-		it('tests for schema');
-	});
+  describe('getPooledTransaction', function () {
+    it('tests for schema');
+  });
 
-	describe('getPooledTransactions', function () {
-		it('tests for schema');
-	});
+  describe('getPooledTransactions', function () {
+    it('tests for schema');
+  });
 
-	describe('addTransactions', function () {
-		it('tests for schema');
-	});
-	*/
+  describe('addTransactions', function () {
+    it('tests for schema');
+  });
+  */
 
   describe('getTransactions', function () {
     // TODO: Add tests for other schemas properties

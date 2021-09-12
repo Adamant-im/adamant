@@ -343,23 +343,23 @@ describe('transfer', function () {
     // Multisignatures tests are disabled currently
 
     /*
-		it('should return false for multi signature transaction with less signatures', function () {
-			var trs = _.cloneDeep(validTransaction);
-			var vs = _.cloneDeep(validSender);
-			vs.multisignatures = [validKeypair.publicKey.toString('hex')];
-			expect(transaction.ready(trs, vs)).to.equal(false);
-		});
+    it('should return false for multi signature transaction with less signatures', function () {
+      var trs = _.cloneDeep(validTransaction);
+      var vs = _.cloneDeep(validSender);
+      vs.multisignatures = [validKeypair.publicKey.toString('hex')];
+      expect(transaction.ready(trs, vs)).to.equal(false);
+    });
 
-		it('should return true for multi signature transaction with at least min signatures', function () {
-			var trs = _.cloneDeep(validTransaction);
-			var vs = _.cloneDeep(validSender);
-			vs.multisignatures = [validKeypair.publicKey.toString('hex')];
-			vs.multimin = 1;
-			delete trs.signature;
-			trs.signature = transaction.sign(senderKeypair, trs);
-			trs.signatures = [transaction.multisign(validKeypair, trs)];
-			expect(transaction.ready(trs, vs)).to.equal(true);
-		});
-		*/
+    it('should return true for multi signature transaction with at least min signatures', function () {
+      var trs = _.cloneDeep(validTransaction);
+      var vs = _.cloneDeep(validSender);
+      vs.multisignatures = [validKeypair.publicKey.toString('hex')];
+      vs.multimin = 1;
+      delete trs.signature;
+      trs.signature = transaction.sign(senderKeypair, trs);
+      trs.signatures = [transaction.multisign(validKeypair, trs)];
+      expect(transaction.ready(trs, vs)).to.equal(true);
+    });
+    */
   });
 });

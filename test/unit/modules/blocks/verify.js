@@ -331,30 +331,30 @@ describe('blocks/verify (one may fail with Cannot read property sockets of undef
     });
 
     // it('should fail when a transaction is of an unknown type', function () {
-    // 	var trsType = validBlock.transactions[0].type;
-    // 	validBlock.transactions[0].type = 555;
+    //   var trsType = validBlock.transactions[0].type;
+    //   validBlock.transactions[0].type = 555;
     //
-    // 	var result = blocksVerify[functionName](validBlock);
+    //   var result = blocksVerify[functionName](validBlock);
     //
-    // 	expect(result.errors).to.be.an('array').with.lengthOf(2);
-    // 	expect(result.errors[0]).to.equal('Invalid payload hash');
-    // 	expect(result.errors[1]).to.equal('Unknown transaction type ' + validBlock.transactions[0].type);
+    //   expect(result.errors).to.be.an('array').with.lengthOf(2);
+    //   expect(result.errors[0]).to.equal('Invalid payload hash');
+    //   expect(result.errors[1]).to.equal('Unknown transaction type ' + validBlock.transactions[0].type);
     //
-    // 	validBlock.transactions[0].type = trsType;
+    //   validBlock.transactions[0].type = trsType;
     // });
     //
     // it('should fail when a transaction is duplicated', function () {
-    // 	var secondTrs = validBlock.transactions[1];
-    // 	validBlock.transactions[1] = validBlock.transactions[0];
+    //   var secondTrs = validBlock.transactions[1];
+    //   validBlock.transactions[1] = validBlock.transactions[0];
     //
-    // 	var result = blocksVerify[functionName](validBlock);
+    //   var result = blocksVerify[functionName](validBlock);
     //
-    // 	expect(result.errors).to.be.an('array').with.lengthOf(3);
-    // 	expect(result.errors[0]).to.equal('Invalid total amount');
-    // 	expect(result.errors[1]).to.equal('Invalid payload hash');
-    // 	expect(result.errors[2]).to.equal('Encountered duplicate transaction: ' + validBlock.transactions[1].id);
+    //   expect(result.errors).to.be.an('array').with.lengthOf(3);
+    //   expect(result.errors[0]).to.equal('Invalid total amount');
+    //   expect(result.errors[1]).to.equal('Invalid payload hash');
+    //   expect(result.errors[2]).to.equal('Encountered duplicate transaction: ' + validBlock.transactions[1].id);
     //
-    // 	validBlock.transactions[1] = secondTrs;
+    //   validBlock.transactions[1] = secondTrs;
     // });
 
     it('should fail when payload hash is invalid', function () {

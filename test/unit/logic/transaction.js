@@ -263,17 +263,17 @@ describe('transaction', function () {
   // Multisignatures tests are disabled currently
 
   /*
-	describe('multisign', function () {
+  describe('multisign', function () {
 
-		it('should throw an error with no param', function () {
-			expect(transaction.multisign).to.throw();
-		});
+    it('should throw an error with no param', function () {
+      expect(transaction.multisign).to.throw();
+    });
 
-		it('should multisign the transaction', function () {
-			expect(transaction.multisign(testSenderKeypair, validTransaction)).to.equal(validTransaction.signature);
-		});
-	});
-	*/
+    it('should multisign the transaction', function () {
+      expect(transaction.multisign(testSenderKeypair, validTransaction)).to.equal(validTransaction.signature);
+    });
+  });
+  */
 
   describe('getId', function () {
     it('should throw an error with no param', function () {
@@ -506,15 +506,15 @@ describe('transaction', function () {
     // Second signature tests are disabled currently
 
     // it('should return error when missing sender second signature', function (done) {
-    // 	var trs = _.cloneDeep(validUnconfirmedTrs);
-    // 	trs.signSignature = [transaction.sign(testSenderKeypair, trs)];
-    // 	var vs = _.cloneDeep(testSender);
-    // 	vs.secondSignature = '839eba0f811554b9f935e39a68b3078f90bea22c5424d3ad16630f027a48362f78349ddc3948360045d6460404f5bc8e25b662d4fd09e60c89453776962df40d';
+    //   var trs = _.cloneDeep(validUnconfirmedTrs);
+    //   trs.signSignature = [transaction.sign(testSenderKeypair, trs)];
+    //   var vs = _.cloneDeep(testSender);
+    //   vs.secondSignature = '839eba0f811554b9f935e39a68b3078f90bea22c5424d3ad16630f027a48362f78349ddc3948360045d6460404f5bc8e25b662d4fd09e60c89453776962df40d';
 
-    // 	transaction.verify(trs, vs, {}, function (err) {
-    // 		expect(err).to.include('Missing sender second signature');
-    // 		done();
-    // 	});
+    //   transaction.verify(trs, vs, {}, function (err) {
+    //     expect(err).to.include('Missing sender second signature');
+    //     done();
+    //   });
     // });
 
     it('should return error when sender does not have a second signature', function (done) {
@@ -577,20 +577,20 @@ describe('transaction', function () {
     // Multisignatures tests are disabled currently
 
     /*
-		it('should return error when Account does not belong to multisignature group', function (done) {
-			var trs = _.cloneDeep(validTransaction);
-			var vs = _.cloneDeep(validSender);
-			// Different publicKey for multisignature account
-			vs.multisignatures = [node.eAccount.publicKey];
-			trs.requesterPublicKey = validKeypair.publicKey.toString('hex');
-			delete trs.signature;
-			trs.signature = transaction.sign(validKeypair, trs);
-			transaction.verify(trs, vs, {}, function (err) {
-				expect(err).to.equal('Account does not belong to multisignature group');
-				done();
-			});
-		});
-		*/
+    it('should return error when Account does not belong to multisignature group', function (done) {
+      var trs = _.cloneDeep(validTransaction);
+      var vs = _.cloneDeep(validSender);
+      // Different publicKey for multisignature account
+      vs.multisignatures = [node.eAccount.publicKey];
+      trs.requesterPublicKey = validKeypair.publicKey.toString('hex');
+      delete trs.signature;
+      trs.signature = transaction.sign(validKeypair, trs);
+      transaction.verify(trs, vs, {}, function (err) {
+        expect(err).to.equal('Account does not belong to multisignature group');
+        done();
+      });
+    });
+    */
 
     it('should return error when signature is not correct', function (done) {
       var trs = _.cloneDeep(validTransaction);
@@ -605,47 +605,47 @@ describe('transaction', function () {
     // Multisignatures tests are disabled currently
 
     /*
-		it('should return error when duplicate signature in transaction', function (done) {
-			var trs = _.cloneDeep(validTransaction);
-			var vs = _.cloneDeep(validSender);
-			vs.multisignatures = [validKeypair.publicKey.toString('hex')];
-			delete trs.signature;
-			trs.signatures = Array.apply(null, Array(2)).map(function () { return transaction.sign(validKeypair, trs); });
-			trs.signature = transaction.sign(testSenderKeypair, trs);
-			transaction.verify(trs, vs, {}, function (err) {
-				expect(err).to.equal('Encountered duplicate signature in transaction');
-				done();
-			});
-		});
+    it('should return error when duplicate signature in transaction', function (done) {
+      var trs = _.cloneDeep(validTransaction);
+      var vs = _.cloneDeep(validSender);
+      vs.multisignatures = [validKeypair.publicKey.toString('hex')];
+      delete trs.signature;
+      trs.signatures = Array.apply(null, Array(2)).map(function () { return transaction.sign(validKeypair, trs); });
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+      transaction.verify(trs, vs, {}, function (err) {
+        expect(err).to.equal('Encountered duplicate signature in transaction');
+        done();
+      });
+    });
 
-		it('should return error when failed to verify multisignature', function (done) {
-			var trs = _.cloneDeep(validTransaction);
-			var vs = _.cloneDeep(validSender);
-			vs.multisignatures = [validKeypair.publicKey.toString('hex')];
-			trs.requesterPublicKey = validKeypair.publicKey.toString('hex');
-			delete trs.signature;
-			// using validKeypair as opposed to testSenderKeypair
-			trs.signatures = [transaction.sign(validKeypair, trs)];
-			trs.signature = transaction.sign(validKeypair, trs);
-			transaction.verify(trs, vs, {}, function (err) {
-				expect(err).to.equal('Failed to verify multisignature');
-				done();
-			});
-		});
+    it('should return error when failed to verify multisignature', function (done) {
+      var trs = _.cloneDeep(validTransaction);
+      var vs = _.cloneDeep(validSender);
+      vs.multisignatures = [validKeypair.publicKey.toString('hex')];
+      trs.requesterPublicKey = validKeypair.publicKey.toString('hex');
+      delete trs.signature;
+      // using validKeypair as opposed to testSenderKeypair
+      trs.signatures = [transaction.sign(validKeypair, trs)];
+      trs.signature = transaction.sign(validKeypair, trs);
+      transaction.verify(trs, vs, {}, function (err) {
+        expect(err).to.equal('Failed to verify multisignature');
+        done();
+      });
+    });
 
-		it('should be okay with valid multisignature', function (done) {
-			var trs = _.cloneDeep(validTransaction);
-			var vs = _.cloneDeep(validSender);
-			vs.multisignatures = [validKeypair.publicKey.toString('hex')];
-			delete trs.signature;
-			trs.signature = transaction.sign(testSenderKeypair, trs);
-			trs.signatures = [transaction.multisign(validKeypair, trs)];
-			transaction.verify(trs, vs, {}, function (err) {
-				expect(err).to.not.exist;
-				done();
-			});
-		});
-		*/
+    it('should be okay with valid multisignature', function (done) {
+      var trs = _.cloneDeep(validTransaction);
+      var vs = _.cloneDeep(validSender);
+      vs.multisignatures = [validKeypair.publicKey.toString('hex')];
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+      trs.signatures = [transaction.multisign(validKeypair, trs)];
+      transaction.verify(trs, vs, {}, function (err) {
+        expect(err).to.not.exist;
+        done();
+      });
+    });
+    */
 
     it('should return error when second signature is invalid', function (done) {
       var vs = _.cloneDeep(validSender);
