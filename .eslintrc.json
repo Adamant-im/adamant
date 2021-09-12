@@ -13,7 +13,7 @@
   },
   "rules": {
     "max-len": ["error",
-      { "code": 125,
+      { "code": 200,
         "ignoreTrailingComments": true,
         "ignoreUrls": true,
         "ignoreStrings": true,
@@ -35,6 +35,9 @@
     "object-curly-spacing": ["error", "always"],
     "prefer-const": ["off"],
     "quote-props": ["off"],
+    "guard-for-in": ["off"],
+    "valid-jsdoc": ["off"],
+    "prefer-spread": ["off"],
     "semi": "error",
     "no-eq-null": "off",
     "eqeqeq": "off",
@@ -53,6 +56,7 @@
     "no-new-require": "off"
   },
   "globals": {
+    "PR": true,
     "it": true,
     "describe": true,
     "before": true,

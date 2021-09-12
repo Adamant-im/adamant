@@ -73,7 +73,9 @@ describe('POST /peer/transactions', function () {
         var memberAccount1 = node.randomAccount();
         var memberAccount2 = node.randomAccount();
 
-        var multiSigTx = node.lisk.multisignature.createMultisignature(multisigAccount.password, null, ['+' + node.eAccount.publicKey + 'A', '+' + memberAccount1.publicKey, '+' + memberAccount2.publicKey], 1, 2);
+        var multiSigTx = node.lisk.multisignature.createMultisignature(
+          multisigAccount.password, null, ['+' + node.eAccount.publicKey + 'A',
+          '+' + memberAccount1.publicKey, '+' + memberAccount2.publicKey], 1, 2);
 
         postTransaction(multiSigTx, function (err, res) {
           node.expect(res.body).to.have.property('success').to.be.not.ok;
