@@ -1,7 +1,7 @@
 'use strict';
 
 var StatesSql = {
-  sortFields: ['type','timestamp'],
+  sortFields: ['type', 'timestamp'],
 
   countByTransactionId: 'SELECT COUNT(*)::int AS "count" FROM states WHERE "transactionId" = ${id}',
 
@@ -18,14 +18,14 @@ var StatesSql = {
   get: 'SELECT "stored_value", "stored_key",  "type", "transactionId" FROM states WHERE "transactionId" = ${id}',
 
   getByIds: 'SELECT "stored_value", "stored_key",  "type", "transactionId" FROM states WHERE "transactionId" IN ($1:csv)',
-    countList: function (params) {
-        return [
+  countList: function (params) {
+    return [
 
-            'SELECT COUNT(1)  FROM full_blocks_list',
-            (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
-            (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : '')
-        ].filter(Boolean).join(' ');
-    },
+      'SELECT COUNT(1)  FROM full_blocks_list',
+      (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
+      (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : '')
+    ].filter(Boolean).join(' ');
+  },
 
   // Need to fix "or" or "and" in query
   list: function (params) {
