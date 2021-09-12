@@ -28,8 +28,8 @@ function Utils (logger, block, transaction, db, dbSequence, genesisblock) {
     genesisblock: genesisblock,
     logic: {
       block: block,
-      transaction: transaction,
-    },
+      transaction: transaction
+    }
   };
   self = this;
 
@@ -124,7 +124,7 @@ Utils.prototype.loadBlocksPart = function (filter, cb) {
 /**
  * Loads full normalized last block from database
  * see: loader.loadBlockChain (private)
- * 
+ *
  * @async
  * @public
  * @method loadLastBlock
@@ -184,7 +184,7 @@ Utils.prototype.getIdSequence = function (height, cb) {
   var lastBlock = modules.blocks.lastBlock.get();
   // Get IDs of first blocks of (n) last rounds, descending order
   // EXAMPLE: For height 2000000 (round 19802) we will get IDs of blocks at height: 1999902, 1999801, 1999700, 1999599, 1999498
-  library.db.query(sql.getIdSequence(), {height: height, limit: 5, delegates: constants.activeDelegates}).then(function (rows) {
+  library.db.query(sql.getIdSequence(), { height: height, limit: 5, delegates: constants.activeDelegates }).then(function (rows) {
     if (rows.length === 0) {
       return setImmediate(cb, 'Failed to get id sequence for height: ' + height);
     }
@@ -213,7 +213,7 @@ Utils.prototype.getIdSequence = function (height, cb) {
 
     // Extract blocks IDs
     rows.forEach(function (row) {
-      //FIXME: Looks like double check
+      // FIXME: Looks like double check
       if (!_.includes(ids, row.id)) {
         ids.push(row.id);
       }
@@ -242,7 +242,7 @@ Utils.prototype.getIdSequence = function (height, cb) {
  * @return {Object}   cb.rows List of blocks
  */
 Utils.prototype.loadBlocksData = function (filter, options, cb) {
-  //FIXME: options is not used
+  // FIXME: options is not used
   if (arguments.length < 3) {
     cb = options;
     options = {};
@@ -252,7 +252,7 @@ Utils.prototype.loadBlocksData = function (filter, options, cb) {
 
   var params = { limit: filter.limit || 1 };
 
-  //FIXME: filter.id is not used
+  // FIXME: filter.id is not used
   if (filter.id && filter.lastId) {
     return setImmediate(cb, 'Invalid filter: Received both id and lastId');
   } else if (filter.id) {
@@ -325,7 +325,7 @@ Utils.prototype.getBlockProgressLogger = function (transactionsCount, logsFreque
      * Logs the progress
      */
     this.log = function () {
-      library.logger.info(msg, ((this.applied / this.target) *  100).toPrecision(4)+ ' %' + ': applied ' + this.applied + ' of ' + this.target + ' transactions' );
+      library.logger.info(msg, ((this.applied / this.target) * 100).toPrecision(4)+ ' %' + ': applied ' + this.applied + ' of ' + this.target + ' transactions' );
     };
   }
 
@@ -357,11 +357,11 @@ Utils.prototype.aggregateBlocksReward = function (filter, cb) {
   params.delegates = constants.activeDelegates;
 
   if (filter.start !== undefined) {
-    params.start = filter.start - constants.epochTime.getTime () / 1000;
+    params.start = filter.start - constants.epochTime.getTime() / 1000;
   }
 
   if (filter.end !== undefined) {
-    params.end = filter.end - constants.epochTime.getTime () / 1000;
+    params.end = filter.end - constants.epochTime.getTime() / 1000;
   }
 
   // Get calculated rewards

@@ -32,8 +32,8 @@ function Chain (logger, block, transaction, db, genesisblock, bus, balancesSeque
     balancesSequence: balancesSequence,
     logic: {
       block: block,
-      transaction: transaction,
-    },
+      transaction: transaction
+    }
   };
   self = this;
 
@@ -76,7 +76,7 @@ Chain.prototype.saveGenesisBlock = function (cb) {
  * @async
  * @param  {Object}   block Full normalized block
  * @param  {Function} cb Callback function
- * @return {Function|afterSave} cb If SQL transaction was OK - returns safterSave execution,
+ * @return {Function|afterSave} cb If SQL transaction was OK - returns afterSave execution,
  *                                 if not returns callback function from params (through setImmediate)
  * @return {String}   cb.err Error if occurred
  */
@@ -149,7 +149,7 @@ __private.promiseTransactions = function (t, block, blockPromises) {
   var transactionIterator = function (transaction) {
     // Apply block ID to transaction
     transaction.blockId = block.id;
-    // Create bytea fileds (buffers), and returns pseudo-row promise-like object
+    // Create bytea fields (buffers), and returns pseudo-row promise-like object
     return library.logic.transaction.dbSave(transaction);
   };
 
@@ -198,7 +198,7 @@ __private.promiseTransactions = function (t, block, blockPromises) {
 Chain.prototype.deleteBlock = function (blockId, cb) {
   // Delete block with ID from blocks table
   // WARNING: DB_WRITE
-  library.db.none(sql.deleteBlock, {id: blockId}).then(function () {
+  library.db.none(sql.deleteBlock, { id: blockId }).then(function () {
     return setImmediate(cb);
   }).catch(function (err) {
     library.logger.error(err.stack);
@@ -219,7 +219,7 @@ Chain.prototype.deleteBlock = function (blockId, cb) {
  * @return {Object}   cb.res SQL response
  */
 Chain.prototype.deleteAfterBlock = function (blockId, cb) {
-  library.db.query(sql.deleteAfterBlock, {id: blockId}).then(function (res) {
+  library.db.query(sql.deleteAfterBlock, { id: blockId }).then(function (res) {
     return setImmediate(cb, null, res);
   }).catch(function (err) {
     library.logger.error(err.stack);
@@ -254,7 +254,7 @@ Chain.prototype.applyGenesisBlock = function (block, cb) {
     // Apply transactions through setAccountAndGet, bypassing unconfirmed/confirmed states
     // FIXME: Poor performance - every transaction cause SQL query to be executed
     // WARNING: DB_WRITE
-    modules.accounts.setAccountAndGet({publicKey: transaction.senderPublicKey}, function (err, sender) {
+    modules.accounts.setAccountAndGet({ publicKey: transaction.senderPublicKey }, function (err, sender) {
       if (err) {
         return setImmediate(cb, {
           message: err,
@@ -364,7 +364,7 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
     applyUnconfirmed: function (seriesCb) {
       async.eachSeries(block.transactions, function (transaction, eachSeriesCb) {
         // DATABASE write
-        modules.accounts.setAccountAndGet({publicKey: transaction.senderPublicKey}, function (err, sender) {
+        modules.accounts.setAccountAndGet({ publicKey: transaction.senderPublicKey }, function (err, sender) {
           // DATABASE: write
           modules.transactions.applyUnconfirmed(transaction, sender, function (err) {
             if (err) {
@@ -390,7 +390,7 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
           // Rewind any already applied unconfirmed transactions.
           // Leaves the database state as per the previous block.
           async.eachSeries(block.transactions, function (transaction, eachSeriesCb) {
-            modules.accounts.getAccount({publicKey: transaction.senderPublicKey}, function (err, sender) {
+            modules.accounts.getAccount({ publicKey: transaction.senderPublicKey }, function (err, sender) {
               if (err) {
                 return setImmediate(eachSeriesCb, err);
               }
@@ -414,7 +414,7 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
     // Apply transactions to confirmed mem_accounts fields.
     applyConfirmed: function (seriesCb) {
       async.eachSeries(block.transactions, function (transaction, eachSeriesCb) {
-        modules.accounts.getAccount({publicKey: transaction.senderPublicKey}, function (err, sender) {
+        modules.accounts.getAccount({ publicKey: transaction.senderPublicKey }, function (err, sender) {
           if (err) {
             // Fatal error, memory tables will be inconsistent
             err = ['Failed to apply transaction:', transaction.id, '-', err].join(' ');
@@ -477,13 +477,13 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
       modules.transactions.applyUnconfirmedIds(unconfirmedTransactionIds, function (err) {
         return setImmediate(seriesCb, err);
       });
-    },
+    }
   }, function (err) {
     // Allow shutdown, database writes are finished.
     modules.blocks.isActive.set(false);
 
     // Nullify large objects.
-    // Prevents memory leak during synchronisation.
+    // Prevents memory leak during synchronization.
     appliedTransactions = unconfirmedTransactionIds = block = null;
 
     // Finish here if snapshotting.
@@ -513,7 +513,7 @@ __private.popLastBlock = function (oldLastBlock, cb) {
   // Execute in sequence via balancesSequence
   library.balancesSequence.add(function (cb) {
     // Load previous block from full_blocks_list table
-    // TODO: Can be inefficient, need performnce tests
+    // TODO: Can be inefficient, need performance tests
     modules.blocks.utils.loadBlocksPart({ id: oldLastBlock.previousBlock }, function (err, previousBlock) {
       if (err || !previousBlock.length) {
         return setImmediate(cb, err || 'previousBlock is null');
@@ -525,7 +525,7 @@ __private.popLastBlock = function (oldLastBlock, cb) {
         async.series([
           function (cb) {
             // Retrieve sender by public key
-            modules.accounts.getAccount({publicKey: transaction.senderPublicKey}, function (err, sender) {
+            modules.accounts.getAccount({ publicKey: transaction.senderPublicKey }, function (err, sender) {
               if (err) {
                 return setImmediate(cb, err);
               }
@@ -644,7 +644,7 @@ Chain.prototype.onBind = function (scope) {
     accounts: scope.accounts,
     blocks: scope.blocks,
     rounds: scope.rounds,
-    transactions: scope.transactions,
+    transactions: scope.transactions
   };
 
   // Set module as loaded

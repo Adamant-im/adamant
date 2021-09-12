@@ -30,8 +30,8 @@ function API (logger, db, block, schema, dbSequence) {
     schema: schema,
     dbSequence: dbSequence,
     logic: {
-      block: block,
-    },
+      block: block
+    }
   };
   self = this;
 
@@ -52,7 +52,7 @@ function API (logger, db, block, schema, dbSequence) {
  * @return {Object}   cb.block Block object
  */
 __private.getById = function (id, cb) {
-  library.db.query(sql.getById, {id: id}).then(function (rows) {
+  library.db.query(sql.getById, { id: id }).then(function (rows) {
     if (!rows.length) {
       return setImmediate(cb, 'Block not found');
     }
@@ -148,10 +148,10 @@ __private.list = function (filter, cb) {
   }
 
   var orderBy = OrderBy(
-    (filter.orderBy || 'height:desc'), {
-      sortFields: sql.sortFields,
-      fieldPrefix: 'b_'
-    }
+      (filter.orderBy || 'height:desc'), {
+        sortFields: sql.sortFields,
+        fieldPrefix: 'b_'
+      }
   );
 
   if (orderBy.error) {
@@ -208,7 +208,7 @@ API.prototype.getBlock = function (req, cb) {
         if (!block || err) {
           return setImmediate(cb, 'Block not found');
         }
-        return setImmediate(cb, null, {block: block});
+        return setImmediate(cb, null, { block: block });
       });
     }, cb);
   });
@@ -229,7 +229,7 @@ API.prototype.getBlocks = function (req, cb) {
         if (err) {
           return setImmediate(cb, err);
         }
-        return setImmediate(cb, null, {blocks: data.blocks, count: data.count});
+        return setImmediate(cb, null, { blocks: data.blocks, count: data.count });
       });
     }, cb);
   });
@@ -240,7 +240,7 @@ API.prototype.getBroadhash = function (req, cb) {
     return setImmediate(cb, 'Blockchain is loading');
   }
 
-  return setImmediate(cb, null, {broadhash: modules.system.getBroadhash()});
+  return setImmediate(cb, null, { broadhash: modules.system.getBroadhash() });
 };
 
 API.prototype.getEpoch = function (req, cb) {
@@ -248,7 +248,7 @@ API.prototype.getEpoch = function (req, cb) {
     return setImmediate(cb, 'Blockchain is loading');
   }
 
-  return setImmediate(cb, null, {epoch: constants.epochTime});
+  return setImmediate(cb, null, { epoch: constants.epochTime });
 };
 
 API.prototype.getHeight = function (req, cb) {
@@ -256,7 +256,7 @@ API.prototype.getHeight = function (req, cb) {
     return setImmediate(cb, 'Blockchain is loading');
   }
 
-  return setImmediate(cb, null, {height: modules.blocks.lastBlock.get().height});
+  return setImmediate(cb, null, { height: modules.blocks.lastBlock.get().height });
 };
 
 API.prototype.getFee = function (req, cb) {
@@ -264,7 +264,7 @@ API.prototype.getFee = function (req, cb) {
     return setImmediate(cb, 'Blockchain is loading');
   }
 
-  return setImmediate(cb, null, {fee: library.logic.block.calculateFee()});
+  return setImmediate(cb, null, { fee: library.logic.block.calculateFee() });
 };
 
 API.prototype.getFees = function (req, cb) {
@@ -272,7 +272,7 @@ API.prototype.getFees = function (req, cb) {
     return setImmediate(cb, 'Blockchain is loading');
   }
 
-  return setImmediate(cb, null, {fees: constants.fees});
+  return setImmediate(cb, null, { fees: constants.fees });
 };
 
 API.prototype.getNethash = function (req, cb) {
@@ -280,7 +280,7 @@ API.prototype.getNethash = function (req, cb) {
     return setImmediate(cb, 'Blockchain is loading');
   }
 
-  return setImmediate(cb, null, {nethash: modules.system.getNethash()});
+  return setImmediate(cb, null, { nethash: modules.system.getNethash() });
 };
 
 API.prototype.getMilestone = function (req, cb) {
@@ -288,7 +288,7 @@ API.prototype.getMilestone = function (req, cb) {
     return setImmediate(cb, 'Blockchain is loading');
   }
 
-  return setImmediate(cb, null, {milestone: __private.blockReward.calcMilestone(modules.blocks.lastBlock.get().height)});
+  return setImmediate(cb, null, { milestone: __private.blockReward.calcMilestone(modules.blocks.lastBlock.get().height) });
 };
 
 API.prototype.getReward = function (req, cb) {
@@ -296,7 +296,7 @@ API.prototype.getReward = function (req, cb) {
     return setImmediate(cb, 'Blockchain is loading');
   }
 
-  return setImmediate(cb, null, {reward: __private.blockReward.calcReward(modules.blocks.lastBlock.get().height)});
+  return setImmediate(cb, null, { reward: __private.blockReward.calcReward(modules.blocks.lastBlock.get().height) });
 };
 
 API.prototype.getSupply = function (req, cb) {
@@ -304,7 +304,7 @@ API.prototype.getSupply = function (req, cb) {
     return setImmediate(cb, 'Blockchain is loading');
   }
 
-  return setImmediate(cb, null, {supply: __private.blockReward.calcSupply(modules.blocks.lastBlock.get().height)});
+  return setImmediate(cb, null, { supply: __private.blockReward.calcSupply(modules.blocks.lastBlock.get().height) });
 };
 
 API.prototype.getStatus = function (req, cb) {
@@ -336,7 +336,7 @@ API.prototype.onBind = function (scope) {
   library.logger.trace('Blocks->API: Shared modules bind.');
   modules = {
     blocks: scope.blocks,
-    system: scope.system,
+    system: scope.system
   };
 
   // Set module as loaded

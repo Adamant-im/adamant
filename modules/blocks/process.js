@@ -36,8 +36,8 @@ function Process (logger, block, peers, transaction, schema, db, dbSequence, seq
     logic: {
       block: block,
       peers: peers,
-      transaction: transaction,
-    },
+      transaction: transaction
+    }
   };
   self = this;
 
@@ -150,7 +150,7 @@ Process.prototype.loadBlocksOffset = function (limit, offset, verify, cb) {
   var newLimit = limit + (offset || 0);
   var params = { limit: newLimit, offset: offset || 0 };
 
-  library.logger.debug('Loading blocks offset', {limit: limit, offset: offset, verify: verify});
+  library.logger.debug('Loading blocks offset', { limit: limit, offset: offset, verify: verify });
   // Execute in sequence via dbSequence
   library.dbSequence.add(function (cb) {
     // Loads full blocks from database
@@ -181,7 +181,7 @@ Process.prototype.loadBlocksOffset = function (limit, offset, verify, cb) {
           modules.blocks.chain.applyGenesisBlock(block, cb);
         } else {
           // Apply block - broadcast: false, saveBlock: false
-          // FIXME: Looks like we are missing some validations here, because applyBlock is different than processBlock used elesewhere
+          // FIXME: Looks like we are missing some validations here, because applyBlock is different than processBlock used elsewhere
           // - that need to be checked and adjusted to be consistent
           modules.blocks.chain.applyBlock(block, false, cb, false);
         }
@@ -245,7 +245,7 @@ Process.prototype.loadBlocksFromPeer = function (peer, cb) {
 
   // Process all received blocks
   function processBlocks (blocks, seriesCb) {
-    // Skip if ther is no blocks
+    // Skip if there are no blocks
     if (blocks.length === 0) {
       return setImmediate(seriesCb);
     }
@@ -274,7 +274,7 @@ Process.prototype.loadBlocksFromPeer = function (peer, cb) {
       } else {
         var id = (block ? block.id : 'null');
 
-        library.logger.debug('Block processing failed', {id: id, err: err.toString(), module: 'blocks', block: block});
+        library.logger.debug('Block processing failed', { id: id, err: err.toString(), module: 'blocks', block: block });
       }
       return seriesCb(err);
     }, true);
@@ -393,7 +393,7 @@ Process.prototype.onReceiveBlock = function (block) {
         library.logger.warn([
           'Discarded block that does not match with current chain:', block.id,
           'height:', block.height,
-          'round:',  modules.rounds.calc(block.height),
+          'round:', modules.rounds.calc(block.height),
           'slot:', slots.getSlotNumber(block.timestamp),
           'generator:', block.generatorPublicKey
         ].join(' '));
@@ -418,7 +418,7 @@ __private.receiveBlock = function (block, cb) {
   library.logger.info([
     'Received new block id:', block.id,
     'height:', block.height,
-    'round:',  modules.rounds.calc(block.height),
+    'round:', modules.rounds.calc(block.height),
     'slot:', slots.getSlotNumber(block.timestamp),
     'reward:', block.reward
   ].join(' '));
@@ -567,7 +567,7 @@ Process.prototype.onBind = function (scope) {
     loader: scope.loader,
     rounds: scope.rounds,
     transactions: scope.transactions,
-    transport: scope.transport,
+    transport: scope.transport
   };
 
   // Set module as loaded
