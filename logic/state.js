@@ -72,8 +72,8 @@ State.prototype.create = function (data, trs) {
  */
 State.prototype.calculateFee = function (trs, sender) {
   var length = Buffer.from(trs.asset.state.value, 'hex').length;
-  var char_length= Math.floor((length * 100 / 150)/255);
-  if (char_length==0) {
+  var char_length = Math.floor((length * 100 / 150) / 255);
+  if (char_length == 0) {
     char_length = 1;
   }
   return char_length * constants.fees.state_store;

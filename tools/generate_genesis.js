@@ -1,10 +1,10 @@
 'use strict';
 
-var ed=require('../helpers/ed.js');
-var accounts=require('../helpers/accounts.js');
-var constants=require('../helpers/constants.js');
-var crypto=require('crypto');
-var fs=require('fs');
+var ed = require('../helpers/ed.js');
+var accounts = require('../helpers/accounts.js');
+var constants = require('../helpers/constants.js');
+var crypto = require('crypto');
+var fs = require('fs');
 var ByteBuffer = require('bytebuffer');
 var bignum = require('../helpers/bignum.js');
 var mnemonic = require('bitcore-mnemonic');
@@ -87,7 +87,7 @@ function block_data (data) {
     var hash = getBlockHash(block);
     block.blockSignature = ed.sign(hash, data.keypair).toString('hex');
     // block = this.objectNormalize(block);
-    block.id=getBlockId(block);
+    block.id = getBlockId(block);
   } catch (e) {
     console.log(e);
   }
@@ -162,8 +162,8 @@ function getBlockHash (block) {
   return crypto.createHash('sha256').update(getBlockBytes(block)).digest();
 }
 function getBytes (transaction) {
-  var skipSignature=false;
-  var skipSecondSignature=true;
+  var skipSignature = false;
+  var skipSecondSignature = true;
   var assetSize = 0,
     assetBytes = null;
 
@@ -264,7 +264,7 @@ function createTransaction (recipientId, amount, secret, type, asset) {
     timestamp: 0,
     asset: asset
   };
-  if (type===0) {
+  if (type === 0) {
     delete transaction.asset;
   }
   if (transaction.amount) {
@@ -272,26 +272,26 @@ function createTransaction (recipientId, amount, secret, type, asset) {
   }
   var keypair = ed.makeKeypair(ed.createPassPhraseHash(secret));
 
-  transaction.senderId=accounts.getAddressByPublicKey(keypair.publicKey.toString('hex'));
-  transaction.senderPublicKey=keypair.publicKey.toString('hex');
+  transaction.senderId = accounts.getAddressByPublicKey(keypair.publicKey.toString('hex'));
+  transaction.senderPublicKey = keypair.publicKey.toString('hex');
   var hash = crypto.createHash('sha256').update(getBytes(transaction)).digest();
   var signature = nacl_instance.crypto_sign_detached(hash, new Buffer(keypair.privateKey, 'hex'));
   transaction.signature = new Buffer(signature).toString('hex');
-  transaction.id=getId(transaction);
+  transaction.id = getId(transaction);
   return transaction;
 }
 
 
-var output={};
+var output = {};
 
-var genesis={};
-var genesisSecret=new mnemonic(mnemonic.Words.ENGLISH);
+var genesis = {};
+var genesisSecret = new mnemonic(mnemonic.Words.ENGLISH);
 
-genesis.secret=genesisSecret.toString();
+genesis.secret = genesisSecret.toString();
 
-var genesisKeypair=ed.makeKeypair(ed.createPassPhraseHash(genesis.secret));
-genesis.publicKey=genesisKeypair.publicKey.toString('hex');
-genesis.address=accounts.getAddressByPublicKey(genesis.publicKey);
+var genesisKeypair = ed.makeKeypair(ed.createPassPhraseHash(genesis.secret));
+genesis.publicKey = genesisKeypair.publicKey.toString('hex');
+genesis.address = accounts.getAddressByPublicKey(genesis.publicKey);
 
 
 // wallets to generate with corresponding amount
@@ -315,79 +315,79 @@ var block = {
   'height': 1
 };
 
-var transfer_addresses=[];
-var total=0;
+var transfer_addresses = [];
+var total = 0;
 
 for (var code in transfer) {
-  var transfer_address={};
-  var transferSecret=new mnemonic(mnemonic.Words.ENGLISH);
-  var transferKeyPair=ed.makeKeypair(ed.createPassPhraseHash((transferSecret.toString())));
-  transfer_address.secret=transferSecret.toString();
-  transfer_address.publicKey=transferKeyPair.publicKey.toString('hex');
-  transfer_address.address=accounts.getAddressByPublicKey(transfer_address.publicKey);
+  var transfer_address = {};
+  var transferSecret = new mnemonic(mnemonic.Words.ENGLISH);
+  var transferKeyPair = ed.makeKeypair(ed.createPassPhraseHash((transferSecret.toString())));
+  transfer_address.secret = transferSecret.toString();
+  transfer_address.publicKey = transferKeyPair.publicKey.toString('hex');
+  transfer_address.address = accounts.getAddressByPublicKey(transfer_address.publicKey);
   transfer_address.code = code;
-  transfer_address.amount=transfer[code];
+  transfer_address.amount = transfer[code];
   total += parseInt(transfer[code]);
-  transfer_addresses[transfer_addresses.length]=transfer_address;
+  transfer_addresses[transfer_addresses.length] = transfer_address;
 }
 
 
 if (total !== block.totalAmount) {
   throw new Error('You must send all money from genesis address');
 }
-var delegates=[];
+var delegates = [];
 // shuffle
-var randoms=[];
-for (var j=0; j<2048; j++) {
-  randoms[randoms.length]=j;
+var randoms = [];
+for (var j = 0; j < 2048; j++) {
+  randoms[randoms.length] = j;
 }
-randoms=shuffle(randoms);
-for (var i=0; i<constants.activeDelegates; i++) {
+randoms = shuffle(randoms);
+for (var i = 0; i < constants.activeDelegates; i++) {
   var delegate = {};
-  var delegateSecret=new mnemonic(mnemonic.Words.ENGLISH);
-  var delegateKeyPair=ed.makeKeypair(ed.createPassPhraseHash((delegateSecret.toString())));
-  delegate.secret=delegateSecret.toString();
-  delegate.publicKey=delegateKeyPair.publicKey.toString('hex');
-  delegate.address=accounts.getAddressByPublicKey(delegate.publicKey);
+  var delegateSecret = new mnemonic(mnemonic.Words.ENGLISH);
+  var delegateKeyPair = ed.makeKeypair(ed.createPassPhraseHash((delegateSecret.toString())));
+  delegate.secret = delegateSecret.toString();
+  delegate.publicKey = delegateKeyPair.publicKey.toString('hex');
+  delegate.address = accounts.getAddressByPublicKey(delegate.publicKey);
 
   delegate.code = mnemonic.Words.ENGLISH[randoms[i]];
-  delegates[delegates.length]=delegate;
+  delegates[delegates.length] = delegate;
 }
-var transactions=[];
+var transactions = [];
 
 for (var j in transfer_addresses) {
-  var transfer=transfer_addresses[j];
-  transactions[transactions.length]=createTransaction(transfer.address, transfer.amount, genesis.secret, 0, {});
+  var transfer = transfer_addresses[j];
+  transactions[transactions.length] = createTransaction(transfer.address, transfer.amount, genesis.secret, 0, {});
 }
 
-var vote_for=[];
+var vote_for = [];
 for (var l in delegates) {
-  var delegate=delegates[l];
-  var transaction=createTransaction(null, 0, delegate.secret, 2, {
+  var delegate = delegates[l];
+  var transaction = createTransaction(null, 0, delegate.secret, 2, {
     'delegate': {
       'username': delegate.code
     }
   });
   vote_for[vote_for.length] = '+' + delegate.publicKey;
-  transactions[transactions.length]=transaction;
+  transactions[transactions.length] = transaction;
 }
 
 for (var m in delegates) {
   var delegate = delegates[m];
-  transactions[transactions.length]=createTransaction(delegate.address, 0, delegate.secret, 3, {
+  transactions[transactions.length] = createTransaction(delegate.address, 0, delegate.secret, 3, {
     'votes': vote_for
   });
 }
 
-block.transactions=transactions;
-block.keypair=genesisKeypair;
-var genesisBlock=block_data(block);
+block.transactions = transactions;
+block.keypair = genesisKeypair;
+var genesisBlock = block_data(block);
 var json = JSON.stringify(genesisBlock, null, 4);
 fs.writeFileSync('genesis.json', json, 'utf8');
 
-output.genesis=genesis;
-output.transfer=transfer_addresses;
-output.delegates=delegates;
+output.genesis = genesis;
+output.transfer = transfer_addresses;
+output.delegates = delegates;
 
 var json2 = JSON.stringify(output, null, 4);
 fs.writeFileSync('passes.json', json2, 'utf8');

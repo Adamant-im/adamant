@@ -194,7 +194,7 @@ node.createDelegateTransaction = function (data) {
       username: data.username,
       publicKey: data.keyPair.publicKey.toString('hex') }
   };
-  transaction.recipientId= null;
+  transaction.recipientId = null;
   transaction.signature = this.transactionSign(transaction, data.keyPair);
   transaction.fee = node.fees.delegateRegistrationFee;
   return transaction;
@@ -205,7 +205,7 @@ node.createSignatureTransaction = function (data) {
   data.transactionType = transactionTypes.SIGNATURE;
   let transaction = this.createBasicTransaction(data);
   transaction.asset = {};
-  transaction.recipientId= null;
+  transaction.recipientId = null;
   transaction.publicKey = data.keyPair.publicKey.toString('hex');
   transaction.keypair = data.keyPair;
   transaction.secondKeypair = data.secondKeypair;
@@ -238,7 +238,7 @@ node.createSendTransaction = function (data) {
   data.transactionType = transactionTypes.SEND;
   let transaction = this.createBasicTransaction(data);
   transaction.asset = {};
-  transaction.recipientId= data.recipientId;
+  transaction.recipientId = data.recipientId;
   transaction.amount = data.amount;
   transaction.signature = this.transactionSign(transaction, data.keyPair);
   transaction.id = this.getId(transaction);
@@ -250,7 +250,7 @@ node.createVoteTransaction = function (data) {
   data.transactionType = transactionTypes.VOTE;
   let transaction = this.createBasicTransaction(data);
   transaction.asset = { 'votes': data.votes };
-  transaction.recipientId= transaction.senderId;
+  transaction.recipientId = transaction.senderId;
   transaction.signature = this.transactionSign(transaction, data.keyPair);
   transaction.id = this.getId(transaction);
   transaction.fee = node.fees.voteFee;
@@ -698,7 +698,7 @@ node.notRandomAccount = function () {
   var account = {
     balance: '1000'
   };
-  account.password ='drive hurt august domain soccer forum dial more borrow neglect child reopen';
+  account.password = 'drive hurt august domain soccer forum dial more borrow neglect child reopen';
   const keypair = node.createKeypairFromPassphrase(account.password);
   account.publicKey = keypair.publicKey;
   account.publicKeyHex = keypair.publicKey.toString('hex');

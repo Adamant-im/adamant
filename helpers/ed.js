@@ -21,7 +21,7 @@ var ed = {};
  */
 
 ed.createPassPhraseHash = function (passPhrase) {
-  var secretMnemonic=new mnemonic(passPhrase, mnemonic.Words.ENGLISH);
+  var secretMnemonic = new mnemonic(passPhrase, mnemonic.Words.ENGLISH);
   return crypto.createHash('sha256').update(secretMnemonic.toSeed().toString('hex'), 'hex').digest();
 };
 

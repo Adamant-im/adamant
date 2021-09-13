@@ -1131,7 +1131,7 @@ describe('GET /api/dapps/search?q=', function () {
     var category = node.randomProperty(node.dappCategories, true);
     var installed = 1;
 
-    var params = 'q=' + q + '&installed='+ installed + '&category=' + node.dappCategories[category];
+    var params = 'q=' + q + '&installed=' + installed + '&category=' + node.dappCategories[category];
 
     getSearch(params, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -1145,7 +1145,7 @@ describe('GET /api/dapps/search?q=', function () {
     var category = node.randomProperty(node.dappCategories);
     var installed = 0;
 
-    var params = 'q=' + q + '&installed='+ installed + '&category=' + category;
+    var params = 'q=' + q + '&installed=' + installed + '&category=' + category;
 
     getSearch(params, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;

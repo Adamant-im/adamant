@@ -80,9 +80,9 @@ module.exports = function (config) {
 
       if (config.echo && config.levels[config.echo] <= config.levels[log.level]) {
         if (log.data) {
-          console.log('['+log.symbol.bgYellow.black+']', log.timestamp.grey, '|', log.message, '-', log.data);
+          console.log('[' + log.symbol.bgYellow.black + ']', log.timestamp.grey, '|', log.message, '-', log.data);
         } else {
-          console.log('['+log.symbol.bgYellow.black+']', log.timestamp.grey, '|', log.message);
+          console.log('[' + log.symbol.bgYellow.black + ']', log.timestamp.grey, '|', log.message);
         }
       }
     }

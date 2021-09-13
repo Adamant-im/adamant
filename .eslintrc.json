@@ -42,7 +42,8 @@
       "anonymous": "always",
       "named": "always",
       "asyncArrow": "ignore"
-    }]
+    }],
+    "space-infix-ops": ["error", { "int32Hint": true }]
   },
   "globals": {
     "PR": true,

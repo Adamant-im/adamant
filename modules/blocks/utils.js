@@ -325,7 +325,7 @@ Utils.prototype.getBlockProgressLogger = function (transactionsCount, logsFreque
      * Logs the progress
      */
     this.log = function () {
-      library.logger.info(msg, ((this.applied / this.target) * 100).toPrecision(4)+ ' %' + ': applied ' + this.applied + ' of ' + this.target + ' transactions' );
+      library.logger.info(msg, ((this.applied / this.target) * 100).toPrecision(4) + ' %' + ': applied ' + this.applied + ' of ' + this.target + ' transactions' );
     };
   }
 

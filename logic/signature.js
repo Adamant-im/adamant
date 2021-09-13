@@ -16,7 +16,7 @@ var modules, library;
  */
 // Constructor
 function Signature (schema, logger) {
-  library ={
+  library = {
     schema: schema,
     logger: logger
   };

@@ -105,7 +105,7 @@ describe('vote', function () {
   }
 
   function checkAccountVotes (senderPublicKey, state, votes, action, done) {
-    votes = action == 'apply' ? votes: diff.reverse(votes);
+    votes = action == 'apply' ? votes : diff.reverse(votes);
     accountsModule.getAccount({ publicKey: senderPublicKey }, function (err, account) {
       var delegates = ((state === 'confirmed') ? account.delegates : account.u_delegates) || [];
       var groupedVotes = _.groupBy(votes, function (v) {
@@ -287,7 +287,7 @@ describe('vote', function () {
     it('should return error when voting for an account twice', function (done) {
       var trs = _.cloneDeep(validTransaction);
       trs.asset.votes = Array.apply(null, Array(2)).map(function (v, i) {
-        return (i % 2 ? '+': '-') + votedDelegates[0];
+        return (i % 2 ? '+' : '-') + votedDelegates[0];
       });
 
       vote.verify(trs, validSender, function (err) {
