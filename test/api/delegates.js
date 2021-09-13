@@ -1061,10 +1061,9 @@ describe('GET /api/delegates/search', function () {
       node.expect(res.body).to.have.property('success').to.be.ok;
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
       node.expect(res.body.delegates).to.have.length(101);
-      node.expect(res.body.delegates[0]).to.have.property('username');
-      node.expect(res.body.delegates[0].username).to.be.at.most(res.body.delegates[1].username);
-      node.expect(res.body.delegates[24]).to.have.property('username');
-      node.expect(res.body.delegates[24].username).to.be.at.most(res.body.delegates[25].username);
+      for (let i = 0; i < res.body.delegates.length - 1; i++) {
+        node.expect(res.body.delegates[i].username <= res.body.delegates[i + 1].username).to.be.true;
+      }
       done();
     });
   });
@@ -1076,10 +1075,10 @@ describe('GET /api/delegates/search', function () {
       node.expect(res.body).to.have.property('success').to.be.ok;
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
       node.expect(res.body.delegates).to.have.length(101);
-      node.expect(res.body.delegates[0]).to.have.property('username');
-      node.expect(res.body.delegates[0].username).to.be.at.most(res.body.delegates[1].username);
-      node.expect(res.body.delegates[24]).to.have.property('username');
-      node.expect(res.body.delegates[24].username).to.be.at.most(res.body.delegates[25].username);
+      for (let i = 0; i < res.body.delegates.length - 1; i++) {
+        node.expect(res.body.delegates[i]).to.have.property('username');
+        node.expect(res.body.delegates[i].username <= res.body.delegates[i + 1].username).to.be.true;
+      }
       done();
     });
   });
@@ -1091,10 +1090,10 @@ describe('GET /api/delegates/search', function () {
       node.expect(res.body).to.have.property('success').to.be.ok;
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
       node.expect(res.body.delegates).to.have.length(101);
-      node.expect(res.body.delegates[0]).to.have.property('username');
-      node.expect(res.body.delegates[0].username).to.be.at.least(res.body.delegates[1].username);
-      node.expect(res.body.delegates[24]).to.have.property('username');
-      node.expect(res.body.delegates[24].username).to.be.at.least(res.body.delegates[25].username);
+      for (let i = 0; i < res.body.delegates.length - 1; i++) {
+        node.expect(res.body.delegates[i]).to.have.property('username');
+        node.expect(res.body.delegates[i].username >= res.body.delegates[i + 1].username).to.be.true;
+      }
       done();
     });
   });
