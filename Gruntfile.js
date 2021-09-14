@@ -77,12 +77,12 @@ module.exports = function (grunt) {
       },
 
       coverage: {
-        command: 'export NODE_ENV=TEST && node_modules/.bin/istanbul cover --dir test/.coverage-unit ./node_modules/.bin/_mocha',
+        command: 'export NODE_ENV=TEST && npx nyc --reporter html --temp-dir test/.nyc_output --report-dir test/.coverage npm run test:all',
         maxBuffer: maxBufferSize
       },
 
       coverageSingle: {
-        command: 'export NODE_ENV=TEST && node_modules/.bin/istanbul cover --dir test/.coverage-unit ./node_modules/.bin/_mocha $TEST',
+        command: 'export NODE_ENV=TEST && npx nyc --reporter html --temp-dir test/.nyc_output --report-dir test/.coverage mocha $TEST',
         maxBuffer: maxBufferSize
       },
 

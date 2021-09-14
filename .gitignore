@@ -14,6 +14,8 @@ release
 ssl/
 stacktrace*
 test/.coverage-unit
+test/.coverage
+test/.nyc_output
 tmp
 sftp-config.json
 *.swp

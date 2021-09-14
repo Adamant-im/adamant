@@ -294,7 +294,7 @@ d.run(function () {
       var app = express();
 
       if (appConfig.coverage) {
-        var im = require('istanbul-middleware');
+        var im = require('nyc-middleware');
         logger.debug('Hook loader for coverage - do not use in production environment!');
         im.hookLoader(__dirname);
         app.use('/coverage', im.createHandler());
