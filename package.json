@@ -65,7 +65,6 @@
   "devDependencies": {
     "chai": "^4.3.4",
     "chai-bignumber": "^3.0.0",
-    "coveralls": "=2.11.16",
     "eslint-config-google": "^0.14.0",
     "grunt": "^1.4.1",
     "grunt-cli": "^1.4.3",
