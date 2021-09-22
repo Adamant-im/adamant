@@ -17,6 +17,20 @@
     "jsdoc": "npx jsdoc -c docs/conf.json --verbose --pedantic",
     "server-docs": "npx jsdoc && http-server docs/jsdoc/"
   },
+  "keywords": [
+    "adm",
+    "adamant",
+    "blockchain",
+    "messenger",
+    "decentralization",
+    "anonymity",
+    "tor",
+    "privacy",
+    "security",
+    "encryption",
+    "crypto",
+    "cryptocurrency"
+  ],  
   "author": "ADAMANT Tech Labs <devs@adamant.im>, Lisk Foundation <admin@lisk.io>, lightcurve GmbH <admin@lightcurve.io>",
   "license": "GPL-3.0",
   "dependencies": {
@@ -82,5 +96,13 @@
   },
   "config": {
     "minVersion": ">=0.4.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Adamant-im/adamant.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Adamant-im/adamant/issues"
+  },
+  "homepage": "https://github.com/Adamant-im/adamant#readme"
 }
