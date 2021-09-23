@@ -110,7 +110,6 @@ npm i -g pm2
 printf "\n\nInstalling ADAMANT node. Cloning project repository from GitHub ('%s' branch)…\n\n" "$branch"
 git clone https://github.com/Adamant-im/adamant --branch $branch
 cd adamant || { printf "\n\nUnable to enter node's directory 'adamant'. Something is wrong, halting.\n\n"; exit 1; }
-#npm i | grep "gyp ERR"
 npm i
 
 #Setup node: set DB password in config.json

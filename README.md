@@ -1,68 +1,64 @@
 # ADAMANT
 
-ADAMANT is **decentralized messaging platform** based on Lisk codebase and written in JavaScript. For more information please refer to our website: <https://adamant.im/>.
+ADAMANT is a **decentralized blockchain messaging platform**. Applications use ADAMANT as an anonymous and encrypted relay and storage to enable messaging features. As examples, see [Messenger app](https://github.com/Adamant-im/adamant-im), [Blockchain 2FA](https://github.com/Adamant-im/adamant-2fa) and [Decentralized cryptocurrency exchanger](https://github.com/Adamant-im/adamant-exchangebot) implementations.
 
-ADAMANT is a secure and anonymous messenger, encrypted with Blockchain. ADAMANT [solves security flaws](https://medium.com/adamant-im/adamant-security-features-e7cc836ff52c) typical for P2P and centralized messagers.
+For more information refer to ADAMANT website: <https://adamant.im>.
 
-Highlights:
+![ADAMANT nodes](./docs/adm-nodes.jpeg)
 
-- The only one which is Blockchain-powered
-- Anonymous. No emails, no phone numbers
-- No access to user device’s data (like address book or location)
-- IP is hidden for partners
-- Web app, Tor Web app, iOS, Android, Windows, GUN/Linux and Mac OS apps available. Try it now: <https://msg.adamant.im/>
-- Messages are End-to-end encypted with curve25519xsalsa20poly1305 (NaCl box) and signed with Ed25519 EdDSA
-- Trusted. Open-source project.
-- Brand new [Fair dPoS consensus](https://medium.com/adamant-im/fair-delegate-system-in-dpos-568e5c3c86c8)
-- Integrated crypto Wallets, In-Chat transfers and Exchange
-- Secure alternative to 2FA via SMS
+Additional information:
 
-**Use this repository to run your own ADAMANT node and support true messaging decentralization. You can also promote your node to a delegate to forge blocks and receive ADM block rewards**. How to run ADAMANT node: [Instructions for users](https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc).
+- [How decentralized blockchain messenger works](https://medium.com/adamant-im/how-decentralized-blockchain-messenger-works-b9932834a639)
+- [Encryption overview in ADAMANT Messenger](https://medium.com/adamant-im/encryption-overview-in-adamant-messenger-878ecec1ff78)
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
 
-# API Documentation
+## API Documentation
 
-Comprehensive [API specification](https://github.com/Adamant-im/adamant/wiki) is avalable.
+Comprehensive [API specification](https://github.com/Adamant-im/adamant/wiki) is available.
 
-The manual describes the procedure for working with accounts and/or addresses, transactions, chats, and a KVS database. Furthermore, you will find all the necessary information on transactions and messages types. Additionally, the manual suggests valuable information on creating new accounts and encrypting and decrypting messages. 
+The manual describes API endpoints to manage accounts, transactions, chats, and a key-value storage (KVS). Additionally, the manual suggests valuable information on creating new accounts and encrypting and decrypting messages.
 
-# Set up
+## Set up
 
-**NOTE:** The following information is applicable to **Ubuntu 16 or 18 versions**.
+- [How to run ADAMANT node (instructions for users)](https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc)
+- [Installation script](./tools/install_node.sh)
 
-For making process simplier, you can use tools/install_ubuntu_dependencies.sh script.
+## Requirements
 
-## Prerequisites — In order
+- Ubuntu 18/20
+- 2 GB RAM
+- 50 GB disk space as on August 2021
+
+### Prerequisites
 
 - Tool chain components — Used for compiling dependencies
 
   `sudo apt-get install -y python build-essential curl automake autoconf libtool`
 
-- Git (<https://github.com/git/git>) — Used for cloning and updating ADAMANT
+- Git — Used for cloning and updating ADAMANT
 
   `sudo apt-get install -y git`
 
-- Node.js (<https://nodejs.org/>) — Node.js serves as the underlying engine for code execution
+- Node.js — Node.js serves as the underlying engine for code execution
 
   System wide via package manager:
 
   ```
-  curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
+  curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -
   sudo apt-get install -y nodejs
   ```
 
-  Locally using [nvm](https://github.com/creationix/nvm):
+  Locally using nvm:
 
   ```
-  curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
-  nvm install v10.14.2
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
+  nvm i --lts=fermium
   ```
 
-- Install PostgreSQL (version 9.6.2):
+- Install PostgreSQL:
 
   ```
-  sudo apt-get purge -y postgres*
   sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
   wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | sudo apt-key add -
   sudo apt-get update
@@ -81,14 +77,11 @@ For making process simplier, you can use tools/install_ubuntu_dependencies.sh sc
   sudo -u postgres psql -d adamant_main -c "alter user "$USER" with password 'password';"
   ```
 
-- PM2 (<https://github.com/Unitech/pm2>) — PM2 manages the node process for ADAMANT (Optional)
+- pm2 — Manages the node process for ADAMANT
 
   `sudo npm install -g pm2`
 
-
-
-
-## Installation Steps
+### Installation Steps
 
 Clone the ADAMANT repository using Git and initialize the modules.
 
@@ -98,27 +91,21 @@ cd adamant
 npm install
 ```
 
-## Alternative Ubuntu install process
-
-Alternative way to install ADAMANT with prerequisites. You need only Git installed locally. Or instead of cloning you can download and unpack zip from GitHub.
+Then set db.password in config:
 
 ```
-# Create user 
-adduser adamant
-sudo usermod -aG sudo adamant
-su - adamant
+nano config.json
+```
 
-git clone https://github.com/Adamant-im/adamant
-cd adamant
-sh tools/install_ubuntu_dependencies.sh
+### Bootstrap with a blockchain image
 
-sudo -u postgres createuser --createdb $USER
-createdb adamant_test
-createdb adamant_main
-sudo -u postgres psql -d adamant_test -c "alter user "$USER" with password 'password';"
-sudo -u postgres psql -d adamant_main -c "alter user "$USER" with password 'password';"
+Blockchain image saves time on node sync but you must completely trust the image. If you skip this step, your node will check every single transaction, which takes time (up for several days).
 
-npm install
+```
+wget https://explorer.adamant.im/db_backup.sql.gz
+gunzip db_backup.sql.gz
+psql adamant_main < db_backup.sql
+rm db_backup.sql
 ```
 
 ## Managing ADAMANT
@@ -139,57 +126,34 @@ To stop ADAMANT after it has been started with `pm2`, issue the following comman
 
 `pm2 stop adamant`
 
-**NOTE:** The **port**, **address** and **config-path** can be overridden by providing the relevant command switch:
+To add ADAMANT node to crontab for autostart after system reboot (fix installation path):
 
-```
-pm2 start --name adamant app.js -- -p [port] -a [address] -c [config-path]
-```
+`crontab -l | { cat; echo "@reboot cd /home/adamant/adamant && pm2 start --name adamant app.js"; } | crontab -`
 
 ## Tests
 
-Before running any tests, please ensure ADAMANT is configured to run on the same testnet that is used by the test-suite.
-
-Replace **config.json** and **genesisBlock.json** with the corresponding files under the **test** directory:
+Before running any tests, run ADAMANT node with a testnet configuration:
 
 ```
-cp test/config.json test/genesisBlock.json .
+npm run start:testnet
 ```
 
-**NOTE:** If the node was started with a different genesis block previous, trauncate the database before running tests.
+Then run the test suite:
 
 ```
-dropdb adamant_test
-createdb adamant_test
-```
-
-**NOTE:** The master passphrase for this genesis block is as follows:
-
-```
-wagon stock borrow episode laundry kitten salute link globe zero feed marble
-```
-
-Launch ADAMANT (runs on port 36667):
-
-```
-node app.js
-```
-
-Run the test suite:
-
-```
-npm test
+npm run test:full
 ```
 
 Run individual tests:
 
 ```
-npm test -- test/lib/accounts.js
-npm test -- test/lib/transactions.js
+npm run test:single test/api/accounts.js
 ```
 
 ## Authors
 
-- ADAMANT Tech Labs: Dmitriy Soloduhin, Aleksei Lebedev, Sergey Ushakov <devs@adamant.im>
+- ADAMANT Foundation: Aleksei Lebedev <devs@adamant.im>
+- ADAMANT Tech Labs: Aleksei Lebedev, Dmitriy Soloduhin, Sergey Ushakov <devs@adamant.im>
 - Boris Povod <boris@crypti.me>
 - Pavel Nekrasov <landgraf.paul@gmail.com>
 - Sebastian Stupurac <stupurac.sebastian@gmail.com>
@@ -200,7 +164,8 @@ npm test -- test/lib/transactions.js
 
 ## License
 
-Copyright © 2017-2019 ADAMANT TECH LABS LP
+Copyright © 2020-2021 ADAMANT Foundation
+Copyright © 2017-2020 ADAMANT TECH LABS LP
 Copyright © 2016-2017 Lisk Foundation
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
