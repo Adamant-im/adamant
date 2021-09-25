@@ -21,14 +21,30 @@ The manual describes API endpoints to manage accounts, transactions, chats, and 
 
 ## Set up
 
-- [How to run ADAMANT node (instructions for users)](https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc)
-- [Installation script](./tools/install_node.sh)
+[How to run ADAMANT node (instructions for users)](https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc). You can skip them if you are experienced Linux user.
 
-## Requirements
+### Requirements
 
-- Ubuntu 18/20
+- Ubuntu 18/20 (others are not tested)
 - 2 GB RAM
 - 50 GB disk space as on August 2021
+
+### Installation script
+
+For new droplets, use the [Installation script](./tools/install_node.sh), included in this repository, or run it from the ADAMANT website:
+
+`sudo bash -c "$(wget -O - https://adamant.im/install_node.sh)"`
+
+The script updates Ubuntu packages, creates user named adamant, installs PostgreSQL, Node.js and other necessary packages, sets up ADAMANT node, and optionally downloads up-to-date ADAMANT blockchain image.
+
+Script parameters:
+
+- `-b`: choose GitHub branch for node installation. Example: `-b dev`. Default is `master`.
+- `-n`: choose `mainnet` or `testnet` network. Example: `-n testnet`. Default is `mainnet`.
+
+F. e.,
+
+`sudo bash -c "$(wget -O - https://adamant.im/install_node.sh)" -O -b dev -n testnet`
 
 ### Prerequisites
 
