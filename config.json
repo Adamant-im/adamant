@@ -1,9 +1,9 @@
 {
     "port": 36666,
     "address": "0.0.0.0",
-    "fileLogLevel": "info",
+    "fileLogLevel": "warn",
     "logFileName": "logs/adamant.log",
-    "consoleLogLevel": "none",
+    "consoleLogLevel": "info",
     "trustProxy": false,
     "topAccounts": false,
     "cacheEnabled": false,
@@ -22,7 +22,7 @@
     },
     "redis": {
         "host": "127.0.0.1",
-        "port": 6380,
+        "port": 6379,
         "db": 0,
         "password": null
     },
@@ -73,11 +73,11 @@
         }
     },
     "broadcasts": {
-        "broadcastInterval": 5000,
+        "broadcastInterval": 1500,
         "broadcastLimit": 20,
         "parallelLimit": 20,
         "releaseLimit": 25,
-        "relayLimit": 2
+        "relayLimit": 3
     },
     "transactions": {
         "maxTxsPerQueue": 1000

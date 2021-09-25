@@ -21,12 +21,12 @@ var modules;
  */
 // Constructor
 function Peers (logger, cb) {
-	library = {
-		logger: logger
-	};
-	self = this;
-	__private.peers = {};
-	return setImmediate(cb, null, this);
+  library = {
+    logger: logger
+  };
+  self = this;
+  __private.peers = {};
+  return setImmediate(cb, null, this);
 }
 
 /**
@@ -35,11 +35,11 @@ function Peers (logger, cb) {
  * @return {peer} peer instance
  */
 Peers.prototype.create = function (peer) {
-	if (!(peer instanceof Peer)) {
-		return new Peer(peer);
-	} else {
-		return peer;
-	}
+  if (!(peer instanceof Peer)) {
+    return new Peer(peer);
+  } else {
+    return peer;
+  }
 };
 
 /**
@@ -48,8 +48,8 @@ Peers.prototype.create = function (peer) {
  * @return {boolean} True if peer is in peers list
  */
 Peers.prototype.exists = function (peer) {
-	peer = self.create(peer);
-	return !!__private.peers[peer.string];
+  peer = self.create(peer);
+  return !!__private.peers[peer.string];
 };
 
 /**
@@ -58,12 +58,12 @@ Peers.prototype.exists = function (peer) {
  * @return {peer} peer new or peer from peers
  */
 Peers.prototype.get = function (peer) {
-	if (typeof peer === 'string') {
-		return __private.peers[peer];
-	} else {
-		peer = self.create(peer);
-		return __private.peers[peer.string];
-	}
+  if (typeof peer === 'string') {
+    return __private.peers[peer];
+  } else {
+    peer = self.create(peer);
+    return __private.peers[peer.string];
+  }
 };
 
 /**
@@ -73,78 +73,78 @@ Peers.prototype.get = function (peer) {
  * @return {boolean} True if operation is success.
  */
 Peers.prototype.upsert = function (peer, insertOnly) {
-	// Insert new peer
-	var insert = function (peer) {
-		if (!_.isEmpty(modules.peers.acceptable([peer]))) {
-			peer.updated = Date.now();
-			__private.peers[peer.string] = peer;
-			library.logger.debug('Inserted new peer', peer.string);
-		} else {
-			library.logger.debug('Rejecting unacceptable peer', peer.string);
-		}
-	};
+  // Insert new peer
+  var insert = function (peer) {
+    if (!_.isEmpty(modules.peers.acceptable([peer]))) {
+      peer.updated = Date.now();
+      __private.peers[peer.string] = peer;
+      library.logger.debug('Inserted new peer', peer.string);
+    } else {
+      library.logger.debug('Rejecting unacceptable peer', peer.string);
+    }
+  };
 
-	// Update existing peer
-	var update = function (peer) {
-		peer.updated = Date.now();
+  // Update existing peer
+  var update = function (peer) {
+    peer.updated = Date.now();
 
-		var diff = {};
-		_.each(peer, function (value, key) {
-			if (key !== 'updated' && __private.peers[peer.string][key] !== value) {
-				diff[key] = value;
-			}
-		});
+    var diff = {};
+    _.each(peer, function (value, key) {
+      if (key !== 'updated' && __private.peers[peer.string][key] !== value) {
+        diff[key] = value;
+      }
+    });
 
-		__private.peers[peer.string].update(peer);
+    __private.peers[peer.string].update(peer);
 
-		if (Object.keys(diff).length) {
-			library.logger.debug('Updated peer ' + peer.string, diff);
-		} else {
-			library.logger.trace('Peer not changed', peer.string);
-		}
-	};
+    if (Object.keys(diff).length) {
+      library.logger.debug('Updated peer ' + peer.string, diff);
+    } else {
+      library.logger.trace('Peer not changed', peer.string);
+    }
+  };
 
-	peer = self.create(peer);
-	
-	if (!peer.string) {
-		library.logger.warn('Upsert invalid peer rejected', {peer: peer});
-		return false;
-	}
+  peer = self.create(peer);
 
-	// Performing insert or update
-	if (self.exists(peer)) {
-		// Skip update if insert-only is forced
-		if (!insertOnly) {
-			update(peer);
-		} else {
-			return false;
-		}
-	} else {
-		insert(peer);
-	}
+  if (!peer.string) {
+    library.logger.warn('Upsert invalid peer rejected', { peer: peer });
+    return false;
+  }
 
-	// Stats for tracking changes
-	var cnt_total = 0;
-	var cnt_active = 0;
-	var cnt_empty_height = 0;
-	var cnt_empty_broadhash = 0;
+  // Performing insert or update
+  if (self.exists(peer)) {
+    // Skip update if insert-only is forced
+    if (!insertOnly) {
+      update(peer);
+    } else {
+      return false;
+    }
+  } else {
+    insert(peer);
+  }
 
-	_.each(__private.peers, function (peer, index) {
-		++cnt_total;
-		if (peer.state === 2) {
-			++cnt_active;
-		}
-		if (!peer.height) {
-			++cnt_empty_height;
-		}
-		if (!peer.broadhash) {
-			++cnt_empty_broadhash;
-		}
-	});
+  // Stats for tracking changes
+  var cnt_total = 0;
+  var cnt_active = 0;
+  var cnt_empty_height = 0;
+  var cnt_empty_broadhash = 0;
 
-	library.logger.trace('Peer stats', {total: cnt_total, alive: cnt_active, empty_height: cnt_empty_height, empty_broadhash: cnt_empty_broadhash});
+  _.each(__private.peers, function (peer, index) {
+    ++cnt_total;
+    if (peer.state === 2) {
+      ++cnt_active;
+    }
+    if (!peer.height) {
+      ++cnt_empty_height;
+    }
+    if (!peer.broadhash) {
+      ++cnt_empty_broadhash;
+    }
+  });
 
-	return true;
+  library.logger.trace('Peer stats', { total: cnt_total, alive: cnt_active, empty_height: cnt_empty_height, empty_broadhash: cnt_empty_broadhash });
+
+  return true;
 };
 
 /**
@@ -153,18 +153,18 @@ Peers.prototype.upsert = function (peer, insertOnly) {
  * @return {boolean} True if peer exists
  */
 Peers.prototype.remove = function (peer) {
-	peer = self.create(peer);
-	// Remove peer if exists
-	if (self.exists(peer)) {
-		library.logger.info('Removed peer', peer.string);
-		library.logger.debug('Removed peer', {peer: __private.peers[peer.string]});
-		__private.peers[peer.string] = null; // Possible memory leak prevention
-		delete __private.peers[peer.string];
-		return true;
-	} else {
-		library.logger.debug('Failed to remove peer', {err: 'AREMOVED', peer: peer});
-		return false;
-	}
+  peer = self.create(peer);
+  // Remove peer if exists
+  if (self.exists(peer)) {
+    library.logger.info('Removed peer', peer.string);
+    library.logger.debug('Removed peer', { peer: __private.peers[peer.string] });
+    __private.peers[peer.string] = null; // Possible memory leak prevention
+    delete __private.peers[peer.string];
+    return true;
+  } else {
+    library.logger.debug('Failed to remove peer', { err: 'AREMOVED', peer: peer });
+    return false;
+  }
 };
 
 /**
@@ -173,11 +173,11 @@ Peers.prototype.remove = function (peer) {
  * @return {peer[]} list of peers
  */
 Peers.prototype.list = function (normalize) {
-	if (normalize) {
-		return Object.keys(__private.peers).map(function (key) { return __private.peers[key].object(); });
-	} else {
-		return Object.keys(__private.peers).map(function (key) { return __private.peers[key]; });
-	}
+  if (normalize) {
+    return Object.keys(__private.peers).map(function (key) { return __private.peers[key].object(); });
+  } else {
+    return Object.keys(__private.peers).map(function (key) { return __private.peers[key]; });
+  }
 };
 
 // Public methods
@@ -186,9 +186,9 @@ Peers.prototype.list = function (normalize) {
  * @param {Object} __modules - Peers module.
  */
 Peers.prototype.bindModules = function (__modules) {
-	modules = {
-		peers: __modules.peers
-	};
+  modules = {
+    peers: __modules.peers
+  };
 };
 
 // Export

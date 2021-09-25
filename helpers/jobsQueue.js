@@ -2,23 +2,23 @@
 
 var jobsQueue = {
 
-	jobs: {},
+  jobs: {},
 
-	register: function (name, job, time) {
-		if (this.jobs[name]) {
-			// return this.jobs[name];
-			throw new Error('Synchronous job ' + name  + ' already registered');
-		}
+  register: function (name, job, time) {
+    if (this.jobs[name]) {
+      // return this.jobs[name];
+      throw new Error('Synchronous job ' + name + ' already registered');
+    }
 
-		var nextJob = function () {
-			return job(function () {
-				jobsQueue.jobs[name] = setTimeout(nextJob, time);
-			});
-		};
+    var nextJob = function () {
+      return job(function () {
+        jobsQueue.jobs[name] = setTimeout(nextJob, time);
+      });
+    };
 
-		nextJob();
-		return this.jobs[name];
-	}
+    nextJob();
+    return this.jobs[name];
+  }
 
 };
 

@@ -40,34 +40,34 @@ __private.assetTypes = {};
  */
 // Constructor
 function Chats (cb, scope) {
-    library = {
-        logger: scope.logger,
-        db: scope.db,
-        public: scope.public,
-        network: scope.network,
-        schema: scope.schema,
-        ed: scope.ed,
-        balancesSequence: scope.balancesSequence,
-        logic: {
-            transaction: scope.logic.transaction,
-            chat: scope.logic.chat
-        }
-    };
-    self = this;
+  library = {
+    logger: scope.logger,
+    db: scope.db,
+    public: scope.public,
+    network: scope.network,
+    schema: scope.schema,
+    ed: scope.ed,
+    balancesSequence: scope.balancesSequence,
+    logic: {
+      transaction: scope.logic.transaction,
+      chat: scope.logic.chat
+    }
+  };
+  self = this;
 
-    __private.assetTypes[transactionTypes.CHAT_MESSAGE] = library.logic.transaction.attachAssetType(
-        transactionTypes.CHAT_MESSAGE,
-        new Chat(
-            scope.db,
-            scope.logger,
-            scope.schema,
-            scope.network
-        )
-    );
-    __private.assetTypes[transactionTypes.SEND] = library.logic.transaction.attachAssetType(
-        transactionTypes.SEND, new Transfer()
-    );
-    setImmediate(cb, null, self);
+  __private.assetTypes[transactionTypes.CHAT_MESSAGE] = library.logic.transaction.attachAssetType(
+      transactionTypes.CHAT_MESSAGE,
+      new Chat(
+          scope.db,
+          scope.logger,
+          scope.schema,
+          scope.network
+      )
+  );
+  __private.assetTypes[transactionTypes.SEND] = library.logic.transaction.attachAssetType(
+      transactionTypes.SEND, new Transfer()
+  );
+  setImmediate(cb, null, self);
 }
 
 // Private methods
@@ -80,16 +80,16 @@ function Chats (cb, scope) {
  * @return {setImmediateCallback} error description | row data
  */
 __private.get = function (id, cb) {
-    library.db.query(sql.get, {id: id}).then(function (rows) {
-        if (rows.length === 0) {
-            return setImmediate(cb, 'Application not found');
-        } else {
-            return setImmediate(cb, null, rows[0]);
-        }
-    }).catch(function (err) {
-        library.logger.error(err.stack);
-        return setImmediate(cb, 'CHAT#get error');
-    });
+  library.db.query(sql.get, { id: id }).then(function (rows) {
+    if (rows.length === 0) {
+      return setImmediate(cb, 'Application not found');
+    } else {
+      return setImmediate(cb, null, rows[0]);
+    }
+  }).catch(function (err) {
+    library.logger.error(err.stack);
+    return setImmediate(cb, 'CHAT#get error');
+  });
 };
 
 /**
@@ -101,12 +101,12 @@ __private.get = function (id, cb) {
  * @return {setImmediateCallback} error description | rows data
  */
 __private.getByIds = function (ids, cb) {
-    library.db.query(sql.getByIds, [ids]).then(function (rows) {
-        return setImmediate(cb, null, rows);
-    }).catch(function (err) {
-        library.logger.error(err.stack);
-        return setImmediate(cb, 'CHAT#getByIds error');
-    });
+  library.db.query(sql.getByIds, [ids]).then(function (rows) {
+    return setImmediate(cb, null, rows);
+  }).catch(function (err) {
+    library.logger.error(err.stack);
+    return setImmediate(cb, 'CHAT#getByIds error');
+  });
 };
 
 /**
@@ -119,102 +119,101 @@ __private.getByIds = function (ids, cb) {
  * @return {setImmediateCallback} error description | rows data
  */
 __private.list = function (filter, cb) {
-    var params = {}, where = [];
+  var params = {}, where = [];
 
-    if (filter.type >= 0) {
-        where.push('"c_type" = ${type}');
-        params.type = filter.type;
-    }
-    else {
-        // message type=3 is reserved for system messages, and shouldn't be retrieved without a filter
-        where.push('NOT ("c_type" = 3)');
-    }
-    where.push('"t_type" = '+ transactionTypes.CHAT_MESSAGE);
+  if (filter.type >= 0) {
+    where.push('"c_type" = ${type}');
+    params.type = filter.type;
+  } else {
+    // message type=3 is reserved for system messages, and shouldn't be retrieved without a filter
+    where.push('NOT ("c_type" = 3)');
+  }
+  where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
 
-    if (filter.senderId) {
-        where.push('"t_senderId" = ${name}');
-        params.name = filter.senderId;
-    }
-    if (filter.recipientId) {
-        where.push('"t_recipientId" = ${name}');
-        params.name = filter.recipientId;
-    }
-    if (filter.isIn) {
-        where.push('("t_recipientId" = ${name} OR "t_senderId" = ${name})');
-        params.name = filter.isIn;
-    }
-    if (filter.fromHeight) {
-        where.push('"b_height" > ${height}');
-        params.height = filter.fromHeight;
-    }
-    if (!filter.limit) {
-        params.limit = 100;
-    } else {
-        params.limit = Math.abs(filter.limit);
-    }
+  if (filter.senderId) {
+    where.push('"t_senderId" = ${name}');
+    params.name = filter.senderId;
+  }
+  if (filter.recipientId) {
+    where.push('"t_recipientId" = ${name}');
+    params.name = filter.recipientId;
+  }
+  if (filter.isIn) {
+    where.push('("t_recipientId" = ${name} OR "t_senderId" = ${name})');
+    params.name = filter.isIn;
+  }
+  if (filter.fromHeight) {
+    where.push('"b_height" > ${height}');
+    params.height = filter.fromHeight;
+  }
+  if (!filter.limit) {
+    params.limit = 100;
+  } else {
+    params.limit = Math.abs(filter.limit);
+  }
 
-    if (!filter.offset) {
-        params.offset = 0;
-    } else {
-        params.offset = Math.abs(filter.offset);
-    }
+  if (!filter.offset) {
+    params.offset = 0;
+  } else {
+    params.offset = Math.abs(filter.offset);
+  }
 
-    if (params.limit > 100) {
-        return setImmediate(cb, 'Invalid limit. Maximum is 100');
-    }
+  if (params.limit > 100) {
+    return setImmediate(cb, 'Invalid limit. Maximum is 100');
+  }
 
-    var orderBy = OrderBy(
-        filter.orderBy, {
-            sortFields: sql.sortFields
-        }
-    );
+  var orderBy = OrderBy(
+      filter.orderBy, {
+        sortFields: sql.sortFields
+      }
+  );
 
-    if (orderBy.error) {
-        return setImmediate(cb, orderBy.error);
-    }
-    library.db.query(sql.countList({
-        where: where
+  if (orderBy.error) {
+    return setImmediate(cb, orderBy.error);
+  }
+  library.db.query(sql.countList({
+    where: where
+  }), params).then(function (rows) {
+    var count = rows.length ? rows[0].count : 0;
+    library.db.query(sql.list({
+      where: where,
+      sortField: orderBy.sortField,
+      sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {
-        var count = rows.length ? rows[0].count : 0;
-        library.db.query(sql.list({
-            where: where,
-            sortField: orderBy.sortField,
-            sortMethod: orderBy.sortMethod
-        }), params).then(function (rows) {
-            var transactions = [];
+      var transactions = [];
 
-            for (var i = 0; i < rows.length; i++) {
-                transactions.push(library.logic.transaction.dbRead(rows[i]));
-            }
+      for (var i = 0; i < rows.length; i++) {
+        transactions.push(library.logic.transaction.dbRead(rows[i]));
+      }
 
-            var data = {
-                transactions: transactions,
-                count: count
-            };
+      var data = {
+        transactions: transactions,
+        count: count
+      };
 
-            return setImmediate(cb, null, data);
-        }).catch(function (err) {
-            library.logger.error(err.stack);
-            return setImmediate(cb, err);
-        });
+      return setImmediate(cb, null, data);
     }).catch(function (err) {
-        library.logger.error(err.stack);
-        return setImmediate(cb, err);
+      library.logger.error(err.stack);
+      return setImmediate(cb, err);
     });
+  }).catch(function (err) {
+    library.logger.error(err.stack);
+    return setImmediate(cb, err);
+  });
 };
 
 
 Chats.prototype.onBind = function (scope) {
-    modules = {
-        transactions: scope.transactions,
-        accounts: scope.accounts,
-        peers: scope.peers,
-        sql: scope.sql,
-    };
-    __private.assetTypes[transactionTypes.CHAT_MESSAGE].bind(
-        scope.accounts,
-        scope.rounds
-    );
+  modules = {
+    transactions: scope.transactions,
+    accounts: scope.accounts,
+    peers: scope.peers,
+    sql: scope.sql
+  };
+  __private.assetTypes[transactionTypes.CHAT_MESSAGE].bind(
+      scope.accounts,
+      scope.rounds
+  );
 };
 
 /**
@@ -222,7 +221,7 @@ Chats.prototype.onBind = function (scope) {
  * @return {boolean} True if `modules` is loaded.
  */
 Chats.prototype.isLoaded = function () {
-    return !!modules;
+  return !!modules;
 };
 
 /**
@@ -233,628 +232,625 @@ Chats.prototype.isLoaded = function () {
  * @see {@link http://apidocjs.com/}
  */
 Chats.prototype.internal = {
-    getTransactions: function (req, cb) {
-        async.waterfall([
-            function (waterCb) {
-                var params = {};
-                var pattern = /(and|or){1}:/i;
+  getTransactions: function (req, cb) {
+    async.waterfall([
+      function (waterCb) {
+        var params = {};
+        var pattern = /(and|or){1}:/i;
 
-                // Filter out 'and:'/'or:' from params to perform schema validation
-                _.each(req.body, function (value, key) {
-                    var param = String(key).replace(pattern, '');
-                    // Dealing with array-like parameters (csv comma separated)
-                    if (_.includes(['senderIds', 'recipientIds', 'senderPublicKeys', 'recipientPublicKeys'], param)) {
-                        value = String(value).split(',');
-                        req.body[key] = value;
-                    }
-                    params[param] = value;
-                });
-
-                library.schema.validate(params, schema.getTransactions, function (err) {
-                    if (err) {
-                        return setImmediate(waterCb, err[0].message);
-                    } else {
-                        return setImmediate(waterCb, null);
-                    }
-                });
-            },
-            function (waterCb) {
-                __private.list(req.body, function (err, data) {
-                    if (err) {
-                        return setImmediate(waterCb, 'Failed to get transactions: ' + err);
-                    } else {
-                        return setImmediate(waterCb, null, {transactions: data.transactions, count: data.count});
-                    }
-                });
-            }
-        ], function (err, res) {
-            return setImmediate(cb, err, res);
+        // Filter out 'and:'/'or:' from params to perform schema validation
+        _.each(req.body, function (value, key) {
+          var param = String(key).replace(pattern, '');
+          // Dealing with array-like parameters (csv comma separated)
+          if (_.includes(['senderIds', 'recipientIds', 'senderPublicKeys', 'recipientPublicKeys'], param)) {
+            value = String(value).split(',');
+            req.body[key] = value;
+          }
+          params[param] = value;
         });
-    },
-    put: function (chat, cb) {
-        var hash = library.ed.createPassPhraseHash(chat.secret);
-        var keypair = library.ed.makeKeypair(hash);
 
-        if (chat.publicKey) {
-            if (keypair.publicKey.toString('hex') !== chat.publicKey) {
-                return setImmediate(cb, 'Invalid passphrase');
-            }
+        library.schema.validate(params, schema.getTransactions, function (err) {
+          if (err) {
+            return setImmediate(waterCb, err[0].message);
+          } else {
+            return setImmediate(waterCb, null);
+          }
+        });
+      },
+      function (waterCb) {
+        __private.list(req.body, function (err, data) {
+          if (err) {
+            return setImmediate(waterCb, 'Failed to get transactions: ' + err);
+          } else {
+            return setImmediate(waterCb, null, { transactions: data.transactions, count: data.count });
+          }
+        });
+      }
+    ], function (err, res) {
+      return setImmediate(cb, err, res);
+    });
+  },
+  put: function (chat, cb) {
+    var hash = library.ed.createPassPhraseHash(chat.secret);
+    var keypair = library.ed.makeKeypair(hash);
+
+    if (chat.publicKey) {
+      if (keypair.publicKey.toString('hex') !== chat.publicKey) {
+        return setImmediate(cb, 'Invalid passphrase');
+      }
+    }
+
+    library.balancesSequence.add(function (cb) {
+      modules.accounts.setAccountAndGet({ publicKey: keypair.publicKey.toString('hex') }, function (err, account) {
+        if (err) {
+          return setImmediate(cb, err);
         }
 
-        library.balancesSequence.add(function (cb) {
-            modules.accounts.setAccountAndGet({publicKey: keypair.publicKey.toString('hex')}, function (err, account) {
+        if (!account || !account.publicKey) {
+          return setImmediate(cb, 'Account not found');
+        }
+
+        if (account.secondSignature && !chat.secondSecret) {
+          return setImmediate(cb, 'Invalid second passphrase');
+        }
+
+        var secondKeypair = null;
+
+        if (account.secondSignature) {
+          var secondHash = library.ed.createPassPhraseHash(chat.secondSecret);
+          secondKeypair = library.ed.makeKeypair(secondHash);
+        }
+
+        var transaction;
+
+        try {
+          transaction = library.logic.transaction.create({
+            type: transactionTypes.CHAT_MESSAGE,
+            sender: account,
+            keypair: keypair,
+            secondKeypair: secondKeypair
+            // category: dapp.category,
+            // name: dapp.name,
+            // description: dapp.description,
+            // tags: dapp.tags,
+            // dapp_type: dapp.type,
+            // link: dapp.link,
+            // icon: dapp.icon
+          });
+        } catch (e) {
+          return setImmediate(cb, e.toString());
+        }
+
+        modules.transactions.receiveTransactions([transaction], true, cb);
+      });
+    }, function (err, transaction) {
+      if (err) {
+        return setImmediate(cb, null, { success: false, error: err });
+      } else {
+        return setImmediate(cb, null, { success: true, transaction: transaction[0] });
+      }
+    });
+  },
+  normalize: function (req, cb) {
+    library.schema.validate(req.body, schema.normalize, function (err) {
+      if (err) {
+        return setImmediate(cb, err[0].message);
+      }
+
+      var query = { address: req.body.recipientId };
+
+      modules.accounts.getAccount(query, function (err, recipient) {
+        if (err) {
+          return setImmediate(cb, err);
+        }
+        var keypair = { publicKey: '' };
+        var recipientId = recipient ? recipient.address : req.body.recipientId;
+
+        if (!recipientId) {
+          return setImmediate(cb, 'Invalid recipient');
+        }
+
+        if (req.body.multisigAccountPublicKey && req.body.multisigAccountPublicKey !== keypair.publicKey.toString('hex')) {
+          modules.accounts.getAccount({ publicKey: req.body.multisigAccountPublicKey }, function (err, account) {
+            if (err) {
+              return setImmediate(cb, err);
+            }
+
+            if (!account || !account.publicKey) {
+              return setImmediate(cb, 'Multisignature account not found');
+            }
+
+            if (!Array.isArray(account.multisignatures)) {
+              return setImmediate(cb, 'Account does not have multisignatures enabled');
+            }
+
+            if (account.multisignatures.indexOf(keypair.publicKey.toString('hex')) < 0) {
+              return setImmediate(cb, 'Account does not belong to multisignature group');
+            }
+
+            modules.accounts.getAccount({ publicKey: keypair.publicKey }, function (err, requester) {
+              if (err) {
+                return setImmediate(cb, err);
+              }
+
+              if (!requester || !requester.publicKey) {
+                return setImmediate(cb, 'Requester not found');
+              }
+
+              if (requester.secondSignature && !req.body.secondSecret) {
+                return setImmediate(cb, 'Missing requester second passphrase');
+              }
+
+              if (requester.publicKey === account.publicKey) {
+                return setImmediate(cb, 'Invalid requester public key');
+              }
+
+              var secondKeypair = null;
+
+              if (requester.secondSignature) {
+                var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
+                secondKeypair = library.ed.makeKeypair(secondHash);
+              }
+
+              var transaction;
+
+              try {
+                transaction = library.logic.transaction.create({
+                  type: transactionTypes.SEND,
+                  amount: req.body.amount,
+                  sender: account,
+                  recipientId: recipientId,
+                  keypair: keypair,
+                  requester: keypair,
+                  secondKeypair: secondKeypair
+                });
+              } catch (e) {
+                return setImmediate(cb, e.toString());
+              }
+
+              modules.transactions.receiveTransactions([transaction], true, cb);
+            });
+          });
+        } else {
+          modules.accounts.setAccountAndGet({ publicKey: req.body.publicKey }, function (err, account) {
+            if (err) {
+              return setImmediate(cb, err);
+            }
+
+            if (!account || !account.publicKey) {
+              return setImmediate(cb, 'Account not found');
+            }
+
+            if (account.secondSignature && !req.body.secondSecret) {
+              return setImmediate(cb, 'Missing second passphrase');
+            }
+
+            var secondKeypair = null;
+
+            if (account.secondSignature) {
+              var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
+              secondKeypair = library.ed.makeKeypair(secondHash);
+            }
+
+            var transaction;
+
+            try {
+              transaction = library.logic.transaction.normalize({
+                type: transactionTypes.CHAT_MESSAGE,
+                amount: 0,
+                sender: account,
+                recipientId: recipientId,
+                message: req.body.message,
+                own_message: req.body.own_message,
+                message_type: req.body.message_type,
+                keypair: keypair,
+                secondKeypair: secondKeypair
+              });
+            } catch (e) {
+              return setImmediate(cb, e.toString());
+            }
+            return setImmediate(cb, null, { transaction: transaction });
+          });
+        }
+      });
+    });
+  },
+  process: function (req, cb) {
+    library.schema.validate(req.body.transaction, schema.process, function (err) {
+      if (err) {
+        return setImmediate(cb, err[0].message);
+      }
+
+      var query = { address: req.body.transaction.recipientId };
+
+      library.balancesSequence.add(function (cb) {
+        modules.accounts.getAccount(query, function (err, recipient) {
+          if (err) {
+            return setImmediate(cb, err);
+          }
+
+          var recipientId = recipient ? recipient.address : req.body.transaction.recipientId;
+
+          if (!recipientId) {
+            return setImmediate(cb, 'Invalid recipient');
+          }
+
+          if (req.body.multisigAccountPublicKey && req.body.multisigAccountPublicKey !== req.body.transaction.publicKey) {
+            modules.accounts.getAccount({ publicKey: req.body.multisigAccountPublicKey }, function (err, account) {
+              if (err) {
+                return setImmediate(cb, err);
+              }
+
+              if (!account || !account.publicKey) {
+                return setImmediate(cb, 'Multisignature account not found');
+              }
+
+              if (!Array.isArray(account.multisignatures)) {
+                return setImmediate(cb, 'Account does not have multisignatures enabled');
+              }
+
+              if (account.multisignatures.indexOf(req.body.multisigAccountPublicKey.toString('hex')) < 0) {
+                return setImmediate(cb, 'Account does not belong to multisignature group');
+              }
+
+              modules.accounts.getAccount({ publicKey: req.body.multisigAccountPublicKey }, function (err, requester) {
                 if (err) {
-                    return setImmediate(cb, err);
+                  return setImmediate(cb, err);
                 }
 
-                if (!account || !account.publicKey) {
-                    return setImmediate(cb, 'Account not found');
+                if (!requester || !requester.publicKey) {
+                  return setImmediate(cb, 'Requester not found');
                 }
 
-                if (account.secondSignature && !chat.secondSecret) {
-                    return setImmediate(cb, 'Invalid second passphrase');
+                if (requester.secondSignature && !req.body.secondSecret) {
+                  return setImmediate(cb, 'Missing requester second passphrase');
+                }
+
+                if (requester.publicKey === account.publicKey) {
+                  return setImmediate(cb, 'Invalid requester public key');
                 }
 
                 var secondKeypair = null;
 
-                if (account.secondSignature) {
-                    var secondHash = library.ed.createPassPhraseHash(chat.secondSecret);
-                    secondKeypair = library.ed.makeKeypair(secondHash);
+                if (requester.secondSignature) {
+                  var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
+                  secondKeypair = library.ed.makeKeypair(secondHash);
                 }
 
                 var transaction;
 
                 try {
-                    transaction = library.logic.transaction.create({
-                        type: transactionTypes.CHAT_MESSAGE,
-                        sender: account,
-                        keypair: keypair,
-                        secondKeypair: secondKeypair
-                        // category: dapp.category,
-                        // name: dapp.name,
-                        // description: dapp.description,
-                        // tags: dapp.tags,
-                        // dapp_type: dapp.type,
-                        // link: dapp.link,
-                        // icon: dapp.icon
-                    });
+                  transaction = library.logic.transaction.create({
+                    type: transactionTypes.SEND,
+                    amount: req.body.amount,
+                    sender: account,
+                    recipientId: recipientId,
+                    keypair: null,
+                    requester: null,
+                    secondKeypair: secondKeypair
+                  });
                 } catch (e) {
-                    return setImmediate(cb, e.toString());
+                  return setImmediate(cb, e.toString());
                 }
 
                 modules.transactions.receiveTransactions([transaction], true, cb);
+              });
             });
-        }, function (err, transaction) {
-            if (err) {
-                return setImmediate(cb, null, {success: false, error: err});
-            } else {
-                return setImmediate(cb, null, {success: true, transaction: transaction[0]});
-            }
-        });
-    },
-    normalize: function (req, cb) {
-        library.schema.validate(req.body, schema.normalize, function (err) {
-            if (err) {
-                return setImmediate(cb, err[0].message);
-            }
+          } else {
+            modules.accounts.setAccountAndGet({ publicKey: req.body.transaction.senderPublicKey }, function (err, account) {
+              if (err) {
+                return setImmediate(cb, err);
+              }
 
-            var query = {address: req.body.recipientId};
+              if (!account || !account.publicKey) {
+                return setImmediate(cb, 'Account not found');
+              }
 
-            modules.accounts.getAccount(query, function (err, recipient) {
-                if (err) {
-                    return setImmediate(cb, err);
-                }
-                var keypair = {publicKey: ''};
-                var recipientId = recipient ? recipient.address : req.body.recipientId;
+              if (account.secondSignature && !req.body.secondSecret) {
+                return setImmediate(cb, 'Missing second passphrase');
+              }
 
-                if (!recipientId) {
-                    return setImmediate(cb, 'Invalid recipient');
-                }
+              var secondKeypair = null;
 
-                if (req.body.multisigAccountPublicKey && req.body.multisigAccountPublicKey !== keypair.publicKey.toString('hex')) {
-                    modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey}, function (err, account) {
-                        if (err) {
-                            return setImmediate(cb, err);
-                        }
+              if (account.secondSignature) {
+                var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
+                secondKeypair = library.ed.makeKeypair(secondHash);
+              }
 
-                        if (!account || !account.publicKey) {
-                            return setImmediate(cb, 'Multisignature account not found');
-                        }
+              var transaction;
 
-                        if (!Array.isArray(account.multisignatures)) {
-                            return setImmediate(cb, 'Account does not have multisignatures enabled');
-                        }
+              try {
+                transaction = library.logic.transaction.publish(req.body.transaction);
+              } catch (e) {
+                return setImmediate(cb, e.toString());
+              }
 
-                        if (account.multisignatures.indexOf(keypair.publicKey.toString('hex')) < 0) {
-                            return setImmediate(cb, 'Account does not belong to multisignature group');
-                        }
-
-                        modules.accounts.getAccount({publicKey: keypair.publicKey}, function (err, requester) {
-                            if (err) {
-                                return setImmediate(cb, err);
-                            }
-
-                            if (!requester || !requester.publicKey) {
-                                return setImmediate(cb, 'Requester not found');
-                            }
-
-                            if (requester.secondSignature && !req.body.secondSecret) {
-                                return setImmediate(cb, 'Missing requester second passphrase');
-                            }
-
-                            if (requester.publicKey === account.publicKey) {
-                                return setImmediate(cb, 'Invalid requester public key');
-                            }
-
-                            var secondKeypair = null;
-
-                            if (requester.secondSignature) {
-                                var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
-                                secondKeypair = library.ed.makeKeypair(secondHash);
-                            }
-
-                            var transaction;
-
-                            try {
-                                transaction = library.logic.transaction.create({
-                                    type: transactionTypes.SEND,
-                                    amount: req.body.amount,
-                                    sender: account,
-                                    recipientId: recipientId,
-                                    keypair: keypair,
-                                    requester: keypair,
-                                    secondKeypair: secondKeypair
-                                });
-                            } catch (e) {
-                                return setImmediate(cb, e.toString());
-                            }
-
-                            modules.transactions.receiveTransactions([transaction], true, cb);
-                        });
-                    });
-                } else {
-                    modules.accounts.setAccountAndGet({publicKey: req.body.publicKey}, function (err, account) {
-                        if (err) {
-                            return setImmediate(cb, err);
-                        }
-
-                        if (!account || !account.publicKey) {
-                            return setImmediate(cb, 'Account not found');
-                        }
-
-                        if (account.secondSignature && !req.body.secondSecret) {
-                            return setImmediate(cb, 'Missing second passphrase');
-                        }
-
-                        var secondKeypair = null;
-
-                        if (account.secondSignature) {
-                            var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
-                            secondKeypair = library.ed.makeKeypair(secondHash);
-                        }
-
-                        var transaction;
-
-                        try {
-                            transaction = library.logic.transaction.normalize({
-                                type: transactionTypes.CHAT_MESSAGE,
-                                amount: 0,
-                                sender: account,
-                                recipientId: recipientId,
-                                message: req.body.message,
-                                own_message: req.body.own_message,
-                                message_type: req.body.message_type,
-                                keypair: keypair,
-                                secondKeypair: secondKeypair
-                            });
-                        } catch (e) {
-                            return setImmediate(cb, e.toString());
-                        }
-                        return setImmediate(cb, null, {transaction: transaction});
-
-                    });
-                }
+              modules.transactions.receiveTransactions([transaction], true, cb);
             });
-
+          }
         });
-    },
-    process: function (req, cb) {
-        library.schema.validate(req.body.transaction, schema.process, function (err) {
+      }, function (err, transaction) {
+        if (err) {
+          return setImmediate(cb, err);
+        }
+
+        return setImmediate(cb, null, { transactionId: transaction[0].id });
+      });
+    });
+  },
+  get: function (query, cb) {
+    __private.get(query.id, function (err, dapp) {
+      if (err) {
+        return setImmediate(cb, null, { success: false, error: err });
+      } else {
+        return setImmediate(cb, null, { success: true, dapp: dapp });
+      }
+    });
+  },
+
+  list: function (query, cb) {
+    __private.list(query, function (err, dapps) {
+      if (err) {
+        return setImmediate(cb, 'Application not found');
+      } else {
+        return setImmediate(cb, null, { success: true, dapps: dapps });
+      }
+    });
+  },
+
+  addTransactions: function (req, cb) {
+    library.schema.validate(req.body, schema.addTransactions, function (err) {
+      if (err) {
+        return setImmediate(cb, err[0].message);
+      }
+
+      var hash = library.ed.createPassPhraseHash(req.body.secret);
+      var keypair = library.ed.makeKeypair(hash);
+
+      if (req.body.publicKey) {
+        if (keypair.publicKey.toString('hex') !== req.body.publicKey) {
+          return setImmediate(cb, 'Invalid passphrase');
+        }
+      }
+
+      var query = {};
+
+      library.balancesSequence.add(function (cb) {
+        if (req.body.multisigAccountPublicKey && req.body.multisigAccountPublicKey !== keypair.publicKey.toString('hex')) {
+          modules.accounts.getAccount({ publicKey: req.body.multisigAccountPublicKey }, function (err, account) {
             if (err) {
-                return setImmediate(cb, err[0].message);
+              return setImmediate(cb, err);
             }
 
-            var query = {address: req.body.transaction.recipientId};
+            if (!account || !account.publicKey) {
+              return setImmediate(cb, 'Multisignature account not found');
+            }
 
-            library.balancesSequence.add(function (cb) {
-                modules.accounts.getAccount(query, function (err, recipient) {
-                    if (err) {
-                        return setImmediate(cb, err);
-                    }
+            if (!account.multisignatures || !account.multisignatures) {
+              return setImmediate(cb, 'Account does not have multisignatures enabled');
+            }
 
-                    var recipientId = recipient ? recipient.address : req.body.transaction.recipientId;
+            if (account.multisignatures.indexOf(keypair.publicKey.toString('hex')) < 0) {
+              return setImmediate(cb, 'Account does not belong to multisignature group');
+            }
 
-                    if (!recipientId) {
-                        return setImmediate(cb, 'Invalid recipient');
-                    }
+            modules.accounts.getAccount({ publicKey: keypair.publicKey }, function (err, requester) {
+              if (err) {
+                return setImmediate(cb, err);
+              }
 
-                    if (req.body.multisigAccountPublicKey && req.body.multisigAccountPublicKey !== req.body.transaction.publicKey) {
-                        modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey}, function (err, account) {
-                            if (err) {
-                                return setImmediate(cb, err);
-                            }
+              if (!requester || !requester.publicKey) {
+                return setImmediate(cb, 'Requester not found');
+              }
 
-                            if (!account || !account.publicKey) {
-                                return setImmediate(cb, 'Multisignature account not found');
-                            }
+              if (requester.secondSignature && !req.body.secondSecret) {
+                return setImmediate(cb, 'Missing requester second passphrase');
+              }
 
-                            if (!Array.isArray(account.multisignatures)) {
-                                return setImmediate(cb, 'Account does not have multisignatures enabled');
-                            }
+              if (requester.publicKey === account.publicKey) {
+                return setImmediate(cb, 'Invalid requester public key');
+              }
 
-                            if (account.multisignatures.indexOf(req.body.multisigAccountPublicKey.toString('hex')) < 0) {
-                                return setImmediate(cb, 'Account does not belong to multisignature group');
-                            }
+              var secondKeypair = null;
 
-                            modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey}, function (err, requester) {
-                                if (err) {
-                                    return setImmediate(cb, err);
-                                }
+              if (requester.secondSignature) {
+                var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
+                secondKeypair = library.ed.makeKeypair(secondHash);
+              }
 
-                                if (!requester || !requester.publicKey) {
-                                    return setImmediate(cb, 'Requester not found');
-                                }
+              var transaction;
 
-                                if (requester.secondSignature && !req.body.secondSecret) {
-                                    return setImmediate(cb, 'Missing requester second passphrase');
-                                }
-
-                                if (requester.publicKey === account.publicKey) {
-                                    return setImmediate(cb, 'Invalid requester public key');
-                                }
-
-                                var secondKeypair = null;
-
-                                if (requester.secondSignature) {
-                                    var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
-                                    secondKeypair = library.ed.makeKeypair(secondHash);
-                                }
-
-                                var transaction;
-
-                                try {
-                                    transaction = library.logic.transaction.create({
-                                        type: transactionTypes.SEND,
-                                        amount: req.body.amount,
-                                        sender: account,
-                                        recipientId: recipientId,
-                                        keypair: null,
-                                        requester: null,
-                                        secondKeypair: secondKeypair
-                                    });
-                                } catch (e) {
-                                    return setImmediate(cb, e.toString());
-                                }
-
-                                modules.transactions.receiveTransactions([transaction], true, cb);
-                            });
-                        });
-                    } else {
-
-                        modules.accounts.setAccountAndGet({publicKey: req.body.transaction.senderPublicKey}, function (err, account) {
-                            if (err) {
-                                return setImmediate(cb, err);
-                            }
-
-                            if (!account || !account.publicKey) {
-                                return setImmediate(cb, 'Account not found');
-                            }
-
-                            if (account.secondSignature && !req.body.secondSecret) {
-                                return setImmediate(cb, 'Missing second passphrase');
-                            }
-
-                            var secondKeypair = null;
-
-                            if (account.secondSignature) {
-                                var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
-                                secondKeypair = library.ed.makeKeypair(secondHash);
-                            }
-
-                            var transaction;
-
-                            try {
-                                transaction = library.logic.transaction.publish(req.body.transaction);
-                            } catch (e) {
-                                return setImmediate(cb, e.toString());
-                            }
-
-                            modules.transactions.receiveTransactions([transaction], true, cb);
-                        });
-                    }
+              try {
+                transaction = library.logic.transaction.create({
+                  type: transactionTypes.IN_TRANSFER,
+                  amount: req.body.amount,
+                  sender: account,
+                  keypair: keypair,
+                  requester: keypair,
+                  secondKeypair: secondKeypair,
+                  dappId: req.body.dappId
                 });
-            }, function (err, transaction) {
-                if (err) {
-                    return setImmediate(cb, err);
-                }
+              } catch (e) {
+                return setImmediate(cb, e.toString());
+              }
 
-                return setImmediate(cb, null, {transactionId: transaction[0].id});
+              modules.transactions.receiveTransactions([transaction], true, cb);
             });
-        });
-    },
-    get: function (query, cb) {
-        __private.get(query.id, function (err, dapp) {
+          });
+        } else {
+          modules.accounts.setAccountAndGet({ publicKey: keypair.publicKey.toString('hex') }, function (err, account) {
             if (err) {
-                return setImmediate(cb, null, {success: false, error: err});
-            } else {
-                return setImmediate(cb, null, {success: true, dapp: dapp});
+              return setImmediate(cb, err);
             }
-        });
-    },
 
-    list: function (query, cb) {
-        __private.list(query, function (err, dapps) {
+            if (!account || !account.publicKey) {
+              return setImmediate(cb, 'Account not found');
+            }
+
+            if (account.secondSignature && !req.body.secondSecret) {
+              return setImmediate(cb, 'Invalid second passphrase');
+            }
+
+            var secondKeypair = null;
+
+            if (account.secondSignature) {
+              var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
+              secondKeypair = library.ed.makeKeypair(secondHash);
+            }
+
+            var transaction;
+
+            try {
+              transaction = library.logic.transaction.create({
+                type: transactionTypes.IN_TRANSFER,
+                amount: req.body.amount,
+                sender: account,
+                keypair: keypair,
+                secondKeypair: secondKeypair,
+                dappId: req.body.dappId
+              });
+            } catch (e) {
+              return setImmediate(cb, e.toString());
+            }
+
+            modules.transactions.receiveTransactions([transaction], true, cb);
+          });
+        }
+      }, function (err, transaction) {
+        if (err) {
+          return setImmediate(cb, err);
+        }
+
+        return setImmediate(cb, null, { transactionId: transaction[0].id });
+      });
+    });
+  },
+
+
+  sendWithdrawal: function (req, cb) {
+    library.schema.validate(req.body, schema.sendWithdrawal, function (err) {
+      if (err) {
+        return setImmediate(cb, err[0].message);
+      }
+
+      var hash = library.ed.createPassPhraseHash(req.body.secret);
+      var keypair = library.ed.makeKeypair(hash);
+      var query = {};
+
+      library.balancesSequence.add(function (cb) {
+        if (req.body.multisigAccountPublicKey && req.body.multisigAccountPublicKey !== keypair.publicKey.toString('hex')) {
+          modules.accounts.getAccount({ publicKey: req.body.multisigAccountPublicKey }, function (err, account) {
             if (err) {
-                return setImmediate(cb, 'Application not found');
-            } else {
-                return setImmediate(cb, null, {success: true, dapps: dapps});
-            }
-        });
-    },
-
-    addTransactions: function (req, cb) {
-        library.schema.validate(req.body, schema.addTransactions, function (err) {
-            if (err) {
-                return setImmediate(cb, err[0].message);
+              return setImmediate(cb, err);
             }
 
-            var hash = library.ed.createPassPhraseHash(req.body.secret);
-            var keypair = library.ed.makeKeypair(hash);
-
-            if (req.body.publicKey) {
-                if (keypair.publicKey.toString('hex') !== req.body.publicKey) {
-                    return setImmediate(cb, 'Invalid passphrase');
-                }
+            if (!account || !account.publicKey) {
+              return setImmediate(cb, 'Multisignature account not found');
             }
 
-            var query = {};
+            if (!account.multisignatures || !account.multisignatures) {
+              return setImmediate(cb, 'Account does not have multisignatures enabled');
+            }
 
-            library.balancesSequence.add(function (cb) {
-                if (req.body.multisigAccountPublicKey && req.body.multisigAccountPublicKey !== keypair.publicKey.toString('hex')) {
-                    modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey}, function (err, account) {
-                        if (err) {
-                            return setImmediate(cb, err);
-                        }
+            if (account.multisignatures.indexOf(keypair.publicKey.toString('hex')) < 0) {
+              return setImmediate(cb, 'Account does not belong to multisignature group');
+            }
 
-                        if (!account || !account.publicKey) {
-                            return setImmediate(cb, 'Multisignature account not found');
-                        }
+            modules.accounts.getAccount({ publicKey: keypair.publicKey }, function (err, requester) {
+              if (err) {
+                return setImmediate(cb, err);
+              }
 
-                        if (!account.multisignatures || !account.multisignatures) {
-                            return setImmediate(cb, 'Account does not have multisignatures enabled');
-                        }
+              if (!requester || !requester.publicKey) {
+                return setImmediate(cb, 'Requester not found');
+              }
 
-                        if (account.multisignatures.indexOf(keypair.publicKey.toString('hex')) < 0) {
-                            return setImmediate(cb, 'Account does not belong to multisignature group');
-                        }
+              if (requester.secondSignature && !req.body.secondSecret) {
+                return setImmediate(cb, 'Missing requester second passphrase');
+              }
 
-                        modules.accounts.getAccount({publicKey: keypair.publicKey}, function (err, requester) {
-                            if (err) {
-                                return setImmediate(cb, err);
-                            }
+              if (requester.publicKey === account.publicKey) {
+                return setImmediate(cb, 'Invalid requester public key');
+              }
 
-                            if (!requester || !requester.publicKey) {
-                                return setImmediate(cb, 'Requester not found');
-                            }
+              var secondKeypair = null;
 
-                            if (requester.secondSignature && !req.body.secondSecret) {
-                                return setImmediate(cb, 'Missing requester second passphrase');
-                            }
+              if (requester.secondSignature) {
+                var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
+                secondKeypair = library.ed.makeKeypair(secondHash);
+              }
 
-                            if (requester.publicKey === account.publicKey) {
-                                return setImmediate(cb, 'Invalid requester public key');
-                            }
+              var transaction;
 
-                            var secondKeypair = null;
+              try {
+                transaction = library.logic.transaction.create({
+                  type: transactionTypes.OUT_TRANSFER,
+                  amount: req.body.amount,
+                  sender: account,
+                  recipientId: req.body.recipientId,
+                  keypair: keypair,
+                  secondKeypair: secondKeypair,
+                  requester: keypair,
+                  dappId: req.body.dappId,
+                  transactionId: req.body.transactionId
+                });
+              } catch (e) {
+                return setImmediate(cb, e.toString());
+              }
 
-                            if (requester.secondSignature) {
-                                var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
-                                secondKeypair = library.ed.makeKeypair(secondHash);
-                            }
-
-                            var transaction;
-
-                            try {
-                                transaction = library.logic.transaction.create({
-                                    type: transactionTypes.IN_TRANSFER,
-                                    amount: req.body.amount,
-                                    sender: account,
-                                    keypair: keypair,
-                                    requester: keypair,
-                                    secondKeypair: secondKeypair,
-                                    dappId: req.body.dappId
-                                });
-                            } catch (e) {
-                                return setImmediate(cb, e.toString());
-                            }
-
-                            modules.transactions.receiveTransactions([transaction], true, cb);
-                        });
-                    });
-                } else {
-                    modules.accounts.setAccountAndGet({publicKey: keypair.publicKey.toString('hex')}, function (err, account) {
-                        if (err) {
-                            return setImmediate(cb, err);
-                        }
-
-                        if (!account || !account.publicKey) {
-                            return setImmediate(cb, 'Account not found');
-                        }
-
-                        if (account.secondSignature && !req.body.secondSecret) {
-                            return setImmediate(cb, 'Invalid second passphrase');
-                        }
-
-                        var secondKeypair = null;
-
-                        if (account.secondSignature) {
-                            var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
-                            secondKeypair = library.ed.makeKeypair(secondHash);
-                        }
-
-                        var transaction;
-
-                        try {
-                            transaction = library.logic.transaction.create({
-                                type: transactionTypes.IN_TRANSFER,
-                                amount: req.body.amount,
-                                sender: account,
-                                keypair: keypair,
-                                secondKeypair: secondKeypair,
-                                dappId: req.body.dappId
-                            });
-                        } catch (e) {
-                            return setImmediate(cb, e.toString());
-                        }
-
-                        modules.transactions.receiveTransactions([transaction], true, cb);
-                    });
-                }
-            }, function (err, transaction) {
-                if (err) {
-                    return setImmediate(cb, err);
-                }
-
-                return setImmediate(cb, null, {transactionId: transaction[0].id});
+              modules.transactions.receiveTransactions([transaction], true, cb);
             });
-        });
-    },
-
-
-    sendWithdrawal: function (req, cb) {
-        library.schema.validate(req.body, schema.sendWithdrawal, function (err) {
+          });
+        } else {
+          modules.accounts.setAccountAndGet({ publicKey: keypair.publicKey.toString('hex') }, function (err, account) {
             if (err) {
-                return setImmediate(cb, err[0].message);
+              return setImmediate(cb, err);
             }
 
-            var hash = library.ed.createPassPhraseHash(req.body.secret);
-            var keypair = library.ed.makeKeypair(hash);
-            var query = {};
+            if (!account || !account.publicKey) {
+              return setImmediate(cb, 'Account not found');
+            }
 
-            library.balancesSequence.add(function (cb) {
-                if (req.body.multisigAccountPublicKey && req.body.multisigAccountPublicKey !== keypair.publicKey.toString('hex')) {
-                    modules.accounts.getAccount({publicKey: req.body.multisigAccountPublicKey}, function (err, account) {
-                        if (err) {
-                            return setImmediate(cb, err);
-                        }
+            if (account.secondSignature && !req.body.secondSecret) {
+              return setImmediate(cb, 'Missing second passphrase');
+            }
 
-                        if (!account || !account.publicKey) {
-                            return setImmediate(cb, 'Multisignature account not found');
-                        }
+            var secondKeypair = null;
 
-                        if (!account.multisignatures || !account.multisignatures) {
-                            return setImmediate(cb, 'Account does not have multisignatures enabled');
-                        }
+            if (account.secondSignature) {
+              var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
+              secondKeypair = library.ed.makeKeypair(secondHash);
+            }
 
-                        if (account.multisignatures.indexOf(keypair.publicKey.toString('hex')) < 0) {
-                            return setImmediate(cb, 'Account does not belong to multisignature group');
-                        }
+            var transaction;
 
-                        modules.accounts.getAccount({publicKey: keypair.publicKey}, function (err, requester) {
-                            if (err) {
-                                return setImmediate(cb, err);
-                            }
+            try {
+              transaction = library.logic.transaction.create({
+                type: transactionTypes.OUT_TRANSFER,
+                amount: req.body.amount,
+                sender: account,
+                recipientId: req.body.recipientId,
+                keypair: keypair,
+                secondKeypair: secondKeypair,
+                dappId: req.body.dappId,
+                transactionId: req.body.transactionId
+              });
+            } catch (e) {
+              return setImmediate(cb, e.toString());
+            }
 
-                            if (!requester || !requester.publicKey) {
-                                return setImmediate(cb, 'Requester not found');
-                            }
+            modules.transactions.receiveTransactions([transaction], true, cb);
+          });
+        }
+      }, function (err, transaction) {
+        if (err) {
+          return setImmediate(cb, err);
+        }
 
-                            if (requester.secondSignature && !req.body.secondSecret) {
-                                return setImmediate(cb, 'Missing requester second passphrase');
-                            }
-
-                            if (requester.publicKey === account.publicKey) {
-                                return setImmediate(cb, 'Invalid requester public key');
-                            }
-
-                            var secondKeypair = null;
-
-                            if (requester.secondSignature) {
-                                var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
-                                secondKeypair = library.ed.makeKeypair(secondHash);
-                            }
-
-                            var transaction;
-
-                            try {
-                                transaction = library.logic.transaction.create({
-                                    type: transactionTypes.OUT_TRANSFER,
-                                    amount: req.body.amount,
-                                    sender: account,
-                                    recipientId: req.body.recipientId,
-                                    keypair: keypair,
-                                    secondKeypair: secondKeypair,
-                                    requester: keypair,
-                                    dappId: req.body.dappId,
-                                    transactionId: req.body.transactionId
-                                });
-                            } catch (e) {
-                                return setImmediate(cb, e.toString());
-                            }
-
-                            modules.transactions.receiveTransactions([transaction], true, cb);
-                        });
-                    });
-                } else {
-                    modules.accounts.setAccountAndGet({publicKey: keypair.publicKey.toString('hex')}, function (err, account) {
-                        if (err) {
-                            return setImmediate(cb, err);
-                        }
-
-                        if (!account || !account.publicKey) {
-                            return setImmediate(cb, 'Account not found');
-                        }
-
-                        if (account.secondSignature && !req.body.secondSecret) {
-                            return setImmediate(cb, 'Missing second passphrase');
-                        }
-
-                        var secondKeypair = null;
-
-                        if (account.secondSignature) {
-                            var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
-                            secondKeypair = library.ed.makeKeypair(secondHash);
-                        }
-
-                        var transaction;
-
-                        try {
-                            transaction = library.logic.transaction.create({
-                                type: transactionTypes.OUT_TRANSFER,
-                                amount: req.body.amount,
-                                sender: account,
-                                recipientId: req.body.recipientId,
-                                keypair: keypair,
-                                secondKeypair: secondKeypair,
-                                dappId: req.body.dappId,
-                                transactionId: req.body.transactionId
-                            });
-                        } catch (e) {
-                            return setImmediate(cb, e.toString());
-                        }
-
-                        modules.transactions.receiveTransactions([transaction], true, cb);
-                    });
-                }
-            }, function (err, transaction) {
-                if (err) {
-                    return setImmediate(cb, err);
-                }
-
-                return setImmediate(cb, null, {transactionId: transaction[0].id});
-            });
-        });
-    }
+        return setImmediate(cb, null, { transactionId: transaction[0].id });
+      });
+    });
+  }
 };
 
 // Export

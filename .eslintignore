@@ -10,5 +10,5 @@ tmp
 public/node_modules
 public/bower_components
 public/static
-test/lisk-js
 helpers/bignum.js
+docs/jsdoc/scripts/prettify/prettify.js

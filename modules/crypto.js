@@ -17,9 +17,9 @@ __private.loaded = false;
  */
 // Constructor
 function Crypto (cb, scope) {
-	self = this;
+  self = this;
 
-	setImmediate(cb, null, self);
+  setImmediate(cb, null, self);
 }
 
 // Public methods
@@ -31,7 +31,7 @@ function Crypto (cb, scope) {
  * @param {function} cb - Callback function.
  */
 Crypto.prototype.sandboxApi = function (call, args, cb) {
-	sandboxHelper.callMethod(shared, call, args, cb);
+  sandboxHelper.callMethod(shared, call, args, cb);
 };
 
 // Events
@@ -46,7 +46,7 @@ Crypto.prototype.onBind = function (scope) {
  * Sets to true private variable loaded.
  */
 Crypto.prototype.onBlockchainReady = function () {
-	__private.loaded = true;
+  __private.loaded = true;
 };
 
 // Export

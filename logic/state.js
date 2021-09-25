@@ -25,17 +25,17 @@ __private.unconfirmedAscii = {};
  */
 // Constructor
 function State (db, ed, schema, account, logger, cb) {
-    this.scope = {
-        db: db,
-        ed: ed,
-        schema: schema,
-        logger: logger,
-        account: account
-    };
-    self = this;
-    if (cb) {
-        return setImmediate(cb, null, this);
-    }
+  this.scope = {
+    db: db,
+    ed: ed,
+    schema: schema,
+    logger: logger,
+    account: account
+  };
+  self = this;
+  if (cb) {
+    return setImmediate(cb, null, this);
+  }
 }
 
 // Public methods
@@ -51,17 +51,17 @@ State.prototype.bind = function () {};
  * @return {transaction} trs with new data
  */
 State.prototype.create = function (data, trs) {
-    trs.amount = 0;
-    trs.recipientId = null;
-    trs.asset.state = {
-        value: data.value,
-        key: data.key,
-        type: 0
-    };
-    if (data.state_type) {
-        trs.asset.state.type = data.state_type;
-    }
-    return trs;
+  trs.amount = 0;
+  trs.recipientId = null;
+  trs.asset.state = {
+    value: data.value,
+    key: data.key,
+    type: 0
+  };
+  if (data.state_type) {
+    trs.asset.state.type = data.state_type;
+  }
+  return trs;
 };
 
 /**
@@ -71,12 +71,12 @@ State.prototype.create = function (data, trs) {
  * @return {number} fee
  */
 State.prototype.calculateFee = function (trs, sender) {
-    var length = Buffer.from(trs.asset.state.value, 'hex').length;
-    var char_length= Math.floor((length * 100 / 150)/255);
-    if (char_length==0) {
-        char_length = 1;
-    }
-    return char_length * constants.fees.state_store;
+  var length = Buffer.from(trs.asset.state.value, 'hex').length;
+  var char_length = Math.floor((length * 100 / 150) / 255);
+  if (char_length == 0) {
+    char_length = 1;
+  }
+  return char_length * constants.fees.state_store;
 };
 
 /**
@@ -88,24 +88,23 @@ State.prototype.calculateFee = function (trs, sender) {
  * @return {setImmediateCallback} errors | trs
  */
 State.prototype.verify = function (trs, sender, cb) {
+  if (!trs.asset || !trs.asset.state) {
+    return setImmediate(cb, 'Invalid transaction asset');
+  }
 
-    if (!trs.asset || !trs.asset.state) {
-        return setImmediate(cb, 'Invalid transaction asset');
-    }
+  if (trs.asset.state.type > 1 || trs.asset.state.type < 0) {
+    return setImmediate(cb, 'Invalid state type');
+  }
 
-    if (trs.asset.state.type > 1 || trs.asset.state.type < 0) {
-        return setImmediate(cb, 'Invalid state type');
-    }
+  if (!trs.asset.state.value || trs.asset.state.value.trim().length === 0 || trs.asset.state.value.trim() !== trs.asset.state.value) {
+    return setImmediate(cb, 'Value must not be blank');
+  }
 
-    if (!trs.asset.state.value || trs.asset.state.value.trim().length === 0 || trs.asset.state.value.trim() !== trs.asset.state.value) {
-        return setImmediate(cb, 'Value must not be blank');
-    }
+  if (trs.asset.state.value.length > 20480) {
+    return setImmediate(cb, 'Value is too long. Maximum is 20480 characters');
+  }
 
-    if (trs.asset.state.value.length > 20480) {
-        return setImmediate(cb, 'Value is too long. Maximum is 20480 characters');
-    }
-
-    return setImmediate(cb, null, trs);
+  return setImmediate(cb, null, trs);
 };
 
 /**
@@ -115,7 +114,7 @@ State.prototype.verify = function (trs, sender, cb) {
  * @return {setImmediateCallback} cb, null, trs
  */
 State.prototype.process = function (trs, sender, cb) {
-    return setImmediate(cb, null, trs);
+  return setImmediate(cb, null, trs);
 };
 
 /**
@@ -128,28 +127,28 @@ State.prototype.process = function (trs, sender, cb) {
  * @throws {e} error
  */
 State.prototype.getBytes = function (trs) {
-    var buf;
+  var buf;
 
-    try {
-        buf = Buffer.from([]);
-        var stateBuf = Buffer.from(trs.asset.state.value);
-        buf = Buffer.concat([buf, stateBuf]);
+  try {
+    buf = Buffer.from([]);
+    var stateBuf = Buffer.from(trs.asset.state.value);
+    buf = Buffer.concat([buf, stateBuf]);
 
-        if (trs.asset.state.key) {
-            var keyBuf = Buffer.from(trs.asset.state.key);
-            buf = Buffer.concat([buf, keyBuf]);
-        }
-
-        var bb = new ByteBuffer(4 + 4, true);
-        bb.writeInt(trs.asset.state.type);
-        bb.flip();
-
-        buf = Buffer.concat([buf, bb.toBuffer()]);
-    } catch (e) {
-        throw e;
+    if (trs.asset.state.key) {
+      var keyBuf = Buffer.from(trs.asset.state.key);
+      buf = Buffer.concat([buf, keyBuf]);
     }
 
-    return buf;
+    var bb = new ByteBuffer(4 + 4, true);
+    bb.writeInt(trs.asset.state.type);
+    bb.flip();
+
+    buf = Buffer.concat([buf, bb.toBuffer()]);
+  } catch (e) {
+    throw e;
+  }
+
+  return buf;
 };
 
 /**
@@ -160,7 +159,7 @@ State.prototype.getBytes = function (trs) {
  * @return {setImmediateCallback} cb
  */
 State.prototype.apply = function (trs, block, sender, cb) {
-    return setImmediate(cb);
+  return setImmediate(cb);
 };
 
 /**
@@ -171,18 +170,18 @@ State.prototype.apply = function (trs, block, sender, cb) {
  * @return {setImmediateCallback} cb
  */
 State.prototype.undo = function (trs, block, sender, cb) {
-    return setImmediate(cb);
+  return setImmediate(cb);
 };
 
 /**
- * applyUncorfirmed stub
+ * applyUnconfirmed stub
  * @param {transaction} trs
  * @param {account} sender
  * @param {function} cb
  * @return {setImmediateCallback} cb|errors
  */
 State.prototype.applyUnconfirmed = function (trs, sender, cb) {
-    return setImmediate(cb);
+  return setImmediate(cb);
 };
 
 /**
@@ -193,9 +192,8 @@ State.prototype.applyUnconfirmed = function (trs, sender, cb) {
  * @return {setImmediateCallback} cb
  */
 State.prototype.undoUnconfirmed = function (trs, sender, cb) {
-    return setImmediate(cb);
+  return setImmediate(cb);
 };
-
 
 
 /**
@@ -206,25 +204,25 @@ State.prototype.undoUnconfirmed = function (trs, sender, cb) {
  * @property {string} transactionId - transaction id
  */
 State.prototype.schema = {
-    id: 'State',
-    type: 'object',
-    properties: {
-        key: {
-            type: 'string',
-            minLength: 0,
-            maxLength: 20
-        },
-        value: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 20480
-        },
-        type: {
-            type: 'integer',
-            minimum: 0
-        }
+  id: 'State',
+  type: 'object',
+  properties: {
+    key: {
+      type: 'string',
+      minLength: 0,
+      maxLength: 20
     },
-    required: ['type', 'value']
+    value: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 20480
+    },
+    type: {
+      type: 'integer',
+      minimum: 0
+    }
+  },
+  required: ['type', 'value']
 };
 
 /**
@@ -235,21 +233,21 @@ State.prototype.schema = {
  * @throws {string} Failed to validate state schema.
  */
 State.prototype.objectNormalize = function (trs) {
-    for (var i in trs.asset.state) {
-        if (trs.asset.state[i] === null || typeof trs.asset.state[i] === 'undefined') {
-            delete trs.asset.state[i];
-        }
+  for (var i in trs.asset.state) {
+    if (trs.asset.state[i] === null || typeof trs.asset.state[i] === 'undefined') {
+      delete trs.asset.state[i];
     }
+  }
 
-    var report = this.scope.schema.validate(trs.asset.state, State.prototype.schema);
+  var report = this.scope.schema.validate(trs.asset.state, State.prototype.schema);
 
-    if (!report) {
-        throw 'Failed to validate state schema: ' + this.scope.schema.getLastErrors().map(function (err) {
-            return err.message;
-        }).join(', ');
-    }
+  if (!report) {
+    throw 'Failed to validate state schema: ' + this.scope.schema.getLastErrors().map(function (err) {
+      return err.message;
+    }).join(', ');
+  }
 
-    return trs;
+  return trs;
 };
 
 /**
@@ -258,70 +256,70 @@ State.prototype.objectNormalize = function (trs) {
  * @return {null|state} state object
  */
 State.prototype.dbRead = function (raw) {
-    if (!raw.st_stored_value) {
-        return null;
-    } else {
-        return {state: {
-            value: raw.st_stored_value,
-            key: raw.st_stored_key,
-            type: raw.st_type
-        }};
-    }
+  if (!raw.st_stored_value) {
     return null;
+  } else {
+    return { state: {
+      value: raw.st_stored_value,
+      key: raw.st_stored_key,
+      type: raw.st_type
+    } };
+  }
+  return null;
 };
 
 State.prototype.dbTable = 'states';
 
 State.prototype.dbFields = [
-    'stored_value',
-    'stored_key',
-    'type',
-    'transactionId'
+  'stored_value',
+  'stored_key',
+  'type',
+  'transactionId'
 ];
 State.prototype.publish = function (data) {
-    if (!__private.types[data.type]) {
-        throw 'Unknown transaction type ' + data.type;
-    }
+  if (!__private.types[data.type]) {
+    throw 'Unknown transaction type ' + data.type;
+  }
 
-    if (!data.senderId) {
-        throw 'Invalid sender';
-    }
+  if (!data.senderId) {
+    throw 'Invalid sender';
+  }
 
-    if (!data.signature) {
-        throw 'Invalid signature';
-    }
+  if (!data.signature) {
+    throw 'Invalid signature';
+  }
 
-    var trs = data;
+  var trs = data;
 
 
-    trs.id = this.getId(trs);
+  trs.id = this.getId(trs);
 
-    trs.fee = __private.types[trs.type].calculateFee.call(this, trs, data.senderId) || false;
+  trs.fee = __private.types[trs.type].calculateFee.call(this, trs, data.senderId) || false;
 
-    return trs;
+  return trs;
 };
 State.prototype.normalize = function (data) {
-    if (!__private.types[data.type]) {
-        throw 'Unknown transaction type ' + data.type;
-    }
+  if (!__private.types[data.type]) {
+    throw 'Unknown transaction type ' + data.type;
+  }
 
-    if (!data.sender) {
-        throw 'Invalid sender';
-    }
+  if (!data.sender) {
+    throw 'Invalid sender';
+  }
 
-    var trs = {
-        type: data.type,
-        amount: 0,
-        senderPublicKey: data.sender.publicKey,
-        senderId: data.sender.account,
-        recipientId: null,
-        timestamp: slots.getTime(),
-        asset: {}
-    };
+  var trs = {
+    type: data.type,
+    amount: 0,
+    senderPublicKey: data.sender.publicKey,
+    senderId: data.sender.account,
+    recipientId: null,
+    timestamp: slots.getTime(),
+    asset: {}
+  };
 
-    trs = __private.types[trs.type].create.call(this, data, trs);
+  trs = __private.types[trs.type].create.call(this, data, trs);
 
-    return trs;
+  return trs;
 };
 
 /**
@@ -331,16 +329,16 @@ State.prototype.normalize = function (data) {
  * @return {Object[]} table, fields, values.
  */
 State.prototype.dbSave = function (trs) {
-    return {
-        table: this.dbTable,
-        fields: this.dbFields,
-        values: {
-            stored_key: trs.asset.state.key,
-            stored_value: trs.asset.state.value,
-            type: trs.asset.state.type,
-            transactionId: trs.id
-        }
-    };
+  return {
+    table: this.dbTable,
+    fields: this.dbFields,
+    values: {
+      stored_key: trs.asset.state.key,
+      stored_value: trs.asset.state.value,
+      type: trs.asset.state.type,
+      transactionId: trs.id
+    }
+  };
 };
 
 /**
@@ -351,25 +349,25 @@ State.prototype.dbSave = function (trs) {
  * @return {setImmediateCallback} cb
  */
 State.prototype.afterSave = function (trs, cb) {
-    return setImmediate(cb);
+  return setImmediate(cb);
 };
 
 /**
  * Checks sender multisignatures and transaction signatures.
  * @param {transaction} trs
  * @param {account} sender
- * @return {boolean} True if transaction signatures greather than
+ * @return {boolean} True if transaction signatures greater than
  * sender multimin or there are not sender multisignatures.
  */
 State.prototype.ready = function (trs, sender) {
-    if (Array.isArray(sender.multisignatures) && sender.multisignatures.length) {
-        if (!Array.isArray(trs.signatures)) {
-            return false;
-        }
-        return trs.signatures.length >= sender.multimin;
-    } else {
-        return true;
+  if (Array.isArray(sender.multisignatures) && sender.multisignatures.length) {
+    if (!Array.isArray(trs.signatures)) {
+      return false;
     }
+    return trs.signatures.length >= sender.multimin;
+  } else {
+    return true;
+  }
 };
 
 // Export

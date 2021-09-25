@@ -5,13 +5,13 @@
     "logFileName": "logs/adamant.log",
     "consoleLogLevel": "debug",
     "trustProxy": false,
-    "topAccounts": false,
+    "topAccounts": true,
     "cacheEnabled": true,
     "db": {
         "host": "localhost",
         "port": 5432,
         "database": "adamant_test",
-        "user": "adamant",
+        "user": "adamanttest",
         "password": "password",
         "poolSize": 95,
         "poolIdleTimeout": 30000,
@@ -22,8 +22,8 @@
     },
     "redis": {
         "host": "127.0.0.1",
-        "port": 6380,
-        "db": 0,
+        "port": 6379,
+        "db": 1,
         "password": null
     },
     "api": {
@@ -43,10 +43,24 @@
     },
     "peers": {
         "enabled": true,
-        "list": [{
-            "ip": "127.0.0.1",
-            "port": 36667
-        }],
+        "list": [
+            {
+                "ip": "162.55.32.80",
+                "port": 36667
+            },
+            {
+                "ip": "65.21.156.2",
+                "port": 36667
+            },
+            {
+                "ip": "95.217.19.144",
+                "port": 36667
+            },
+            {
+                "ip": "157.90.229.236",
+                "port": 36667
+            }
+        ],
         "access": {
             "blackList": []
         },
@@ -61,17 +75,17 @@
         }
     },
     "broadcasts": {
-        "broadcastInterval": 5000,
+        "broadcastInterval": 1500,
         "broadcastLimit": 20,
         "parallelLimit": 20,
         "releaseLimit": 25,
-        "relayLimit": 2
+        "relayLimit": 3
     },
     "transactions": {
         "maxTxsPerQueue": 1000
     },
     "forging": {
-        "force": true,
+        "force": false,
         "secret": [
             "weather play vibrant large edge clean notable april fire smoke drift hidden",
             "rally clean ladder crane gadget century timber jealous shine scorpion beauty salon",
@@ -195,9 +209,13 @@
         }
     },
     "dapp": {
-        "masterrequired": true,
+        "masterrequired": false,
         "masterpassword": "",
         "autoexec": []
     },
+    "wsClient": {
+        "portWS": 36665,
+        "enabled": true
+    },    
     "nethash": "38f153a81332dea86751451fd992df26a9249f0834f72f58f84ac31cceb70f43"
 }

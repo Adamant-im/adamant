@@ -8,13 +8,13 @@ var schema = require('../../schema/dapps');
  * Binds api with modules and creates common url.
  * - End point: `/api/chats`
  * - Private API:
- * 	- post	/normalize
- * 	- post	/finalize
+ *   - post  /normalize
+ *   - post  /finalize
  *
  * - Sanitized
- * 	- get	/
- * 	- put	/
- * 	- get	/get
+ *   - get  /
+ *   - put  /
+ *   - get  /get
  * @memberof module:chats
  * @requires helpers/Router
  * @requires helpers/httpApi
@@ -24,19 +24,18 @@ var schema = require('../../schema/dapps');
  */
 // Constructor
 function ChatsHttpApi (chatsModule, app) {
+  var router = new Router();
 
-    var router = new Router();
-
-    router.map(chatsModule.internal, {
-        'get /senders': 'senders',
-        'get /get': 'getTransactions',
-        'get /messages': 'messages',
-        'post /normalize': 'normalize',
-        'post /process': 'process'
-    });
+  router.map(chatsModule.internal, {
+    'get /senders': 'senders',
+    'get /get': 'getTransactions',
+    'get /messages': 'messages',
+    'post /normalize': 'normalize',
+    'post /process': 'process'
+  });
 
 
-    httpApi.registerEndpoint('/api/chats', app, router, chatsModule.isLoaded);
+  httpApi.registerEndpoint('/api/chats', app, router, chatsModule.isLoaded);
 }
 
 module.exports = ChatsHttpApi;

@@ -10,45 +10,45 @@ var constants = require('../helpers/constants.js');
  * Loads config.json file
  * @memberof module:helpers
  * @implements {validateForce}
- * @param {string} configPath 
- * @returns {Object} configData
+ * @param {string} configPath
+ * @return {Object} configData
  */
 function Config (configPath) {
-	var configData = fs.readFileSync(path.resolve(process.cwd(), (configPath || 'config.json')), 'utf8');
+  var configData = fs.readFileSync(path.resolve(process.cwd(), (configPath || 'config.json')), 'utf8');
 
-	if (!configData.length) {
-		console.log('Failed to read config file');
-		process.exit(1);
-	} else {
-		configData = JSON.parse(configData);
-	}
+  if (!configData.length) {
+    console.log('Failed to read config file');
+    process.exit(1);
+  } else {
+    configData = JSON.parse(configData);
+  }
 
-	var validator = new z_schema();
-	var valid = validator.validate(configData, configSchema.config);
+  var validator = new z_schema();
+  var valid = validator.validate(configData, configSchema.config);
 
-	if (!valid) {
-		console.log('Failed to validate config data', validator.getLastErrors());
-		process.exit(1);
-	} else {
-		validateForce(configData);
-		return configData;
-	}
+  if (!valid) {
+    console.log('Failed to validate config data', validator.getLastErrors());
+    process.exit(1);
+  } else {
+    validateForce(configData);
+    return configData;
+  }
 }
 
 /**
  * Validates nethash value from constants and sets forging force to false if any.
  * @private
- * @param {Object} configData 
+ * @param {Object} configData
  */
 function validateForce (configData) {
-	if (configData.forging.force) {
-		var index = constants.nethashes.indexOf(configData.nethash);
+  if (configData.forging.force) {
+    var index = constants.nethashes.indexOf(configData.nethash);
 
-		if (index !== -1) {
-			console.log('Forced forging disabled for nethash', configData.nethash);
-			configData.forging.force = false;
-		}
-	}
+    if (index !== -1) {
+      console.log('Forced forging disabled for nethash', configData.nethash);
+      configData.forging.force = false;
+    }
+  }
 }
 
 // Exports

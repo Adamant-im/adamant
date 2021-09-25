@@ -24,21 +24,21 @@ var modules, library, self, __private = {};
  * @param {Sequence} balancesSequence
  */
 function Chain (logger, block, transaction, db, genesisblock, bus, balancesSequence) {
-	library = {
-		logger: logger,
-		db: db,
-		genesisblock: genesisblock,
-		bus: bus,
-		balancesSequence: balancesSequence,
-		logic: {
-			block: block,
-			transaction: transaction,
-		},
-	};
-	self = this;
+  library = {
+    logger: logger,
+    db: db,
+    genesisblock: genesisblock,
+    bus: bus,
+    balancesSequence: balancesSequence,
+    logic: {
+      block: block,
+      transaction: transaction
+    }
+  };
+  self = this;
 
-	library.logger.trace('Blocks->Chain: Submodule initialized.');
-	return self;
+  library.logger.trace('Blocks->Chain: Submodule initialized.');
+  return self;
 }
 
 /**
@@ -50,24 +50,24 @@ function Chain (logger, block, transaction, db, genesisblock, bus, balancesSeque
  * @return {Object}   cb.err Error if occurred
  */
 Chain.prototype.saveGenesisBlock = function (cb) {
-	// Check if genesis block ID already exists in the database
-	// FIXME: Duplicated, there is another SQL query that we can use for that
-	library.db.query(sql.getGenesisBlockId, { id: library.genesisblock.block.id }).then(function (rows) {
-		var blockId = rows.length && rows[0].id;
+  // Check if genesis block ID already exists in the database
+  // FIXME: Duplicated, there is another SQL query that we can use for that
+  library.db.query(sql.getGenesisBlockId, { id: library.genesisblock.block.id }).then(function (rows) {
+    var blockId = rows.length && rows[0].id;
 
-		if (!blockId) {
-			// If there is no block with genesis ID - save to database
-			// WARNING: DB_WRITE
-			self.saveBlock(library.genesisblock.block, function (err) {
-				return setImmediate(cb, err);
-			});
-		} else {
-			return setImmediate(cb);
-		}
-	}).catch(function (err) {
-		library.logger.error(err.stack);
-		return setImmediate(cb, 'Blocks#saveGenesisBlock error');
-	});
+    if (!blockId) {
+      // If there is no block with genesis ID - save to database
+      // WARNING: DB_WRITE
+      self.saveBlock(library.genesisblock.block, function (err) {
+        return setImmediate(cb, err);
+      });
+    } else {
+      return setImmediate(cb);
+    }
+  }).catch(function (err) {
+    library.logger.error(err.stack);
+    return setImmediate(cb, 'Blocks#saveGenesisBlock error');
+  });
 };
 
 /**
@@ -76,35 +76,35 @@ Chain.prototype.saveGenesisBlock = function (cb) {
  * @async
  * @param  {Object}   block Full normalized block
  * @param  {Function} cb Callback function
- * @return {Function|afterSave} cb If SQL transaction was OK - returns safterSave execution,
+ * @return {Function|afterSave} cb If SQL transaction was OK - returns afterSave execution,
  *                                 if not returns callback function from params (through setImmediate)
  * @return {String}   cb.err Error if occurred
  */
 Chain.prototype.saveBlock = function (block, cb) {
-	// Prepare and execute SQL transaction
-	// WARNING: DB_WRITE
-	library.db.tx(function (t) {
-		// Create bytea fields (buffers), and returns pseudo-row object promise-like
-		var promise = library.logic.block.dbSave(block);
-		// Initialize insert helper
-		var inserts = new Inserts(promise, promise.values);
+  // Prepare and execute SQL transaction
+  // WARNING: DB_WRITE
+  library.db.tx(function (t) {
+    // Create bytea fields (buffers), and returns pseudo-row object promise-like
+    var promise = library.logic.block.dbSave(block);
+    // Initialize insert helper
+    var inserts = new Inserts(promise, promise.values);
 
-		var promises = [
-			// Prepare insert SQL query
-			t.none(inserts.template(), promise.values)
-		];
+    var promises = [
+      // Prepare insert SQL query
+      t.none(inserts.template(), promise.values)
+    ];
 
-		// Apply transactions inserts
-		t = __private.promiseTransactions(t, block, promises);
-		// Exec inserts as batch
-		t.batch(promises);
-	}).then(function () {
-		// Execute afterSave for transactions
-		return __private.afterSave(block, cb);
-	}).catch(function (err) {
-		library.logger.error(err.stack);
-		return setImmediate(cb, 'Blocks#saveBlock error');
-	});
+    // Apply transactions inserts
+    t = __private.promiseTransactions(t, block, promises);
+    // Exec inserts as batch
+    t.batch(promises);
+  }).then(function () {
+    // Execute afterSave for transactions
+    return __private.afterSave(block, cb);
+  }).catch(function (err) {
+    library.logger.error(err.stack);
+    return setImmediate(cb, 'Blocks#saveBlock error');
+  });
 };
 
 /**
@@ -119,14 +119,14 @@ Chain.prototype.saveBlock = function (block, cb) {
  * @return {Object}   cb.err Error if occurred
  */
 __private.afterSave = function (block, cb) {
-	library.bus.message('transactionsSaved', block.transactions);
-	// Execute afterSave callbacks for each transaction, depends on tx type
-	// see: logic.outTransfer.afterSave, logic.dapp.afterSave
-	async.eachSeries(block.transactions, function (transaction, cb) {
-		return library.logic.transaction.afterSave(transaction, cb);
-	}, function (err) {
-		return setImmediate(cb, err);
-	});
+  library.bus.message('transactionsSaved', block.transactions);
+  // Execute afterSave callbacks for each transaction, depends on tx type
+  // see: logic.outTransfer.afterSave, logic.dapp.afterSave
+  async.eachSeries(block.transactions, function (transaction, cb) {
+    return library.logic.transaction.afterSave(transaction, cb);
+  }, function (err) {
+    return setImmediate(cb, err);
+  });
 };
 
 /**
@@ -142,46 +142,46 @@ __private.afterSave = function (block, cb) {
  * @throws Will throw 'Invalid promise' when no promise, promise.values or promise.table
  */
 __private.promiseTransactions = function (t, block, blockPromises) {
-	if (_.isEmpty(block.transactions)) {
-		return t;
-	}
+  if (_.isEmpty(block.transactions)) {
+    return t;
+  }
 
-	var transactionIterator = function (transaction) {
-		// Apply block ID to transaction
-		transaction.blockId = block.id;
-		// Create bytea fileds (buffers), and returns pseudo-row promise-like object
-		return library.logic.transaction.dbSave(transaction);
-	};
+  var transactionIterator = function (transaction) {
+    // Apply block ID to transaction
+    transaction.blockId = block.id;
+    // Create bytea fields (buffers), and returns pseudo-row promise-like object
+    return library.logic.transaction.dbSave(transaction);
+  };
 
-	var promiseGrouper = function (promise) {
-		if (promise && promise.table) {
-			return promise.table;
-		} else {
-			throw 'Invalid promise';
-		}
-	};
+  var promiseGrouper = function (promise) {
+    if (promise && promise.table) {
+      return promise.table;
+    } else {
+      throw 'Invalid promise';
+    }
+  };
 
-	var typeIterator = function (type) {
-		var values = [];
+  var typeIterator = function (type) {
+    var values = [];
 
-		_.each(type, function (promise) {
-			if (promise && promise.values) {
-				values = values.concat(promise.values);
-			} else {
-				throw 'Invalid promise';
-			}
-		});
+    _.each(type, function (promise) {
+      if (promise && promise.values) {
+        values = values.concat(promise.values);
+      } else {
+        throw 'Invalid promise';
+      }
+    });
 
-		// Initialize insert helper
-		var inserts = new Inserts(type[0], values, true);
-		// Prepare insert SQL query
-		t.none(inserts.template(), inserts);
-	};
+    // Initialize insert helper
+    var inserts = new Inserts(type[0], values, true);
+    // Prepare insert SQL query
+    t.none(inserts.template(), inserts);
+  };
 
-	var promises = _.flatMap(block.transactions, transactionIterator);
-	_.each(_.groupBy(promises, promiseGrouper), typeIterator);
+  var promises = _.flatMap(block.transactions, transactionIterator);
+  _.each(_.groupBy(promises, promiseGrouper), typeIterator);
 
-	return t;
+  return t;
 };
 
 /**
@@ -196,14 +196,14 @@ __private.promiseTransactions = function (t, block, blockPromises) {
  * @return {Object}   cb.err String if SQL error occurred, null if success
  */
 Chain.prototype.deleteBlock = function (blockId, cb) {
-	// Delete block with ID from blocks table
-	// WARNING: DB_WRITE
-	library.db.none(sql.deleteBlock, {id: blockId}).then(function () {
-		return setImmediate(cb);
-	}).catch(function (err) {
-		library.logger.error(err.stack);
-		return setImmediate(cb, 'Blocks#deleteBlock error');
-	});
+  // Delete block with ID from blocks table
+  // WARNING: DB_WRITE
+  library.db.none(sql.deleteBlock, { id: blockId }).then(function () {
+    return setImmediate(cb);
+  }).catch(function (err) {
+    library.logger.error(err.stack);
+    return setImmediate(cb, 'Blocks#deleteBlock error');
+  });
 };
 
 /**
@@ -219,12 +219,12 @@ Chain.prototype.deleteBlock = function (blockId, cb) {
  * @return {Object}   cb.res SQL response
  */
 Chain.prototype.deleteAfterBlock = function (blockId, cb) {
-	library.db.query(sql.deleteAfterBlock, {id: blockId}).then(function (res) {
-		return setImmediate(cb, null, res);
-	}).catch(function (err) {
-		library.logger.error(err.stack);
-		return setImmediate(cb, 'Blocks#deleteAfterBlock error');
-	});
+  library.db.query(sql.deleteAfterBlock, { id: blockId }).then(function (res) {
+    return setImmediate(cb, null, res);
+  }).catch(function (err) {
+    library.logger.error(err.stack);
+    return setImmediate(cb, 'Blocks#deleteAfterBlock error');
+  });
 };
 
 
@@ -240,46 +240,46 @@ Chain.prototype.deleteAfterBlock = function (blockId, cb) {
  * @return {Object}   cb.err Error if occurred
  */
 Chain.prototype.applyGenesisBlock = function (block, cb) {
-	// Sort transactions included in block
-	block.transactions = block.transactions.sort(function (a, b) {
-		if (a.type === transactionTypes.VOTE) {
-			return 1;
-		} else {
-			return 0;
-		}
-	});
-	// Initialize block progress tracker
-	var tracker = modules.blocks.utils.getBlockProgressLogger(block.transactions.length, block.transactions.length / 100, 'Genesis block loading');
-	async.eachSeries(block.transactions, function (transaction, cb) {
-		// Apply transactions through setAccountAndGet, bypassing unconfirmed/confirmed states
-		// FIXME: Poor performance - every transaction cause SQL query to be executed
-		// WARNING: DB_WRITE
-		modules.accounts.setAccountAndGet({publicKey: transaction.senderPublicKey}, function (err, sender) {
-			if (err) {
-				return setImmediate(cb, {
-					message: err,
-					transaction: transaction,
-					block: block
-				});
-			}
-			// Apply transaction to confirmed & unconfirmed balances
-			// WARNING: DB_WRITE
-			__private.applyTransaction(block, transaction, sender, cb);
-			// Update block progress tracker
-			tracker.applyNext();
-		});
-	}, function (err) {
-		if (err) {
-			// If genesis block is invalid, kill the node...
-			return process.exit(0);
-		} else {
-			// Set genesis block as last block
-			modules.blocks.lastBlock.set(block);
-			// Tick round
-			// WARNING: DB_WRITE
-			modules.rounds.tick(block, cb);
-		}
-	});
+  // Sort transactions included in block
+  block.transactions = block.transactions.sort(function (a, b) {
+    if (a.type === transactionTypes.VOTE) {
+      return 1;
+    } else {
+      return 0;
+    }
+  });
+  // Initialize block progress tracker
+  var tracker = modules.blocks.utils.getBlockProgressLogger(block.transactions.length, block.transactions.length / 100, 'Genesis block loading');
+  async.eachSeries(block.transactions, function (transaction, cb) {
+    // Apply transactions through setAccountAndGet, bypassing unconfirmed/confirmed states
+    // FIXME: Poor performance - every transaction cause SQL query to be executed
+    // WARNING: DB_WRITE
+    modules.accounts.setAccountAndGet({ publicKey: transaction.senderPublicKey }, function (err, sender) {
+      if (err) {
+        return setImmediate(cb, {
+          message: err,
+          transaction: transaction,
+          block: block
+        });
+      }
+      // Apply transaction to confirmed & unconfirmed balances
+      // WARNING: DB_WRITE
+      __private.applyTransaction(block, transaction, sender, cb);
+      // Update block progress tracker
+      tracker.applyNext();
+    });
+  }, function (err) {
+    if (err) {
+      // If genesis block is invalid, kill the node...
+      return process.exit(0);
+    } else {
+      // Set genesis block as last block
+      modules.blocks.lastBlock.set(block);
+      // Tick round
+      // WARNING: DB_WRITE
+      modules.rounds.tick(block, cb);
+    }
+  });
 };
 
 /**
@@ -296,27 +296,27 @@ Chain.prototype.applyGenesisBlock = function (block, cb) {
  * @return {Object}   cb.err Error if occurred
  */
 __private.applyTransaction = function (block, transaction, sender, cb) {
-	// FIXME: Not sure about flow here, when nodes have different transactions - 'applyUnconfirmed' can fail but 'apply' can be ok
-	modules.transactions.applyUnconfirmed(transaction, sender, function (err) {
-		if (err) {
-			return setImmediate(cb, {
-				message: err,
-				transaction: transaction,
-				block: block
-			});
-		}
+  // FIXME: Not sure about flow here, when nodes have different transactions - 'applyUnconfirmed' can fail but 'apply' can be ok
+  modules.transactions.applyUnconfirmed(transaction, sender, function (err) {
+    if (err) {
+      return setImmediate(cb, {
+        message: err,
+        transaction: transaction,
+        block: block
+      });
+    }
 
-		modules.transactions.apply(transaction, block, sender, function (err) {
-			if (err) {
-				return setImmediate(cb, {
-					message: 'Failed to apply transaction: ' + transaction.id,
-					transaction: transaction,
-					block: block
-				});
-			}
-			return setImmediate(cb);
-		});
-	});
+    modules.transactions.apply(transaction, block, sender, function (err) {
+      if (err) {
+        return setImmediate(cb, {
+          message: 'Failed to apply transaction: ' + transaction.id,
+          transaction: transaction,
+          block: block
+        });
+      }
+      return setImmediate(cb);
+    });
+  });
 };
 
 /**
@@ -334,167 +334,167 @@ __private.applyTransaction = function (block, transaction, sender, cb) {
  * @return {Object}   cb.err Error if occurred
  */
 Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
-	// Prevent shutdown during database writes.
-	modules.blocks.isActive.set(true);
+  // Prevent shutdown during database writes.
+  modules.blocks.isActive.set(true);
 
-	// Transactions to rewind in case of error.
-	var appliedTransactions = {};
+  // Transactions to rewind in case of error.
+  var appliedTransactions = {};
 
-	// List of unconfirmed transactions ids.
-	var unconfirmedTransactionIds;
+  // List of unconfirmed transactions ids.
+  var unconfirmedTransactionIds;
 
-	async.series({
-		// Rewind any unconfirmed transactions before applying block.
-		// TODO: It should be possible to remove this call if we can guarantee that only this function is processing transactions atomically. Then speed should be improved further.
-		// TODO: Other possibility, when we rebuild from block chain this action should be moved out of the rebuild function.
-		undoUnconfirmedList: function (seriesCb) {
-			modules.transactions.undoUnconfirmedList(function (err, ids) {
-				if (err) {
-					// Fatal error, memory tables will be inconsistent
-					library.logger.error('Failed to undo unconfirmed list', err);
+  async.series({
+    // Rewind any unconfirmed transactions before applying block.
+    // TODO: It should be possible to remove this call if we can guarantee that only this function is processing transactions atomically. Then speed should be improved further.
+    // TODO: Other possibility, when we rebuild from block chain this action should be moved out of the rebuild function.
+    undoUnconfirmedList: function (seriesCb) {
+      modules.transactions.undoUnconfirmedList(function (err, ids) {
+        if (err) {
+          // Fatal error, memory tables will be inconsistent
+          library.logger.error('Failed to undo unconfirmed list', err);
 
-					return process.exit(0);
-				} else {
-					unconfirmedTransactionIds = ids;
-					return setImmediate(seriesCb);
-				}
-			});
-		},
-		// Apply transactions to unconfirmed mem_accounts fields.
-		applyUnconfirmed: function (seriesCb) {
-			async.eachSeries(block.transactions, function (transaction, eachSeriesCb) {
-				// DATABASE write
-				modules.accounts.setAccountAndGet({publicKey: transaction.senderPublicKey}, function (err, sender) {
-					// DATABASE: write
-					modules.transactions.applyUnconfirmed(transaction, sender, function (err) {
-						if (err) {
-							err = ['Failed to apply transaction:', transaction.id, '-', err].join(' ');
-							library.logger.error(err);
-							library.logger.error('Transaction', transaction);
-							return setImmediate(eachSeriesCb, err);
-						}
+          return process.exit(0);
+        } else {
+          unconfirmedTransactionIds = ids;
+          return setImmediate(seriesCb);
+        }
+      });
+    },
+    // Apply transactions to unconfirmed mem_accounts fields.
+    applyUnconfirmed: function (seriesCb) {
+      async.eachSeries(block.transactions, function (transaction, eachSeriesCb) {
+        // DATABASE write
+        modules.accounts.setAccountAndGet({ publicKey: transaction.senderPublicKey }, function (err, sender) {
+          // DATABASE: write
+          modules.transactions.applyUnconfirmed(transaction, sender, function (err) {
+            if (err) {
+              err = ['Failed to apply transaction:', transaction.id, '-', err].join(' ');
+              library.logger.error(err);
+              library.logger.error('Transaction', transaction);
+              return setImmediate(eachSeriesCb, err);
+            }
 
-						appliedTransactions[transaction.id] = transaction;
+            appliedTransactions[transaction.id] = transaction;
 
-						// Remove the transaction from the node queue, if it was present.
-						var index = unconfirmedTransactionIds.indexOf(transaction.id);
-						if (index >= 0) {
-							unconfirmedTransactionIds.splice(index, 1);
-						}
+            // Remove the transaction from the node queue, if it was present.
+            var index = unconfirmedTransactionIds.indexOf(transaction.id);
+            if (index >= 0) {
+              unconfirmedTransactionIds.splice(index, 1);
+            }
 
-						return setImmediate(eachSeriesCb);
-					});
-				});
-			}, function (err) {
-				if (err) {
-					// Rewind any already applied unconfirmed transactions.
-					// Leaves the database state as per the previous block.
-					async.eachSeries(block.transactions, function (transaction, eachSeriesCb) {
-						modules.accounts.getAccount({publicKey: transaction.senderPublicKey}, function (err, sender) {
-							if (err) {
-								return setImmediate(eachSeriesCb, err);
-							}
-							// The transaction has been applied?
-							if (appliedTransactions[transaction.id]) {
-								// DATABASE: write
-								library.logic.transaction.undoUnconfirmed(transaction, sender, eachSeriesCb);
-							} else {
-								return setImmediate(eachSeriesCb);
-							}
-						});
-					}, function (err) {
-						return setImmediate(seriesCb, err);
-					});
-				} else {
-					return setImmediate(seriesCb);
-				}
-			});
-		},
-		// Block and transactions are ok.
-		// Apply transactions to confirmed mem_accounts fields.
-		applyConfirmed: function (seriesCb) {
-			async.eachSeries(block.transactions, function (transaction, eachSeriesCb) {
-				modules.accounts.getAccount({publicKey: transaction.senderPublicKey}, function (err, sender) {
-					if (err) {
-						// Fatal error, memory tables will be inconsistent
-						err = ['Failed to apply transaction:', transaction.id, '-', err].join(' ');
-						library.logger.error(err);
-						library.logger.error('Transaction', transaction);
+            return setImmediate(eachSeriesCb);
+          });
+        });
+      }, function (err) {
+        if (err) {
+          // Rewind any already applied unconfirmed transactions.
+          // Leaves the database state as per the previous block.
+          async.eachSeries(block.transactions, function (transaction, eachSeriesCb) {
+            modules.accounts.getAccount({ publicKey: transaction.senderPublicKey }, function (err, sender) {
+              if (err) {
+                return setImmediate(eachSeriesCb, err);
+              }
+              // The transaction has been applied?
+              if (appliedTransactions[transaction.id]) {
+                // DATABASE: write
+                library.logic.transaction.undoUnconfirmed(transaction, sender, eachSeriesCb);
+              } else {
+                return setImmediate(eachSeriesCb);
+              }
+            });
+          }, function (err) {
+            return setImmediate(seriesCb, err);
+          });
+        } else {
+          return setImmediate(seriesCb);
+        }
+      });
+    },
+    // Block and transactions are ok.
+    // Apply transactions to confirmed mem_accounts fields.
+    applyConfirmed: function (seriesCb) {
+      async.eachSeries(block.transactions, function (transaction, eachSeriesCb) {
+        modules.accounts.getAccount({ publicKey: transaction.senderPublicKey }, function (err, sender) {
+          if (err) {
+            // Fatal error, memory tables will be inconsistent
+            err = ['Failed to apply transaction:', transaction.id, '-', err].join(' ');
+            library.logger.error(err);
+            library.logger.error('Transaction', transaction);
 
-						return process.exit(0);
-					}
-					// DATABASE: write
-					modules.transactions.apply(transaction, block, sender, function (err) {
-						if (err) {
-							// Fatal error, memory tables will be inconsistent
-							err = ['Failed to apply transaction:', transaction.id, '-', err].join(' ');
-							library.logger.error(err);
-							library.logger.error('Transaction', transaction);
+            return process.exit(0);
+          }
+          // DATABASE: write
+          modules.transactions.apply(transaction, block, sender, function (err) {
+            if (err) {
+              // Fatal error, memory tables will be inconsistent
+              err = ['Failed to apply transaction:', transaction.id, '-', err].join(' ');
+              library.logger.error(err);
+              library.logger.error('Transaction', transaction);
 
-							return process.exit(0);
-						}
-						// Transaction applied, removed from the unconfirmed list.
-						modules.transactions.removeUnconfirmedTransaction(transaction.id);
-						return setImmediate(eachSeriesCb);
-					});
-				});
-			}, function (err) {
-				return setImmediate(seriesCb, err);
-			});
-		},
-		// Optionally save the block to the database.
-		saveBlock: function (seriesCb) {
-			modules.blocks.lastBlock.set(block);
+              return process.exit(0);
+            }
+            // Transaction applied, removed from the unconfirmed list.
+            modules.transactions.removeUnconfirmedTransaction(transaction.id);
+            return setImmediate(eachSeriesCb);
+          });
+        });
+      }, function (err) {
+        return setImmediate(seriesCb, err);
+      });
+    },
+    // Optionally save the block to the database.
+    saveBlock: function (seriesCb) {
+      modules.blocks.lastBlock.set(block);
 
-			if (saveBlock) {
-				// DATABASE: write
-				self.saveBlock(block, function (err) {
-					if (err) {
-						// Fatal error, memory tables will be inconsistent
-						library.logger.error('Failed to save block...');
-						library.logger.error('Block', block);
+      if (saveBlock) {
+        // DATABASE: write
+        self.saveBlock(block, function (err) {
+          if (err) {
+            // Fatal error, memory tables will be inconsistent
+            library.logger.error('Failed to save block...');
+            library.logger.error('Block', block);
 
-						return process.exit(0);
-					}
+            return process.exit(0);
+          }
 
-					library.logger.debug('Block applied correctly with ' + block.transactions.length + ' transactions');
-					library.bus.message('newBlock', block, broadcast);
+          library.logger.debug('Block applied correctly with ' + block.transactions.length + ' transactions');
+          library.bus.message('newBlock', block, broadcast);
 
-					// DATABASE write. Update delegates accounts
-					modules.rounds.tick(block, seriesCb);
-				});
-			} else {
-				library.bus.message('newBlock', block, broadcast);
+          // DATABASE write. Update delegates accounts
+          modules.rounds.tick(block, seriesCb);
+        });
+      } else {
+        library.bus.message('newBlock', block, broadcast);
 
-				// DATABASE write. Update delegates accounts
-				modules.rounds.tick(block, seriesCb);
-			}
-		},
-		// Push back unconfirmed transactions list (minus the one that were on the block if applied correctly).
-		// TODO: See undoUnconfirmedList discussion above.
-		applyUnconfirmedIds: function (seriesCb) {
-			// DATABASE write
-			modules.transactions.applyUnconfirmedIds(unconfirmedTransactionIds, function (err) {
-				return setImmediate(seriesCb, err);
-			});
-		},
-	}, function (err) {
-		// Allow shutdown, database writes are finished.
-		modules.blocks.isActive.set(false);
+        // DATABASE write. Update delegates accounts
+        modules.rounds.tick(block, seriesCb);
+      }
+    },
+    // Push back unconfirmed transactions list (minus the one that were on the block if applied correctly).
+    // TODO: See undoUnconfirmedList discussion above.
+    applyUnconfirmedIds: function (seriesCb) {
+      // DATABASE write
+      modules.transactions.applyUnconfirmedIds(unconfirmedTransactionIds, function (err) {
+        return setImmediate(seriesCb, err);
+      });
+    }
+  }, function (err) {
+    // Allow shutdown, database writes are finished.
+    modules.blocks.isActive.set(false);
 
-		// Nullify large objects.
-		// Prevents memory leak during synchronisation.
-		appliedTransactions = unconfirmedTransactionIds = block = null;
+    // Nullify large objects.
+    // Prevents memory leak during synchronization.
+    appliedTransactions = unconfirmedTransactionIds = block = null;
 
-		// Finish here if snapshotting.
-		// FIXME: Not the best place to do that
-		if (err === 'Snapshot finished') {
-			library.logger.info(err);
-			process.emit('SIGTERM');
-		}
+    // Finish here if snapshotting.
+    // FIXME: Not the best place to do that
+    if (err === 'Snapshot finished') {
+      library.logger.info(err);
+      process.emit('SIGTERM');
+    }
 
-		return setImmediate(cb, err);
-	});
+    return setImmediate(cb, err);
+  });
 };
 
 
@@ -510,71 +510,71 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
  * @return {Object}   cb.obj New last block
  */
 __private.popLastBlock = function (oldLastBlock, cb) {
-	// Execute in sequence via balancesSequence
-	library.balancesSequence.add(function (cb) {
-		// Load previous block from full_blocks_list table
-		// TODO: Can be inefficient, need performnce tests
-		modules.blocks.utils.loadBlocksPart({ id: oldLastBlock.previousBlock }, function (err, previousBlock) {
-			if (err || !previousBlock.length) {
-				return setImmediate(cb, err || 'previousBlock is null');
-			}
-			previousBlock = previousBlock[0];
+  // Execute in sequence via balancesSequence
+  library.balancesSequence.add(function (cb) {
+    // Load previous block from full_blocks_list table
+    // TODO: Can be inefficient, need performance tests
+    modules.blocks.utils.loadBlocksPart({ id: oldLastBlock.previousBlock }, function (err, previousBlock) {
+      if (err || !previousBlock.length) {
+        return setImmediate(cb, err || 'previousBlock is null');
+      }
+      previousBlock = previousBlock[0];
 
-			// Reverse order of transactions in last blocks...
-			async.eachSeries(oldLastBlock.transactions.reverse(), function (transaction, cb) {
-				async.series([
-					function (cb) {
-						// Retrieve sender by public key
-						modules.accounts.getAccount({publicKey: transaction.senderPublicKey}, function (err, sender) {
-							if (err) {
-								return setImmediate(cb, err);
-							}
-							// Undoing confirmed tx - refresh confirmed balance (see: logic.transaction.undo, logic.transfer.undo)
-							// WARNING: DB_WRITE
-							modules.transactions.undo(transaction, oldLastBlock, sender, cb);
-						});
-					}, function (cb) {
-						// Undoing unconfirmed tx - refresh unconfirmed balance (see: logic.transaction.undoUnconfirmed)
-						// WARNING: DB_WRITE
-						modules.transactions.undoUnconfirmed(transaction, cb);
-					}, function (cb) {
-						return setImmediate(cb);
-					}
-				], cb);
-			}, function (err) {
-				if (err) {
-					// Fatal error, memory tables will be inconsistent
-					library.logger.error('Failed to undo transactions', err);
+      // Reverse order of transactions in last blocks...
+      async.eachSeries(oldLastBlock.transactions.reverse(), function (transaction, cb) {
+        async.series([
+          function (cb) {
+            // Retrieve sender by public key
+            modules.accounts.getAccount({ publicKey: transaction.senderPublicKey }, function (err, sender) {
+              if (err) {
+                return setImmediate(cb, err);
+              }
+              // Undoing confirmed tx - refresh confirmed balance (see: logic.transaction.undo, logic.transfer.undo)
+              // WARNING: DB_WRITE
+              modules.transactions.undo(transaction, oldLastBlock, sender, cb);
+            });
+          }, function (cb) {
+            // Undoing unconfirmed tx - refresh unconfirmed balance (see: logic.transaction.undoUnconfirmed)
+            // WARNING: DB_WRITE
+            modules.transactions.undoUnconfirmed(transaction, cb);
+          }, function (cb) {
+            return setImmediate(cb);
+          }
+        ], cb);
+      }, function (err) {
+        if (err) {
+          // Fatal error, memory tables will be inconsistent
+          library.logger.error('Failed to undo transactions', err);
 
-					return process.exit(0);
-				}
+          return process.exit(0);
+        }
 
-				// Perform backward tick on rounds
-				// WARNING: DB_WRITE
-				modules.rounds.backwardTick(oldLastBlock, previousBlock, function (err) {
-					if (err) {
-						// Fatal error, memory tables will be inconsistent
-						library.logger.error('Failed to perform backwards tick', err);
+        // Perform backward tick on rounds
+        // WARNING: DB_WRITE
+        modules.rounds.backwardTick(oldLastBlock, previousBlock, function (err) {
+          if (err) {
+            // Fatal error, memory tables will be inconsistent
+            library.logger.error('Failed to perform backwards tick', err);
 
-						return process.exit(0);
-					}
+            return process.exit(0);
+          }
 
-					// Delete last block from blockchain
-					// WARNING: Db_WRITE
-					self.deleteBlock(oldLastBlock.id, function (err) {
-						if (err) {
-							// Fatal error, memory tables will be inconsistent
-							library.logger.error('Failed to delete block', err);
+          // Delete last block from blockchain
+          // WARNING: Db_WRITE
+          self.deleteBlock(oldLastBlock.id, function (err) {
+            if (err) {
+              // Fatal error, memory tables will be inconsistent
+              library.logger.error('Failed to delete block', err);
 
-							return process.exit(0);
-						}
+              return process.exit(0);
+            }
 
-						return setImmediate(cb, null, previousBlock);
-					});
-				});
-			});
-		});
-	}, cb);
+            return setImmediate(cb, null, previousBlock);
+          });
+        });
+      });
+    });
+  }, cb);
 };
 
 /**
@@ -589,23 +589,23 @@ __private.popLastBlock = function (oldLastBlock, cb) {
  * @return {Object}   cb.obj New last block
  */
 Chain.prototype.deleteLastBlock = function (cb) {
-	var lastBlock = modules.blocks.lastBlock.get();
-	library.logger.warn('Deleting last block', lastBlock);
+  var lastBlock = modules.blocks.lastBlock.get();
+  library.logger.warn('Deleting last block', lastBlock);
 
-	if (lastBlock.height === 1) {
-		return setImmediate(cb, 'Cannot delete genesis block');
-	}
+  if (lastBlock.height === 1) {
+    return setImmediate(cb, 'Cannot delete genesis block');
+  }
 
-	// Delete last block, replace last block with previous block, undo things
-	__private.popLastBlock(lastBlock, function (err, newLastBlock) {
-		if (err) {
-			library.logger.error('Error deleting last block', lastBlock);
-		} else {
-			// Replace last block with previous
-			lastBlock = modules.blocks.lastBlock.set(newLastBlock);
-		}
-		return setImmediate(cb, err, lastBlock);
-	});
+  // Delete last block, replace last block with previous block, undo things
+  __private.popLastBlock(lastBlock, function (err, newLastBlock) {
+    if (err) {
+      library.logger.error('Error deleting last block', lastBlock);
+    } else {
+      // Replace last block with previous
+      lastBlock = modules.blocks.lastBlock.set(newLastBlock);
+    }
+    return setImmediate(cb, err, lastBlock);
+  });
 };
 
 /**
@@ -619,15 +619,15 @@ Chain.prototype.deleteLastBlock = function (cb) {
  * @return {Object}   cb.err Error if occurred
  */
 Chain.prototype.recoverChain = function (cb) {
-	library.logger.warn('Chain comparison failed, starting recovery');
-	self.deleteLastBlock(function (err, newLastBlock) {
-		if (err) {
-			library.logger.error('Recovery failed');
-		} else {
-			library.logger.info('Recovery complete, new last block', newLastBlock.id);
-		}
-		return setImmediate(cb, err);
-	});
+  library.logger.warn('Chain comparison failed, starting recovery');
+  self.deleteLastBlock(function (err, newLastBlock) {
+    if (err) {
+      library.logger.error('Recovery failed');
+    } else {
+      library.logger.info('Recovery complete, new last block', newLastBlock.id);
+    }
+    return setImmediate(cb, err);
+  });
 };
 
 /**
@@ -639,16 +639,16 @@ Chain.prototype.recoverChain = function (cb) {
  * @param {modules} scope Exposed modules
  */
 Chain.prototype.onBind = function (scope) {
-	library.logger.trace('Blocks->Chain: Shared modules bind.');
-	modules = {
-		accounts: scope.accounts,
-		blocks: scope.blocks,
-		rounds: scope.rounds,
-		transactions: scope.transactions,
-	};
+  library.logger.trace('Blocks->Chain: Shared modules bind.');
+  modules = {
+    accounts: scope.accounts,
+    blocks: scope.blocks,
+    rounds: scope.rounds,
+    transactions: scope.transactions
+  };
 
-	// Set module as loaded
-	__private.loaded = true;
+  // Set module as loaded
+  __private.loaded = true;
 };
 
 module.exports = Chain;

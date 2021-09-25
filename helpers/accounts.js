@@ -20,14 +20,14 @@ var accounts = {};
  * @return {address} address
  */
 accounts.getAddressByPublicKey = function (publicKey) {
-    var publicKeyHash = crypto.createHash('sha256').update(publicKey, 'hex').digest();
-    var temp = Buffer.alloc(8);
+  var publicKeyHash = crypto.createHash('sha256').update(publicKey, 'hex').digest();
+  var temp = Buffer.alloc(8);
 
-    for (var i = 0; i < 8; i++) {
-        temp[i] = publicKeyHash[7 - i];
-    }
+  for (var i = 0; i < 8; i++) {
+    temp[i] = publicKeyHash[7 - i];
+  }
 
-    return 'U' + bignum.fromBuffer(temp).toString();
+  return 'U' + bignum.fromBuffer(temp).toString();
 };
 
 accounts.makeKeypair = function (hash) {
