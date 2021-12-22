@@ -37,7 +37,7 @@ while getopts 'b:n:' OPTION; do
 done
 
 printf "\n"
-printf "Welcome to the ADAMANT node installer v2.0 for Ubuntu 18, 20. Make sure you got this file from adamant.im website or GitHub.\n"
+printf "Welcome to the ADAMANT node installer v2.0.1 for Ubuntu 18, 20. Make sure you got this file from adamant.im website or GitHub.\n"
 printf "This installer is the easiest way to run ADAMANT node. We still recommend to consult IT specialist if you are not familiar with Linux systems.\n"
 printf "You can see full installation instructions on https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
 printf "The installer will ask you to set database and user passwords during the installation.\n"
@@ -100,7 +100,6 @@ if [[ $(id -u "$username" > /dev/null 2>&1; echo $?) = 1 ]]
 then
     printf "Creating system user named '%s'…\n" "$username"
     adduser --gecos "" "$username"
-    sudo usermod -aG sudo "$username"
     printf "User '%s' has been created.\n\n" "$username"
 fi
 
