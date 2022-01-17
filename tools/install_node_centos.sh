@@ -37,9 +37,9 @@ while getopts 'b:n:' OPTION; do
 done
 
 printf "\n"
-printf "Welcome to the ADAMANT node installer v2.0.1 for Ubuntu 18, 20. Make sure you got this file from adamant.im website or GitHub.\n"
+printf "Welcome to the ADAMANT node installer v1.0.0 for CentOS 8. Make sure you got this file from adamant.im website or GitHub.\n"
 printf "This installer is the easiest way to run ADAMANT node. We still recommend to consult IT specialist if you are not familiar with Linux systems.\n"
-printf "You can see full installation instructions on https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
+printf "You can see full installation instructions (though for Ubuntu) on https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
 printf "The installer will ask you to set database and user passwords during the installation.\n"
 printf "Also, the system may ask to choose some parameters, like encoding, keyboard, and grub. Generally, you can leave them by default.\n\n"
 
@@ -99,20 +99,28 @@ printf "\n\nChecking if user '%s' exists…\n\n" "$username"
 if [[ $(id -u "$username" > /dev/null 2>&1; echo $?) = 1 ]]
 then
     printf "Creating system user named '%s'…\n" "$username"
-    adduser --gecos "" "$username"
+    sudo adduser "$username"
+    sudo passwd "$username"
     printf "User '%s' has been created.\n\n" "$username"
 fi
 
 #Packages
 printf "Updating system packages…\n\n"
-sudo apt update && sudo apt upgrade -y
-printf "\n\nInstalling postgresql, python and other prerequisites…\n\n"
-sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" > /etc/apt/sources.list.d/pgdg.list' && wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | sudo apt-key add -
-sudo apt update && sudo DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
-sudo apt install -y python build-essential curl automake autoconf libtool rpl mc git postgresql postgresql-contrib libpq-dev redis-server
 
-#Start postgres. This step is necessary for Windows Subsystem for Linux machines
-sudo service postgresql start
+sudo dnf config-manager --set-enabled powertools
+sudo dnf -y install epel-release
+sudo dnf -y update
+
+printf "\n\nInstalling postgresql, python and other prerequisites…\n\n"
+
+sudo dnf -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm 
+sudo dnf -qy module disable postgresql
+sudo dnf -y install postgresql13 postgresql13-server postgresql13-contrib
+sudo /usr/pgsql-13/bin/postgresql-13-setup initdb
+sudo systemctl enable --now postgresql-13
+sudo dnf group install "Development Tools" -y
+sudo dnf -y install wget python2 curl mc git nano automake autoconf libtool rpl wget libpq5-devel redis
+sudo systemctl enable --now redis 
 
 #Postgres
 printf "\n\nCreating database '%s' and database user '%s'…\n\n" "$databasename" "$username"
