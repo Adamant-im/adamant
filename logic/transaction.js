@@ -378,7 +378,7 @@ Transaction.prototype.checkConfirmed = function (trs, cb) {
  * @return {Object} With exceeded boolean and error: address, balance
  */
 Transaction.prototype.checkBalance = function (amount, balance, trs, sender) {
-  var exceededBalance = new bignum(sender[balance].toString()).lessThan(amount);
+  var exceededBalance = new bignum(sender[balance].toString()).isLessThan(amount);
   var exceeded = (trs.blockId !== this.scope.genesisblock.block.id && exceededBalance);
 
   return {

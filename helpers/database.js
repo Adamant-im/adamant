@@ -91,7 +91,7 @@ function Migrator (pgp, db) {
           (file.id && file.name) && fs.statSync(file.path).isFile() && /\.sql$/.test(file.path)
         );
       }).forEach(function (file) {
-        if (!lastMigration || file.id.greaterThan(lastMigration.id)) {
+        if (!lastMigration || file.id.isGreaterThan(lastMigration.id)) {
           pendingMigrations.push(file);
         }
       });
