@@ -65,24 +65,26 @@ program
     .option('-s, --snapshot <round>', 'verify snapshot')
     .parse(process.argv);
 
+var programOpts = program.opts();
+
 /**
  * @property {object} - The default list of configuration options. Can be updated by CLI.
  * @default 'config.json'
  */
-var appConfig = require('./helpers/config.js')(program.config);
-var genesisblock = require(path.resolve(process.cwd(), (program.genesis || 'genesisBlock.json')));
+var appConfig = require('./helpers/config.js')(programOpts.config);
+var genesisblock = require(path.resolve(process.cwd(), (programOpts.genesis || 'genesisBlock.json')));
 
-if (program.port) {
-  appConfig.port = program.port;
+if (programOpts.port) {
+  appConfig.port = programOpts.port;
 }
 
-if (program.address) {
-  appConfig.address = program.address;
+if (programOpts.address) {
+  appConfig.address = programOpts.address;
 }
 
-if (program.peers) {
-  if (typeof program.peers === 'string') {
-    appConfig.peers.list = program.peers.split(',').map(function (peer) {
+if (programOpts.peers) {
+  if (typeof programOpts.peers === 'string') {
+    appConfig.peers.list = programOpts.peers.split(',').map(function (peer) {
       peer = peer.split(':');
       return {
         ip: peer.shift(),
@@ -94,13 +96,13 @@ if (program.peers) {
   }
 }
 
-if (program.log) {
-  appConfig.consoleLogLevel = program.log;
+if (programOpts.log) {
+  appConfig.consoleLogLevel = programOpts.log;
 }
 
-if (program.snapshot) {
+if (programOpts.snapshot) {
   appConfig.loading.snapshot = Math.abs(
-      Math.floor(program.snapshot)
+      Math.floor(programOpts.snapshot)
   );
 }
 
