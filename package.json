@@ -62,7 +62,7 @@
     "pg-monitor": "=0.7.1",
     "pg-native": "=1.10.0",
     "pg-promise": "=5.5.6",
-    "popsicle": "=10.0.1",
+    "popsicle": "=9.0.0",
     "randomstring": "=1.2.2",
     "redis": "=3.1.2",
     "rimraf": "=3.0.2",
