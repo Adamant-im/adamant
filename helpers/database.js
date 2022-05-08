@@ -190,10 +190,10 @@ module.exports.connect = function (config, logger, cb) {
   monitor.attach(pgOptions, config.logEvents);
   monitor.setTheme('matrix');
 
-  monitor.log = function (msg, info) {
+  monitor.setLog(function (msg, info) {
     logger.log(info.event, info.text);
     info.display = false;
-  };
+  });
 
   config.user = config.user || process.env.USER;
 
