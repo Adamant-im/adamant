@@ -37,7 +37,7 @@ while getopts 'b:n:' OPTION; do
 done
 
 printf "\n"
-printf "Welcome to the ADAMANT node installer v1.0.0 for CentOS 8. Make sure you got this file from adamant.im website or GitHub.\n"
+printf "Welcome to the ADAMANT node installer v1.0.2 for CentOS 8. Make sure you got this file from adamant.im website or GitHub.\n"
 printf "This installer is the easiest way to run ADAMANT node. We still recommend to consult IT specialist if you are not familiar with Linux systems.\n"
 printf "You can see full installation instructions (though for Ubuntu) on https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
 printf "The installer will ask you to set database and user passwords during the installation.\n"
@@ -111,7 +111,7 @@ sudo dnf config-manager --set-enabled powertools
 sudo dnf -y install epel-release
 sudo dnf -y update
 
-printf "\n\nInstalling postgresql, python and other prerequisites…\n\n"
+printf "\n\nInstalling postgresql and other prerequisites…\n\n"
 
 sudo dnf -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm 
 sudo dnf -qy module disable postgresql
@@ -134,11 +134,11 @@ su - "$username" <<EOSU
 
 #NodeJS
 printf "\n\nInstalling nvm & node.js…\n\n"
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
 source ~/.nvm/nvm.sh
 source ~/.profile
 source ~/.bashrc
-nvm i --lts=fermium
+nvm i --lts=gallium
 npm i -g pm2
 
 #ADAMANT
