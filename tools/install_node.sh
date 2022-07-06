@@ -37,7 +37,7 @@ while getopts 'b:n:' OPTION; do
 done
 
 printf "\n"
-printf "Welcome to the ADAMANT node installer v2.0.1 for Ubuntu 18, 20. Make sure you got this file from adamant.im website or GitHub.\n"
+printf "Welcome to the ADAMANT node installer v2.0.2 for Ubuntu 18, 20, 22. Make sure you got this file from adamant.im website or GitHub.\n"
 printf "This installer is the easiest way to run ADAMANT node. We still recommend to consult IT specialist if you are not familiar with Linux systems.\n"
 printf "You can see full installation instructions on https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
 printf "The installer will ask you to set database and user passwords during the installation.\n"
@@ -106,10 +106,10 @@ fi
 #Packages
 printf "Updating system packages…\n\n"
 sudo apt update && sudo apt upgrade -y
-printf "\n\nInstalling postgresql, python and other prerequisites…\n\n"
+printf "\n\nInstalling postgresql and other prerequisites…\n\n"
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" > /etc/apt/sources.list.d/pgdg.list' && wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | sudo apt-key add -
 sudo apt update && sudo DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
-sudo apt install -y python build-essential curl automake autoconf libtool rpl mc git postgresql postgresql-contrib libpq-dev redis-server
+sudo apt install -y build-essential curl automake autoconf libtool rpl mc git postgresql postgresql-contrib libpq-dev redis-server
 
 #Start postgres. This step is necessary for Windows Subsystem for Linux machines
 sudo service postgresql start
@@ -126,11 +126,11 @@ su - "$username" <<EOSU
 
 #NodeJS
 printf "\n\nInstalling nvm & node.js…\n\n"
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
 source ~/.nvm/nvm.sh
 source ~/.profile
 source ~/.bashrc
-nvm i --lts=fermium
+nvm i --lts=gallium
 npm i -g pm2
 
 #ADAMANT
