@@ -14,7 +14,7 @@ var execa = require('execa');
 var OrderBy = require('../helpers/orderBy.js');
 var OutTransfer = require('../logic/outTransfer.js');
 var path = require('path');
-var popsicle = require('popsicle');
+var axios = require('axios').default;
 var rmdir = require('rimraf');
 var Router = require('../helpers/router.js');
 var Sandbox = require('lisk-sandbox');
@@ -379,7 +379,7 @@ __private.removeDApp = function (dapp, cb) {
 /**
  * Creates a temp dir, downloads the dapp as stream and decompress it.
  * @private
- * @implements {popsicle}
+ * @implements {axios}
  * @implements {DecompressZip}
  * @param {dapp} dapp
  * @param {string} dappPath
@@ -418,29 +418,28 @@ __private.downloadLink = function (dapp, dappPath, cb) {
         });
       }
 
-      var request = popsicle.get({
+      var stream = fs.createWriteStream(tmpPath);
+
+      axios({
+        method: 'get',
         url: dapp.link,
-        transport: popsicle.createTransport({ type: 'stream' })
-      });
+        responseType: 'stream'
+      })
+          .then((res) => {
+            if (res.status !== 200) {
+              return setImmediate(serialCb, ['Received bad response code', res.status].join(' '));
+            }
 
-      request.then(function (res) {
-        if (res.status !== 200) {
-          return setImmediate(serialCb, ['Received bad response code', res.status].join(' '));
-        }
+            stream.on('error', cleanup);
 
-        var stream = fs.createWriteStream(tmpPath);
+            stream.on('finish', function () {
+              library.logger.info(dapp.transactionId, 'Finished downloading');
+              stream.close(serialCb);
+            });
 
-        stream.on('error', cleanup);
-
-        stream.on('finish', function () {
-          library.logger.info(dapp.transactionId, 'Finished downloading');
-          stream.close(serialCb);
-        });
-
-        res.body.pipe(stream);
-      });
-
-      request.catch(cleanup);
+            res.data.pipe(writer);
+          })
+          .catch(cleanup);
     },
     decompressZip: function (serialCb) {
       var unzipper = new DecompressZip(tmpPath);

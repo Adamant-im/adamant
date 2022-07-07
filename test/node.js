@@ -23,7 +23,7 @@ node.accounts = require('../helpers/accounts.js');
 
 node._ = require('lodash');
 node.async = require('async');
-node.popsicle = require('popsicle');
+node.axios = require('axios').default;
 node.expect = require('chai').expect;
 node.chai = require('chai');
 node.chai.config.includeStack = true;
@@ -468,21 +468,17 @@ node.getId = function (trs) {
 
 // Returns current block height
 node.getHeight = function (cb) {
-  var request = node.popsicle.get(node.baseUrl + '/api/blocks/getHeight');
-
-  request.use(node.popsicle.plugins.parse(['json']));
-
-  request.then(function (res) {
-    if (res.status !== 200) {
-      return setImmediate(cb, ['Received bad response code', res.status, res.url].join(' '));
-    } else {
-      return setImmediate(cb, null, res.body.height);
-    }
-  });
-
-  request.catch(function (err) {
-    return setImmediate(cb, err);
-  });
+  node.axios.get(node.baseUrl + '/api/blocks/getHeight')
+      .then((res) => {
+        if (res.status !== 200 || !res.data) {
+          return setImmediate(cb, ['Received bad response code', res.status, res.config.url].join(' '));
+        } else {
+          return setImmediate(cb, null, res.data.height);
+        }
+      })
+      .catch((err) => {
+        return setImmediate(cb, err);
+      });
 };
 
 // Run callback on new round
@@ -538,27 +534,23 @@ node.waitForNewBlock = function (height, blocksToWait, cb) {
 
   node.async.doWhilst(
       function (cb) {
-        var request = node.popsicle.get(node.baseUrl + '/api/blocks/getHeight');
+        node.axios.get(node.baseUrl + '/api/blocks/getHeight')
+            .then((res) => {
+              if (res.status !== 200) {
+                return cb(['Received bad response code', res.status, res.config.url].join(' '));
+              }
 
-        request.use(node.popsicle.plugins.parse(['json']));
+              node.debug('== Waiting for block:'.grey, 'Height:'.grey, res.data.height, 'Target:'.grey, target, 'Second:'.grey, counter++);
 
-        request.then(function (res) {
-          if (res.status !== 200) {
-            return cb(['Received bad response code', res.status, res.url].join(' '));
-          }
+              if (res.data.height >= target) {
+                height = res.data.height;
+              }
 
-          node.debug('== Waiting for block:'.grey, 'Height:'.grey, res.body.height, 'Target:'.grey, target, 'Second:'.grey, counter++);
-
-          if (res.body.height >= target) {
-            height = res.body.height;
-          }
-
-          setTimeout(cb, 1000);
-        });
-
-        request.catch(function (err) {
-          return cb(err);
-        });
+              setTimeout(cb, 1000);
+            })
+            .catch(function (err) {
+              return cb(err);
+            });
       },
       function () {
         return actualHeight === height;
@@ -586,7 +578,7 @@ node.addPeers = function (numOfPeers, ip, cb) {
     os = operatingSystems[node.randomizeSelection(operatingSystems.length)];
     version = node.version;
 
-    var request = node.popsicle.get({
+    node.axios.get({
       url: node.baseUrl + '/peer/height',
       headers: {
         broadhash: node.config.nethash,
@@ -598,22 +590,18 @@ node.addPeers = function (numOfPeers, ip, cb) {
         version: version,
         nonce: 'randomNonce'
       }
-    });
-
-    request.use(node.popsicle.plugins.parse(['json']));
-
-    request.then(function (res) {
-      if (res.status !== 200) {
-        return next(['Received bad response code', res.status, res.url].join(' '));
-      } else {
-        i++;
-        next();
-      }
-    });
-
-    request.catch(function (err) {
-      return next(err);
-    });
+    })
+        .then(function (res) {
+          if (res.status !== 200) {
+            return next(['Received bad response code', res.status, res.config.url].join(' '));
+          } else {
+            i++;
+            next();
+          }
+        })
+        .catch(function (err) {
+          return next(err);
+        });
   }, function (err) {
     // Wait for peer to be swept to db
     setTimeout(function () {

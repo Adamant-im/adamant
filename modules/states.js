@@ -7,7 +7,6 @@ var extend = require('extend');
 var ip = require('ip');
 var OrderBy = require('../helpers/orderBy.js');
 var path = require('path');
-var popsicle = require('popsicle');
 var Router = require('../helpers/router.js');
 var schema = require('../schema/states.js');
 var sql = require('../sql/states.js');
