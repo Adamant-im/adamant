@@ -10,7 +10,7 @@ var extend = require('extend');
 var fs = require('fs');
 var ip = require('ip');
 var InTransfer = require('../logic/inTransfer.js');
-var npm = require('npm');
+var execa = require('execa');
 var OrderBy = require('../helpers/orderBy.js');
 var OutTransfer = require('../logic/outTransfer.js');
 var path = require('path');
@@ -296,27 +296,13 @@ __private.createBasePaths = function (cb) {
 __private.installDependencies = function (dapp, cb) {
   var dappPath = path.join(__private.dappsPath, dapp.transactionId);
 
-  var packageJson = path.join(dappPath, 'package.json');
-  var config = null;
-
-  try {
-    config = JSON.parse(fs.readFileSync(packageJson));
-  } catch (e) {
-    return setImmediate(cb, 'Failed to open package.json file');
-  }
-
-  npm.load(config, function (err) {
-    if (err) {
-      return setImmediate(cb, err);
-    }
-
-    npm.root = path.join(dappPath, 'node_modules');
-    npm.prefix = dappPath;
-
-    npm.commands.install(function (err, data) {
-      return setImmediate(cb, null);
-    });
-  });
+  execa('npm', ['install', `-g --prefix ${dappPath}`])
+      .then(function () {
+        return setImmediate(cb, null);
+      })
+      .catch(function (err) {
+        return setImmediate(cb, err);
+      });
 };
 
 /**

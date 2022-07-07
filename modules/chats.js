@@ -5,7 +5,6 @@ var crypto = require('crypto');
 var Chat = require('../logic/chat.js');
 var extend = require('extend');
 var ip = require('ip');
-var npm = require('npm');
 var OrderBy = require('../helpers/orderBy.js');
 var path = require('path');
 var popsicle = require('popsicle');
