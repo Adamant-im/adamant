@@ -72,10 +72,10 @@ Cache.prototype.setJsonForKey = function (key, value, cb) {
   // redis calls toString on objects, which converts it to object [object] so calling stringify before saving
   client.set(key, JSON.stringify(value))
       .then((res) => {
-        cb(null, res)
+        cb(null, res);
       })
       .catch((err) => {
-        cb(err, value)
+        cb(err, value);
       });
 };
 
@@ -110,8 +110,8 @@ Cache.prototype.removeByPattern = function (pattern, cb) {
           keys = res.keys;
           if (keys.length > 0) {
             client.del(keys)
-              .then((res) => whilstCb(null, res))
-              .catch((err) => whilstCb(err));
+                .then((res) => whilstCb(null, res))
+                .catch((err) => whilstCb(err));
           } else {
             return whilstCb();
           }
