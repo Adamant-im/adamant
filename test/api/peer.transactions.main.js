@@ -268,8 +268,8 @@ describe('POST /peer/transactions', function () {
             count++;
             return next();
           });
-        }, function () {
-          return count === 10;
+        }, function (testCb) {
+          return testCb(null, count === 10);
         }, function () {
           return done();
         });

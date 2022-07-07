@@ -57,8 +57,8 @@ function confirmTransaction (transactionId, passphrases, done) {
   var count = 0;
 
   async.until(
-    function () {
-      return (count >= passphrases.length);
+    function (testCb) {
+      return testCb(null, count >= passphrases.length);
     },
     function (untilCb) {
       var passphrase = passphrases[count];

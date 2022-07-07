@@ -552,8 +552,8 @@ node.waitForNewBlock = function (height, blocksToWait, cb) {
               return cb(err);
             });
       },
-      function () {
-        return actualHeight === height;
+      function (testCb) {
+        return testCb(null, actualHeight === height);
       },
       function (err) {
         if (err) {
@@ -572,8 +572,8 @@ node.addPeers = function (numOfPeers, ip, cb) {
   var os, version;
   var i = 0;
 
-  node.async.whilst(function () {
-    return i < numOfPeers;
+  node.async.whilst(function (testCb) {
+    return testCb(null, i < numOfPeers);
   }, function (next) {
     os = operatingSystems[node.randomizeSelection(operatingSystems.length)];
     version = node.version;

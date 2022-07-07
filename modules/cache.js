@@ -119,8 +119,8 @@ Cache.prototype.removeByPattern = function (pattern, cb) {
       .catch((err) => {
         return whilstCb(err);
       });
-  }, function test () {
-    return cursor > 0;
+  }, function test (...args) {
+    return args[args.length - 1](null, cursor > 0);
   }, cb);
 };
 
