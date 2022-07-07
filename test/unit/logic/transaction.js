@@ -905,7 +905,7 @@ describe('transaction', function () {
           accountModule.getAccount({ publicKey: trs.senderPublicKey }, function (err, accountAfter) {
             var balanceAfter = new bignum(accountAfter.balance.toString());
 
-            expect(balanceBefore.plus(amount.mul(2)).toString()).to.not.equal(balanceAfter.toString());
+            expect(balanceBefore.plus(amount.multipliedBy(2)).toString()).to.not.equal(balanceAfter.toString());
             expect(balanceBefore.toString()).to.equal(balanceAfter.toString());
             done();
           });

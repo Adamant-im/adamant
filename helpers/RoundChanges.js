@@ -21,11 +21,16 @@ function RoundChanges (scope) {
   if (exceptions.rounds[scope.round]) {
     // Apply rewards factor
     this.roundRewards.forEach(function (reward, index) {
-      this.roundRewards[index] = new bignum(reward.toPrecision(15)).times(exceptions.rounds[scope.round].rewards_factor).floor();
+      this.roundRewards[index] = new bignum(reward.toPrecision(15))
+        .times(exceptions.rounds[scope.round].rewards_factor)
+        .integerValue(bignum.ROUND_FLOOR);
     }.bind(this));
 
     // Apply fees factor and bonus
-    this.roundFees = new bignum(this.roundFees.toPrecision(15)).times(exceptions.rounds[scope.round].fees_factor).plus(exceptions.rounds[scope.round].fees_bonus).floor();
+    this.roundFees = new bignum(this.roundFees.toPrecision(15))
+      .times(exceptions.rounds[scope.round].fees_factor)
+      .plus(exceptions.rounds[scope.round].fees_bonus)
+      .integerValue(bignum.ROUND_FLOOR);
   }
 }
 
@@ -39,15 +44,15 @@ function RoundChanges (scope) {
  * @return {Object} Contains fees, feesRemaining, rewards, balance
  */
 RoundChanges.prototype.at = function (index) {
-  var fees = new bignum(this.roundFees.toPrecision(15)).dividedBy(slots.delegates).floor();
+  var fees = new bignum(this.roundFees.toPrecision(15)).dividedBy(slots.delegates).integerValue(bignum.ROUND_FLOOR);
   var feesRemaining = new bignum(this.roundFees.toPrecision(15)).minus(fees.times(slots.delegates));
-  var rewards = new bignum(this.roundRewards[index].toPrecision(15)).floor() || 0;
+  var rewards = new bignum(this.roundRewards[index].toPrecision(15)).integerValue(bignum.ROUND_FLOOR) || 0;
 
   return {
     fees: Number(fees.toFixed()),
     feesRemaining: Number(feesRemaining.toFixed()),
     rewards: Number(rewards.toFixed()),
-    balance: Number(fees.add(rewards).toFixed())
+    balance: Number(fees.plus(rewards).toFixed())
   };
 };
 
