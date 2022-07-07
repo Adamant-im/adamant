@@ -22,15 +22,15 @@ function RoundChanges (scope) {
     // Apply rewards factor
     this.roundRewards.forEach(function (reward, index) {
       this.roundRewards[index] = new bignum(reward.toPrecision(15))
-        .times(exceptions.rounds[scope.round].rewards_factor)
-        .integerValue(bignum.ROUND_FLOOR);
+          .times(exceptions.rounds[scope.round].rewards_factor)
+          .integerValue(bignum.ROUND_FLOOR);
     }.bind(this));
 
     // Apply fees factor and bonus
     this.roundFees = new bignum(this.roundFees.toPrecision(15))
-      .times(exceptions.rounds[scope.round].fees_factor)
-      .plus(exceptions.rounds[scope.round].fees_bonus)
-      .integerValue(bignum.ROUND_FLOOR);
+        .times(exceptions.rounds[scope.round].fees_factor)
+        .plus(exceptions.rounds[scope.round].fees_bonus)
+        .integerValue(bignum.ROUND_FLOOR);
   }
 }
 

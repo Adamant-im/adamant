@@ -71,7 +71,7 @@ module.exports = {
         type: 'object',
         properties: {
           url: {
-            type: 'string',
+            type: 'string'
           },
           password: {
             type: ['string', 'null']

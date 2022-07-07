@@ -24,21 +24,21 @@ module.exports.connect = function (cacheEnabled, config, logger, cb) {
   var client = redis.createClient(config);
 
   client.connect()
-    .then(() => {
-      logger.info('App connected with redis server');
+      .then(() => {
+        logger.info('App connected with redis server');
 
-      if (!isRedisLoaded) {
-        isRedisLoaded = true;
-        client.ready = isRedisLoaded;
-        return cb(null, { cacheEnabled: cacheEnabled, client: client });
-      }
-    })
-    .catch((err) => {
-      logger.error('Redis:', err);
-      // Only throw an error if cache was enabled in config but were unable to load it properly
-      if (!isRedisLoaded) {
-        isRedisLoaded = true;
-        return cb(null, { cacheEnabled: cacheEnabled, client: null });
-      }
-    });
+        if (!isRedisLoaded) {
+          isRedisLoaded = true;
+          client.ready = isRedisLoaded;
+          return cb(null, { cacheEnabled: cacheEnabled, client: client });
+        }
+      })
+      .catch((err) => {
+        logger.error('Redis:', err);
+        // Only throw an error if cache was enabled in config but were unable to load it properly
+        if (!isRedisLoaded) {
+          isRedisLoaded = true;
+          return cb(null, { cacheEnabled: cacheEnabled, client: null });
+        }
+      });
 };

@@ -49,13 +49,13 @@ Cache.prototype.getJsonForKey = function (key, cb) {
     return cb(errorCacheDisabled);
   }
   client.get(key)
-    .then((value) => {
-      // parsing string to json
-      return cb(null, JSON.parse(value));
-    })
-    .catch((err) => {
-      return cb(err, key);
-    });
+      .then((value) => {
+        // parsing string to json
+        return cb(null, JSON.parse(value));
+      })
+      .catch((err) => {
+        return cb(err, key);
+      });
 };
 
 /**
@@ -71,12 +71,12 @@ Cache.prototype.setJsonForKey = function (key, value, cb) {
 
   // redis calls toString on objects, which converts it to object [object] so calling stringify before saving
   client.set(key, JSON.stringify(value))
-    .then((res) => {
-      cb(null, res)
-    })
-    .catch((err) => {
-      cb(err, value)
-    });
+      .then((res) => {
+        cb(null, res)
+      })
+      .catch((err) => {
+        cb(err, value)
+      });
 };
 
 /**
@@ -89,8 +89,8 @@ Cache.prototype.deleteJsonForKey = function (key, cb) {
   }
 
   client.del(key)
-    .then((res) => cb(null, res))
-    .catch((err) => cb(err, key));
+      .then((res) => cb(null, res))
+      .catch((err) => cb(err, key));
 };
 
 /**
@@ -105,20 +105,20 @@ Cache.prototype.removeByPattern = function (pattern, cb) {
   var keys, cursor = 0;
   async.doWhilst(function iteratee (whilstCb) {
     client.scan(cursor, { MATCH: pattern })
-      .then((res) => {
-        cursor = res.cursor;
-        keys = res.keys;
-        if (keys.length > 0) {
-          client.del(keys)
-            .then((res) => whilstCb(null, res))
-            .catch((err) => whilstCb(err));
-        } else {
-          return whilstCb();
-        }
-      })
-      .catch((err) => {
-        return whilstCb(err);
-      });
+        .then((res) => {
+          cursor = res.cursor;
+          keys = res.keys;
+          if (keys.length > 0) {
+            client.del(keys)
+              .then((res) => whilstCb(null, res))
+              .catch((err) => whilstCb(err));
+          } else {
+            return whilstCb();
+          }
+        })
+        .catch((err) => {
+          return whilstCb(err);
+        });
   }, function test (...args) {
     return args[args.length - 1](null, cursor > 0);
   }, cb);
@@ -134,8 +134,8 @@ Cache.prototype.flushDb = function (cb) {
   }
 
   client.flushDb()
-    .then((res) => cb(null, res))
-    .catch((err) => cb(err));
+      .then((res) => cb(null, res))
+      .catch((err) => cb(err));
 };
 
 /**
@@ -157,8 +157,8 @@ Cache.prototype.quit = function (cb) {
   }
 
   client.quit()
-    .then((res) => cb(null, res))
-    .catch((err) => cb(err));
+      .then((res) => cb(null, res))
+      .catch((err) => cb(err));
 };
 
 /**
