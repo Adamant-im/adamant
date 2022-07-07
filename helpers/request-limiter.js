@@ -1,6 +1,7 @@
 'use strict';
 
-var RateLimit = require('express-rate-limit');
+var rateLimit = require('express-rate-limit');
+var slowDown = require('express-slow-down');
 
 var defaults = {
   max: 0, // Disabled
@@ -54,8 +55,8 @@ module.exports = function (app, config) {
   };
 
   limits.middleware = {
-    client: app.use('/api/', new RateLimit(limits.client)),
-    peer: app.use('/peer/', new RateLimit(limits.peer))
+    client: app.use('/api/', rateLimit(limits.client), slowDown(limits.client)),
+    peer: app.use('/peer/', rateLimit(limits.peer), slowDown(limits.peer))
   };
 
   return limits;
