@@ -70,25 +70,14 @@ module.exports = {
       redis: {
         type: 'object',
         properties: {
-          host: {
+          url: {
             type: 'string',
-            format: 'ip'
-          },
-          port: {
-            type: 'integer',
-            minimum: 1,
-            maximum: 65535
-          },
-          db: {
-            type: 'integer',
-            minimum: 0,
-            maximum: 15
           },
           password: {
             type: ['string', 'null']
           }
         },
-        required: ['host', 'port', 'db', 'password']
+        required: ['url', 'password']
       },
       api: {
         type: 'object',

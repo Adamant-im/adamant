@@ -48,13 +48,14 @@ Cache.prototype.getJsonForKey = function (key, cb) {
   if (!self.isConnected()) {
     return cb(errorCacheDisabled);
   }
-  client.get(key, function (err, value) {
-    if (err) {
-      return cb(err, value);
-    }
-    // parsing string to json
-    return cb(null, JSON.parse(value));
-  });
+  client.get(key)
+    .then((value) => {
+      // parsing string to json
+      return cb(null, JSON.parse(value));
+    })
+    .catch((err) => {
+      return cb(err, key);
+    });
 };
 
 /**
@@ -67,8 +68,15 @@ Cache.prototype.setJsonForKey = function (key, value, cb) {
   if (!self.isConnected()) {
     return cb(errorCacheDisabled);
   }
+
   // redis calls toString on objects, which converts it to object [object] so calling stringify before saving
-  client.set(key, JSON.stringify(value), cb);
+  client.set(key, JSON.stringify(value))
+    .then((res) => {
+      cb(null, res)
+    })
+    .catch((err) => {
+      cb(err, value)
+    });
 };
 
 /**
@@ -79,7 +87,10 @@ Cache.prototype.deleteJsonForKey = function (key, cb) {
   if (!self.isConnected()) {
     return cb(errorCacheDisabled);
   }
-  client.del(key, cb);
+
+  client.del(key)
+    .then((res) => cb(null, res))
+    .catch((err) => cb(err, key));
 };
 
 /**
@@ -93,19 +104,21 @@ Cache.prototype.removeByPattern = function (pattern, cb) {
   }
   var keys, cursor = 0;
   async.doWhilst(function iteratee (whilstCb) {
-    client.scan(cursor, 'MATCH', pattern, function (err, res) {
-      if (err) {
-        return whilstCb(err);
-      } else {
-        cursor = Number(res.shift());
-        keys = res.shift();
+    client.scan(cursor, { MATCH: pattern })
+      .then((res) => {
+        cursor = res.cursor;
+        keys = res.keys;
         if (keys.length > 0) {
-          client.del(keys, whilstCb);
+          client.del(keys)
+            .then((res) => whilstCb(null, res))
+            .catch((err) => whilstCb(err));
         } else {
           return whilstCb();
         }
-      }
-    });
+      })
+      .catch((err) => {
+        return whilstCb(err);
+      });
   }, function test () {
     return cursor > 0;
   }, cb);
@@ -119,7 +132,10 @@ Cache.prototype.flushDb = function (cb) {
   if (!self.isConnected()) {
     return cb(errorCacheDisabled);
   }
-  client.flushdb(cb);
+
+  client.flushDb()
+    .then((res) => cb(null, res))
+    .catch((err) => cb(err));
 };
 
 /**
@@ -139,7 +155,10 @@ Cache.prototype.quit = function (cb) {
     // because connection isn't established in the first place.
     return cb();
   }
-  client.quit(cb);
+
+  client.quit()
+    .then((res) => cb(null, res))
+    .catch((err) => cb(err));
 };
 
 /**
