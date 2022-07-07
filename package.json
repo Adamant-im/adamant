@@ -15,7 +15,7 @@
     "eslint:fixrule": "npx eslint -f visualstudio --no-eslintrc --fix --env browser,node,es2021,commonjs --parser-options=ecmaVersion:12 --rule",
     "fetchCoverage": "npx grunt exec:fetchCoverage --verbose",
     "jsdoc": "npx jsdoc -c docs/conf.json --verbose --pedantic",
-    "server-docs": "npx jsdoc && http-server docs/jsdoc/"
+    "server-docs": "npx jsdoc && npx http-server docs/jsdoc/"
   },
   "keywords": [
     "adm",
