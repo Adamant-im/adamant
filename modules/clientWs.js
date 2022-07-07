@@ -1,10 +1,13 @@
+const { Server } = require('socket.io');
+
 class ClientWs {
   constructor (config, logger, cb) {
     if (!config || !config.enabled) {
       return false;
     }
     const port = config.portWS;
-    const io = require('socket.io')(port);
+    const io = new Server(port);
+
     this.describes = {};
     this.logger = logger;
     io.sockets.on('connection', (socket) => {
