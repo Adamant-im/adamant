@@ -415,9 +415,9 @@ Peers.prototype.acceptable = function (peers) {
       .filter(function (peer) {
       // Removing peers with private address or nonce equal to self
         if ((process.env['NODE_ENV'] || '').toUpperCase() === 'TEST') {
-          return peer.nonce !== modules.system.getNonce() && (peer.os !== 'lisk-js-api');
+          return peer.nonce !== modules.system.getNonce() && (peer.os !== 'adm-js-api');
         }
-        return !ip.isPrivate(peer.ip) && peer.nonce !== modules.system.getNonce() && (peer.os !== 'lisk-js-api');
+        return !ip.isPrivate(peer.ip) && peer.nonce !== modules.system.getNonce() && (peer.os !== 'adm-js-api');
       }).value();
 };
 
@@ -679,7 +679,7 @@ Peers.prototype.shared = {
    * @return {Object}   cb.obj Anonymous object with version info
    * @return {String}   cb.obj.build Build information (if available, otherwise '')
    * @return {String}   cb.obj.commit Hash of last git commit (if available, otherwise '')
-   * @return {String}   cb.obj.version Lisk version from config file
+   * @return {String}   cb.obj.version Adamant version from config file
    */
   version: function (req, cb) {
     return setImmediate(cb, null, {

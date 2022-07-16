@@ -85,7 +85,7 @@ describe('PUT /api/accounts/delegates with funds', function () {
   before(function (done) {
     sendADM({
       secret: node.iAccount.password,
-      amount: node.randomLISK(),
+      amount: node.randomADM(),
       recipientId: account.address
     }, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -267,7 +267,7 @@ describe('PUT /api/delegates with funds', function () {
   beforeEach(function (done) {
     sendADM({
       secret: node.iAccount.password,
-      amount: node.randomLISK(),
+      amount: node.randomADM(),
       recipientId: account.address
     }, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;
@@ -785,7 +785,7 @@ describe('GET /api/delegates/voters', function () {
   before(function (done) {
     sendADM({
       secret: node.iAccount.password,
-      amount: node.randomLISK(),
+      amount: node.randomADM(),
       recipientId: account.address
     }, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.ok;

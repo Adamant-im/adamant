@@ -100,8 +100,8 @@
         "options": {
             "port": 443,
             "address": "0.0.0.0",
-            "key": "./ssl/lisk.key",
-            "cert": "./ssl/lisk.crt"
+            "key": "./ssl/adamant.key",
+            "cert": "./ssl/adamant.crt"
         }
     },
     "dapp": {

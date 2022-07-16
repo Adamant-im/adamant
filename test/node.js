@@ -39,7 +39,7 @@ node.baseUrl = 'http://' + node.config.address + ':' + node.config.port;
 // node.baseUrl = 'http://' + node.config.peers.list[2].ip + ':' + node.config.peers.list[2].port;
 node.api = node.supertest(node.baseUrl);
 
-node.normalizer = 100000000; // Use this to convert LISK amount to normal value
+node.normalizer = 100000000; // Use this to convert ADM amount to normal value
 node.blockTime = 10000; // Block time in milliseconds
 node.blockTimePlus = 12000; // Block time + 2 seconds in milliseconds
 node.version = packageJson.version; // Node version
@@ -138,8 +138,8 @@ if (process.env.SILENT === 'true') {
   node.debug = console.log;
 }
 
-// Returns random LSK amount
-node.randomLISK = function () {
+// Returns random ADM amount
+node.randomADM = function () {
   return Math.floor(Math.random() * (10000 * 100000000)) + (1000 * 100000000);
 };
 

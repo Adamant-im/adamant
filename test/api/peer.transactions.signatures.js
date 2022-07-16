@@ -20,7 +20,7 @@ function postSignatureTransaction (transaction, done) {
   });
 }
 
-function sendLISK (params, done) {
+function sendADM (params, done) {
   var transaction = node.createSendTransaction({
     keyPair: node.createKeypairFromPassphrase(params.secret),
     amount: params.amount,
@@ -75,7 +75,7 @@ describe('POST /peer/transactions', function () {
 
     describe('when account has funds', function () {
       before(function (done) {
-        sendLISK({
+        sendADM({
           secret: node.iAccount.password,
           amount: node.fees.secondPasswordFee + 100000000,
           recipientId: account.address
