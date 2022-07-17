@@ -58,7 +58,6 @@
     "js-nacl": "^1.4.0",
     "json-schema": "=0.4.0",
     "json-sql": "LiskHQ/json-sql#27e1ed1",
-    "lisk-sandbox": "LiskHQ/lisk-sandbox#162da38",
     "lodash": "=4.17.21",
     "method-override": "=3.0.0",
     "npm": "=8.13.1",
