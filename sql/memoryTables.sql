@@ -1,4 +1,4 @@
-/* Adamant Memory Tables
+/* ADAMANT Memory Tables
  *
  */
 
