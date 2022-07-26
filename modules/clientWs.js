@@ -6,7 +6,9 @@ class ClientWs {
       return false;
     }
     const port = config.portWS;
-    const io = new Server(port);
+    const io = new Server(port, {
+      allowEIO3: true
+    });
 
     this.describes = {};
     this.logger = logger;

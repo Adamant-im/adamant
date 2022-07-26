@@ -313,7 +313,9 @@ d.run(function () {
       var server = require('http').createServer(app);
 
       const { Server } = require('socket.io');
-      const io = new Server(server);
+      const io = new Server(server, {
+        allowEIO3: true
+      });
 
       var privateKey, certificate, https, https_io;
 
@@ -327,7 +329,9 @@ d.run(function () {
           ciphers: 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:' + 'ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-SHA384:ECDHE-RSA-AES256-SHA256:DHE-RSA-AES256-SHA256:HIGH:' + '!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA'
         }, app);
 
-        https_io = new Server(https);
+        https_io = new Server(https, {
+          allowEIO3: true
+        });
       }
 
       cb(null, {
