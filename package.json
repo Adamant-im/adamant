@@ -57,7 +57,7 @@
     "ip": "=1.1.8",
     "js-nacl": "^1.4.0",
     "json-schema": "=0.4.0",
-    "json-sql": "LiskHQ/json-sql#27e1ed1",
+    "knex": "^2.2.0",
     "lodash": "=4.17.21",
     "method-override": "=3.0.0",
     "npm": "=8.13.1",
@@ -98,9 +98,6 @@
   "overrides": {
     "grunt-contrib-obfuscator": {
       "javascript-obfuscator": "^4.0.0"
-    },
-    "json-sql": {
-      "underscore": "^1.13.4"
     }
   },
   "config": {
