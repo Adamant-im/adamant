@@ -9,7 +9,9 @@ var sandboxHelper = require('../helpers/sandbox.js');
 var schema = require('../schema/multisignatures.js');
 var sql = require('../sql/multisignatures.js');
 var transactionTypes = require('../helpers/transactionTypes.js');
-
+var knex = require('knex')({
+  client: 'pg'
+});
 // Private fields
 var modules, library, self, __private = {}, shared = {};
 
@@ -233,7 +235,7 @@ Multisignatures.prototype.shared = {
       },
       getAccounts: function (seriesCb) {
         modules.accounts.getAccounts({
-          address: { $in: scope.accountIds },
+          raw: knex.raw('?? in (??)', ['address', scope.accountIds]).toString(),
           sort: 'balance'
         }, ['address', 'balance', 'multisignatures', 'multilifetime', 'multimin'], function (err, accounts) {
           if (err) {
@@ -253,7 +255,7 @@ Multisignatures.prototype.shared = {
           }
 
           modules.accounts.getAccounts({
-            address: { $in: addresses }
+            raw: knex.raw('?? in (??)', ['address', addresses]).toString()
           }, ['address', 'publicKey', 'balance'], function (err, multisigaccounts) {
             if (err) {
               return setImmediate(eachSeriesCb, err);

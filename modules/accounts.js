@@ -668,7 +668,8 @@ Accounts.prototype.internal = {
   top: function (query, cb) {
     self.getAccounts({
       sort: {
-        balance: -1
+        column: 'balance',
+        order: 'desc'
       },
       offset: query.offset,
       limit: (query.limit || 100)
