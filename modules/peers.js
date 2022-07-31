@@ -413,11 +413,14 @@ Peers.prototype.acceptable = function (peers) {
         return (a.ip + a.port) === (b.ip + b.port);
       })
       .filter(function (peer) {
-      // Removing peers with private address or nonce equal to self
+        // Removing peers with private address or nonce equal to self
+        const isJsAPI = peer.os === 'adm-js-api' || peer.os === 'lisk-js-api';
+
         if ((process.env['NODE_ENV'] || '').toUpperCase() === 'TEST') {
-          return peer.nonce !== modules.system.getNonce() && (peer.os !== 'adm-js-api');
+          return peer.nonce !== modules.system.getNonce() && !isJsAPI;
         }
-        return !ip.isPrivate(peer.ip) && peer.nonce !== modules.system.getNonce() && (peer.os !== 'adm-js-api');
+
+        return !ip.isPrivate(peer.ip) && peer.nonce !== modules.system.getNonce() && !isJsAPI;
       }).value();
 };
 
