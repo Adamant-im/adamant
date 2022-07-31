@@ -45,7 +45,6 @@
     "commander": "=9.3.0",
     "compression": "=1.7.4",
     "cors": "=2.8.5",
-    "decompress-zip": "LiskHQ/decompress-zip#f46b0a3",
     "ejs": "=3.1.8",
     "execa": "^5.1.1",
     "express": "=4.18.1",
@@ -72,6 +71,7 @@
     "sodium": "^3.0.2",
     "sodium-browserify-tweetnacl": "*",
     "strftime": "=0.10.1",
+    "unzipper": "^0.10.11",
     "valid-url": "=1.0.9",
     "validator.js": "=2.0.4",
     "z-schema": "=5.0.3"

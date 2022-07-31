@@ -5,7 +5,7 @@ var crypto = require('crypto');
 var DApp = require('../logic/dapp.js');
 var dappCategories = require('../helpers/dappCategories.js');
 var dappTypes = require('../helpers/dappTypes.js');
-var DecompressZip = require('decompress-zip');
+var unzipper = require('unzipper');
 var extend = require('extend');
 var fs = require('fs');
 var ip = require('ip');
@@ -380,7 +380,7 @@ __private.removeDApp = function (dapp, cb) {
  * Creates a temp dir, downloads the dapp as stream and decompress it.
  * @private
  * @implements {axios}
- * @implements {DecompressZip}
+ * @implements {unzipper}
  * @param {dapp} dapp
  * @param {string} dappPath
  * @param {function} cb
@@ -442,34 +442,57 @@ __private.downloadLink = function (dapp, dappPath, cb) {
           .catch(cleanup);
     },
     decompressZip: function (serialCb) {
-      var unzipper = new DecompressZip(tmpPath);
-
       library.logger.info(dapp.transactionId, 'Decompressing zip file');
 
-      unzipper.on('error', function (err) {
-        library.logger.error(dapp.transactionId, 'Decompression failed: ' + err.message);
-        fs.exists(tmpPath, function (exists) {
-          if (exists) { fs.unlink(tmpPath); }
-          return setImmediate(serialCb, 'Failed to decompress zip file');
-        });
-      });
+      fs.createReadStream(tmpPath)
+          .pipe(unzipper.Parse())
+          .on('entry', function (entry) {
+            const fileName = entry.path;
+            const strippedPath = fileName
+                .split(path.sep)
+                .splice(1)
+                .join(path.sep);
 
-      unzipper.on('extract', function (log) {
-        library.logger.info(dapp.transactionId, 'Finished extracting');
-        fs.exists(tmpPath, function (exists) {
-          if (exists) { fs.unlink(tmpPath); }
-          return setImmediate(serialCb, null);
-        });
-      });
+            if (!strippedPath) {
+              return entry.autodrain();
+            }
 
-      unzipper.on('progress', function (fileIndex, fileCount) {
-        library.logger.info(dapp.transactionId, ['Extracted file', (fileIndex + 1), 'of', fileCount].join(' '));
-      });
+            if (entry.type === 'File') {
+              const dirName = path.dirname(strippedPath);
 
-      unzipper.extract({
-        path: dappPath,
-        strip: 1
-      });
+              if (dirName) {
+                const dirPath = path.resolve(dappPath, dirName);
+
+                fs.exists(dirPath, function (exists) {
+                  if (!exists) {
+                    fs.mkdirSync(dirPath, {
+                      recursive: true
+                    });
+                  }
+                });
+              }
+
+              library.logger.info(dapp.transactionId, `Extracted file: ${strippedPath}`);
+              entry.pipe(fs.createWriteStream(path.resolve(dappPath, strippedPath)));
+            } else {
+              entry.autodrain();
+            }
+          })
+          .promise()
+          .then(() => {
+            library.logger.info(dapp.transactionId, 'Finished extracting');
+            fs.exists(tmpPath, function (exists) {
+              if (exists) { fs.unlink(tmpPath); }
+              return setImmediate(serialCb, null);
+            });
+          })
+          .catch((error) => {
+            library.logger.error(dapp.transactionId, 'Decompression failed: ' + error);
+            fs.exists(tmpPath, function (exists) {
+              if (exists) { fs.unlink(tmpPath); }
+              return setImmediate(serialCb, 'Failed to decompress zip file');
+            });
+          });
     }
   },
   function (err) {
