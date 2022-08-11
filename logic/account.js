@@ -3,10 +3,8 @@
 var async = require('async');
 var pgp = require('pg-promise');
 var path = require('path');
-var knex = require('knex')({
-  client: 'pg'
-});
-
+var jsonSql = require('json-sql')();
+jsonSql.setDialect('postgresql');
 var constants = require('../helpers/constants.js');
 var slots = require('../helpers/slots.js');
 
@@ -458,14 +456,14 @@ Account.prototype.removeTables = function (cb) {
     'mem_accounts2u_delegates',
     'mem_accounts2multisignatures',
     'mem_accounts2u_multisignatures'].forEach(function (table) {
-    const sql = knex.delete()
-        .from(table)
-        .toString();
-
-    sqles.push(sql);
+    sql = jsonSql.build({
+      type: 'remove',
+      table: table
+    });
+    sqles.push(sql.query);
   });
 
-  this.scope.db.query(sqles.join('; ')).then(function () {
+  this.scope.db.query(sqles.join('')).then(function () {
     return setImmediate(cb);
   }).catch(function (err) {
     library.logger.error(err.stack);
@@ -584,8 +582,6 @@ Account.prototype.getAll = function (filter, fields, cb) {
   }.bind(this));
 
   var limit, offset, sort;
-  const rawFilters = filter.raw || [];
-  delete filter.raw;
 
   if (filter.limit > 0) {
     limit = filter.limit;
@@ -603,39 +599,23 @@ Account.prototype.getAll = function (filter, fields, cb) {
   delete filter.sort;
 
   if (typeof filter.address === 'string') {
-    rawFilters.push(
-        knex.raw('address = UPPER(?)', filter.address)
-    );
-    delete filter.address;
+    filter.address = {
+      $upper: ['address', filter.address]
+    };
   }
 
-  const sql = knex(this.table)
-      .select(realFields)
-      .from({ a: this.table })
-      .modify(function (queryBuilder) {
-        if (limit) {
-          queryBuilder.limit(limit);
-        }
+  var sql = jsonSql.build({
+    type: 'select',
+    table: this.table,
+    limit: limit,
+    offset: offset,
+    sort: sort,
+    alias: 'a',
+    condition: filter,
+    fields: realFields
+  });
 
-        if (offset) {
-          queryBuilder.offset(offset);
-        }
-
-        if (sort) {
-          queryBuilder.orderBy(Array.isArray(sort) ? sort : [sort]);
-        }
-
-        if (Object.keys(filter).length >= 1) {
-          builder.where(filter);
-        }
-
-        if (rawFilters.length >= 1) {
-          builder.where(rawFilters.join(' and '));
-        }
-      })
-      .toString();
-
-  this.scope.db.query(sql).then(function (rows) {
+  this.scope.db.query(sql.query, sql.values).then(function (rows) {
     return setImmediate(cb, null, rows);
   }).catch(function (err) {
     library.logger.error(err.stack);
@@ -658,13 +638,15 @@ Account.prototype.set = function (address, fields, cb) {
   address = String(address).toUpperCase();
   fields.address = address;
 
-  const sql = knex(this.table)
-      .insert(this.toDB(fields))
-      .onConflict(['address'])
-      .merge(this.toDB(fields))
-      .toString();
+  var sql = jsonSql.build({
+    type: 'insertorupdate',
+    table: this.table,
+    conflictFields: ['address'],
+    values: this.toDB(fields),
+    modifier: this.toDB(fields)
+  });
 
-  this.scope.db.none(sql).then(function () {
+  this.scope.db.none(sql.query, sql.values).then(function () {
     return setImmediate(cb);
   }).catch(function (err) {
     library.logger.error(err.stack);
@@ -815,16 +797,16 @@ Account.prototype.merge = function (address, diff, cb) {
 
   var sqles = [];
 
-  const tableName = `${self.table}2${el}`;
-
   if (Object.keys(remove).length) {
     Object.keys(remove).forEach(function (el) {
-      const sql = knex(tableName)
-          .whereIn('dependentId', remove[el])
-          .andWhere('accountId', address)
-          .del()
-          .toString();
-
+      var sql = jsonSql.build({
+        type: 'remove',
+        table: self.table + '2' + el,
+        condition: {
+          dependentId: { $in: remove[el] },
+          accountId: address
+        }
+      });
       sqles.push(sql);
     });
   }
@@ -832,13 +814,14 @@ Account.prototype.merge = function (address, diff, cb) {
   if (Object.keys(insert).length) {
     Object.keys(insert).forEach(function (el) {
       for (var i = 0; i < insert[el].length; i++) {
-        const sql = knex(tableName)
-            .insert({
-              accountId: address,
-              dependentId: insert[el][i]
-            })
-            .toString();
-
+        var sql = jsonSql.build({
+          type: 'insert',
+          table: self.table + '2' + el,
+          values: {
+            accountId: address,
+            dependentId: insert[el][i]
+          }
+        });
         sqles.push(sql);
       }
     });
@@ -847,11 +830,11 @@ Account.prototype.merge = function (address, diff, cb) {
   if (Object.keys(remove_object).length) {
     Object.keys(remove_object).forEach(function (el) {
       remove_object[el].accountId = address;
-      const sql = knex(tableName)
-          .where(remove_object[el])
-          .del()
-          .toString();
-
+      var sql = jsonSql.build({
+        type: 'remove',
+        table: self.table + '2' + el,
+        condition: remove_object[el]
+      });
       sqles.push(sql);
     });
   }
@@ -860,21 +843,25 @@ Account.prototype.merge = function (address, diff, cb) {
     Object.keys(insert_object).forEach(function (el) {
       insert_object[el].accountId = address;
       for (var i = 0; i < insert_object[el].length; i++) {
-        const sql = knex(tableName)
-            .insert(insert_object[el])
-            .toString();
-
+        var sql = jsonSql.build({
+          type: 'insert',
+          table: self.table + '2' + el,
+          values: insert_object[el]
+        });
         sqles.push(sql);
       }
     });
   }
 
   if (Object.keys(update).length) {
-    const sql = knex(this.table)
-        .where({ address })
-        .update(update)
-        .toString();
-
+    var sql = jsonSql.build({
+      type: 'update',
+      table: this.table,
+      modifier: update,
+      condition: {
+        address: address
+      }
+    });
     sqles.push(sql);
   }
 
@@ -889,9 +876,9 @@ Account.prototype.merge = function (address, diff, cb) {
     }
   }
 
-  var queries = sqles.join(';') + round.map(function (sql) {
+  var queries = sqles.concat(round).map(function (sql) {
     return pgp.as.format(sql.query, sql.values);
-  }).join('').concat(round);
+  }).join('');
 
   if (!cb) {
     return queries;
@@ -916,12 +903,14 @@ Account.prototype.merge = function (address, diff, cb) {
  * @return {setImmediateCallback} Data with address | Account#remove error.
  */
 Account.prototype.remove = function (address, cb) {
-  const sql = knex(this.table)
-      .where({ address })
-      .del()
-      .toString();
-
-  this.scope.db.none(sql).then(function () {
+  var sql = jsonSql.build({
+    type: 'remove',
+    table: this.table,
+    condition: {
+      address: address
+    }
+  });
+  this.scope.db.none(sql.query, sql.values).then(function () {
     return setImmediate(cb, null, address);
   }).catch(function (err) {
     library.logger.error(err.stack);

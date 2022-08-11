@@ -2,10 +2,8 @@
 
 var async = require('async');
 var extend = require('extend');
-var knex = require('knex')({
-  client: 'pg'
-});
-
+var jsonSql = require('json-sql')();
+jsonSql.setDialect('postgresql');
 var sandboxHelper = require('../helpers/sandbox.js');
 
 // Private fields
@@ -120,7 +118,7 @@ __private.pass = function (obj, dappid) {
  * @implements {jsonSql.build}
  * @implements {library.db.query}
  * @implements {async.until}
- * @param {string} action - should be `batch` or sql query
+ * @param {string} action
  * @param {Object} config
  * @param {function} cb
  * @return {setImmediateCallback} cb, err, data
@@ -137,11 +135,22 @@ __private.query = function (action, config, cb) {
   }
 
   if (action !== 'batch') {
-    const sql = action;
+    __private.pass(config, config.dappid);
 
-    library.logger.trace('sql.query:', sql);
+    var defaultConfig = {
+      type: action
+    };
 
-    library.db.query(sql).then(function (rows) {
+    try {
+      sql = jsonSql.build(extend({}, config, defaultConfig));
+      library.logger.trace('sql.query:', sql);
+    } catch (e) {
+      return done(e);
+    }
+
+    // console.log(sql.query, sql.values);
+
+    library.db.query(sql.query, sql.values).then(function (rows) {
       return done(null, rows);
     }).catch(function (err) {
       library.logger.error(err.stack);
@@ -197,9 +206,6 @@ Sql.prototype.createTables = function (dappid, config, cb) {
   var sqles = [];
   for (var i = 0; i < config.length; i++) {
     config[i].table = 'dapp_' + dappid + '_' + config[i].table;
-
-    let sql;
-
     if (config[i].type === 'table') {
       config[i].type = 'create';
       if (config[i].foreignKeys) {
@@ -207,31 +213,17 @@ Sql.prototype.createTables = function (dappid, config, cb) {
           config[i].foreignKeys[n].table = 'dapp_' + dappid + '_' + config[i].foreignKeys[n].table;
         }
       }
-
-      try {
-        sql = knex.schema.createTableIfNotExists('user', function (table) {
-          for (let j = 0; j < config[i].tableFields.length; j++) {
-            const field = config[i].tableFields[j];
-
-            table[field.type](field.name);
-          }
-        }).toString();
-      } catch (err) {
-        return setImmediate(cb, 'An error occurred while creating table: ' + err);
-      }
     } else if (config[i].type === 'index') {
-      sql = knex.raw(
-          `create index if not exists ? ON ?(?)`,
-          [config[i].name, config[i].table, config[i].indexOn]
-      ).toString();
+      config[i].type = 'index';
     } else {
       return setImmediate(cb, 'Unknown table type: ' + config[i].type);
     }
 
-    sqles.push(sql);
+    var sql = jsonSql.build(config[i]);
+    sqles.push(sql.query);
   }
 
-  async.eachSeries(sqles.join('; '), function (command, cb) {
+  async.eachSeries(sqles, function (command, cb) {
     library.db.none(command).then(function () {
       return setImmediate(cb);
     }).catch(function (err) {
@@ -316,35 +308,7 @@ Sql.prototype.onBlockchainReady = function () {
  */
 shared.select = function (req, cb) {
   var config = extend({}, req.body, { dappid: req.dappid });
-
-  __private.pass(config, config.dappid);
-
-  const table = config.alias ?
-      ({ [config.alias]: config.table }) :
-      config.table;
-
-  const sql = knex(table)
-      .select(config.fields)
-      .modify(function (queryBuilder) {
-        if (config.limit) {
-          queryBuilder.limit(config.limit);
-        }
-
-        if (config.offset) {
-          queryBuilder.offset(config.offset);
-        }
-
-        if (config.condition) {
-          queryBuilder.where(config.condition);
-        }
-
-        if (config.sort) {
-          queryBuilder.orderBy(config.sort);
-        }
-      })
-      .toString();
-
-  __private.query.call(this, sql, config, cb);
+  __private.query.call(this, 'select', config, cb);
 };
 
 /**
@@ -364,19 +328,7 @@ shared.batch = function (req, cb) {
  */
 shared.insert = function (req, cb) {
   var config = extend({}, req.body, { dappid: req.dappid });
-
-  __private.pass(config, config.dappid);
-
-  const sql = knex(config.table)
-      .insert(config.values)
-      .modify(function (queryBuilder) {
-        if (config.condition) {
-          queryBuilder.where(config.condition);
-        }
-      })
-      .toString();
-
-  __private.query.call(this, sql, config, cb);
+  __private.query.call(this, 'insert', config, cb);
 };
 
 /**
@@ -386,19 +338,7 @@ shared.insert = function (req, cb) {
  */
 shared.update = function (req, cb) {
   var config = extend({}, req.body, { dappid: req.dappid });
-
-  __private.pass(config, config.dappid);
-
-  const sql = knex(config.table)
-      .update(config.modifier)
-      .modify(function (queryBuilder) {
-        if (config.condition) {
-          queryBuilder.where(config.condition);
-        }
-      })
-      .toString();
-
-  __private.query.call(this, sql, config, cb);
+  __private.query.call(this, 'update', config, cb);
 };
 
 /**
@@ -408,18 +348,7 @@ shared.update = function (req, cb) {
  */
 shared.remove = function (req, cb) {
   var config = extend({}, req.body, { dappid: req.dappid });
-  __private.pass(config, config.dappid);
-
-  const sql = knex(config.table)
-      .modify(function (queryBuilder) {
-        if (config.condition) {
-          queryBuilder.where(config.condition);
-        }
-      })
-      .del()
-      .toString();
-
-  __private.query.call(this, sql, config, cb);
+  __private.query.call(this, 'remove', config, cb);
 };
 
 // Export

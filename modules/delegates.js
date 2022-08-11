@@ -10,9 +10,6 @@ var jobsQueue = require('../helpers/jobsQueue.js');
 var crypto = require('crypto');
 var Delegate = require('../logic/delegate.js');
 var extend = require('extend');
-var knex = require('knex')({
-  client: 'pg'
-});
 var OrderBy = require('../helpers/orderBy.js');
 var sandboxHelper = require('../helpers/sandbox.js');
 var schema = require('../schema/delegates.js');
@@ -83,13 +80,7 @@ function Delegates (cb, scope) {
 __private.getKeysSortByVote = function (cb) {
   modules.accounts.getAccounts({
     isDelegate: 1,
-    sort: [{
-      column: 'vote',
-      order: 'desc'
-    }, {
-      column: 'publicKey',
-      order: 'asc'
-    }],
+    sort: { 'vote': -1, 'publicKey': 1 },
     limit: slots.delegates
   }, ['publicKey'], function (err, rows) {
     if (err) {
@@ -110,13 +101,7 @@ __private.getKeysSortByVote = function (cb) {
 __private.getKeysSortByVotesWeight = function (cb) {
   modules.accounts.getAccounts({
     isDelegate: 1,
-    sort: [{
-      column: 'votesWeight',
-      order: 'desc'
-    }, {
-      column: 'publicKey',
-      order: 'asc'
-    }],
+    sort: { 'votesWeight': -1, 'publicKey': 1 },
     limit: slots.delegates
   }, ['publicKey'], function (err, rows) {
     if (err) {
@@ -440,23 +425,10 @@ Delegates.prototype.getDelegates = function (query, cb) {
   if (!query) {
     throw 'Missing query argument';
   }
-  var sortFilter = [{
-    column: 'vote',
-    order: 'desc'
-  }];
-
+  var sortFilter = { 'vote': -1, 'publicKey': 1 };
   if (modules.blocks.lastBlock.get().height > constants.fairSystemActivateBlock) {
-    sortFilter = [{
-      column: 'votesWeight',
-      order: 'desc'
-    }];
+    sortFilter = { 'votesWeight': -1, 'publicKey': 1 };
   }
-
-  sortFilter.push({
-    column: 'publicKey',
-    order: 'asc'
-  });
-
   modules.accounts.getAccounts({
     isDelegate: 1,
     sort: sortFilter
@@ -884,7 +856,7 @@ Delegates.prototype.shared = {
         var addresses = (row.accountIds) ? row.accountIds : [];
 
         modules.accounts.getAccounts({
-          raw: knex.raw('?? in (??)', ['address', addresses]).toString(),
+          address: { $in: addresses },
           sort: 'balance'
         }, ['address', 'balance', 'username', 'publicKey'], function (err, rows) {
           if (err) {
