@@ -578,7 +578,8 @@ node.addPeers = function (numOfPeers, ip, cb) {
     os = operatingSystems[node.randomizeSelection(operatingSystems.length)];
     version = node.version;
 
-    node.axios.get({
+    node.axios({
+      method: 'get',
       url: node.baseUrl + '/peer/height',
       headers: {
         broadhash: node.config.nethash,
