@@ -136,9 +136,9 @@ __private.list = function (filter, cb) {
     where.push('"t_recipientId" = ${name}');
     params.name = filter.recipientId;
   }
-  if (filter.isIn) {
+  if (filter.isIn || filter.inId) {
     where.push('("t_recipientId" = ${name} OR "t_senderId" = ${name})');
-    params.name = filter.isIn;
+    params.name = filter.isIn || filter.inId;
   }
   if (filter.fromHeight) {
     where.push('"b_height" > ${height}');

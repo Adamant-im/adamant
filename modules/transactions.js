@@ -82,6 +82,7 @@ __private.list = function (filter, cb) {
     senderId: '"t_senderId" = ${senderId}',
     recipientId: '"t_recipientId" = ${recipientId}',
     inId: '("t_recipientId" = ${inId} OR "t_senderId" = ${inId})',
+    isIn: '("t_recipientId" = ${isIn} OR "t_senderId" = ${isIn})',
     fromHeight: '"b_height" >= ${fromHeight}',
     toHeight: '"b_height" <= ${toHeight}',
     fromTimestamp: '"t_timestamp" >= ${fromTimestamp}',
