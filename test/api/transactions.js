@@ -70,13 +70,13 @@ function sendADM2voter (params, done) {
 
 before(function (done) {
   setTimeout(function () {
-    sendADM(account, node.randomLISK(), done);
+    sendADM(account, node.randomADM(), done);
   }, 2000);
 });
 
 before(function (done) {
   setTimeout(function () {
-    sendADM(account2, node.randomLISK(), done);
+    sendADM(account2, node.randomADM(), done);
   }, 2000);
 });
 

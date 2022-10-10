@@ -159,9 +159,9 @@ __private.query = function (action, config, cb) {
   } else {
     var batchPack = [];
     async.until(
-        function () {
+        function (testCb) {
           batchPack = config.values.splice(0, 10);
-          return batchPack.length === 0;
+          return testCb(null, batchPack.length === 0);
         }, function (cb) {
           var fields = Object.keys(config.fields).map(function (field) {
             return __private.escape2(config.fields[field]); // Add double quotes to field identifiers

@@ -107,7 +107,7 @@ module.exports = function (grunt) {
 
     eslint: {
       options: {
-        configFile: '.eslintrc.json',
+        overrideConfigFile: '.eslintrc.json',
         format: 'codeframe',
         fix: false
       },

@@ -1,0 +1,44 @@
+{
+  "name": "json-sql",
+  "description": "Node.js json to sql query mapper",
+  "version": "0.2.6",
+  "author": {
+    "name": "Artem Zhukov",
+    "email": "artzhuchka@gmail.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/2do2go/json-sql.git"
+  },
+  "keywords": [
+    "json-sql",
+    "json",
+    "sql",
+    "odm",
+    "mapper",
+    "db",
+    "database"
+  ],
+  "dependencies": {
+    "underscore": "=1.8.3"
+  },
+  "devDependencies": {
+    "jshint": "=2.9.2",
+    "chai": "=3.5.0",
+    "gulp": "=3.9.1",
+    "gulp-jshint": "=2.0.0",
+    "gulp-mocha": "=2.2.0"
+  },
+  "main": "./lib/index",
+  "readme": "# JSON-SQL\n\nLibrary for mapping mongo-style query objects to SQL queries.\n\n## Quick Start\n\nInstall it with NPM or add it to your package.json:\n\n``` bash\n$ npm install json-sql\n```\n\nThen:\n\n``` js\nvar jsonSql = require('json-sql')();\n\nvar sql = jsonSql.build({\n\ttype: 'select',\n\ttable: 'users',\n\tfields: ['name', 'age'],\n\tcondition: {name: 'Max', id: 6}\n});\n\nsql.query\n// sql string:\n// select name, age from users where name = $p1 && id = 6;\n\nsql.values\n// hash of values:\n// { p1: 'Max' }\n```\n\n## Documentation\n\nDocumentation is available at the [./docs directory](./docs).\n\n## Examples\n\n__Select with join:__\n\n``` js\nvar sql = jsonSql.build({\n\ttype: 'select',\n\ttable: 'users',\n\tjoin: {\n\t\tdocuments: {\n\t\t\ton: {'user.id': 'documents.userId'}\n\t\t}\n\t}\n});\n\nsql.query\n// select * from users join documents on user.id = documents.userId;\n\nsql.values\n// {}\n```\n\n__Insert:__\n\n``` js\nvar sql = jsonSql.build({\n\ttype: 'insert',\n\ttable: 'users',\n\tvalues: {\n\t\tname: 'John',\n\t\tlastname: 'Snow',\n\t\tage: 24,\n\t\tgender: 'male'\n\t}\n});\n\nsql.query\n// insert into users (name, lastname, age, gender) values ($p1, $p2, 24, $p3);\n\nsql.values\n// { p1: 'John', p2: 'Snow', p3: 'male' }\n```\n\n__Update:__\n\n``` js\nvar sql = jsonSql.build({\n\ttype: 'update',\n\ttable: 'users',\n\tcondition: {\n\t\tid: 5\n\t},\n\tmodifier: {\n\t\trole: 'admin'\n\t\tage: 33\n\t}\n});\n\nsql.query\n// update users set role = $p1, age = 33 where id = 5;\n\nsql.values\n// { p1: 'admin' }\n```\n\n__Remove:__\n\n``` js\nvar sql = jsonSql.build({\n\ttype: 'remove',\n\ttable: 'users',\n\tcondition: {\n\t\tid: 5\n\t}\n});\n\nsql.query\n// delete from users where id = 5;\n\nsql.values\n// {}\n```\n\nFor more examples, take a look at the [./docs directory](./docs) or [./tests directory](./tests).\n\n## Tests\n\nClone repository from github, `cd` into cloned dir and install dev dependencies:\n\n``` bash\n$ npm install\n```\n\nThen run tests with command:\n\n``` bash\n$ gulp test\n```\n\nOr run tests coverage with command:\n\n``` bash\n$ gulp coverage\n```\n\n## License\n\n[MIT](./LICENSE)\n",
+  "readmeFilename": "README.md",
+  "bugs": {
+    "url": "https://github.com/2do2go/json-sql/issues"
+  },
+  "homepage": "https://github.com/2do2go/json-sql#readme",
+  "_id": "json-sql@0.2.4",
+  "_shasum": "df8c5f345b72f421c6fc7da57116c47cae5b5216",
+  "_resolved": "https://github.com/LiskHQ/json-sql/tarball/master",
+  "_from": "https://github.com/LiskHQ/json-sql/tarball/master"
+}
