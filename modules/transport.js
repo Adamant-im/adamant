@@ -9,7 +9,7 @@ var constants = require('../helpers/constants.js');
 var crypto = require('crypto');
 var extend = require('extend');
 var ip = require('ip');
-var popsicle = require('popsicle');
+var axios = require('axios').default;
 var schema = require('../schema/transport.js');
 var sandboxHelper = require('../helpers/sandbox.js');
 var sql = require('../sql/transport.js');
@@ -330,7 +330,7 @@ Transport.prototype.getFromRandomPeer = function (config, options, cb) {
  * - same network (response headers nethash)
  * - compatible version (response headers version)
  * Removes peer if error, updates peer otherwise
- * @requires {popsicle}
+ * @requires {axios}
  * @implements {library.logic.peers.create}
  * @implements {library.schema.validate}
  * @implements {modules.system.networkCompatible}
@@ -362,12 +362,11 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
   };
 
   if (options.data) {
-    req.body = options.data;
+    req.data = options.data;
   }
 
-  popsicle.request(req)
-      .use(popsicle.plugins.parse(['json'], false))
-      .then(function (res) {
+  axios(req)
+      .then((res) => {
         if (res.status !== 200) {
         // Remove peer
           __private.removePeer({ peer: peer, code: 'ERESPONSE ' + res.status }, req.method + ' ' + req.url);
@@ -400,9 +399,10 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
 
           modules.peers.update(peer);
 
-          return setImmediate(cb, null, { body: res.body, peer: peer });
+          return setImmediate(cb, null, { body: res.data, peer: peer });
         }
-      }).catch(function (err) {
+      })
+      .catch((err) => {
         if (peer) {
           __private.removePeer({ peer: peer, code: err.code }, req.method + ' ' + req.url);
         }

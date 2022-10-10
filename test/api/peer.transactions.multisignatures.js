@@ -16,7 +16,7 @@ function postTransaction (transaction, done) {
   });
 }
 
-function sendLISK (params, done) {
+function sendADM (params, done) {
   var transaction = node.createSendTransaction({
     keyPair: account.keypair,
     amount: 100000000,
@@ -52,7 +52,7 @@ describe('POST /peer/transactions', function () {
     describe('when account has funds', function () {
 
       before(function (done) {
-        sendLISK({
+        sendADM({
           secret: node.iAccount.password,
           amount: node.fees.multisignatureRegistrationFee * 10,
           recipientId: multisigAccount.address

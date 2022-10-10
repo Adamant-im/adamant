@@ -60,8 +60,8 @@ describe('POST /peer/transactions', function () {
               next();
             });
           });
-        }, function () {
-          return (count >= maximum);
+        }, function (testCb) {
+          return testCb(null, count >= maximum);
         }, function (err) {
           done(err);
         });
@@ -110,8 +110,8 @@ describe('POST /peer/transactions', function () {
             count++;
             next();
           });
-        }, function () {
-          return (count >= maximum);
+        }, function (testCb) {
+          return testCb(null, count >= maximum);
         }, function (err) {
           done(err);
         });

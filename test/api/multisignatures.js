@@ -25,23 +25,23 @@ var multiSigTx = {
   txId: ''
 };
 
-function sendLISK (account, i, done) {
-  var randomLISK = node.randomLISK();
+function sendADM (account, i, done) {
+  var randomADM = node.randomADM();
 
   node.put('/api/transactions/', {
     secret: node.iAccount.password,
-    amount: randomLISK,
+    amount: randomADM,
     recipientId: account.address
   }, function (err, res) {
     node.expect(res.body).to.have.property('success').to.be.ok;
     if (res.body.success && i != null) {
-      accounts[i].balance = randomLISK / node.normalizer;
+      accounts[i].balance = randomADM / node.normalizer;
     }
     done();
   });
 }
 
-function sendLISKFromMultisigAccount (password, amount, recipient, done) {
+function sendADMFromMultisigAccount (password, amount, recipient, done) {
   node.put('/api/transactions/', {
     secret: password,
     amount: amount,
@@ -57,8 +57,8 @@ function confirmTransaction (transactionId, passphrases, done) {
   var count = 0;
 
   async.until(
-    function () {
-      return (count >= passphrases.length);
+    function (testCb) {
+      return testCb(null, count >= passphrases.length);
     },
     function (untilCb) {
       var passphrase = passphrases[count];
@@ -96,7 +96,7 @@ function makeKeysGroup () {
 before(function (done) {
   var i = 0;
   async.eachSeries(accounts, function (account, eachCb) {
-    sendLISK(account, i, function () {
+    sendADM(account, i, function () {
       i++;
       return eachCb();
     });
@@ -106,7 +106,7 @@ before(function (done) {
 });
 
 before(function (done) {
-  sendLISK(multisigAccount, null, done);
+  sendADM(multisigAccount, null, done);
 });
 
 before(function (done) {
@@ -453,7 +453,7 @@ describe('PUT /api/multisignatures', function () {
 
     before(function (done) {
       async.every([multisigAccount1, multisigAccount2, multisigAccount3], function (acc, cb) {
-        sendLISK(acc, 0, cb);
+        sendADM(acc, 0, cb);
       }, done);
     });
 
@@ -572,7 +572,7 @@ describe('GET /api/multisignatures/pending', function () {
 describe('PUT /api/transactions', function () {
 
   it('when group transaction is pending should be ok', function (done) {
-    sendLISKFromMultisigAccount(multisigAccount.password, 100000000, node.iAccount.address, function (err, transactionId) {
+    sendADMFromMultisigAccount(multisigAccount.password, 100000000, node.iAccount.address, function (err, transactionId) {
       node.onNewBlock(function (err) {
         node.get('/api/transactions/get?id=' + transactionId, function (err, res) {
           node.expect(res.body).to.have.property('success').to.be.ok;
@@ -681,7 +681,7 @@ describe('POST /api/multisignatures/sign (transaction)', function () {
   });
 
   before(function (done) {
-    sendLISKFromMultisigAccount(multisigAccount.password, 100000000, node.iAccount.address, function (err, transactionId) {
+    sendADMFromMultisigAccount(multisigAccount.password, 100000000, node.iAccount.address, function (err, transactionId) {
       multiSigTx.txId = transactionId;
       node.onNewBlock(function (err) {
         done();

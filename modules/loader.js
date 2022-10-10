@@ -342,8 +342,8 @@ __private.loadBlockChain = function () {
       },
       loadBlocksOffset: function (seriesCb) {
         async.until(
-            function () {
-              return count < offset;
+            function (testCb) {
+              return testCb(null, count < offset);
             }, function (cb) {
               if (count > 1) {
                 library.logger.info('Rebuilding blockchain, current block height: ' + (offset + 1));
@@ -532,8 +532,8 @@ __private.loadBlocksFromNetwork = function (cb) {
       return setImmediate(cb, err);
     } else {
       async.whilst(
-          function () {
-            return !loaded && errorCount < 5;
+          function (testCb) {
+            return testCb(null, !loaded && errorCount < 5);
           },
           function (next) {
             var peer = network.peers[Math.floor(Math.random() * network.peers.length)];

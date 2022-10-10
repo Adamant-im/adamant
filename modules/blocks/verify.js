@@ -476,7 +476,7 @@ Verify.prototype.processBlock = function (block, broadcast, cb, saveBlock) {
     } else {
       // The block and the transactions are OK i.e:
       // * Block and transactions have valid values (signatures, block slots, etc...)
-      // * The check against database state passed (for instance sender has enough LSK, votes are under 101, etc...)
+      // * The check against database state passed (for instance sender has enough ADM, votes are under 101, etc...)
       // We thus update the database with the transactions values, save the block and tick it
       modules.blocks.chain.applyBlock(block, broadcast, cb, saveBlock);
     }

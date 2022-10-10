@@ -5,19 +5,19 @@ var crypto = require('crypto');
 var DApp = require('../logic/dapp.js');
 var dappCategories = require('../helpers/dappCategories.js');
 var dappTypes = require('../helpers/dappTypes.js');
-var DecompressZip = require('decompress-zip');
+var unzipper = require('unzipper');
 var extend = require('extend');
 var fs = require('fs');
 var ip = require('ip');
 var InTransfer = require('../logic/inTransfer.js');
-var npm = require('npm');
+var execa = require('execa');
 var OrderBy = require('../helpers/orderBy.js');
 var OutTransfer = require('../logic/outTransfer.js');
 var path = require('path');
-var popsicle = require('popsicle');
+var axios = require('axios').default;
 var rmdir = require('rimraf');
 var Router = require('../helpers/router.js');
-var Sandbox = require('lisk-sandbox');
+var Sandbox = require('../legacy/lisk-sandbox.js');
 var sandboxHelper = require('../helpers/sandbox.js');
 var schema = require('../schema/dapps.js');
 var sql = require('../sql/dapps.js');
@@ -296,27 +296,13 @@ __private.createBasePaths = function (cb) {
 __private.installDependencies = function (dapp, cb) {
   var dappPath = path.join(__private.dappsPath, dapp.transactionId);
 
-  var packageJson = path.join(dappPath, 'package.json');
-  var config = null;
-
-  try {
-    config = JSON.parse(fs.readFileSync(packageJson));
-  } catch (e) {
-    return setImmediate(cb, 'Failed to open package.json file');
-  }
-
-  npm.load(config, function (err) {
-    if (err) {
-      return setImmediate(cb, err);
-    }
-
-    npm.root = path.join(dappPath, 'node_modules');
-    npm.prefix = dappPath;
-
-    npm.commands.install(function (err, data) {
-      return setImmediate(cb, null);
-    });
-  });
+  execa('npm', ['install', `-g --prefix ${dappPath}`])
+      .then(function () {
+        return setImmediate(cb, null);
+      })
+      .catch(function (err) {
+        return setImmediate(cb, err);
+      });
 };
 
 /**
@@ -393,8 +379,8 @@ __private.removeDApp = function (dapp, cb) {
 /**
  * Creates a temp dir, downloads the dapp as stream and decompress it.
  * @private
- * @implements {popsicle}
- * @implements {DecompressZip}
+ * @implements {axios}
+ * @implements {unzipper}
  * @param {dapp} dapp
  * @param {string} dappPath
  * @param {function} cb
@@ -432,59 +418,81 @@ __private.downloadLink = function (dapp, dappPath, cb) {
         });
       }
 
-      var request = popsicle.get({
+      var stream = fs.createWriteStream(tmpPath);
+
+      axios({
+        method: 'get',
         url: dapp.link,
-        transport: popsicle.createTransport({ type: 'stream' })
-      });
+        responseType: 'stream'
+      })
+          .then((res) => {
+            if (res.status !== 200) {
+              return setImmediate(serialCb, ['Received bad response code', res.status].join(' '));
+            }
 
-      request.then(function (res) {
-        if (res.status !== 200) {
-          return setImmediate(serialCb, ['Received bad response code', res.status].join(' '));
-        }
+            stream.on('error', cleanup);
 
-        var stream = fs.createWriteStream(tmpPath);
+            stream.on('finish', function () {
+              library.logger.info(dapp.transactionId, 'Finished downloading');
+              stream.close(serialCb);
+            });
 
-        stream.on('error', cleanup);
-
-        stream.on('finish', function () {
-          library.logger.info(dapp.transactionId, 'Finished downloading');
-          stream.close(serialCb);
-        });
-
-        res.body.pipe(stream);
-      });
-
-      request.catch(cleanup);
+            res.data.pipe(writer);
+          })
+          .catch(cleanup);
     },
     decompressZip: function (serialCb) {
-      var unzipper = new DecompressZip(tmpPath);
-
       library.logger.info(dapp.transactionId, 'Decompressing zip file');
 
-      unzipper.on('error', function (err) {
-        library.logger.error(dapp.transactionId, 'Decompression failed: ' + err.message);
-        fs.exists(tmpPath, function (exists) {
-          if (exists) { fs.unlink(tmpPath); }
-          return setImmediate(serialCb, 'Failed to decompress zip file');
-        });
-      });
+      fs.createReadStream(tmpPath)
+          .pipe(unzipper.Parse())
+          .on('entry', function (entry) {
+            const fileName = entry.path;
+            const strippedPath = fileName
+                .split(path.sep)
+                .splice(1)
+                .join(path.sep);
 
-      unzipper.on('extract', function (log) {
-        library.logger.info(dapp.transactionId, 'Finished extracting');
-        fs.exists(tmpPath, function (exists) {
-          if (exists) { fs.unlink(tmpPath); }
-          return setImmediate(serialCb, null);
-        });
-      });
+            if (!strippedPath) {
+              return entry.autodrain();
+            }
 
-      unzipper.on('progress', function (fileIndex, fileCount) {
-        library.logger.info(dapp.transactionId, ['Extracted file', (fileIndex + 1), 'of', fileCount].join(' '));
-      });
+            if (entry.type === 'File') {
+              const dirName = path.dirname(strippedPath);
 
-      unzipper.extract({
-        path: dappPath,
-        strip: 1
-      });
+              if (dirName) {
+                const dirPath = path.resolve(dappPath, dirName);
+
+                fs.exists(dirPath, function (exists) {
+                  if (!exists) {
+                    fs.mkdirSync(dirPath, {
+                      recursive: true
+                    });
+                  }
+                });
+              }
+
+              library.logger.info(dapp.transactionId, `Extracted file: ${strippedPath}`);
+              entry.pipe(fs.createWriteStream(path.resolve(dappPath, strippedPath)));
+            } else {
+              entry.autodrain();
+            }
+          })
+          .promise()
+          .then(() => {
+            library.logger.info(dapp.transactionId, 'Finished extracting');
+            fs.exists(tmpPath, function (exists) {
+              if (exists) { fs.unlink(tmpPath); }
+              return setImmediate(serialCb, null);
+            });
+          })
+          .catch((error) => {
+            library.logger.error(dapp.transactionId, 'Decompression failed: ' + error);
+            fs.exists(tmpPath, function (exists) {
+              if (exists) { fs.unlink(tmpPath); }
+              return setImmediate(serialCb, 'Failed to decompress zip file');
+            });
+          });
     }
   },
   function (err) {
