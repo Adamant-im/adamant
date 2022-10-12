@@ -8,7 +8,7 @@ ALTER TABLE "blocks" ADD COLUMN IF NOT EXISTS "text_generatorPublicKey"
 TEXT GENERATED ALWAYS AS (ENCODE("generatorPublicKey", 'hex'))
 STORED;
 
-CREATE INDEX IF NOT EXISTS "blocks_b_generator_public_key" ON "blocks"("text_generatorPublicKey");
+CREATE INDEX IF NOT EXISTS "blocks_b_generator_public_key" ON "blocks" USING HASH ("text_generatorPublicKey");
 
 DROP VIEW IF EXISTS blocks_list;
 
