@@ -65,24 +65,26 @@ program
     .option('-s, --snapshot <round>', 'verify snapshot')
     .parse(process.argv);
 
+var programOpts = program.opts();
+
 /**
  * @property {object} - The default list of configuration options. Can be updated by CLI.
  * @default 'config.json'
  */
-var appConfig = require('./helpers/config.js')(program.config);
-var genesisblock = require(path.resolve(process.cwd(), (program.genesis || 'genesisBlock.json')));
+var appConfig = require('./helpers/config.js')(programOpts.config);
+var genesisblock = require(path.resolve(process.cwd(), (programOpts.genesis || 'genesisBlock.json')));
 
-if (program.port) {
-  appConfig.port = program.port;
+if (programOpts.port) {
+  appConfig.port = programOpts.port;
 }
 
-if (program.address) {
-  appConfig.address = program.address;
+if (programOpts.address) {
+  appConfig.address = programOpts.address;
 }
 
-if (program.peers) {
-  if (typeof program.peers === 'string') {
-    appConfig.peers.list = program.peers.split(',').map(function (peer) {
+if (programOpts.peers) {
+  if (typeof programOpts.peers === 'string') {
+    appConfig.peers.list = programOpts.peers.split(',').map(function (peer) {
       peer = peer.split(':');
       return {
         ip: peer.shift(),
@@ -94,13 +96,13 @@ if (program.peers) {
   }
 }
 
-if (program.log) {
-  appConfig.consoleLogLevel = program.log;
+if (programOpts.log) {
+  appConfig.consoleLogLevel = programOpts.log;
 }
 
-if (program.snapshot) {
+if (programOpts.snapshot) {
   appConfig.loading.snapshot = Math.abs(
-      Math.floor(program.snapshot)
+      Math.floor(programOpts.snapshot)
   );
 }
 
@@ -309,7 +311,11 @@ d.run(function () {
       app.options('*', cors());
 
       var server = require('http').createServer(app);
-      var io = require('socket.io')(server);
+
+      const { Server } = require('socket.io');
+      const io = new Server(server, {
+        allowEIO3: true
+      });
 
       var privateKey, certificate, https, https_io;
 
@@ -323,7 +329,9 @@ d.run(function () {
           ciphers: 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:' + 'ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-SHA384:ECDHE-RSA-AES256-SHA256:DHE-RSA-AES256-SHA256:HIGH:' + '!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA'
         }, app);
 
-        https_io = require('socket.io')(https);
+        https_io = new Server(https, {
+          allowEIO3: true
+        });
       }
 
       cb(null, {

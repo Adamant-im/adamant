@@ -43,28 +43,28 @@ before(function (done) {
 });
 
 before(function (done) {
-  // Send to LISK to account 1 address
+  // Send to ADM to account 1 address
   setTimeout(function () {
-    var randomLISK = node.randomLISK();
-    var expectedFee = node.expectedFee(randomLISK);
+    var randomADM = node.randomADM();
+    var expectedFee = node.expectedFee(randomADM);
 
     putTransaction({
       secret: node.iAccount.password,
-      amount: randomLISK,
+      amount: randomADM,
       recipientId: account.address
     }, done);
   }, 2000);
 });
 
 before(function (done) {
-  // Send to LISK to account 2 address
+  // Send to Adamant to account 2 address
   setTimeout(function () {
-    var randomLISK = node.randomLISK();
-    var expectedFee = node.expectedFee(randomLISK);
+    var randomADM = node.randomADM();
+    var expectedFee = node.expectedFee(randomADM);
 
     putTransaction({
       secret: node.iAccount.password,
-      amount: randomLISK,
+      amount: randomADM,
       recipientId: account2.address
     }, done);
   }, 2000);

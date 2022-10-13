@@ -43,7 +43,59 @@
       "named": "always",
       "asyncArrow": "ignore"
     }],
-    "space-infix-ops": ["error", { "int32Hint": true }]
+    "space-infix-ops": ["error", { "int32Hint": true }],
+    "jsdoc/check-access": 1,
+    "jsdoc/check-alignment": 1,
+    "jsdoc/check-line-alignment": 1,
+    "jsdoc/check-param-names": 1,
+    "jsdoc/check-property-names": 1,
+    "jsdoc/check-tag-names": 1,
+    "jsdoc/check-types": 1,
+    "jsdoc/check-values": 1,
+    "jsdoc/empty-tags": 1,
+    "jsdoc/multiline-blocks": 1,
+    "jsdoc/newline-after-description": 1,
+    "jsdoc/no-multi-asterisks": 1,
+    "jsdoc/require-param": 1,
+    "jsdoc/require-param-name": 1,
+    "jsdoc/require-param-type": 1,
+    "jsdoc/require-property": 1,
+    "jsdoc/require-property-name": 1,
+    "jsdoc/require-property-type": 1,
+    "jsdoc/require-returns-type": 1,
+    "jsdoc/require-yields": 1,
+    "jsdoc/require-yields-check": 1,
+    "jsdoc/tag-lines": 1,
+    "jsdoc/valid-types": 1,
+    "jsdoc/sort-tags": [
+      "warn",
+      {
+        "tagSequence": [
+          "global",
+          "typedef",
+          "var",
+          "name",
+          "namespace",
+          "constructor",
+          "callback",
+          "event",
+          "function",
+          "augments",
+          "lends",
+          "type",
+          "prop",
+          "param",
+          "throws",
+          "fires",
+          "listens",
+          "ingroup",
+          "deprecated",
+          "see",
+          "todo",
+          "ignore"
+        ]
+      }
+    ]
   },
   "globals": {
     "PR": true,
@@ -54,5 +106,7 @@
     "after": true,
     "afterEach": true
   },
-  "plugins": []
+  "plugins": [
+    "jsdoc"
+  ]
 }

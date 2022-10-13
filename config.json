@@ -21,9 +21,7 @@
         ]
     },
     "redis": {
-        "host": "127.0.0.1",
-        "port": 6379,
-        "db": 0,
+        "url": "redis://127.0.0.1:6379/0",
         "password": null
     },
     "api": {
@@ -100,8 +98,8 @@
         "options": {
             "port": 443,
             "address": "0.0.0.0",
-            "key": "./ssl/lisk.key",
-            "cert": "./ssl/lisk.crt"
+            "key": "./ssl/adamant.key",
+            "cert": "./ssl/adamant.crt"
         }
     },
     "dapp": {

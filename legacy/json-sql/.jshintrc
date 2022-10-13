@@ -1,0 +1,19 @@
+{
+    "node": true,
+    "freeze": true,
+    "maxlen": 100,
+    "smarttabs": true,
+    "indent": 1,
+    "quotmark": "single",
+    "strict": true,
+    "globalstrict": true,
+    // use es3 to get 'extra comma' at object literal error
+    "es3": true,
+    "undef": true,
+    "unused": true,
+    "immed": true,
+    "eqeqeq": true,
+    "globals": {
+        "JSON": false
+    }
+}

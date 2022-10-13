@@ -21,9 +21,7 @@
         ]
     },
     "redis": {
-        "host": "127.0.0.1",
-        "port": 6379,
-        "db": 1,
+        "url": "redis://127.0.0.1:6379/1",
         "password": null
     },
     "api": {
@@ -216,6 +214,6 @@
     "wsClient": {
         "portWS": 36665,
         "enabled": true
-    },    
+    },
     "nethash": "38f153a81332dea86751451fd992df26a9249f0834f72f58f84ac31cceb70f43"
 }
