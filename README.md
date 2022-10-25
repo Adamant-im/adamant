@@ -1,10 +1,10 @@
 # ADAMANT
 
-ADAMANT is a **decentralized blockchain messaging platform**. Applications use ADAMANT as an anonymous and encrypted relay and storage to enable messaging features. As examples, see [Messenger app](https://github.com/Adamant-im/adamant-im), [Blockchain 2FA](https://github.com/Adamant-im/adamant-2fa) and [Decentralized cryptocurrency exchanger](https://github.com/Adamant-im/adamant-exchangebot) implementations.
+ADAMANT is a **decentralized blockchain messaging platform**. Applications use ADAMANT as an anonymous and encrypted relay and storage to enable messaging features. As examples, see [Messenger app](https://github.com/Adamant-im/adamant-im), [Blockchain 2FA](https://github.com/Adamant-im/adamant-2fa) and [Cryptocurrency Exchanger](https://github.com/Adamant-im/adamant-exchangebot) implementations.
 
 For more information refer to ADAMANT website: <https://adamant.im>.
 
-![ADAMANT nodes](./docs/adm-nodes.jpeg)
+![ADAMANT nodes](./img/adm-nodes.jpeg)
 
 Additional information:
 
@@ -25,9 +25,9 @@ The manual describes API endpoints to manage accounts, transactions, chats, and 
 
 ### Requirements
 
-- Ubuntu 18/20 (others are not tested)
+- Ubuntu 18/20/22 (others are not tested)
 - 2 GB RAM
-- 50 GB disk space as on August 2021
+- 60 GB disk space as on October 2022
 
 ### Installation script
 
@@ -61,15 +61,15 @@ F. e.,
   System wide via package manager:
 
   ```
-  curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -
+  curl -sL https://deb.nodesource.com/setup_16.x | sudo -E bash -
   sudo apt-get install -y nodejs
   ```
 
   Locally using nvm:
 
   ```
-  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
-  nvm i --lts=fermium
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
+  nvm i --lts=gallium
   ```
 
 - Install PostgreSQL:
@@ -168,8 +168,8 @@ npm run test:single test/api/accounts.js
 
 ## Authors
 
-- ADAMANT Foundation: Aleksei Lebedev <devs@adamant.im>
-- ADAMANT Tech Labs: Aleksei Lebedev, Dmitriy Soloduhin, Sergey Ushakov <devs@adamant.im>
+- ADAMANT Foundation <devs@adamant.im>
+- ADAMANT TECH LABS LP <devs@adamant.im>
 - Boris Povod <boris@crypti.me>
 - Pavel Nekrasov <landgraf.paul@gmail.com>
 - Sebastian Stupurac <stupurac.sebastian@gmail.com>
@@ -180,7 +180,7 @@ npm run test:single test/api/accounts.js
 
 ## License
 
-Copyright © 2020-2021 ADAMANT Foundation
+Copyright © 2020-2022 ADAMANT Foundation
 Copyright © 2017-2020 ADAMANT TECH LABS LP
 Copyright © 2016-2017 Lisk Foundation
 
