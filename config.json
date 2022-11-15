@@ -53,7 +53,19 @@
                 "port": 36666
             },
             {
-                "ip": "51.15.217.230",
+                "ip": "5.161.68.61",
+                "port": 36666
+            },
+            {
+                "ip": "78.47.205.206",
+                "port": 36666
+            },
+            {
+                "ip": "107.161.26.184",
+                "port": 36666
+            },
+            {
+                "ip": "138.201.152.191",
                 "port": 36666
             }
         ],
@@ -75,7 +87,7 @@
         "broadcastLimit": 20,
         "parallelLimit": 20,
         "releaseLimit": 25,
-        "relayLimit": 3
+        "relayLimit": 4
     },
     "transactions": {
         "maxTxsPerQueue": 1000
