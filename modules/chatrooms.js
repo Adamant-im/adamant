@@ -269,7 +269,7 @@ Chatrooms.prototype.isLoaded = function () {
 Chatrooms.prototype.internal = {
   getChats: function (req, cb) {
     let validRequest;
-    [validRequest, req.body.userId, req.body.companionId] = req.path.match(/(U[0-9]+)\/?(U[0-9]+)?/);
+    [validRequest, req.body.userId, req.body.companionId] = req.path.match(/^([Uu][0-9]+)\/?([Uu][0-9]+)?$/);
     if (!validRequest) {
       return setImmediate(cb, 'Invalid Request path');
     }
@@ -303,7 +303,7 @@ Chatrooms.prototype.internal = {
   },
   getMessages: function (req, cb) {
     let validRequest;
-    [validRequest, req.body.userId, req.body.companionId] = req.path.match(/(U[0-9]+)\/?(U[0-9]+)?/);
+    [validRequest, req.body.userId, req.body.companionId] = req.path.match(/^([Uu][0-9]+)\/?([Uu][0-9]+)?$/);
     if (!validRequest) {
       return setImmediate(cb, 'Invalid Request path');
     }
