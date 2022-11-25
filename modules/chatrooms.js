@@ -268,11 +268,14 @@ Chatrooms.prototype.isLoaded = function () {
 
 Chatrooms.prototype.internal = {
   getChats: function (req, cb) {
-    let validRequest;
-    [validRequest, req.body.userId, req.body.companionId] = req.path.match(/^([Uu][0-9]+)\/?([Uu][0-9]+)?$/);
+    const validRequest = req.path.match(/^\/([Uu][0-9]+)\/?([Uu][0-9]+)?$/);
+
     if (!validRequest) {
       return setImmediate(cb, 'Invalid Request path');
     }
+
+    [, req.body.userId, req.body.companionId] = validRequest;
+
     async.waterfall([
       function (waterCb) {
         const params = req.body;
@@ -302,11 +305,14 @@ Chatrooms.prototype.internal = {
     });
   },
   getMessages: function (req, cb) {
-    let validRequest;
-    [validRequest, req.body.userId, req.body.companionId] = req.path.match(/^([Uu][0-9]+)\/?([Uu][0-9]+)?$/);
+    const validRequest = req.path.match(/^\/([Uu][0-9]+)\/?([Uu][0-9]+)?$/);
+
     if (!validRequest) {
       return setImmediate(cb, 'Invalid Request path');
     }
+
+    [, req.body.userId, req.body.companionId] = validRequest;
+
     async.waterfall([
       function (waterCb) {
         const params = req.body;
