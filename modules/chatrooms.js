@@ -274,7 +274,13 @@ Chatrooms.prototype.internal = {
       return setImmediate(cb, 'Invalid Request path');
     }
 
-    [, req.body.userId, req.body.companionId] = validRequest;
+    const [, userId, companionId] = validRequest;
+
+    req.body = {
+      ...req.body,
+      userId: userId.toUpperCase(),
+      companionId: companionId.toUpperCase()
+    };
 
     async.waterfall([
       function (waterCb) {
@@ -311,7 +317,13 @@ Chatrooms.prototype.internal = {
       return setImmediate(cb, 'Invalid Request path');
     }
 
-    [, req.body.userId, req.body.companionId] = validRequest;
+    const [, userId, companionId] = validRequest;
+
+    req.body = {
+      ...req.body,
+      userId: userId.toUpperCase(),
+      companionId: companionId.toUpperCase()
+    };
 
     async.waterfall([
       function (waterCb) {
