@@ -138,7 +138,7 @@ __private.listChats = function (filter, cb) {
         chats[uid].push(trs);
       }
       for (const uid in chats) {
-        transactions.push(chats[uid].sort((x, y) => x.lastTransaction.timestamp - y.lastTransaction.timestamp)[0]);
+        transactions.push(chats[uid][0]);
       }
       const data = {
         chats: transactions,
