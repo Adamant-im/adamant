@@ -164,6 +164,15 @@ __private.list = function (filter, cb) {
   }), params).then(function (rows) {
     var count = rows[0].count;
 
+    if (count === 0) {
+      const data = {
+        count,
+        blocks: []
+      };
+
+      return setImmediate(cb, null, data);
+    }
+
     library.db.query(sql.list({
       where: where,
       sortField: orderBy.sortField,
