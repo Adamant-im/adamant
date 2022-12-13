@@ -89,11 +89,12 @@ __private.getById = function (id, cb) {
  * @return {Object}   cb.err Error if occurred
  * @return {Object}   cb.data List of normalized blocks
  */
+
 __private.list = function (filter, cb) {
   var params = {}, where = [];
 
   if (filter.generatorPublicKey) {
-    where.push('"b_generatorPublicKey"::bytea = ${generatorPublicKey}');
+    where.push('"b_generatorPublicKey" = ${generatorPublicKey}');
     params.generatorPublicKey = filter.generatorPublicKey;
   }
 
