@@ -103,7 +103,8 @@ module.exports = {
         type: 'string',
         format: 'publicKey'
       }
-    }
+    },
+    required: ['senderPublicKey']
   },
   getAccount: {
     id: 'accounts.getAccount',
