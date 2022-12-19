@@ -56,7 +56,7 @@ CREATE VIEW full_blocks_list AS
          st."type" as "st_type",
          st."stored_value" as "st_stored_value",
          st."stored_key" as "st_stored_key",
-        (SELECT MAX("height") + 1 FROM blocks) - b."height" AS "b_confirmations"
+        (SELECT MAX("height") + 1 FROM blocks) - b."height" AS "confirmations"
 
   FROM blocks b
 
