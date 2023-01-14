@@ -218,6 +218,12 @@ d.run(function () {
         throw Error(e);
       }
 
+      if (!appConfig.cors) {
+        appConfig.cors = { origin: true };
+      }
+
+      appConfig.cors.credentials = true;
+
       if (appConfig.dapp.masterrequired && !appConfig.dapp.masterpassword) {
         var randomstring = require('randomstring');
 
@@ -278,8 +284,14 @@ d.run(function () {
      * `emit`.
      */
     clientWs: ['config', function (scope, cb) {
-      var ClientWs = require('./modules/clientWs');
-      cb(null, new ClientWs(scope.config.wsClient, logger));
+      const ClientWs = require('./modules/clientWs');
+
+      const clientWs = new ClientWs(
+        Object.assign(scope.config.wsClient, { cors: appConfig.cors }),
+        logger
+      );
+
+      cb(null, clientWs);
     }],
     /**
      * Once config is completed, creates app, http & https servers & sockets with express.
@@ -307,14 +319,15 @@ d.run(function () {
       app.use(compression({
         level: 9
       }));
-      app.use(cors());
-      app.options('*', cors());
+      app.use(cors(appConfig.cors));
+      app.options('*', cors(appConfig.cors));
 
       var server = require('http').createServer(app);
 
       const { Server } = require('socket.io');
       const io = new Server(server, {
-        allowEIO3: true
+        allowEIO3: true,
+        cors: appConfig.cors
       });
 
       var privateKey, certificate, https, https_io;
@@ -330,7 +343,8 @@ d.run(function () {
         }, app);
 
         https_io = new Server(https, {
-          allowEIO3: true
+          allowEIO3: true,
+          cors: appConfig.cors
         });
       }
 
