@@ -138,7 +138,7 @@ __private.listChats = function (filter, cb) {
         chats[uid].push(trs);
       }
       for (const uid in chats) {
-        transactions.push(chats[uid].sort((x, y) => x.lastTransaction.timestamp - y.lastTransaction.timestamp)[0]);
+        transactions.push(chats[uid][0]);
       }
       const data = {
         chats: transactions,
@@ -268,11 +268,20 @@ Chatrooms.prototype.isLoaded = function () {
 
 Chatrooms.prototype.internal = {
   getChats: function (req, cb) {
-    let validRequest;
-    [validRequest, req.body.userId, req.body.companionId] = req.path.match(/(U[0-9]+)\/?(U[0-9]+)?/);
+    const validRequest = req.path.match(/^\/([Uu][0-9]+)\/?([Uu][0-9]+)?$/);
+
     if (!validRequest) {
       return setImmediate(cb, 'Invalid Request path');
     }
+
+    const [, userId, companionId] = validRequest;
+
+    req.body = {
+      ...req.body,
+      userId: userId.toUpperCase(),
+      companionId: companionId?.toUpperCase()
+    };
+
     async.waterfall([
       function (waterCb) {
         const params = req.body;
@@ -302,11 +311,20 @@ Chatrooms.prototype.internal = {
     });
   },
   getMessages: function (req, cb) {
-    let validRequest;
-    [validRequest, req.body.userId, req.body.companionId] = req.path.match(/(U[0-9]+)\/?(U[0-9]+)?/);
+    const validRequest = req.path.match(/^\/([Uu][0-9]+)\/([Uu][0-9]+)$/);
+
     if (!validRequest) {
       return setImmediate(cb, 'Invalid Request path');
     }
+
+    const [, userId, companionId] = validRequest;
+
+    req.body = {
+      ...req.body,
+      userId: userId.toUpperCase(),
+      companionId: companionId.toUpperCase()
+    };
+
     async.waterfall([
       function (waterCb) {
         const params = req.body;

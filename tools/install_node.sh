@@ -119,14 +119,14 @@ printf "\n\nCreating database '%s' and database user '%s'…\n\n" "$databasename
 cd /tmp || echo "/tmp: No such directory"
 sudo -u postgres psql -c "CREATE ROLE ${username} LOGIN PASSWORD '${DB_PASSWORD}';"
 sudo -u postgres psql -c "CREATE DATABASE ${databasename};"
-sudo -u postgres psql -c "GRANT ALL on DATABASE ${databasename} TO ${username};"
+sudo -u postgres psql -c "ALTER DATABASE ${databasename} OWNER TO ${username};"
 
 #Run next commands as user
 su - "$username" <<EOSU
 
 #NodeJS
 printf "\n\nInstalling nvm & node.js…\n\n"
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
 source ~/.nvm/nvm.sh
 source ~/.profile
 source ~/.bashrc

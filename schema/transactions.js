@@ -24,6 +24,12 @@ module.exports = {
         minLength: 1,
         maxLength: 22
       },
+      isIn: {
+        type: 'string',
+        format: 'address',
+        minLength: 1,
+        maxLength: 22
+      },
       senderId: {
         type: 'string',
         format: 'address',

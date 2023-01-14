@@ -82,6 +82,7 @@ __private.list = function (filter, cb) {
     senderId: '"t_senderId" = ${senderId}',
     recipientId: '"t_recipientId" = ${recipientId}',
     inId: '("t_recipientId" = ${inId} OR "t_senderId" = ${inId})',
+    isIn: '("t_recipientId" = ${isIn} OR "t_senderId" = ${isIn})',
     fromHeight: '"b_height" >= ${fromHeight}',
     toHeight: '"b_height" <= ${toHeight}',
     fromTimestamp: '"t_timestamp" >= ${fromTimestamp}',
@@ -644,18 +645,21 @@ Transactions.prototype.onBind = function (scope) {
  */
 Transactions.prototype.shared = {
   getTransactions: function (req, cb) {
+    const requestBody = typeof req.body?.transaction === 'object' ?
+      req.body.transaction : req.body;
+
     async.waterfall([
       function (waterCb) {
         var params = {};
         var pattern = /(and|or){1}:/i;
 
         // Filter out 'and:'/'or:' from params to perform schema validation
-        _.each(req.body, function (value, key) {
+        _.each(requestBody, function (value, key) {
           var param = String(key).replace(pattern, '');
           // Dealing with array-like parameters (csv comma separated)
           if (_.includes(['senderIds', 'recipientIds', 'senderPublicKeys', 'recipientPublicKeys', 'types'], param)) {
             value = String(value).split(',');
-            req.body[key] = value;
+            requestBody[key] = value;
           }
           params[param] = value;
         });
@@ -673,7 +677,7 @@ Transactions.prototype.shared = {
         });
       },
       function (waterCb) {
-        __private.list(req.body, function (err, data) {
+        __private.list(requestBody, function (err, data) {
           if (err) {
             return setImmediate(waterCb, 'Failed to get transactions: ' + err);
           } else {

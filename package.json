@@ -1,6 +1,6 @@
 {
   "name": "adamant",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "scripts": {
     "start": "node app.js",
@@ -22,6 +22,7 @@
     "adamant",
     "blockchain",
     "messenger",
+    "messaging",
     "decentralization",
     "anonymity",
     "tor",
@@ -29,7 +30,8 @@
     "security",
     "encryption",
     "crypto",
-    "cryptocurrency"
+    "cryptocurrency",
+    "dpos"
   ],
   "author": "ADAMANT Tech Labs <devs@adamant.im>, Lisk Foundation <admin@lisk.io>, lightcurve GmbH <admin@lightcurve.io>",
   "license": "GPL-3.0",

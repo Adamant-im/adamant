@@ -1,10 +1,10 @@
 # ADAMANT
 
-ADAMANT is a **decentralized blockchain messaging platform**. Applications use ADAMANT as an anonymous and encrypted relay and storage to enable messaging features. As examples, see [Messenger app](https://github.com/Adamant-im/adamant-im), [Blockchain 2FA](https://github.com/Adamant-im/adamant-2fa) and [Decentralized cryptocurrency exchanger](https://github.com/Adamant-im/adamant-exchangebot) implementations.
+ADAMANT is a **decentralized blockchain messaging platform**. Applications use ADAMANT as an anonymous and encrypted relay and storage to enable messaging features. As examples, see [Messenger app](https://github.com/Adamant-im/adamant-im), [Blockchain 2FA](https://github.com/Adamant-im/adamant-2fa) and [Cryptocurrency Exchanger](https://github.com/Adamant-im/adamant-exchangebot) implementations.
 
 For more information refer to ADAMANT website: <https://adamant.im>.
 
-![ADAMANT nodes](./docs/adm-nodes.jpeg)
+![ADAMANT nodes](./img/adm-nodes.jpeg)
 
 Additional information:
 
@@ -25,9 +25,9 @@ The manual describes API endpoints to manage accounts, transactions, chats, and 
 
 ### Requirements
 
-- Ubuntu 18/20 (others are not tested)
+- Ubuntu 18/20/22 (others are not tested)
 - 2 GB RAM
-- 50 GB disk space as on August 2021
+- 60 GB disk space as on November 2022
 
 ### Installation script
 
@@ -61,15 +61,15 @@ F. e.,
   System wide via package manager:
 
   ```
-  curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -
+  curl -sL https://deb.nodesource.com/setup_16.x | sudo -E bash -
   sudo apt-get install -y nodejs
   ```
 
   Locally using nvm:
 
   ```
-  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
-  nvm i --lts=fermium
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
+  nvm i --lts=gallium
   ```
 
 - Install PostgreSQL:
@@ -168,8 +168,8 @@ npm run test:single test/api/accounts.js
 
 ## Authors
 
-- ADAMANT Foundation: Aleksei Lebedev <devs@adamant.im>
-- ADAMANT Tech Labs: Aleksei Lebedev, Dmitriy Soloduhin, Sergey Ushakov <devs@adamant.im>
+- ADAMANT Foundation <devs@adamant.im>
+- ADAMANT TECH LABS LP <devs@adamant.im>
 - Boris Povod <boris@crypti.me>
 - Pavel Nekrasov <landgraf.paul@gmail.com>
 - Sebastian Stupurac <stupurac.sebastian@gmail.com>
@@ -180,8 +180,10 @@ npm run test:single test/api/accounts.js
 
 ## License
 
-Copyright © 2020-2021 ADAMANT Foundation
+Copyright © 2020-2022 ADAMANT Foundation
+
 Copyright © 2017-2020 ADAMANT TECH LABS LP
+
 Copyright © 2016-2017 Lisk Foundation
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
@@ -194,7 +196,8 @@ You should have received a copy of the [GNU General Public License](https://gith
 
 This program also incorporates work previously released with lisk `0.7.0` (and earlier) versions under the [MIT License](https://opensource.org/licenses/MIT). To comply with the requirements of that license, the following permission notice, applicable to those parts of the code only, is included below:
 
-Copyright © 2016-2017 Lisk Foundation  
+Copyright © 2016-2017 Lisk Foundation
+
 Copyright © 2015 Crypti
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
