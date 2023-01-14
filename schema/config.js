@@ -32,6 +32,15 @@ module.exports = {
       cacheEnabled: {
         type: 'boolean'
       },
+      cors: {
+        type: 'object',
+        origin: {
+          type: ['boolean', 'string', 'array']
+        },
+        methods: {
+          type: 'array'
+        }
+      },
       db: {
         type: 'object',
         properties: {
