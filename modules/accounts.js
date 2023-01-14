@@ -560,13 +560,15 @@ Accounts.prototype.shared = {
     });
   },
   voteForDelegates: function (req, cb) {
-    library.schema.validate(req.body, schema.voteForDelegates, function (err) {
+    const reqBody = typeof req.body?.transaction === 'object' ?
+      req.body.transaction : req.body;
+
+    library.schema.validate(reqBody, schema.voteForDelegates, function (err) {
       if (err) {
         return setImmediate(cb, err[0].message);
       }
 
-      var keypair = { publicKey: req.body.senderPublicKey };
-
+      var keypair = { publicKey: reqBody.senderPublicKey };
 
       library.balancesSequence.add(function (cb) {
         self.setAccountAndGet({ publicKey: keypair.publicKey.toString('hex') }, function (err, account) {
@@ -578,18 +580,18 @@ Accounts.prototype.shared = {
             return setImmediate(cb, 'Account not found');
           }
 
-          if (account.secondSignature && !req.body.secondSecret) {
+          if (account.secondSignature && !reqBody.secondSecret) {
             return setImmediate(cb, 'Invalid second passphrase');
           }
 
           var secondKeypair = null;
 
           if (account.secondSignature) {
-            var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
+            var secondHash = library.ed.createPassPhraseHash(reqBody.secondSecret);
             secondKeypair = library.ed.makeKeypair(secondHash);
           }
 
-          var transaction = req.body;
+          var transaction = reqBody;
 
           try {
             transaction = library.logic.transaction.publish(transaction);
