@@ -1,6 +1,6 @@
 {
   "name": "adamant",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "private": true,
   "scripts": {
     "start": "node app.js",
@@ -22,6 +22,7 @@
     "adamant",
     "blockchain",
     "messenger",
+    "messaging",
     "decentralization",
     "anonymity",
     "tor",
@@ -29,7 +30,8 @@
     "security",
     "encryption",
     "crypto",
-    "cryptocurrency"
+    "cryptocurrency",
+    "dpos"
   ],
   "author": "ADAMANT Tech Labs <devs@adamant.im>, Lisk Foundation <admin@lisk.io>, lightcurve GmbH <admin@lightcurve.io>",
   "license": "GPL-3.0",
@@ -81,6 +83,7 @@
     "chai-bignumber": "^3.0.0",
     "eslint-config-google": "^0.14.0",
     "eslint-formatter-codeframe": "^7.32.1",
+    "eslint-plugin-jsdoc": "^39.3.4",
     "grunt": "^1.5.3",
     "grunt-cli": "^1.4.3",
     "grunt-contrib-compress": "^2.0.0",

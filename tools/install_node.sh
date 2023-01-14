@@ -126,7 +126,7 @@ su - "$username" <<EOSU
 
 #NodeJS
 printf "\n\nInstalling nvm & node.js…\n\n"
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
 source ~/.nvm/nvm.sh
 source ~/.profile
 source ~/.bashrc

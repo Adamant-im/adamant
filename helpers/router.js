@@ -13,8 +13,6 @@ var extend = require('extend');
 var Router = function () {
   var router = require('express').Router();
 
-  router.use(httpApi.middleware.cors);
-
   router.map = function (root, config) {
     var router = this;
 

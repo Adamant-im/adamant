@@ -7,7 +7,8 @@ class ClientWs {
     }
     const port = config.portWS;
     const io = new Server(port, {
-      allowEIO3: true
+      allowEIO3: true,
+      cors: config.cors
     });
 
     this.describes = {};
