@@ -218,6 +218,10 @@ d.run(function () {
         throw Error(e);
       }
 
+      if (appConfig.cors) {
+        appConfig.cors.credentials = true;
+      }
+
       if (appConfig.dapp.masterrequired && !appConfig.dapp.masterpassword) {
         var randomstring = require('randomstring');
 
