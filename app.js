@@ -281,7 +281,7 @@ d.run(function () {
       const ClientWs = require('./modules/clientWs');
 
       const clientWs = new ClientWs(
-        Object.assign(scope.config.wsClient, appConfig.cors),
+        Object.assign(scope.config.wsClient, { cors: appConfig.cors }),
         logger
       );
 
