@@ -109,7 +109,7 @@ function Migrator (pgp, db, logger) {
    */
   this.applyPendingMigrations = function (pendingMigrations, waterCb) {
     if (pendingMigrations.length) {
-      logger.info(`Found ${pendingMigrations.length} pending migrations. Start executing, this may take a while.`);
+      logger.info(`Found ${pendingMigrations.length} pending migrations. Start executing, this may take a while…`);
     }
 
     var appliedMigrations = [];
@@ -125,7 +125,7 @@ function Migrator (pgp, db, logger) {
       });
     }, function (err) {
       if (pendingMigrations.length && !err) {
-        logger.info('Migrations have been successfully completed');
+        logger.info('Migrations have been successfully completed.');
       }
 
       return waterCb(err, appliedMigrations);
