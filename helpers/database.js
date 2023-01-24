@@ -15,7 +15,7 @@ var path = require('path');
  * @param {Object} pgp - pg promise
  * @param {Object} db - pg connection
  */
-function Migrator (pgp, db) {
+function Migrator (pgp, db, logger) {
   /**
    * Gets one record from `migrations` table
    * @method
@@ -108,6 +108,10 @@ function Migrator (pgp, db) {
    * @return {function} waterCb with error | appliedMigrations
    */
   this.applyPendingMigrations = function (pendingMigrations, waterCb) {
+    if (pendingMigrations.length) {
+      logger.info(`Found ${pendingMigrations.length} pending migrations. Start executing, this may take a while.`);
+    }
+
     var appliedMigrations = [];
 
     async.eachSeries(pendingMigrations, function (file, eachCb) {
@@ -120,6 +124,10 @@ function Migrator (pgp, db) {
         return eachCb(err);
       });
     }, function (err) {
+      if (pendingMigrations.length && !err) {
+        logger.info('Migrations have been successfully completed');
+      }
+
       return waterCb(err, appliedMigrations);
     });
   };
@@ -198,7 +206,7 @@ module.exports.connect = function (config, logger, cb) {
   config.user = config.user || process.env.USER;
 
   var db = pgp(config);
-  var migrator = new Migrator(pgp, db);
+  var migrator = new Migrator(pgp, db, logger);
 
   async.waterfall([
     migrator.checkMigrations,
