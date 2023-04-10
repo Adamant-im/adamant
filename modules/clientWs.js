@@ -1,15 +1,29 @@
 const { Server } = require('socket.io');
 
+const express = require('express');
+const cors = require('cors');
+
+const { createServer } = require('http');
+
 class ClientWs {
   constructor (config, logger, cb) {
     if (!config || !config.enabled) {
       return false;
     }
-    const port = config.portWS;
-    const io = new Server(port, {
+
+    const app = express();
+
+    app.use(cors(config.cors));
+    app.options('*', cors(config.cors));
+
+    const httpServer = createServer(app);
+
+    const io = new Server(httpServer, {
       allowEIO3: true,
       cors: config.cors
     });
+
+    httpServer.listen(config.portWS);
 
     this.describes = {};
     this.logger = logger;
