@@ -219,7 +219,7 @@ d.run(function () {
       }
 
       if (!appConfig.cors) {
-        appConfig.cors = { origin: true };
+        appConfig.cors = { origin: '*' };
       }
 
       appConfig.cors.credentials = true;
