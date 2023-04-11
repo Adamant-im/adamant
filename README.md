@@ -79,12 +79,12 @@ F. e.,
   wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | sudo apt-key add -
   sudo apt-get update
   sudo apt-get install -y postgresql postgresql-contrib libpq-dev
-  
+
   # Create user if you are working from superuser
   adduser adamant
   sudo usermod -aG sudo adamant
   su - adamant
-  
+
   # Create db
   sudo -u postgres createuser --createdb $USER
   createdb adamant_test
@@ -107,11 +107,25 @@ cd adamant
 npm install
 ```
 
-Then set db.password in config:
+Copy the default config file by running the following command:
+
+```
+cp config.default.json config.json
+```
+
+Edit the "config.json" file using your preferred text editor, for example, Vim or Nano.
 
 ```
 nano config.json
 ```
+
+or
+
+```
+vim config.json
+```
+
+Make the necessary changes to the configuration values in the file. At minimum, you should change the value of the `db.password` property to your actual database password.
 
 ### Bootstrap with a blockchain image
 
@@ -190,9 +204,9 @@ This program is free software: you can redistribute it and/or modify it under th
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the [GNU General Public License](https://github.com/LiskHQ/lisk/tree/master/LICENSE) along with this program.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the [GNU General Public License](https://github.com/LiskHQ/lisk/tree/master/LICENSE) along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-***
+---
 
 This program also incorporates work previously released with lisk `0.7.0` (and earlier) versions under the [MIT License](https://opensource.org/licenses/MIT). To comply with the requirements of that license, the following permission notice, applicable to those parts of the code only, is included below:
 
