@@ -113,14 +113,14 @@ sudo dnf -y update
 
 printf "\n\nInstalling postgresql and other prerequisites…\n\n"
 
-sudo dnf -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm 
+sudo dnf -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
 sudo dnf -qy module disable postgresql
 sudo dnf -y install postgresql13 postgresql13-server postgresql13-contrib
 sudo /usr/pgsql-13/bin/postgresql-13-setup initdb
 sudo systemctl enable --now postgresql-13
 sudo dnf group install "Development Tools" -y
 sudo dnf -y install wget python2 curl mc git nano automake autoconf libtool rpl wget libpq5-devel redis
-sudo systemctl enable --now redis 
+sudo systemctl enable --now redis
 
 #Postgres
 printf "\n\nCreating database '%s' and database user '%s'…\n\n" "$databasename" "$username"
@@ -149,6 +149,15 @@ npm i
 
 #Setup node: set DB password in config.json
 printf "\n\nSetting node's config…\n\n"
+
+if [[ $configfile == "config.json" ]]
+then
+    cp default.config.json config.json
+elif [ "$configfile" == "test/config.json" ]
+then
+    cp test/config.default.json test/config.json
+fi
+
 rpl -i -q '"password": "password",' "\"password\": \"${DB_PASSWORD}\"," "$configfile"
 
 #By default, node's API is available only from localhost
