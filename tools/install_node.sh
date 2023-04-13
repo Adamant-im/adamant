@@ -141,6 +141,15 @@ npm i
 
 #Setup node: set DB password in config.json
 printf "\n\nSetting node's config…\n\n"
+
+if [[ $configfile == "config.json" ]]
+then
+    cp default.config.json config.json
+elif [ "$configfile" == "test/config.json" ]
+then
+    cp test/config.default.json test/config.json
+fi
+
 rpl -i -q '"password": "password",' "\"password\": \"${DB_PASSWORD}\"," "$configfile"
 
 #By default, node's API is available only from localhost
