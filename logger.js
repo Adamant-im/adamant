@@ -84,6 +84,10 @@ module.exports = function (config) {
         } else {
           console.log('[' + log.symbol.bgYellow.black + ']', log.timestamp.grey, '|', log.message);
         }
+
+        if (config.levels[log.level] >= config.levels[error]) {
+          console.trace();
+        }
       }
     }
 
