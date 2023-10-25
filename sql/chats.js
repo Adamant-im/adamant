@@ -107,6 +107,7 @@ var ChatsSql = {
       'first("t_type" ORDER BY b_height DESC, t_timestamp DESC) as "t_type",',
       'first("b_height" ORDER BY b_height DESC, t_timestamp DESC) as "b_height",',
       'first("b_id" ORDER BY b_height DESC, t_timestamp DESC) as "b_id"',
+      'first("confirmations" ORDER BY b_height DESC, t_timestamp DESC) as "confirmations"',
       'FROM ( SELECT *, t_timestamp as timestamp, ENCODE("publicKey", \'hex\') as "m_recipientPublicKey"',
       'FROM full_blocks_list',
       'LEFT OUTER JOIN mem_accounts ON address = "t_recipientId"',
