@@ -106,6 +106,7 @@ var ChatsSql = {
       'first("c_type" ORDER BY b_height DESC, t_timestamp DESC) as "c_type",',
       'first("t_type" ORDER BY b_height DESC, t_timestamp DESC) as "t_type",',
       'first("b_height" ORDER BY b_height DESC, t_timestamp DESC) as "b_height",',
+      'first("confirmations" ORDER BY b_height DESC, t_timestamp DESC) as "confirmations",',
       'first("b_id" ORDER BY b_height DESC, t_timestamp DESC) as "b_id"',
       'FROM ( SELECT *, t_timestamp as timestamp, ENCODE("publicKey", \'hex\') as "m_recipientPublicKey"',
       'FROM full_blocks_list',
