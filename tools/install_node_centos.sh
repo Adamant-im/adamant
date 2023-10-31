@@ -7,7 +7,7 @@ databasename="adamant_main"
 configfile="config.json"
 processname="adamant"
 port="36666"
-nodejs="hydrogen"
+nodejs="iron"
 
 while getopts 'b:n:j:' OPTION; do
   OPTARG=$(echo "$OPTARG" | xargs)
@@ -31,15 +31,15 @@ while getopts 'b:n:j:' OPTION; do
       fi
       ;;
     j)
-      if [ "$OPTARG" == "16" ] || [ "$OPTARG" == "gallium" ]
+      if [ "$OPTARG" == "18" ] || [ "$OPTARG" == "hydrogen" ]
       then
         nodejs="gallium"
-      elif [ "$OPTARG" != "18" ] && [ "$OPTARG" != "hydrogen" ]
+      elif [ "$OPTARG" != "20" ] && [ "$OPTARG" != "iron" ]
       then
-        printf "\nNodejs should be 'gallium' = '16', or 'hydrogen' = '18'.\n\n"
+        printf "\nNodejs should be 'hydrogen' = '18', or 'iron' = '20'.\n\n"
         exit 1
       fi
-      ;;      
+      ;;
     *)
       printf "\nWrong parameters. Use '-b' for branch, '-t' for network.\n\n"
       exit 1
@@ -48,7 +48,7 @@ while getopts 'b:n:j:' OPTION; do
 done
 
 printf "\n"
-printf "Welcome to the ADAMANT node installer v2.1.0 for CentOS 8. Make sure you got this file from adamant.im website or GitHub.\n"
+printf "Welcome to the ADAMANT node installer v3.1.0 for CentOS 8. Make sure you got this file from adamant.im website or GitHub.\n"
 printf "This installer is the easiest way to run ADAMANT node. We still recommend to consult IT specialist if you are not familiar with Linux systems.\n"
 printf "You can see full installation instructions (though for Ubuntu) on https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
 printf "The installer will ask you to set database and user passwords during the installation.\n"
@@ -146,7 +146,7 @@ su - "$username" <<EOSU
 
 #NodeJS
 printf "\n\nInstalling nvm & node.js…\n\n"
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
 source ~/.nvm/nvm.sh
 source ~/.profile
 source ~/.bashrc
