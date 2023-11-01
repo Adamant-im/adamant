@@ -39,7 +39,7 @@ while getopts 'b:n:j:' OPTION; do
         printf "\nNodejs should be 'gallium' = '16', or 'hydrogen' = '18'.\n\n"
         exit 1
       fi
-      ;;      
+      ;;
     *)
       printf "\nWrong parameters. Use '-b' for branch, '-t' for network.\n\n"
       exit 1
@@ -48,7 +48,7 @@ while getopts 'b:n:j:' OPTION; do
 done
 
 printf "\n"
-printf "Welcome to the ADAMANT node installer v2.1.0 for CentOS 8. Make sure you got this file from adamant.im website or GitHub.\n"
+printf "Welcome to the ADAMANT node installer v2.1.1 for CentOS 8. Make sure you got this file from adamant.im website or GitHub.\n"
 printf "This installer is the easiest way to run ADAMANT node. We still recommend to consult IT specialist if you are not familiar with Linux systems.\n"
 printf "You can see full installation instructions (though for Ubuntu) on https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
 printf "The installer will ask you to set database and user passwords during the installation.\n"
@@ -146,7 +146,7 @@ su - "$username" <<EOSU
 
 #NodeJS
 printf "\n\nInstalling nvm & node.js…\n\n"
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
 source ~/.nvm/nvm.sh
 source ~/.profile
 source ~/.bashrc
