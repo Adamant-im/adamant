@@ -2,7 +2,7 @@
 
 var async = require('async');
 var extend = require('extend');
-var jsonSql = require('json-sql')({namedValues: false});
+var jsonSql = require('json-sql')();
 jsonSql.setDialect('postgresql');
 var sandboxHelper = require('../helpers/sandbox.js');
 
