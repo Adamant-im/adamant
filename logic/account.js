@@ -826,7 +826,6 @@ Account.prototype.merge = function (address, diff, cb) {
           accountId: address
         }
       });
-
       sqles.push(sql);
     });
   }
@@ -855,7 +854,6 @@ Account.prototype.merge = function (address, diff, cb) {
         table: self.table + '2' + el,
         condition: remove_object[el]
       });
-
       sqles.push(sql);
     });
   }
@@ -883,7 +881,6 @@ Account.prototype.merge = function (address, diff, cb) {
         address: address
       }
     });
-
     sqles.push(sql);
   }
 
