@@ -659,7 +659,7 @@ Account.prototype.set = function (address, fields, cb) {
   console.log('x-!!!-1', sql.query, sql.values)
 
   const insertQuery = sql.query.slice(0, -1); // insert into "mem_accounts" ("publicKey", "address") values (${1}, ${2})
-  const columnPart = insertString.substring(
+  const columnPart = insertQuery.substring(
     insertString.indexOf('(') + 1, 
     insertString.indexOf(') values')
   );
