@@ -664,7 +664,12 @@ Account.prototype.set = function (address, fields, cb) {
     insertQuery.indexOf(') values')
   );
   const columns = columnPart.match(/"(\w+)"/g).map(col => col.replace(/"/g, ''));
-  const updateQuery = ' on conflict ("address") do update set ' + columns.map((col, index) => `"${col}" = $${index + 1}`).join(', ');
+  const valuesPart = insertQuery.split('values')[1].trim().slice(1, -1);
+  const values = valuesPart.split(',').map(val => val.trim());
+  const updateQuery = ' on conflict ("address") do update set ' + columns.map((col, index) => {
+    const value = values[index].startsWith('$') ? values[index] : values[index];
+    return `"${col}" = ${value}`;
+  }).join(', ');
 
   sql.query = insertQuery + updateQuery + ';';
   console.log('x-!!!', insertQuery, updateQuery)
