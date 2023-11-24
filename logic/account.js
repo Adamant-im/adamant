@@ -601,10 +601,24 @@ Account.prototype.getAll = function (filter, fields, cb) {
   if (typeof filter.address === 'string') {
     filter.address = {
       // $ilike: ['address', filter.address]
-      address: {$ilike: filter.address}
+      $ilike: filter.address
     };
   }
 
+  // it('should be ok with `$ilike` conditional operator', function() {
+  //   var result = jsonSql.build({
+  //     table: 'test',
+  //     condition: {
+  //       params: {$ilike: 'hello%'}
+  //     }
+  //   });
+
+  //   expect(result.query).to.be.equal(
+  //     'select * from "test" where "params" ilike $1;'
+  //   );
+  //   expect(result.values).to.be.eql(['hello%']);
+  // });
+  
   console.log('!!!!')
   console.log('!!!!', filter.address)
 
