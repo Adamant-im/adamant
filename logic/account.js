@@ -598,12 +598,12 @@ Account.prototype.getAll = function (filter, fields, cb) {
   }
   delete filter.sort;
 
-  if (typeof filter.address === 'string') {
-    filter.address = {
-      // $ilike: ['address', filter.address]
-      $ilike: filter.address
-    };
-  }
+  // if (typeof filter.address === 'string') {
+  //   filter.address = {
+  //     // $ilike: ['address', filter.address]
+  //     $ilike: filter.address
+  //   };
+  // }
 
   // it('should be ok with `$ilike` conditional operator', function() {
   //   var result = jsonSql.build({
