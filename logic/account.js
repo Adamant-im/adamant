@@ -645,15 +645,28 @@ Account.prototype.set = function (address, fields, cb) {
   address = String(address).toUpperCase();
   fields.address = address;
 
+  // 
+  // In json-sql v0.2.6 it was type: 'insertorupdate', which is removed in v0.5.0
+  // insert into "mem_accounts" ("publicKey", "address") values (${1}, ${2}) on conflict ("address") do update set "publicKey" = ${3}, "address" = ${4};
+  // The workaround is building an 'insert' request and manually adding 'on conflict ("address") do update set'
+
   var sql = jsonSql.build({
-    type: 'insertorupdate',
+    type: 'insert',
     table: this.table,
-    conflictFields: ['address'],
     values: this.toDB(fields),
-    modifier: this.toDB(fields)
   });
 
-  console.log('x-!!!', sql.query, sql.values)
+  console.log('x-!!!-1', sql.query, sql.values)
+
+  const insertQuery = sql.query.slice(0, -1); // insert into "mem_accounts" ("publicKey", "address") values (${1}, ${2})
+  const columns = insertQuery.match(/\("(.+?)"\)/)[1].split('", "');
+  const updateQuery = ' on conflict ("address") do update set ' + columns.map((col, index) => `"${col}" = $${index + 1}`).join(', ');
+
+  sql.query = insertQuery + updateQuery;
+  console.log('x-!!!', insertQuery, sql.updateQuery)
+
+  console.log('x-!!!-2', sql.query, sql.values)
+
 
   this.scope.db.none(sql.query, sql.values).then(function () {
     return setImmediate(cb);
