@@ -653,6 +653,8 @@ Account.prototype.set = function (address, fields, cb) {
     modifier: this.toDB(fields)
   });
 
+  console.log('x-!!!', sql.query, sql.values)
+
   this.scope.db.none(sql.query, sql.values).then(function () {
     return setImmediate(cb);
   }).catch(function (err) {
