@@ -804,10 +804,10 @@ Account.prototype.merge = function (address, diff, cb) {
 
   var sqles = [];
 
-  console.log('2-!!!', remove[el])
-
   if (Object.keys(remove).length) {
     Object.keys(remove).forEach(function (el) {
+      console.log('2-!!!', remove[el])
+
       var sql = jsonSql.build({
         type: 'remove',
         table: self.table + '2' + el,
