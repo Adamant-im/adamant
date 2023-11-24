@@ -603,12 +603,11 @@ Account.prototype.getAll = function (filter, fields, cb) {
 
   // Do case insensitive address comparison -> where "address" ilike $1; [ 'U16455322533504200665' ]
   // In json-sql v0.2.6 it was $upper: ['address', filter.address]
-  // if (typeof filter.address === 'string') {
-  //   filter.address = {
-  //     $ilike: ['address', filter.address]
-  //     // $ilike: filter.address
-  //   };
-  // }
+  if (typeof filter.address === 'string') {
+    filter.address = {
+      $ilike: filter.address
+    };
+  }
 
   var sql = jsonSql.build({
     type: 'select',
@@ -805,6 +804,8 @@ Account.prototype.merge = function (address, diff, cb) {
 
   var sqles = [];
 
+  console.log('2-!!!', remove[el])
+
   if (Object.keys(remove).length) {
     Object.keys(remove).forEach(function (el) {
       var sql = jsonSql.build({
@@ -815,6 +816,8 @@ Account.prototype.merge = function (address, diff, cb) {
           accountId: address
         }
       });
+      console.log('2-!!!', sql.query, sql.values)
+
       sqles.push(sql);
     });
   }
@@ -843,6 +846,8 @@ Account.prototype.merge = function (address, diff, cb) {
         table: self.table + '2' + el,
         condition: remove_object[el]
       });
+      console.log('3-!!!', sql.query, sql.values)
+
       sqles.push(sql);
     });
   }
@@ -870,6 +875,8 @@ Account.prototype.merge = function (address, diff, cb) {
         address: address
       }
     });
+    console.log('4-!!!', sql.query, sql.values)
+
     sqles.push(sql);
   }
 
@@ -918,6 +925,8 @@ Account.prototype.remove = function (address, cb) {
       address: address
     }
   });
+  console.log('5-!!!', sql.query, sql.values)
+
   this.scope.db.none(sql.query, sql.values).then(function () {
     return setImmediate(cb, null, address);
   }).catch(function (err) {
