@@ -598,30 +598,14 @@ Account.prototype.getAll = function (filter, fields, cb) {
   }
   delete filter.sort;
 
+  // Do case insensitive address comparison -> where "address" ilike $1; [ 'U16455322533504200665' ]
+  // In json-sql v0.2.6 it was $upper: ['address', filter.address]
   if (typeof filter.address === 'string') {
     filter.address = {
-      // $ilike: ['address', filter.address]
-      $ilike: filter.address
+      $ilike: ['address', filter.address]
+      // $ilike: filter.address
     };
   }
-
-  // it('should be ok with `$ilike` conditional operator', function() {
-  //   var result = jsonSql.build({
-  //     table: 'test',
-  //     condition: {
-  //       params: {$ilike: 'hello%'}
-  //     }
-  //   });
-
-  //   expect(result.query).to.be.equal(
-  //     'select * from "test" where "params" ilike $1;'
-  //   );
-  //   expect(result.values).to.be.eql(['hello%']);
-  // });
-  
-  console.log('!!!!')
-  console.log('!!!!', filter.address)
-
 
   var sql = jsonSql.build({
     type: 'select',
@@ -633,8 +617,6 @@ Account.prototype.getAll = function (filter, fields, cb) {
     condition: filter,
     fields: realFields
   });
-
-  console.log('!!!!', sql.query, sql.values)
 
   this.scope.db.query(sql.query, sql.values).then(function (rows) {
     return setImmediate(cb, null, rows);
