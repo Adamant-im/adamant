@@ -4,6 +4,7 @@ release
 ssl/
 
 # Config files
+config.json
 test/config.json
 sftp-config.json
 
