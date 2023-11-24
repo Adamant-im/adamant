@@ -604,6 +604,10 @@ Account.prototype.getAll = function (filter, fields, cb) {
     };
   }
 
+  console.log('!!!!')
+  console.log('!!!!', filter.address)
+
+
   var sql = jsonSql.build({
     type: 'select',
     table: this.table,
@@ -614,6 +618,8 @@ Account.prototype.getAll = function (filter, fields, cb) {
     condition: filter,
     fields: realFields
   });
+
+  console.log('!!!!', sql.query, sql.values)
 
   this.scope.db.query(sql.query, sql.values).then(function (rows) {
     return setImmediate(cb, null, rows);
