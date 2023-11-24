@@ -194,7 +194,7 @@ npm run test:single test/api/accounts.js
 
 ## License
 
-Copyright © 2020-2022 ADAMANT Foundation
+Copyright © 2020-2023 ADAMANT Foundation
 
 Copyright © 2017-2020 ADAMANT TECH LABS LP
 

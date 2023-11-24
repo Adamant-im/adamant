@@ -1,6 +1,7 @@
 {
   "name": "adamant",
-  "version": "0.8.2",
+  "version": "0.8.3",
+  "description": "ADAMANT Blockchain Node",
   "private": true,
   "scripts": {
     "start": "node app.js",
@@ -33,7 +34,7 @@
     "cryptocurrency",
     "dpos"
   ],
-  "author": "ADAMANT Tech Labs <devs@adamant.im>, Lisk Foundation <admin@lisk.io>, lightcurve GmbH <admin@lightcurve.io>",
+  "author": "ADAMANT Foundation <devs@adamant.im>, ADAMANT Tech Labs <devs@adamant.im>, Lisk Foundation <admin@lisk.io>, lightcurve GmbH <admin@lightcurve.io>",
   "license": "GPL-3.0",
   "dependencies": {
     "async": "=3.2.4",
@@ -104,7 +105,7 @@
     }
   },
   "config": {
-    "minVersion": ">=0.4.0"
+    "minVersion": ">=0.6.0"
   },
   "repository": {
     "type": "git",
