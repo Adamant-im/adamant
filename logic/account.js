@@ -598,10 +598,10 @@ Account.prototype.getAll = function (filter, fields, cb) {
   }
   delete filter.sort;
 
-  console.log('!!!!')
-  console.log('!!!!', filter.address)
   if (typeof filter.address === 'string') {
-    filter.address = filter.address.toUpperCase();
+    filter.address = {
+      $ilike: ['address', filter.address]
+    };
   }
 
   console.log('!!!!')
