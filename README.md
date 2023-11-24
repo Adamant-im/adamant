@@ -1,8 +1,8 @@
 # ADAMANT
 
-ADAMANT is a **decentralized blockchain messaging platform**. Applications use ADAMANT as an anonymous and encrypted relay and storage to enable messaging features. As examples, see [Messenger app](https://github.com/Adamant-im/adamant-im), [Blockchain 2FA](https://github.com/Adamant-im/adamant-2fa) and [Cryptocurrency Exchanger](https://github.com/Adamant-im/adamant-exchangebot) implementations.
+ADAMANT is a **decentralized blockchain messaging platform**. Applications use ADAMANT as an anonymous and encrypted relay and storage to enable messaging features. For examples, see the [Messenger app](https://github.com/Adamant-im/adamant-im), [Blockchain 2FA](https://github.com/Adamant-im/adamant-2fa), and [Cryptocurrency Exchanger](https://github.com/Adamant-im/adamant-exchangebot) implementations.
 
-For more information refer to ADAMANT website: <https://adamant.im>.
+For more information, refer to the ADAMANT website: <https://adamant.im>.
 
 ![ADAMANT nodes](./img/adm-nodes.jpeg)
 
@@ -17,17 +17,17 @@ Additional information:
 
 Comprehensive [API specification](https://github.com/Adamant-im/adamant/wiki) is available.
 
-The manual describes API endpoints to manage accounts, transactions, chats, and a key-value storage (KVS). Additionally, the manual suggests valuable information on creating new accounts and encrypting and decrypting messages.
+The manual describes API endpoints to manage accounts, transactions, chats, and key-value storage (KVS). Additionally, the manual suggests valuable information on creating new accounts and encrypting and decrypting messages.
 
 ## Set up
 
-[How to run ADAMANT node (instructions for users)](https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc). You can skip them if you are experienced Linux user.
+[How to run ADAMANT node (instructions for users)](https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc). You can skip them if you are an experienced Linux user.
 
 ### Requirements
 
 - Ubuntu 18/20/22 (others are not tested)
 - 2 GB RAM
-- 60 GB disk space as on November 2022
+- 70 GB disk space as of November 2023
 
 ### Installation script
 
@@ -35,11 +35,11 @@ For new droplets, use the [Installation script](./tools/install_node.sh), includ
 
 `sudo bash -c "$(wget -O - https://adamant.im/install_node.sh)"`
 
-The script updates Ubuntu packages, creates user named adamant, installs PostgreSQL, Node.js and other necessary packages, sets up ADAMANT node, and optionally downloads up-to-date ADAMANT blockchain image.
+The script updates Ubuntu packages, creates the user named `adamant`, installs PostgreSQL, Node.js, and other necessary packages, sets up the ADAMANT node, and optionally downloads an up-to-date ADAMANT blockchain image.
 
 Script parameters:
 
-- `-b`: choose GitHub branch for node installation. Example: `-b dev`. Default is `master`.
+- `-b`: choose the GitHub branch for node installation. Example: `-b dev`. Default is `master`.
 - `-n`: choose `mainnet` or `testnet` network. Example: `-n testnet`. Default is `mainnet`.
 
 F. e.,
@@ -48,7 +48,7 @@ F. e.,
 
 ### Prerequisites
 
-- Tool chain components — Used for compiling dependencies
+- Toolchain components — Used for compiling dependencies
 
   `sudo apt-get install -y python build-essential curl automake autoconf libtool`
 
@@ -58,18 +58,18 @@ F. e.,
 
 - Node.js — Node.js serves as the underlying engine for code execution
 
-  System wide via package manager:
+  System-wide via package manager:
 
   ```
-  curl -sL https://deb.nodesource.com/setup_16.x | sudo -E bash -
+  curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
   sudo apt-get install -y nodejs
   ```
 
   Locally using nvm:
 
   ```
-  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
-  nvm i --lts=gallium
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
+  nvm i --lts=hydrogen
   ```
 
 - Install PostgreSQL:
@@ -80,7 +80,7 @@ F. e.,
   sudo apt-get update
   sudo apt-get install -y postgresql postgresql-contrib libpq-dev
 
-  # Create user if you are working from superuser
+  # Create a user if you are working from superuser
   adduser adamant
   sudo usermod -aG sudo adamant
   su - adamant
@@ -129,7 +129,7 @@ Make the necessary changes to the configuration values in the file. At minimum, 
 
 ### Bootstrap with a blockchain image
 
-Blockchain image saves time on node sync but you must completely trust the image. If you skip this step, your node will check every single transaction, which takes time (up for several days).
+A blockchain image saves time on node sync, but you must completely trust the image. If you skip this step, your node will check every single transaction, which takes time (up to several days).
 
 ```
 wget https://explorer.adamant.im/db_backup.sql.gz
@@ -162,7 +162,7 @@ To add ADAMANT node to crontab for autostart after system reboot (fix installati
 
 ## Tests
 
-Before running any tests, run ADAMANT node with a testnet configuration:
+Before running any tests, run the ADAMANT node with a testnet configuration:
 
 ```
 npm run start:testnet
