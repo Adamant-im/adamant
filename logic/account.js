@@ -3,7 +3,7 @@
 var async = require('async');
 var pgp = require('pg-promise');
 var path = require('path');
-var jsonSql = require('json-sql')({dialect: 'postgresql'});
+var jsonSql = require('json-sql')({namedValues: false});
 jsonSql.setDialect('postgresql');
 var constants = require('../helpers/constants.js');
 var slots = require('../helpers/slots.js');
@@ -598,12 +598,12 @@ Account.prototype.getAll = function (filter, fields, cb) {
   }
   delete filter.sort;
 
-  // if (typeof filter.address === 'string') {
-  //   filter.address = {
-  //     // $ilike: ['address', filter.address]
-  //     $ilike: filter.address
-  //   };
-  // }
+  if (typeof filter.address === 'string') {
+    filter.address = {
+      // $ilike: ['address', filter.address]
+      $ilike: filter.address
+    };
+  }
 
   // it('should be ok with `$ilike` conditional operator', function() {
   //   var result = jsonSql.build({
