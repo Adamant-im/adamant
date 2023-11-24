@@ -598,14 +598,17 @@ Account.prototype.getAll = function (filter, fields, cb) {
   }
   delete filter.sort;
 
+
+  console.log('!!!', filter.address);
+
   // Do case insensitive address comparison -> where "address" ilike $1; [ 'U16455322533504200665' ]
   // In json-sql v0.2.6 it was $upper: ['address', filter.address]
-  if (typeof filter.address === 'string') {
-    filter.address = {
-      $ilike: ['address', filter.address]
-      // $ilike: filter.address
-    };
-  }
+  // if (typeof filter.address === 'string') {
+  //   filter.address = {
+  //     $ilike: ['address', filter.address]
+  //     // $ilike: filter.address
+  //   };
+  // }
 
   var sql = jsonSql.build({
     type: 'select',
