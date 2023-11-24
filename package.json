@@ -1,6 +1,7 @@
 {
   "name": "adamant",
-  "version": "0.8.2",
+  "version": "0.8.3",
+  "description": "ADAMANT Blockchain Node",
   "private": true,
   "scripts": {
     "start": "node app.js",
@@ -33,10 +34,10 @@
     "cryptocurrency",
     "dpos"
   ],
-  "author": "ADAMANT Tech Labs <devs@adamant.im>, Lisk Foundation <admin@lisk.io>, lightcurve GmbH <admin@lightcurve.io>",
+  "author": "ADAMANT Foundation <devs@adamant.im>, ADAMANT Tech Labs <devs@adamant.im>, Lisk Foundation <admin@lisk.io>, lightcurve GmbH <admin@lightcurve.io>",
   "license": "GPL-3.0",
   "dependencies": {
-    "async": "=3.2.4",
+    "async": "=3.2.5",
     "axios": "^0.27.2",
     "bignumber.js": "=9.1.2",
     "bitcore-mnemonic": "=8.25.36",
@@ -66,7 +67,7 @@
     "pg-native": "=3.0.1",
     "pg-promise": "=10.11.1",
     "randomstring": "=1.3.0",
-    "redis": "=4.6.10",
+    "redis": "=4.6.11",
     "rimraf": "=3.0.2",
     "semver": "=7.5.4",
     "socket.io": "^4.7.2",
@@ -83,7 +84,7 @@
     "chai-bignumber": "^3.1.0",
     "eslint-config-google": "^0.14.0",
     "eslint-formatter-codeframe": "^7.32.1",
-    "eslint-plugin-jsdoc": "^46.8.2",
+    "eslint-plugin-jsdoc": "^46.9.0",
     "grunt": "^1.6.1",
     "grunt-cli": "^1.4.3",
     "grunt-contrib-compress": "^2.0.0",
@@ -104,7 +105,7 @@
     }
   },
   "config": {
-    "minVersion": ">=0.4.0"
+    "minVersion": ">=0.6.0"
   },
   "repository": {
     "type": "git",
