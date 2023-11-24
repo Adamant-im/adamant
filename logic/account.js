@@ -600,7 +600,8 @@ Account.prototype.getAll = function (filter, fields, cb) {
 
   if (typeof filter.address === 'string') {
     filter.address = {
-      $ilike: ['address', filter.address]
+      // $ilike: ['address', filter.address]
+      address: {$ilike: filter.address}
     };
   }
 
