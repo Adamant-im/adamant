@@ -618,6 +618,8 @@ Account.prototype.getAll = function (filter, fields, cb) {
     fields: realFields
   });
 
+  console.log('!!!', sql.query, sql.values)
+
   this.scope.db.query(sql.query, sql.values).then(function (rows) {
     return setImmediate(cb, null, rows);
   }).catch(function (err) {
