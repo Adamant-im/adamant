@@ -3,7 +3,7 @@
 var async = require('async');
 var pgp = require('pg-promise');
 var path = require('path');
-var jsonSql = require('json-sql')({dialect: 'postgresql', namedValues: false});
+var jsonSql = require('json-sql')({dialect: 'postgresql'});
 jsonSql.setDialect('postgresql');
 var constants = require('../helpers/constants.js');
 var slots = require('../helpers/slots.js');
