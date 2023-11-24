@@ -660,8 +660,8 @@ Account.prototype.set = function (address, fields, cb) {
 
   const insertQuery = sql.query.slice(0, -1); // insert into "mem_accounts" ("publicKey", "address") values (${1}, ${2})
   const columnPart = insertQuery.substring(
-    insertString.indexOf('(') + 1, 
-    insertString.indexOf(') values')
+    insertQuery.indexOf('(') + 1, 
+    insertQuery.indexOf(') values')
   );
   const columns = columnPart.match(/"(\w+)"/g).map(col => col.replace(/"/g, ''));
   const updateQuery = ' on conflict ("address") do update set ' + columns.map((col, index) => `"${col}" = $${index + 1}`).join(', ');
