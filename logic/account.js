@@ -598,9 +598,6 @@ Account.prototype.getAll = function (filter, fields, cb) {
   }
   delete filter.sort;
 
-
-  console.log('!!!', filter.address);
-
   // Do case insensitive address comparison -> where "address" ilike $1; [ 'U16455322533504200665' ]
   // In json-sql v0.2.6 it was $upper: ['address', filter.address]
   if (typeof filter.address === 'string') {
@@ -619,8 +616,6 @@ Account.prototype.getAll = function (filter, fields, cb) {
     condition: filter,
     fields: realFields
   });
-
-  console.log('!!!', sql.query, sql.values)
 
   this.scope.db.query(sql.query, sql.values).then(function (rows) {
     return setImmediate(cb, null, rows);
@@ -645,9 +640,9 @@ Account.prototype.set = function (address, fields, cb) {
   address = String(address).toUpperCase();
   fields.address = address;
 
-  // 
   // In json-sql v0.2.6 it was type: 'insertorupdate', which is removed in v0.5.0
-  // insert into "mem_accounts" ("publicKey", "address") values (${1}, ${2}) on conflict ("address") do update set "publicKey" = ${3}, "address" = ${4};
+  // insert into "mem_accounts" ("address", "u_isDelegate", "isDelegate", "username", "u_username") values ($1, 1, 0, null, $2)
+  //   on conflict ("address") do update set "address" = $1, "u_isDelegate" = 1, "isDelegate" = 0, "username" = null, "u_username" = $2
   // The workaround is building an 'insert' request and manually adding 'on conflict ("address") do update set'
 
   var sql = jsonSql.build({
@@ -655,8 +650,6 @@ Account.prototype.set = function (address, fields, cb) {
     table: this.table,
     values: this.toDB(fields),
   });
-
-  console.log('x-!!!-1', sql.query, sql.values)
 
   const insertQuery = sql.query.slice(0, -1); // insert into "mem_accounts" ("publicKey", "address") values (${1}, ${2})
   const columnPart = insertQuery.substring(
@@ -672,10 +665,6 @@ Account.prototype.set = function (address, fields, cb) {
   }).join(', ');
 
   sql.query = insertQuery + updateQuery + ';';
-  console.log('x-!!!', insertQuery, updateQuery)
-
-  console.log('x-!!!-2', sql.query, sql.values)
-
 
   this.scope.db.none(sql.query, sql.values).then(function () {
     return setImmediate(cb);
@@ -714,8 +703,7 @@ Account.prototype.merge = function (address, diff, cb) {
           break;
         case Number:
           if (isNaN(trueValue) || trueValue === Infinity) {
-            console.log(diff);
-            return setImmediate(cb, 'Encountered unsane number: ' + trueValue);
+            return setImmediate(cb, 'Encountered unsafe number: ' + trueValue);
           } else if (Math.abs(trueValue) === trueValue && trueValue !== 0) {
             update.$inc = update.$inc || {};
             update.$inc[value] = Math.floor(trueValue);
@@ -830,8 +818,6 @@ Account.prototype.merge = function (address, diff, cb) {
 
   if (Object.keys(remove).length) {
     Object.keys(remove).forEach(function (el) {
-      console.log('2-!!!', remove[el])
-
       var sql = jsonSql.build({
         type: 'remove',
         table: self.table + '2' + el,
@@ -840,7 +826,6 @@ Account.prototype.merge = function (address, diff, cb) {
           accountId: address
         }
       });
-      console.log('2-!!!', sql.query, sql.values)
 
       sqles.push(sql);
     });
@@ -870,7 +855,6 @@ Account.prototype.merge = function (address, diff, cb) {
         table: self.table + '2' + el,
         condition: remove_object[el]
       });
-      console.log('3-!!!', sql.query, sql.values)
 
       sqles.push(sql);
     });
@@ -899,7 +883,6 @@ Account.prototype.merge = function (address, diff, cb) {
         address: address
       }
     });
-    console.log('4-!!!', sql.query, sql.values)
 
     sqles.push(sql);
   }
@@ -949,7 +932,6 @@ Account.prototype.remove = function (address, cb) {
       address: address
     }
   });
-  console.log('5-!!!', sql.query, sql.values)
 
   this.scope.db.none(sql.query, sql.values).then(function () {
     return setImmediate(cb, null, address);
