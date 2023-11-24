@@ -601,9 +601,7 @@ Account.prototype.getAll = function (filter, fields, cb) {
   console.log('!!!!')
   console.log('!!!!', filter.address)
   if (typeof filter.address === 'string') {
-    filter.address = {
-      address: filter.address.toUpperCase()
-    };
+    filter.address = filter.address.toUpperCase();
   }
 
   console.log('!!!!')
