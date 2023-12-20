@@ -48,9 +48,9 @@ while getopts 'b:n:j:' OPTION; do
 done
 
 printf "\n"
-printf "Welcome to the ADAMANT node installer v2.1.1 for Ubuntu 18, 20, 22. Make sure you got this file from adamant.im website or GitHub.\n"
+printf "Welcome to the ADAMANT node installer v2.1.2 for Ubuntu 20, 22. Make sure you got this file from adamant.im website or GitHub.\n"
 printf "This installer is the easiest way to run ADAMANT node. We still recommend to consult IT specialist if you are not familiar with Linux systems.\n"
-printf "You can see full installation instructions on https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
+printf "You can see full installation instructions on https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc.\n"
 printf "The installer will ask you to set database and user passwords during the installation.\n"
 printf "Also, the system may ask to choose some parameters, like encoding, keyboard, and grub. Generally, you can leave them by default.\n\n"
 
@@ -121,7 +121,7 @@ sudo apt update && sudo apt upgrade -y
 printf "\n\nInstalling postgresql and other prerequisites…\n\n"
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" > /etc/apt/sources.list.d/pgdg.list' && wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | sudo apt-key add -
 sudo apt update && sudo DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
-sudo apt install -y build-essential curl automake autoconf libtool rpl mc git postgresql postgresql-contrib libpq-dev redis-server
+sudo apt install -y build-essential curl automake autoconf libtool jq rpl mc git postgresql postgresql-contrib libpq-dev redis-server
 
 #Start postgres. This step is necessary for Windows Subsystem for Linux machines
 sudo service postgresql start
