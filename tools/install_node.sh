@@ -119,6 +119,7 @@ fi
 printf "\nUpdating /etc/needrestart/needrestart.conf to skip dialogs during installation…\n"
 mkdir -p /etc/needrestart
 echo "\$nrconf{restart} = \"a\"" | sudo tee -a /etc/needrestart/needrestart.conf
+echo "\$nrconf{kernelhints} = 0;" | sudo tee -a /etc/needrestart/needrestart.conf
 
 #Packages
 printf "\nUpdating system packages…\n\n"
