@@ -116,11 +116,12 @@ then
 fi
 
 #Don't disturb with dialogs to restart services
+printf "\nUpdating /etc/needrestart/needrestart.conf to skip dialogs during installation…\n"
 mkdir -p /etc/needrestart
 echo "\$nrconf{restart} = \"a\"" | sudo tee -a /etc/needrestart/needrestart.conf
 
 #Packages
-printf "Updating system packages…\n\n"
+printf "\nUpdating system packages…\n\n"
 sudo apt update && sudo apt upgrade -y
 printf "\n\nInstalling postgresql and other prerequisites…\n\n"
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" > /etc/apt/sources.list.d/pgdg.list' && wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | sudo apt-key add -
@@ -150,6 +151,7 @@ nvm i --lts=$nodejs
 npm i -g pm2
 
 #Logrotate
+printf "\n\n"
 pm2 install pm2-logrotate
 pm2 set pm2-logrotate:max_size 500M
 pm2 set pm2-logrotate:retain 5
@@ -208,14 +210,20 @@ adamant_startup_output=$(su - adamant -c "source ~/.nvm/nvm.sh; pm2 startup")
 adamant_startup=$(echo "$adamant_startup_output" | grep -oP 'sudo env PATH=.*')
 bash -c "$adamant_startup"
 
+printf "\n\nFinished ADAMANT '%s' node installation script. Executed in %s seconds.\n" "$network" "$SECONDS"
+printf "Check your node status with 'pm2 show %s' command.\n" "$processname"
+printf "Current node's height: 'curl http://localhost:%s/api/blocks/getHeight'\n" "$port"
+printf "Thank you for supporting true decentralized ADAMANT Messenger.\n\n"
+
+read -n1 -r -p "Press any key to continue…"
+
+printf "\n\n"
+
 #Terminate screen session, if we are running it
 if [ -n "$STY" ]; then
     screen -S "$STY" -X quit
 fi
 
+#Works only if run not in screen
 su - "$username"
 
-printf "\n\nFinished ADAMANT '%s' node installation script. Executed in %s seconds.\n" "$network" "$SECONDS"
-printf "Check your node status with 'pm2 show %s' command.\n" "$processname"
-printf "Current node's height: 'curl http://localhost:%s/api/blocks/getHeight'\n" "$port"
-printf "Thank you for supporting true decentralized ADAMANT Messenger.\n\n"

@@ -154,6 +154,7 @@ nvm i --lts=$nodejs
 npm i -g pm2
 
 #Logrotate
+printf "\n\n"
 pm2 install pm2-logrotate
 pm2 set pm2-logrotate:max_size 500M
 pm2 set pm2-logrotate:retain 5

@@ -79,9 +79,14 @@ printf "Check your node status with 'pm2 show adamant' command.\n"
 printf "Current node's height: 'curl http://localhost:%s/api/blocks/getHeight'\n" "$port"
 printf "Thank you for supporting true decentralized ADAMANT Messenger.\n\n"
 
+read -n1 -r -p "Press any key to continue…"
+
+printf "\n\n"
+
 #Terminate screen session, if we are running it
 if [ -n "$STY" ]; then
     screen -S "$STY" -X quit
 fi
 
+#Works only if run not in screen
 su - "$username"
