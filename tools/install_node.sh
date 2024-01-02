@@ -125,7 +125,7 @@ sudo apt update && sudo apt upgrade -y
 printf "\n\nInstalling postgresql and other prerequisites…\n\n"
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" > /etc/apt/sources.list.d/pgdg.list' && wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | sudo apt-key add -
 sudo apt update && sudo DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
-sudo apt install -y build-essential curl automake autoconf libtool htop jq rpl mc git postgresql postgresql-contrib libpq-dev redis-server
+sudo DEBIAN_FRONTEND=noninteractive apt install -y build-essential curl automake autoconf libtool htop jq rpl mc git postgresql postgresql-contrib libpq-dev redis-server
 
 #Start postgres. This step is necessary for Windows Subsystem for Linux machines
 sudo service postgresql start
