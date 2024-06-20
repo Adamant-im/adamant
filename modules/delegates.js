@@ -774,6 +774,8 @@ Delegates.prototype.shared = {
         filter.username = req.body.username;
       } else if (req.body.address) {
         filter.address = req.body.address;
+      } else {
+        return setImmediate(cb, 'Delegate not found');
       }
 
       modules.delegates.getDelegates(req.body, filter, function (err, data) {
