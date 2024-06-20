@@ -15,23 +15,36 @@ class ClientWs {
     this.logger = logger;
     io.sockets.on('connection', (socket) => {
       try {
-        let address = '';
-        let types = 0;
-        let aId = '';
-        socket.on('address', (a) => {
+        const describe = {
+          address: '',
+          /**
+           * Flags for subscribing to transaction types.
+           * Each bit represents a transaction type. For example:
+           *
+           * 0b100000001
+           *   │       └ transfer transaction (type - 0)
+           *   │
+           *   └─ message transaction (type - 8)
+           */
+          types: 0,
+        };
+
+        socket.on('address', (address) => {
           if (typeof a === 'string') {
-            address = a;
-            this.describes[socket.id] = { types, address, socket };
+            describe.address = address;
+            this.describes[socket.id] = describe;
           }
         });
+
         socket.on('types', (transactionTypes) => {
           if (Array.isArray(transactionTypes)) {
-            transactionTypes.forEach((type) => (types |= 1 << type));
-            this.describes[socket.id] = { types, address, socket };
+            transactionTypes.forEach((type) => (describe.types |= 1 << type));
+            this.describes[socket.id] = describe;
           }
         })
+
         socket.on('disconnect', () => {
-          delete this.describes[aId];
+          delete this.describes[socket.id];
         });
       } catch (e) {
         logger.debug('Error Connection socket: ' + e);
