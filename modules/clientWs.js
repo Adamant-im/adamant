@@ -16,12 +16,20 @@ class ClientWs {
     io.sockets.on('connection', (socket) => {
       try {
         let address = '';
+        let types = 0;
         let aId = '';
         socket.on('address', (a) => {
-          address = a;
-          aId = address + '_' + socket.id;
-          this.describes[aId] = socket;
+          if (typeof a === 'string') {
+            address = a;
+            this.describes[socket.id] = { types, address, socket };
+          }
         });
+        socket.on('types', (transactionTypes) => {
+          if (Array.isArray(transactionTypes)) {
+            transactionTypes.forEach((type) => (types |= 1 << type));
+            this.describes[socket.id] = { types, address, socket };
+          }
+        })
         socket.on('disconnect', () => {
           delete this.describes[aId];
         });
@@ -41,7 +49,7 @@ class ClientWs {
     }
     lastTransactionsIds[t.id] = getUTime();
     try {
-      const subs = findSubs(t.recipientId, t.senderId, this.describes);
+      const subs = findSubs(t.recipientId, t.senderId, t.type, this.describes);
       subs.forEach((s) => {
         s.emit('newTrans', t);
       });
@@ -65,11 +73,13 @@ function getUTime () {
   return new Date().getTime() / 1000;
 }
 
-function findSubs (address1, address2, subs) {
+function findSubs (address1, address2, type, subs) {
   const filterred = [];
   for (let aId in subs) {
-    if (aId.startsWith(address1) || aId.startsWith(address2)) {
-      filterred.push(subs[aId]);
+    const sub = subs[aId];
+    const {address, types, socket} = sub;
+    if ([address1, address2].includes(address) && types & (1 << n)) {
+      filterred.push(socket);
     }
   }
   return filterred;
