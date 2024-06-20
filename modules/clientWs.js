@@ -78,7 +78,7 @@ function findSubs (address1, address2, type, subs) {
   for (let aId in subs) {
     const sub = subs[aId];
     const {address, types, socket} = sub;
-    const isTypeAllowed = !types || types & (1 << n)
+    const isTypeAllowed = !types || types & (1 << type)
 
     if (
       ([address1, address2].includes(address) && isTypeAllowed) ||
