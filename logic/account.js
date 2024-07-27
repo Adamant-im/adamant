@@ -377,7 +377,7 @@ function Account (db, schema, logger, cb) {
     } else {
       if (field.mod) {
         _tmp.expression = field.mod;
-      }z
+      }
       _tmp.field = field.name;
     }
     if (_tmp.expression || field.alias) {
