@@ -59,7 +59,7 @@
     "ip": "=1.1.8",
     "js-nacl": "^1.4.0",
     "json-schema": "=0.4.0",
-    "json-sql": "^0.5.0",
+    "knex": "^3.1.0",
     "lodash": "=4.17.21",
     "method-override": "=3.0.0",
     "npm": "=8.17.0",
