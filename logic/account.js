@@ -610,7 +610,12 @@ Account.prototype.getAll = function (filter, fields, cb) {
   delete filter.offset;
 
   if (filter.sort) {
-    query = query.orderBy(filter.sort);
+    const sort = Object.entries(filter.sort).map(([column, sort]) => ({
+      column,
+      sort: sort === 1 ? 'asc' : 'desc'
+    }));
+
+    query = query.orderBy(sort);
   }
   delete filter.sort;
 
