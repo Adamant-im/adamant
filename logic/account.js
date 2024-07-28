@@ -693,8 +693,8 @@ Account.prototype.merge = function (address, diff, cb) {
           if (isNaN(trueValue) || trueValue === Infinity) {
             return setImmediate(cb, 'Encountered unsafe number: ' + trueValue);
           } else if (Math.abs(trueValue) === trueValue && trueValue !== 0) {
-            update.$inc = update.$inc || {};
-            update.$inc[value] = Math.floor(trueValue);
+            update[value] = knex.raw('?? - ?', [value, Math.floor(trueValue)])
+
             if (value === 'balance') {
               round.push({
                 query: 'INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT ${address}, (${amount})::bigint, "dependentId", ${blockId}, ${round} FROM mem_accounts2delegates WHERE "accountId" = ${address};',
@@ -707,10 +707,10 @@ Account.prototype.merge = function (address, diff, cb) {
               });
             }
           } else if (trueValue < 0) {
-            update.$dec = update.$dec || {};
-            update.$dec[value] = Math.floor(Math.abs(trueValue));
+            update[value] = knex.raw('?? + ?', [value, Math.floor(Math.abs(trueValue))])
+
             // If decrementing u_balance on account
-            if (update.$dec.u_balance) {
+            if (update.u_balance) {
               // Remove virginity and ensure marked columns become immutable
               update.virgin = 0;
             }
