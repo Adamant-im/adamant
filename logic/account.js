@@ -645,7 +645,7 @@ Account.prototype.set = function (address, rawFields, cb) {
   rawFields.address = address;
 
   const fields = this.toDB(rawFields);
-  const query =  knex(table)
+  const query =  knex(this.table)
     .insert(fields)
     .onConflict('address')
     .merge(fields)
