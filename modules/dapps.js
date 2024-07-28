@@ -15,7 +15,7 @@ var OrderBy = require('../helpers/orderBy.js');
 var OutTransfer = require('../logic/outTransfer.js');
 var path = require('path');
 var axios = require('axios').default;
-var rmdir = require('rimraf');
+var rimraf = require('rimraf').rimraf;
 var Router = require('../helpers/router.js');
 var Sandbox = require('../legacy/lisk-sandbox.js');
 var sandboxHelper = require('../helpers/sandbox.js');
@@ -123,15 +123,15 @@ function DApps (cb, scope) {
 
   fs.exists(path.join('.', 'public', 'dapps'), function (exists) {
     if (exists) {
-      rmdir(path.join('.', 'public', 'dapps'), function (err) {
-        if (err) {
+      rimraf(path.join('.', 'public', 'dapps'))
+        .catch(function(err) {
           library.logger.error(err);
-        }
-
-        __private.createBasePaths(function (err) {
-          return setImmediate(cb, err, self);
+        })
+        .finally(function() {
+          __private.createBasePaths(function (err) {
+            return setImmediate(cb, err, self);
+          });
         });
-      });
     } else {
       __private.createBasePaths(function (err) {
         return setImmediate(cb, null, self);
@@ -345,13 +345,13 @@ __private.removeDApp = function (dapp, cb) {
       library.logger.error('Failed to uninstall application');
     }
 
-    rmdir(dappPath, function (err) {
-      if (err) {
-        return setImmediate(cb, 'Failed to remove application folder');
-      } else {
+    rimraf(dappPath)
+      .then(function() {
         return setImmediate(cb);
-      }
-    });
+      })
+      .catch(function (err) {
+        return setImmediate(cb, "Failed to remove application folder");
+      });
   }
 
   fs.exists(dappPath, function (exists) {
