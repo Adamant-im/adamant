@@ -523,16 +523,19 @@ Account.prototype.verifyPublicKey = function (publicKey) {
  * @return {Object} Normalized address.
  */
 Account.prototype.toDB = function (raw) {
+  const values = {};
+
   this.binary.forEach(function (field) {
     if (raw[field]) {
-      raw[field] = Buffer.from(raw[field], 'hex');
+      values[field] = Buffer.from(raw[field], 'hex');
+      raw[field] = knex.raw(`$(${field})`);
     }
   });
 
   // Normalize address
   raw.address = String(raw.address).toUpperCase();
 
-  return raw;
+  return { raw: raw, values: values };
 };
 
 /**
@@ -646,12 +649,12 @@ Account.prototype.set = function (address, rawFields, cb) {
 
   const fields = this.toDB(rawFields);
   const query =  knex(this.table)
-    .insert(fields)
+    .insert(fields.raw)
     .onConflict('address')
-    .merge(fields)
+    .merge(fields.raw)
     .toString() + ';'
 
-  this.scope.db.none(query).then(function () {
+  this.scope.db.none(query, fields.values).then(function () {
     return setImmediate(cb);
   }).catch(function (err) {
     library.logger.error(err.stack);
