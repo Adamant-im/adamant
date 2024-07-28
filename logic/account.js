@@ -451,7 +451,7 @@ Account.prototype.createTables = function (cb) {
  * @return {setImmediateCallback} cb|error.
  */
 Account.prototype.removeTables = function (cb) {
-  var sqles = [], sql;
+  var sqles = [];
 
   [this.table,
     'mem_round',
@@ -460,7 +460,7 @@ Account.prototype.removeTables = function (cb) {
     'mem_accounts2multisignatures',
     'mem_accounts2u_multisignatures'].forEach(function (table) {
     const sql = knex(table).del().toString() + ';';
-    sqles.push(sql.query);
+    sqles.push(sql);
   });
 
   this.scope.db.query(sqles.join('')).then(function () {
