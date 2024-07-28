@@ -451,7 +451,7 @@ Account.prototype.createTables = function (cb) {
  * @return {setImmediateCallback} cb|error.
  */
 Account.prototype.removeTables = function (cb) {
-  var sqles = [], sql;
+  var sqles = [];
 
   [this.table,
     'mem_round',
@@ -460,7 +460,7 @@ Account.prototype.removeTables = function (cb) {
     'mem_accounts2multisignatures',
     'mem_accounts2u_multisignatures'].forEach(function (table) {
     const sql = knex(table).del().toString() + ';';
-    sqles.push(sql.query);
+    sqles.push(sql);
   });
 
   this.scope.db.query(sqles.join('')).then(function () {
@@ -523,16 +523,19 @@ Account.prototype.verifyPublicKey = function (publicKey) {
  * @return {Object} Normalized address.
  */
 Account.prototype.toDB = function (raw) {
+  const values = {};
+
   this.binary.forEach(function (field) {
     if (raw[field]) {
-      raw[field] = Buffer.from(raw[field], 'hex');
+      values[field] = Buffer.from(raw[field], 'hex');
+      raw[field] = knex.raw(`$(${field})`);
     }
   });
 
   // Normalize address
   raw.address = String(raw.address).toUpperCase();
 
-  return raw;
+  return { raw: raw, values: values };
 };
 
 /**
@@ -645,13 +648,13 @@ Account.prototype.set = function (address, rawFields, cb) {
   rawFields.address = address;
 
   const fields = this.toDB(rawFields);
-  const query =  knex(table)
-    .insert(fields)
+  const query =  knex(this.table)
+    .insert(fields.raw)
     .onConflict('address')
-    .merge(fields)
+    .merge(fields.raw)
     .toString() + ';'
 
-  this.scope.db.none(query).then(function () {
+  this.scope.db.none(query, fields.values).then(function () {
     return setImmediate(cb);
   }).catch(function (err) {
     library.logger.error(err.stack);
@@ -690,8 +693,8 @@ Account.prototype.merge = function (address, diff, cb) {
           if (isNaN(trueValue) || trueValue === Infinity) {
             return setImmediate(cb, 'Encountered unsafe number: ' + trueValue);
           } else if (Math.abs(trueValue) === trueValue && trueValue !== 0) {
-            update.$inc = update.$inc || {};
-            update.$inc[value] = Math.floor(trueValue);
+            update[value] = knex.raw('?? - ?', [value, Math.floor(trueValue)])
+
             if (value === 'balance') {
               round.push({
                 query: 'INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT ${address}, (${amount})::bigint, "dependentId", ${blockId}, ${round} FROM mem_accounts2delegates WHERE "accountId" = ${address};',
@@ -704,10 +707,10 @@ Account.prototype.merge = function (address, diff, cb) {
               });
             }
           } else if (trueValue < 0) {
-            update.$dec = update.$dec || {};
-            update.$dec[value] = Math.floor(Math.abs(trueValue));
+            update[value] = knex.raw('?? + ?', [value, Math.floor(Math.abs(trueValue))])
+
             // If decrementing u_balance on account
-            if (update.$dec.u_balance) {
+            if (update.u_balance) {
               // Remove virginity and ensure marked columns become immutable
               update.virgin = 0;
             }
