@@ -28,7 +28,9 @@ function applyLimits (limits) {
   if (typeof limits === 'object') {
     const settings = {
       max: Math.floor(limits.max) || defaults.max,
-      delayMs: Math.floor(limits.delayMs) || defaults.delayMs,
+      delayMs: function(used) {
+        return (used - this.delayAfter) * (Math.floor(limits.delayMs) || defaults.delayMs);
+      },
       delayAfter: Math.floor(limits.delayAfter) || defaults.delayAfter,
       windowMs: Math.floor(limits.windowMs) || defaults.windowMs
     };
