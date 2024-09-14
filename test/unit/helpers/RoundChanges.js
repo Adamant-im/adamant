@@ -2,7 +2,7 @@
 
 var chai = require('chai');
 var express = require('express');
-var ip = require('ip');
+var ip = require('neoip');
 var _ = require('lodash');
 var node = require('../../node.js');
 var RoundChanges = require('../../../helpers/RoundChanges.js');

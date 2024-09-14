@@ -1,7 +1,7 @@
 'use strict';
 
 var _ = require('lodash');
-var ip = require('ip');
+var ip = require('neoip');
 
 /**
  * Creates a peer.

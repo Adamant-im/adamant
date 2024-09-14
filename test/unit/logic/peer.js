@@ -4,7 +4,7 @@ var chai = require('chai');
 var expect = require('chai').expect;
 
 var express = require('express');
-var ip = require('ip');
+var ip = require('neoip');
 var _ = require('lodash');
 var sinon = require('sinon');
 var randomPeer = require('../../common/objectStubs').randomPeer;
