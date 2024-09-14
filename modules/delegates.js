@@ -426,11 +426,6 @@ Delegates.prototype.getDelegates = function (query, filter, cb) {
     throw 'Missing query argument';
   }
 
-  if (typeof filter === 'function') {
-    cb = filter
-    filter = {}
-  }
-
   var sortFilter = { 'vote': -1, 'publicKey': 1 };
   if (modules.blocks.lastBlock.get().height > constants.fairSystemActivateBlock) {
     sortFilter = { 'votesWeight': -1, 'publicKey': 1 };
@@ -889,7 +884,7 @@ Delegates.prototype.shared = {
         return setImmediate(cb, err[0].message);
       }
 
-      modules.delegates.getDelegates(req.body, function (err, data) {
+      modules.delegates.getDelegates(req.body, {}, function (err, data) {
         if (err) {
           return setImmediate(cb, err);
         }
