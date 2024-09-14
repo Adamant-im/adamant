@@ -615,7 +615,7 @@ Account.prototype.getAll = function (filter, fields, cb) {
   if (filter.sort) {
     const sort = Object.entries(filter.sort).map(([column, sort]) => ({
       column,
-      sort: sort === 1 ? 'asc' : 'desc'
+      order: sort === 1 ? 'asc' : 'desc'
     }));
 
     query = query.orderBy(sort);
