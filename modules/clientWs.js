@@ -1,4 +1,5 @@
 const { Server } = require('socket.io');
+const TransactionSubscription = require('./clientWs/transactionSubscription')
 
 class ClientWs {
   constructor (config, logger, cb) {
@@ -15,30 +16,22 @@ class ClientWs {
     this.logger = logger;
     io.sockets.on('connection', (socket) => {
       try {
-        const describe = {
-          address: '',
-          /**
-           * Flags for subscribing to transaction types.
-           * Each bit represents a transaction type. For example:
-           *
-           * 0b100000001
-           *   │       └ transfer transaction (type - 0)
-           *   │
-           *   └─ message transaction (type - 8)
-           */
-          types: 0,
-        };
+        const describe = new TransactionSubscription();
 
         socket.on('address', (address) => {
-          if (typeof a === 'string') {
-            describe.address = address;
+          const addresses = Array.isArray(address) ? address : [address];
+          const subscribed = describe.subscribeToAddresses(...addresses)
+
+          if (subscribed) {
             this.describes[socket.id] = describe;
           }
         });
 
-        socket.on('types', (transactionTypes) => {
-          if (Array.isArray(transactionTypes)) {
-            transactionTypes.forEach((type) => (describe.types |= 1 << type));
+        socket.on('types', (type) => {
+          const types = Array.isArray(type) ? type : [type];
+          const subscribed = describe.subscribeToTypes(...types)
+
+          if (subscribed) {
             this.describes[socket.id] = describe;
           }
         })
@@ -62,7 +55,7 @@ class ClientWs {
     }
     lastTransactionsIds[t.id] = getUTime();
     try {
-      const subs = findSubs(t.recipientId, t.senderId, t.type, this.describes);
+      const subs = findSubs(t, this.describes);
       subs.forEach((s) => {
         s.emit('newTrans', t);
       });
@@ -86,21 +79,10 @@ function getUTime () {
   return new Date().getTime() / 1000;
 }
 
-function findSubs (address1, address2, type, subs) {
-  const filterred = [];
-  for (let aId in subs) {
-    const sub = subs[aId];
-    const {address, types, socket} = sub;
-    const isTypeAllowed = !types || types & (1 << type)
-
-    if (
-      ([address1, address2].includes(address) && isTypeAllowed) ||
-      isTypeAllowed
-    ) {
-      filterred.push(socket);
-    }
-  }
-  return filterred;
+function findSubs (transaction, subs) {
+  return subs.filter((sub) =>
+    sub.impliesTransaction(transaction),
+  );
 }
 
 module.exports = ClientWs;
