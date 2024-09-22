@@ -44,10 +44,11 @@ class TransactionSubscription {
     let subscribed = false;
 
     addresses.forEach((address) => {
-      if (
-        typeof address === 'string' && address.length !== 0 &&
-        validator.validate(address, { format: 'address' })
-      ) {
+      const isValidAddress = validator.validate(address, {
+        format: 'address'
+      });
+
+      if (isValidAddress) {
         this.addresses.add(address.toUpperCase());
         subscribed = true;
       }
