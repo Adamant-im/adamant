@@ -1,5 +1,8 @@
 const TransactionTypes = require('./transactionTypes');
 
+/**
+ * List of transaction types excluding chat message types
+ */
 const transactionValues = Object
   .values(TransactionTypes)
   .filter((type) => typeof type === 'number');
