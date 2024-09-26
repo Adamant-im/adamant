@@ -55,7 +55,7 @@ class ClientWs {
     }
     lastTransactionsIds[t.id] = getUTime();
     try {
-      const subs = findSubs(t, this.describes);
+      const subs = findSubs(t, Object.values(this.describes));
       subs.forEach((s) => {
         s.emit('newTrans', t);
       });
