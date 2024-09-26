@@ -1,22 +1,22 @@
 'use strict';
 
-var expect = require('chai').expect;
+const expect = require('chai').expect;
 const TransactionType = require('../../../helpers/transactionTypes');
 
-var TransactionSubscription = require('../../../modules/clientWs/transactionSubscription');
+const TransactionSubscription = require('../../../modules/clientWs/transactionSubscription');
 
-describe('TransactionSubscription', function () {
+describe('TransactionSubscription', () => {
   /**
    * @type {TransactionSubscription}
    */
   let sub;
 
-  beforeEach(function () {
+  beforeEach(() => {
     sub = new TransactionSubscription();
   });
 
-  describe('subscribeToAddresses', function () {
-    it('should ignore numbers', function () {
+  describe('subscribeToAddresses', () => {
+    it('should ignore numbers', () => {
       const subscribed = sub.subscribeToAddresses(
         NaN,
         0,
@@ -30,7 +30,7 @@ describe('TransactionSubscription', function () {
       expect(sub.addresses).to.deep.equal(new Set());
     });
 
-    it('should ignore objects', function () {
+    it('should ignore objects', () => {
       const subscribed = sub.subscribeToAddresses(
         {},
         [],
@@ -41,7 +41,7 @@ describe('TransactionSubscription', function () {
       expect(sub.addresses).to.deep.equal(new Set());
     });
 
-    it('should ignore boolean, undefined and null', function () {
+    it('should ignore boolean, undefined and null', () => {
       const subscribed = sub.subscribeToAddresses(
         true,
         false,
@@ -52,7 +52,7 @@ describe('TransactionSubscription', function () {
       expect(sub.addresses).to.deep.equal(new Set());
     });
 
-    it('should ignore invalid addresses', function () {
+    it('should ignore invalid addresses', () => {
       const subscribed = sub.subscribeToAddresses(
         '',
         '777355171330060015',
@@ -65,7 +65,7 @@ describe('TransactionSubscription', function () {
       expect(sub.addresses).to.deep.equal(new Set());
     });
 
-    it('should subscribe to valid addresses', function () {
+    it('should subscribe to valid addresses', () => {
       const subscribed = sub.subscribeToAddresses(
         'U777355171330060015',
         'U123456',
@@ -77,7 +77,7 @@ describe('TransactionSubscription', function () {
       );
     });
 
-    it('should not subscribe to duplicate addresses', function () {
+    it('should not subscribe to duplicate addresses', () => {
       sub.subscribeToAddresses(
         'U777355171330060015',
         'u777355171330060015'
@@ -91,8 +91,8 @@ describe('TransactionSubscription', function () {
     });
   });
 
-  describe('subscribeToTypes', function() {
-    it('should ignore invalid numbers', function () {
+  describe('subscribeToTypes', () => {
+    it('should ignore invalid numbers', () => {
       const subscribed = sub.subscribeToTypes(
         NaN,
         -1,
@@ -104,7 +104,7 @@ describe('TransactionSubscription', function () {
       expect(sub.types).to.deep.equal(new Set());
     });
 
-    it('should ignore objects', function () {
+    it('should ignore objects', () => {
       const subscribed = sub.subscribeToTypes(
         {},
         [],
@@ -115,7 +115,7 @@ describe('TransactionSubscription', function () {
       expect(sub.types).to.deep.equal(new Set());
     });
 
-    it('should ignore boolean, undefined and null', function () {
+    it('should ignore boolean, undefined and null', () => {
       const subscribed = sub.subscribeToTypes(
         true,
         false,
@@ -126,7 +126,7 @@ describe('TransactionSubscription', function () {
       expect(sub.types).to.deep.equal(new Set());
     });
 
-    it('should ignore strings', function () {
+    it('should ignore strings', () => {
       const subscribed = sub.subscribeToTypes(
         '',
         '8',
@@ -138,7 +138,7 @@ describe('TransactionSubscription', function () {
       expect(sub.types).to.deep.equal(new Set());
     });
 
-    it('should subscribe to valid types', function () {
+    it('should subscribe to valid types', () => {
       const subscribed = sub.subscribeToTypes(
         TransactionType.SEND,
         TransactionType.SIGNATURE,
@@ -168,7 +168,7 @@ describe('TransactionSubscription', function () {
       );
     });
 
-    it('should not subscribe to duplicate types', function () {
+    it('should not subscribe to duplicate types', () => {
       sub.subscribeToTypes(
         TransactionType.CHAT_MESSAGE,
         TransactionType.CHAT_MESSAGE,
@@ -182,7 +182,7 @@ describe('TransactionSubscription', function () {
     });
   });
 
-  describe('impliesTransaction', function () {
+  describe('impliesTransaction', () => {
     const transaction = {
       id: '12154642911137703318',
       height: 3245671,
@@ -212,7 +212,7 @@ describe('TransactionSubscription', function () {
       },
     }
 
-    it('should return true when subscribed only to the transaction type', function() {
+    it('should return true when subscribed only to the transaction type', () => {
       sub.subscribeToTypes(TransactionType.CHAT_MESSAGE);
 
       const implies = sub.impliesTransaction(transaction);
@@ -220,7 +220,7 @@ describe('TransactionSubscription', function () {
       expect(implies).to.equal(true);
     });
 
-    it('should return false when subscribed to the unrelated transaction types', function() {
+    it('should return false when subscribed to the unrelated transaction types', () => {
       sub.subscribeToTypes(
         TransactionType.SEND,
         TransactionType.SIGNATURE,
@@ -238,7 +238,7 @@ describe('TransactionSubscription', function () {
       expect(implies).to.equal(false);
     });
 
-    it('should return true when subscribed to the transaction recipientId address', function() {
+    it('should return true when subscribed to the transaction recipientId address', () => {
       sub.subscribeToAddresses(transaction.recipientId);
 
       const implies = sub.impliesTransaction(transaction);
@@ -246,7 +246,7 @@ describe('TransactionSubscription', function () {
       expect(implies).to.equal(true);
     });
 
-    it('should return true when subscribed to the transaction senderId address', function() {
+    it('should return true when subscribed to the transaction senderId address', () => {
       sub.subscribeToAddresses(transaction.senderId);
 
       const implies = sub.impliesTransaction(transaction);
@@ -254,7 +254,7 @@ describe('TransactionSubscription', function () {
       expect(implies).to.equal(true);
     });
 
-    it('should return false when subscribed to the wrong address', function() {
+    it('should return false when subscribed to the wrong address', () => {
       sub.subscribeToAddresses('U0');
 
       const implies = sub.impliesTransaction(transaction);
@@ -262,7 +262,7 @@ describe('TransactionSubscription', function () {
       expect(implies).to.equal(false);
     });
 
-    it('should return true when subscribed to the transaction recipientId address and type', function() {
+    it('should return true when subscribed to the transaction recipientId address and type', () => {
       sub.subscribeToAddresses(transaction.recipientId);
       sub.subscribeToTypes(TransactionType.CHAT_MESSAGE);
 
@@ -271,7 +271,7 @@ describe('TransactionSubscription', function () {
       expect(implies).to.equal(true);
     });
 
-    it('should return false when subscribed to the transaction type but wrong address', function() {
+    it('should return false when subscribed to the transaction type but wrong address', () => {
       sub.subscribeToTypes(TransactionType.CHAT_MESSAGE);
       sub.subscribeToAddresses('U0');
 
@@ -280,7 +280,7 @@ describe('TransactionSubscription', function () {
       expect(implies).to.equal(false);
     });
 
-    it('should return false when subscribed to the transaction recipientId but wrong type', function() {
+    it('should return false when subscribed to the transaction recipientId but wrong type', () => {
       sub.subscribeToTypes(TransactionType.DELEGATE);
       sub.subscribeToAddresses(transaction.recipientId);
 
