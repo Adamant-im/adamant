@@ -1,8 +1,8 @@
-const ZSchema = require("../../helpers/z_schema");
+const ZSchema = require('../../helpers/z_schema');
 const {
   MIN_TRANSACTION_TYPE,
   MAX_TRANSACTION_TYPE,
-} = require("../../helpers/tranasctionTypesBoundary");
+} = require('../../helpers/tranasctionTypesBoundary');
 
 const validator = new ZSchema({noEmptyStrings: true});
 
