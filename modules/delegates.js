@@ -417,6 +417,7 @@ Delegates.prototype.generateDelegateList = function (height, cb) {
  * Gets delegates and for each one calculates rate, rank, approval, productivity.
  * Orders delegates as per criteria.
  * @param {Object} query
+ * @param {Object} filter - account specific filters, e.g. `username`, `publicKey` or `address`
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} error| object with delegates ordered, offset, count, limit.
  * @todo OrderBy does not affects data? What is the impact?.
