@@ -765,13 +765,19 @@ Delegates.prototype.shared = {
       const filter = {}
 
       if (req.body.publicKey) {
-        filter.publicKey = req.body.publicKey;
+        filter.address = modules.accounts.generateAddressByPublicKey(
+          req.body.publicKey,
+        );
       } else if (req.body.username) {
         filter.username = req.body.username;
       } else if (req.body.address) {
         filter.address = req.body.address;
       } else {
         return setImmediate(cb, 'Delegate not found');
+      }
+
+      if (req.body.address && req.body.publicKey && filter.address !== req.body.address) {
+        return setImmediate(cb, 'Delegate publicKey does not match address');
       }
 
       modules.delegates.getDelegates(req.body, filter, function (err, data) {
