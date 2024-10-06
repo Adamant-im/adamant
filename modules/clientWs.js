@@ -16,7 +16,7 @@ class ClientWs {
     this.logger = logger;
     io.sockets.on('connection', (socket) => {
       try {
-        const describe = new TransactionSubscription();
+        const describe = new TransactionSubscription(socket);
 
         socket.on('address', (address) => {
           const addresses = Array.isArray(address) ? address : [address];
@@ -57,7 +57,7 @@ class ClientWs {
     try {
       const subs = findSubs(t, Object.values(this.describes));
       subs.forEach((s) => {
-        s.emit('newTrans', t);
+        s.socket.emit('newTrans', t);
       });
     } catch (e) {
       this.logger.debug('Socket error emit ' + e);

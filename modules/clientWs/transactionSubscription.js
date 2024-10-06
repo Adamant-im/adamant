@@ -7,7 +7,9 @@ const {
 const validator = new ZSchema({noEmptyStrings: true});
 
 class TransactionSubscription {
-  constructor() {
+  constructor(socket) {
+    this.socket = socket;
+
     /**
      * List of addresses to subscribe to
      * @type {Set<string>}
