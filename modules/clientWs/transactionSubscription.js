@@ -2,7 +2,10 @@ const ZSchema = require('../../helpers/z_schema');
 const {
   MIN_TRANSACTION_TYPE,
   MAX_TRANSACTION_TYPE,
+  MIN_CHAT_MESSAGE_TRANSACTION_TYPE,
+  MAX_CHAT_MESSAGE_TRANSACTION_TYPE
 } = require('../../helpers/tranasctionTypesBoundary');
+const transactionTypes = require('../../helpers/transactionTypes');
 
 const validator = new ZSchema({noEmptyStrings: true});
 
@@ -22,6 +25,12 @@ class TransactionSubscription {
      * @type {Set<number>}
      */
     this.types = new Set();
+
+    /**
+     * List of asset chat types to subscribe to
+     * @type {Set<number>}
+     */
+    this.assetChatTypes = new Set();
   }
 
   /**
@@ -40,9 +49,19 @@ class TransactionSubscription {
         return false;
       }
 
-      if (this.types.size === 0) {
+      if (
+        this.types.size === 0 &&
+        this.assetChatTypes.size === 0
+      ) {
         return true;
       }
+    }
+
+    if (
+      this.assetChatTypes.size &&
+      transaction.type === transactionTypes.CHAT_MESSAGE
+    ) {
+      return this.impliesTransactionAssetType(transaction.asset.chat.type);
     }
 
     return this.impliesTransactionType(transaction.type);
@@ -94,6 +113,28 @@ class TransactionSubscription {
   }
 
   /**
+   * Subscribes to the given types for `transaction.asset.chat`
+   * @param {...Array<number>} assetChatTypes - List of types of `transaction.asset.chat` to subscribe
+   * @returns {boolean} - whether succuessfuly subscribed to at least one `transaction.asset.chat` type
+   */
+  subscribeToAssetChatTypes(...assetChatTypes) {
+    let subscribed = false;
+
+    assetChatTypes.forEach((type) => {
+      if (
+        typeof type === 'number' &&
+        type >= MIN_CHAT_MESSAGE_TRANSACTION_TYPE &&
+        type <= MAX_CHAT_MESSAGE_TRANSACTION_TYPE
+      ) {
+        this.assetChatTypes.add(type);
+        subscribed = true;
+      }
+    });
+
+    return subscribed;
+  }
+
+  /**
    * Determines if the address is included in the list of subscribed addresses
    * @param {string} address - Address to check
    * @returns {boolean}
@@ -109,6 +150,15 @@ class TransactionSubscription {
    */
   impliesTransactionType(type) {
     return this.types.has(type);
+  }
+
+  /**
+   * Determines if the type is included in the list of subscribed types
+   * @param {number} assetType - Transaction type to check
+   * @returns {boolean}
+   */
+  impliesTransactionAssetType(assetType) {
+    return this.assetChatTypes.has(assetType);
   }
 }
 

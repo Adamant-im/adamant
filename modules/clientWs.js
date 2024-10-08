@@ -34,6 +34,15 @@ class ClientWs {
           if (subscribed) {
             this.describes[socket.id] = describe;
           }
+        });
+
+        socket.on('assetChatTypes', (type) => {
+          const types = Array.isArray(type) ? type : [type];
+          const subscribed = describe.subscribeToAssetChatTypes(...types)
+
+          if (subscribed) {
+            this.describes[socket.id] = describe;
+          }
         })
 
         socket.on('disconnect', () => {
