@@ -33,11 +33,10 @@ z_schema.registerFormat('id', function (str) {
 });
 
 z_schema.registerFormat('address', function (str) {
-  if (str.length === 0) {
-    return true;
-  }
-
-  return /^[U][0-9]+$/ig.test(str);
+  return (
+    typeof str === 'string' &&
+    /^[U][0-9]{1,21}$/i.test(str)
+  );
 });
 
 z_schema.registerFormat('username', function (str) {
