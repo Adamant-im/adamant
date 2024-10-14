@@ -212,5 +212,9 @@ describe("account", function () {
     it('should throw an error when the provided public key is not a hex string', () => {
       expect(() => account.verifyPublicKey('g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2u2g3h4i5j6k7')).to.throw('must be a hex string')
     })
+
+    it('should throw an error when the provided public key can be trimmed to a zero length string', () => {
+      expect(() => account.verifyPublicKey(' '.repeat(64))).to.throw('must be a hex string')
+    })
   })
 });

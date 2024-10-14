@@ -509,9 +509,7 @@ Account.prototype.verifyPublicKey = function (publicKey) {
       throw 'Invalid public key, must be 64 characters long';
     }
     // Check format
-    try {
-      Buffer.from(publicKey, 'hex');
-    } catch (e) {
+    if (!/^[0-9A-Fa-f]+$/.test(publicKey)) {
       throw 'Invalid public key, must be a hex string';
     }
   }
