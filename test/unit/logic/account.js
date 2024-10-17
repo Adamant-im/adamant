@@ -217,4 +217,112 @@ describe("account", function () {
       expect(() => account.verifyPublicKey(' '.repeat(64))).to.throw('must be a hex string')
     })
   })
+
+  describe('toDB', () => {
+    it('should convert public key to buffer', () => {
+      const normalizedAccount = account.toDB({
+        publicKey: validAccount.publicKey,
+        secondPublicKey: null,
+        address: 'U777355171330060015'
+      })
+
+      expect(Buffer.isBuffer(normalizedAccount.publicKey)).to.equal(true)
+      expect(normalizedAccount.secondPublicKey).to.equal(null)
+      expect(normalizedAccount.address).to.equal('U777355171330060015')
+    })
+
+    it('should convert address to upper case', () => {
+      const normalizedAccount = account.toDB({
+        address: 'u777355171330060015'
+      })
+
+      expect(normalizedAccount.address).to.equal('U777355171330060015')
+    })
+  })
+
+  describe('getAll', () => {
+    it('should apply limit filter', (done) => {
+      account.getAll({ limit: 1 }, ['username'], () => {
+        const matched = db.query.calledWithMatch(
+          sinon.match(/limit 1/)
+        )
+
+        expect(matched).to.equal(true)
+        done()
+      })
+    })
+
+    it('should apply offset', (done) => {
+      account.getAll({ offset: 100 }, ['username'], () => {
+        const matched = db.query.calledWithMatch(
+          sinon.match(/offset 100/)
+        )
+
+        expect(matched).to.equal(true)
+        done()
+      })
+    })
+
+    it('should apply desc sorting by balance', (done) => {
+      account.getAll({ sort: { balance: -1 } }, ['username'], () => {
+        const matched = db.query.calledWithMatch(
+          sinon.match(/order by "balance" desc/)
+        )
+
+        expect(matched).to.equal(true)
+        done()
+      })
+    })
+
+    it('should apply asc sorting by balance', (done) => {
+      account.getAll({ sort: { balance: 1 } }, ['username'], () => {
+        const matched = db.query.calledWithMatch(
+          sinon.match(/order by "balance" asc/)
+        )
+
+        expect(matched).to.equal(true)
+        done()
+      })
+    })
+
+    it('should search by address in uppercase', (done) => {
+      account.getAll({ address: validAccount.address }, ['username'], () => {
+        const matched = db.query.calledWithMatch(
+          sinon.match(/upper\("address"\) = upper\(/)
+        )
+
+        expect(matched).to.equal(true)
+        done()
+      })
+    })
+
+    it('should filter out non existing fields', (done) => {
+      const nonExistingFields = ['reward', 'totalFee', 'confirmations', 'blockSignature'];
+      const actualFields = ['username', 'isDelegate', 'address', 'publicKey', 'balance', 'virgin'];
+      const fields = [
+        ...nonExistingFields,
+        ...actualFields
+      ]
+
+      account.getAll({ address: validAccount.address }, fields, () => {
+        const matched = db.query.calledWithMatch(
+          'select "username", "isDelegate", UPPER("address") as "address", ENCODE("publicKey", \'hex\') as "publicKey", ("balance")::bigint as "balance", "virgin" from "mem_accounts" as "a" where upper("address") = upper(${p1});'
+        )
+
+        expect(matched).to.equal(true)
+        done()
+      })
+    })
+
+    it('should make query with both filters and fields', (done) => {
+      account.getAll({ limit: 1, offset: -23, sort: { virgin: 1 }, address: validAccount.address }, ['username', 'nonexistingfield'], () => {
+        const matched = db.query.calledWithMatch(
+          'select "username" from "mem_accounts" as "a" where upper("address") = upper(${p1}) order by "virgin" asc limit 1;'
+        )
+
+        expect(matched).to.equal(true)
+        done()
+      })
+    })
+  })
 });

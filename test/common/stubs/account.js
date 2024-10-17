@@ -6,8 +6,6 @@ const validAccount = {
   unconfirmedSignature: 0,
   secondSignature: 0,
   secondPublicKey: null,
-  multisignatures: [],
-  u_multisignatures: [],
 };
 
 module.exports = {
