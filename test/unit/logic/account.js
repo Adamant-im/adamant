@@ -325,4 +325,30 @@ describe("account", function () {
       })
     })
   })
+
+  describe('set', () => {
+    it('should set balance to 100000', (done) => {
+      account.set(validAccount.address, { balance: 100000 }, () => {
+        const matched = db.none.calledWithMatch(
+          /"balance" = 100000/
+        )
+
+        expect(matched).to.equal(true)
+        done()
+      })
+    })
+  })
+
+  describe('remove', () => {
+    it('should remove the account based on address', (done) => {
+      account.remove(validAccount.address, () => {
+        const matched = db.none.calledWithMatch(
+          /^delete from "mem_accounts" where "address" = /
+        )
+
+        expect(matched).to.equal(true)
+        done()
+      })
+    })
+  })
 });
