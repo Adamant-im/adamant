@@ -80,6 +80,15 @@ var modulesLoader = new function () {
       case 'Peers':
         new Logic(scope.logger, cb);
         break;
+      case 'State':
+        async.series({
+          account: function (cb) {
+            new Account(scope.db, scope.schema, scope.logger, cb);
+          }
+        }, function (err, result) {
+          new Logic(scope.db, scope.ed, scope.schema, result.account, scope.logger, cb);
+        });
+        break;
       default:
         console.log('no Logic case initLogic');
     }
