@@ -182,6 +182,92 @@ describe('TransactionSubscription', () => {
     });
   });
 
+  describe('subscribeToAssetChatTypes', () => {
+    it('should ignore invalid numbers', () => {
+      const subscribed = sub.subscribeToAssetChatTypes(
+        NaN,
+        -1,
+        Number.MAX_SAFE_INTEGER,
+        Infinity,
+        -Infinity
+      );
+      expect(subscribed).to.equal(false);
+      expect(sub.assetChatTypes).to.deep.equal(new Set());
+    });
+
+    it('should ignore objects', () => {
+      const subscribed = sub.subscribeToAssetChatTypes(
+        {},
+        [],
+        new Set(),
+        new Map()
+      );
+      expect(subscribed).to.equal(false);
+      expect(sub.assetChatTypes).to.deep.equal(new Set());
+    });
+
+    it('should ignore boolean, undefined and null', () => {
+      const subscribed = sub.subscribeToAssetChatTypes(
+        true,
+        false,
+        undefined,
+        null
+      );
+      expect(subscribed).to.equal(false);
+      expect(sub.assetChatTypes).to.deep.equal(new Set());
+    });
+
+    it('should ignore strings', () => {
+      const subscribed = sub.subscribeToAssetChatTypes(
+        '',
+        '8',
+        'U777355171330060015',
+        'undefined',
+        '[object Object]',
+      );
+      expect(subscribed).to.equal(false);
+      expect(sub.assetChatTypes).to.deep.equal(new Set());
+    });
+
+    it('should subscribe to valid types', () => {
+      const subscribed = sub.subscribeToAssetChatTypes(
+        // out of range
+        TransactionType.MULTI,
+        TransactionType.DAPP,
+        TransactionType.IN_TRANSFER,
+        TransactionType.OUT_TRANSFER,
+        TransactionType.CHAT_MESSAGE,
+        TransactionType.STATE,
+        TransactionType.CHAT_MESSAGE_TYPES.LEGACY_MESSAGE,
+        TransactionType.CHAT_MESSAGE_TYPES.ORDINARY_MESSAGE,
+        TransactionType.CHAT_MESSAGE_TYPES.RICH_TEXT_MESSAGE,
+        TransactionType.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE,
+      );
+      expect(subscribed).to.equal(true);
+      expect(sub.assetChatTypes).to.deep.equal(
+        new Set([
+          TransactionType.CHAT_MESSAGE_TYPES.LEGACY_MESSAGE,
+          TransactionType.CHAT_MESSAGE_TYPES.ORDINARY_MESSAGE,
+          TransactionType.CHAT_MESSAGE_TYPES.RICH_TEXT_MESSAGE,
+          TransactionType.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE,
+        ])
+      );
+    });
+
+    it('should not subscribe to duplicate types', () => {
+      sub.subscribeToAssetChatTypes(
+        TransactionType.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE,
+        TransactionType.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE,
+      );
+      sub.subscribeToAssetChatTypes(
+        TransactionType.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE,
+      );
+      expect(sub.assetChatTypes).to.deep.equal(
+        new Set([TransactionType.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE])
+      );
+    });
+  });
+
   describe('impliesTransaction', () => {
     const transaction = {
       id: '12154642911137703318',
@@ -287,6 +373,40 @@ describe('TransactionSubscription', () => {
       const implies = sub.impliesTransaction(transaction);
 
       expect(implies).to.equal(false);
+    });
+
+    it('should return false when subsribed to another transaction asset chat type', () => {
+      sub.subscribeToAssetChatTypes(TransactionType.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE);
+
+      const implies = sub.impliesTransaction(transaction);
+
+      expect(implies).to.equal(false);
+    });
+
+    it('should return false when subsribed to another transaction asset chat type with correct address', () => {
+      sub.subscribeToAddresses(transaction.recipientId);
+      sub.subscribeToAssetChatTypes(TransactionType.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE);
+
+      const implies = sub.impliesTransaction(transaction);
+
+      expect(implies).to.equal(false);
+    });
+
+    it('should return true when not subsribed to message transaction type but to asset chat type', () => {
+      sub.subscribeToAssetChatTypes(TransactionType.CHAT_MESSAGE_TYPES.ORDINARY_MESSAGE);
+
+      const implies = sub.impliesTransaction(transaction);
+
+      expect(implies).to.equal(true);
+    });
+
+    it('should return true for chat message transaction when subsribed to another transaction type but also to asset chat type', () => {
+      sub.subscribeToTypes(TransactionType.SEND);
+      sub.subscribeToAssetChatTypes(TransactionType.CHAT_MESSAGE_TYPES.ORDINARY_MESSAGE);
+
+      const implies = sub.impliesTransaction(transaction);
+
+      expect(implies).to.equal(true);
     });
   });
 });
