@@ -50,7 +50,12 @@ module.exports = {
     type: 'object',
     properties: {
       publicKey: {
-        type: 'string'
+        type: 'string',
+        format: 'publicKey'
+      },
+      address: {
+        type: 'string',
+        format: 'address',
       },
       username: {
         type: 'string',

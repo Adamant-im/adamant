@@ -418,7 +418,7 @@ Accounts.prototype.shared = {
         }
 
         if (account.delegates) {
-          modules.delegates.getDelegates(req.body, function (err, res) {
+          modules.delegates.getDelegates(req.body, {}, function (err, res) {
             var delegates = res.delegates.filter(function (delegate) {
               return account.delegates.indexOf(delegate.publicKey) !== -1;
             });

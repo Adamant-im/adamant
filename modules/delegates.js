@@ -417,19 +417,22 @@ Delegates.prototype.generateDelegateList = function (height, cb) {
  * Gets delegates and for each one calculates rate, rank, approval, productivity.
  * Orders delegates as per criteria.
  * @param {Object} query
+ * @param {Object} filter - account specific filters, e.g. `username`, `publicKey` or `address`
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} error| object with delegates ordered, offset, count, limit.
  * @todo OrderBy does not affects data? What is the impact?.
  */
-Delegates.prototype.getDelegates = function (query, cb) {
+Delegates.prototype.getDelegates = function (query, filter, cb) {
   if (!query) {
     throw 'Missing query argument';
   }
+
   var sortFilter = { 'vote': -1, 'publicKey': 1 };
   if (modules.blocks.lastBlock.get().height > constants.fairSystemActivateBlock) {
     sortFilter = { 'votesWeight': -1, 'publicKey': 1 };
   }
   modules.accounts.getAccounts({
+    ...filter,
     isDelegate: 1,
     sort: sortFilter
   }, ['username', 'address', 'publicKey', 'votesWeight', 'vote', 'missedblocks', 'producedblocks'], function (err, delegates) {
@@ -759,20 +762,30 @@ Delegates.prototype.shared = {
         return setImmediate(cb, err[0].message);
       }
 
-      modules.delegates.getDelegates(req.body, function (err, data) {
+      const filter = {}
+
+      if (req.body.publicKey) {
+        filter.address = modules.accounts.generateAddressByPublicKey(
+          req.body.publicKey,
+        );
+      } else if (req.body.username) {
+        filter.username = req.body.username;
+      } else if (req.body.address) {
+        filter.address = req.body.address;
+      } else {
+        return setImmediate(cb, 'Delegate not found');
+      }
+
+      if (req.body.address && req.body.publicKey && filter.address !== req.body.address) {
+        return setImmediate(cb, 'Delegate publicKey does not match address');
+      }
+
+      modules.delegates.getDelegates(req.body, filter, function (err, data) {
         if (err) {
           return setImmediate(cb, err);
         }
 
-        var delegate = _.find(data.delegates, function (delegate) {
-          if (req.body.publicKey) {
-            return delegate.publicKey === req.body.publicKey;
-          } else if (req.body.username) {
-            return delegate.username === req.body.username;
-          }
-
-          return false;
-        });
+        var delegate = data.delegates[0];
 
         if (delegate) {
           return setImmediate(cb, null, { delegate: delegate });
@@ -878,7 +891,7 @@ Delegates.prototype.shared = {
         return setImmediate(cb, err[0].message);
       }
 
-      modules.delegates.getDelegates(req.body, function (err, data) {
+      modules.delegates.getDelegates(req.body, {}, function (err, data) {
         if (err) {
           return setImmediate(cb, err);
         }
