@@ -1002,15 +1002,15 @@ describe('transaction', function () {
       delete trs.signature;
       trs.signature = transaction.sign(testSenderKeypair, trs);
       trs.signatures = [transaction.multisign(validKeypair, trs)];
-      var savePromise = transaction.dbSave(trs);
-      expect(savePromise).to.be.an('Array');
-      expect(savePromise).to.have.length(1);
-      var trsValues = savePromise[0].values;
+      var saveQuery = transaction.dbSave(trs);
+      expect(saveQuery).to.be.an('Array');
+      expect(saveQuery).to.have.length(1);
+      var trsValues = saveQuery[0].values;
       expect(trsValues).to.have.property('signatures').which.is.equal(trs.signatures.join(','));
     });
 
     it('should return promise object for valid parameters', function () {
-      var savePromise = transaction.dbSave(validTransaction);
+      var saveQuery = transaction.dbSave(validTransaction);
       var keys = [
         'table',
         'fields',
@@ -1031,10 +1031,10 @@ describe('transaction', function () {
         'signSignature',
         'signatures'
       ];
-      expect(savePromise).to.be.an('Array');
-      expect(savePromise).to.have.length(1);
-      expect(savePromise[0]).to.have.keys(keys);
-      expect(savePromise[0].values).to.have.keys(valuesKeys);
+      expect(saveQuery).to.be.an('Array');
+      expect(saveQuery).to.have.length(1);
+      expect(saveQuery[0]).to.have.keys(keys);
+      expect(saveQuery[0].values).to.have.keys(valuesKeys);
     });
   });
 

@@ -421,12 +421,12 @@ describe('Delegate', () => {
     });
 
     it('should return promise object for valid parameters', () => {
-      const savePromise = delegate.dbSave(validTransaction);
+      const saveQuery = delegate.dbSave(validTransaction);
       const keys = ['table', 'fields', 'values'];
       const valuesKeys = ['username', 'transactionId'];
-      expect(savePromise).to.be.an('object');
-      expect(savePromise).to.have.keys(keys);
-      expect(savePromise.values).to.have.keys(valuesKeys);
+      expect(saveQuery).to.be.an('object');
+      expect(saveQuery).to.have.keys(keys);
+      expect(saveQuery.values).to.have.keys(valuesKeys);
     });
   });
 

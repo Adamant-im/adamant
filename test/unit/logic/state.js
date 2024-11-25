@@ -334,7 +334,7 @@ describe('State', () => {
     });
 
     it('should return promise object for valid parameters', () => {
-      const savePromise = state.dbSave(validTransaction);
+      const saveQuery = state.dbSave(validTransaction);
       const keys = ['table', 'fields', 'values'];
       const valuesKeys = [
         'stored_key',
@@ -342,9 +342,9 @@ describe('State', () => {
         'type',
         'transactionId',
       ];
-      expect(savePromise).to.be.an('object');
-      expect(savePromise).to.have.keys(keys);
-      expect(savePromise.values).to.have.keys(valuesKeys);
+      expect(saveQuery).to.be.an('object');
+      expect(saveQuery).to.have.keys(keys);
+      expect(saveQuery.values).to.have.keys(valuesKeys);
     });
   });
 
