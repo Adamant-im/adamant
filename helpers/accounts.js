@@ -13,12 +13,12 @@ const { isPublicKey } = require('./publicKey.js');
 var accounts = {};
 
 /**
- * Gets address by public
+ * Gets address by public key
  * @private
  * @implements {crypto.createHash}
  * @implements {bignum.fromBuffer}
- * @param {publicKey} publicKey
- * @return {address} address or an empty string if the invalid public key passed
+ * @param {string} publicKey
+ * @return {string} The address matching the public key, or an empty string if an invalid public key was provided
  */
 accounts.getAddressByPublicKey = function (publicKey) {
   if (!isPublicKey(publicKey)) {
