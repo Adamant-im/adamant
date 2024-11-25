@@ -11,7 +11,7 @@ const AccountLogic = require('../../../logic/account.js');
 const AccountModule = require('../../../modules/accounts.js');
 const Delegate = require('../../../logic/delegate.js');
 
-const modulesLoader = require('../../common/initModule').modulesLoader;
+const { modulesLoader } = require('../../common/initModule.js');
 
 const constants = require('../../../helpers/constants.js');
 const transactionTypes = require('../../../helpers/transactionTypes.js');

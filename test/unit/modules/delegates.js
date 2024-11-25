@@ -2,14 +2,14 @@
 
 const { expect } = require('chai');
 
-const { modulesLoader } = require('../../common/initModule');
+const { modulesLoader } = require('../../common/initModule.js');
 const {
   testAccount,
   invalidPublicKey,
 } = require('../../common/stubs/account.js');
 
 const constants = require('../../../helpers/constants.js');
-const Delegates = require('../../../modules/delegates');
+const Delegates = require('../../../modules/delegates.js');
 
 const aDelegate = testAccount;
 

@@ -11,7 +11,7 @@ const AccountLogic = require('../../../logic/account.js');
 const AccountModule = require('../../../modules/accounts.js');
 const Chat = require('../../../logic/chat.js');
 
-const modulesLoader = require('../../common/initModule').modulesLoader;
+const { modulesLoader } = require('../../common/initModule.js');
 
 const constants = require('../../../helpers/constants.js');
 const bignum = require('../../../helpers/bignum.js');

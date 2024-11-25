@@ -5,11 +5,11 @@ const { expect } = require('chai');
 const _ = require('lodash');
 const sinon = require('sinon');
 
-const modulesLoader = require('../../common/initModule').modulesLoader;
+const { modulesLoader } = require('../../common/initModule.js');
 const { dummyBlock } = require('../../common/objectStubs.js');
 
 const constants = require('../../../helpers/constants.js');
-const Blocks = require('../../../modules/blocks');
+const Blocks = require('../../../modules/blocks.js');
 
 const generateFreshTimestamp = (secondsAgo) => {
   const delta =

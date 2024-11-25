@@ -10,7 +10,7 @@ const Rounds = require('../../../modules/rounds.js');
 const AccountLogic = require('../../../logic/account.js');
 const State = require('../../../logic/state.js');
 
-const modulesLoader = require('../../common/initModule').modulesLoader;
+const { modulesLoader } = require('../../common/initModule.js');
 const transactionTypes = require('../../../helpers/transactionTypes.js');
 
 const validSender = {

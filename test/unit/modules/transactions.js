@@ -15,7 +15,7 @@ const OutTransfer = require('../../../logic/outTransfer.js');
 const Chat = require('../../../logic/chat.js');
 const State = require('../../../logic/state.js');
 
-const { modulesLoader } = require('../../common/initModule');
+const { modulesLoader } = require('../../common/initModule.js');
 const transactionTypes = require('../../../helpers/transactionTypes.js');
 
 const {

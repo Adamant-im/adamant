@@ -3,7 +3,7 @@
 const { expect } = require('chai');
 const sinon = require('sinon');
 
-const { modulesLoader } = require('../../common/initModule');
+const { modulesLoader } = require('../../common/initModule.js');
 
 const constants = require('../../../helpers/constants.js');
 const bignum = require('../../../helpers/bignum.js');
