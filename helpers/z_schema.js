@@ -23,6 +23,7 @@ var ip = require('ip');
  * @return {Boolean} True if the format is valid
  */
 var z_schema = require('z-schema');
+const { isPublicKey } = require('./publicKey.js');
 
 z_schema.registerFormat('id', function (str) {
   if (str.length === 0) {
@@ -63,13 +64,7 @@ z_schema.registerFormat('publicKey', function (str) {
     return true;
   }
 
-  try {
-    var publicKey = Buffer.from(str, 'hex');
-
-    return publicKey.length === 32;
-  } catch (e) {
-    return false;
-  }
+  return isPublicKey(str)
 });
 
 z_schema.registerFormat('csv', function (str) {

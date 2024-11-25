@@ -6,7 +6,7 @@ var randomString = require('randomstring');
 
 var _ = require('lodash');
 
-var async = require('../node').async;
+var async = require('async');
 var dirname = path.join(__dirname, '..', '..');
 var config = require(path.join(dirname, 'test/config.json')); // use Testnet config
 var packageJson = require(path.join(dirname, '/package.json'));
@@ -20,6 +20,7 @@ var ed = require('../../helpers/ed');
 var Transaction = require('../../logic/transaction.js');
 var Account = require('../../logic/account.js');
 var accounts = require('../../helpers/accounts');
+var Sequence = require('../../helpers/sequence.js');
 
 var modulesLoader = new function () {
   this.db = null;
@@ -29,6 +30,7 @@ var modulesLoader = new function () {
     packageJson: packageJson,
     genesisblock: { block: genesisblock },
     logger: this.logger,
+    balancesSequence: new Sequence(),
     network: {
       app: express()
     },

@@ -95,6 +95,10 @@ __private.newAccount = function (publicKey, cb) {
  * @return {setImmediateCallback} As per logic new|current account data object.
  */
 __private.openAccount = function (secret, cb) {
+  if (!library.ed.isValidPassphrase(secret)) {
+    return setImmediate(cb, `Mnemonic string is invalid: ${secret}`);
+  }
+
   var hash = library.ed.createPassPhraseHash(secret);
   var keypair = library.ed.makeKeypair(hash);
   var publicKey = keypair.publicKey.toString('hex');
@@ -189,10 +193,6 @@ Accounts.prototype.setAccountAndGet = function (data, cb) {
     }
   }
 
-  if (!address) {
-    err = 'Invalid public key';
-  }
-
   if (err) {
     if (typeof cb === 'function') {
       return setImmediate(cb, err);
@@ -228,10 +228,6 @@ Accounts.prototype.mergeAccountAndGet = function (data, cb) {
     } else {
       err = 'Missing address or public key';
     }
-  }
-
-  if (!address) {
-    err = 'Invalid public key';
   }
 
   if (err) {

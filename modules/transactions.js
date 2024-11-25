@@ -227,10 +227,12 @@ __private.list = function (filter, cb) {
 
       return setImmediate(cb, null, data);
     }).catch(function (err) {
+      console.log(err)
       library.logger.error(err.stack);
       return setImmediate(cb, 'Transactions#list error');
     });
   }).catch(function (err) {
+    console.log(err)
     library.logger.error(err.stack);
     return setImmediate(cb, 'Transactions#list error');
   });

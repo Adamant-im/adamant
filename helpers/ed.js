@@ -15,6 +15,24 @@ var crypto = require('crypto');
 var ed = {};
 
 /**
+ * Returns whether the passphrase is valid mnemonic
+ * @param {string} passphrase passhraase to test
+ * @returns {boolean}
+ */
+ed.isValidPassphrase = function(passphrase) {
+  return mnemonic.isValid(passphrase, mnemonic.Words.ENGLISH);
+}
+
+/**
+ * Generates a new passphrase
+ * @returns {string} passphrase
+ */
+ed.generatePassphrase = function() {
+  const secretMnemonic = new mnemonic(mnemonic.Words.ENGLISH);
+  return secretMnemonic.phrase;
+}
+
+/**
  * Creates a hash based on a passphrase.
  * @param {string} passPhrase
  * @return {string} hash
