@@ -2,33 +2,36 @@
 
 const async = require('async');
 
-const expect = require('chai').expect;
+const { expect } = require('chai');
 const _ = require('lodash');
 
-const constants = require('../../../helpers/constants.js');
-const bignum = require('../../../helpers/bignum.js');
-
-const modulesLoader = require('../../common/initModule').modulesLoader;
 const TransactionLogic = require('../../../logic/transaction.js');
 const Rounds = require('../../../modules/rounds.js');
 const AccountLogic = require('../../../logic/account.js');
 const AccountModule = require('../../../modules/accounts.js');
 const Chat = require('../../../logic/chat.js');
 
+const modulesLoader = require('../../common/initModule').modulesLoader;
+
+const constants = require('../../../helpers/constants.js');
+const bignum = require('../../../helpers/bignum.js');
+
 const validSender = {
   balance: 8067474861277,
   u_balance: 8067474861277,
-  password: 'rally clean ladder crane gadget century timber jealous shine scorpion beauty salon',
+  password:
+    'rally clean ladder crane gadget century timber jealous shine scorpion beauty salon',
   username: 'market',
   publicKey: 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0',
   multimin: 0,
-  address: 'U810656636599221322'
+  address: 'U810656636599221322',
 };
 
 const validTransactionData = {
   message_type: 1,
   recipientId: 'U2707535059340134112',
-  message: '9ae819297240f00bdc3627133c2e41efd27b022fcd0d011dfdda0941ba08399697f3e3bb5c46a43aff714ae1bac616b84617ce446d808523a14f278e5d88909837848e7aa69d9d4f9a95baae56df6ad4c274248d3d01a2cfccae51367dfab265a055d5ce991af654ee418839f94885876638863d172226b0369cd488c5727e6b1a42ba46fed014c1bf586dd2cab3afe7f10cb54864c099a680d5963778c9c4052df305497edc43082a7d60193650c331c6db9c9d9c0c8bbc004e53ac56586331453164b984c57a495810d709c9b984e4f367888d8a8ce1b26f528c1abdec08747e',
+  message:
+    '9ae819297240f00bdc3627133c2e41efd27b022fcd0d011dfdda0941ba08399697f3e3bb5c46a43aff714ae1bac616b84617ce446d808523a14f278e5d88909837848e7aa69d9d4f9a95baae56df6ad4c274248d3d01a2cfccae51367dfab265a055d5ce991af654ee418839f94885876638863d172226b0369cd488c5727e6b1a42ba46fed014c1bf586dd2cab3afe7f10cb54864c099a680d5963778c9c4052df305497edc43082a7d60193650c331c6db9c9d9c0c8bbc004e53ac56586331453164b984c57a495810d709c9b984e4f367888d8a8ce1b26f528c1abdec08747e',
   own_message: '6802a9e744aa3ba570d7e48fce5fe0f49184d0ce38ea40f7',
 };
 
@@ -56,8 +59,10 @@ const validTransaction = {
 const rawValidTransaction = {
   srt: 'U15365455923155964650U5338684603617333081',
   t_id: '2459326385388619210',
-  t_senderPublicKey: '9184c87b846dec0dc4010def579fecf5dad592a59b37a013c7e6975597681f58',
-  m_recipientPublicKey: 'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae',
+  t_senderPublicKey:
+    '9184c87b846dec0dc4010def579fecf5dad592a59b37a013c7e6975597681f58',
+  m_recipientPublicKey:
+    'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae',
   t_senderId: 'U5338684603617333081',
   t_recipientId: 'U15365455923155964650',
   t_timestamp: 226474809,
@@ -71,8 +76,8 @@ const rawValidTransaction = {
   t_type: 8,
   b_height: 541701,
   confirmations: 18,
-  b_id: '17768103885289794518'
-}
+  b_id: '17768103885289794518',
+};
 
 const validUnconfirmedTransaction = {
   type: 8,
@@ -106,41 +111,61 @@ describe('Chat', () => {
   let accountsModule;
 
   before((done) => {
-    async.auto({
-      rounds: function (cb) {
-        modulesLoader.initModule(Rounds, modulesLoader.scope, cb);
+    async.auto(
+      {
+        rounds: function (cb) {
+          modulesLoader.initModule(Rounds, modulesLoader.scope, cb);
+        },
+        accountLogic: function (cb) {
+          modulesLoader.initLogicWithDb(AccountLogic, cb, {});
+        },
+        transactionLogic: [
+          'rounds',
+          'accountLogic',
+          function (result, cb) {
+            modulesLoader.initLogicWithDb(
+              TransactionLogic,
+              function (err, __transaction) {
+                __transaction.bindModules(result);
+                cb(err, __transaction);
+              },
+              {
+                ed: modulesLoader.scope.ed,
+                account: result.account,
+              }
+            );
+          },
+        ],
+        accountModule: [
+          'accountLogic',
+          'transactionLogic',
+          function (result, cb) {
+            modulesLoader.initModuleWithDb(AccountModule, cb, {
+              logic: {
+                account: result.accountLogic,
+                transaction: result.transactionLogic,
+              },
+            });
+          },
+        ],
       },
-      accountLogic: function (cb) {
-        modulesLoader.initLogicWithDb(AccountLogic, cb, {});
-      },
-      transactionLogic: ['rounds', 'accountLogic', function (result, cb) {
-        modulesLoader.initLogicWithDb(TransactionLogic, function (err, __transaction) {
-          __transaction.bindModules(result);
-          cb(err, __transaction);
-        }, {
-          ed: modulesLoader.scope.ed,
-          account: result.account
-        });
-      }],
-      accountModule: ['accountLogic', 'transactionLogic', function (result, cb) {
-        modulesLoader.initModuleWithDb(AccountModule, cb, {
-          logic: {
-            account: result.accountLogic,
-            transaction: result.transactionLogic
-          }
-        });
-      }],
-    }, function (err, result) {
-      expect(err).to.not.exist;
-      chat = new Chat(modulesLoader.db, modulesLoader.scope.ed,  modulesLoader.scope.schema, modulesLoader.scope.logger);
-      chatBindings = {
-        rounds: result.rounds,
-        accounts: result.accountModule
-      };
-      chat.bind(chatBindings.accounts, chatBindings.rounds);
-      accountsModule = result.accountModule;
-      done();
-    });
+      function (err, result) {
+        expect(err).to.not.exist;
+        chat = new Chat(
+          modulesLoader.db,
+          modulesLoader.scope.ed,
+          modulesLoader.scope.schema,
+          modulesLoader.scope.logger
+        );
+        chatBindings = {
+          rounds: result.rounds,
+          accounts: result.accountModule,
+        };
+        chat.bind(chatBindings.accounts, chatBindings.rounds);
+        accountsModule = result.accountModule;
+        done();
+      }
+    );
   });
 
   describe('bind', () => {
@@ -163,7 +188,9 @@ describe('Chat', () => {
     });
 
     it('should be okay with valid parameters', () => {
-      expect(chat.create(validTransactionData, validTransaction)).to.be.an('object');
+      expect(chat.create(validTransactionData, validTransaction)).to.be.an(
+        'object'
+      );
     });
   });
 
@@ -259,12 +286,11 @@ describe('Chat', () => {
         },
       };
 
-      const fee = chat.calculateFee(transaction)
+      const fee = chat.calculateFee(transaction);
 
-      expect(fee).to.equal(constants.fees.send)
-    })
+      expect(fee).to.equal(constants.fees.send);
+    });
   });
-
 
   describe('verify', () => {
     it('should return error if recipientId is not set', (done) => {
@@ -278,7 +304,7 @@ describe('Chat', () => {
 
     it('should return error if asset chat is not set', (done) => {
       const trs = _.cloneDeep(validTransaction);
-      delete trs.asset.chat
+      delete trs.asset.chat;
 
       chat.verify(trs, validSender, function (err) {
         expect(err).to.equal('Invalid transaction asset');
@@ -311,7 +337,9 @@ describe('Chat', () => {
       trs.asset.chat.message = 'f'.repeat(20481);
 
       chat.verify(trs, validSender, function (err) {
-        expect(err).to.equal('Message is too long. Maximum is 20480 characters');
+        expect(err).to.equal(
+          'Message is too long. Maximum is 20480 characters'
+        );
         done();
       });
     });
@@ -339,17 +367,22 @@ describe('Chat', () => {
     });
 
     it('should return the valid buffer', () => {
-      expect(chat.getBytes(validTransaction)).to.eql(Buffer.from('9ae819297240f00bdc3627133c2e41efd27b022fcd0d011dfdda0941ba08399697f3e3bb5c46a43aff714ae1bac616b84617ce446d808523a14f278e5d88909837848e7aa69d9d4f9a95baae56df6ad4c274248d3d01a2cfccae51367dfab265a055d5ce991af654ee418839f94885876638863d172226b0369cd488c5727e6b1a42ba46fed014c1bf586dd2cab3afe7f10cb54864c099a680d5963778c9c4052df305497edc43082a7d60193650c331c6db9c9d9c0c8bbc004e53ac56586331453164b984c57a495810d709c9b984e4f367888d8a8ce1b26f528c1abdec08747e6802a9e744aa3ba570d7e48fce5fe0f49184d0ce38ea40f701000000', 'hex'));
+      expect(chat.getBytes(validTransaction)).to.eql(
+        Buffer.from(
+          '9ae819297240f00bdc3627133c2e41efd27b022fcd0d011dfdda0941ba08399697f3e3bb5c46a43aff714ae1bac616b84617ce446d808523a14f278e5d88909837848e7aa69d9d4f9a95baae56df6ad4c274248d3d01a2cfccae51367dfab265a055d5ce991af654ee418839f94885876638863d172226b0369cd488c5727e6b1a42ba46fed014c1bf586dd2cab3afe7f10cb54864c099a680d5963778c9c4052df305497edc43082a7d60193650c331c6db9c9d9c0c8bbc004e53ac56586331453164b984c57a495810d709c9b984e4f367888d8a8ce1b26f528c1abdec08747e6802a9e744aa3ba570d7e48fce5fe0f49184d0ce38ea40f701000000',
+          'hex'
+        )
+      );
     });
   });
 
   describe('apply', () => {
     const dummyBlock = {
       id: '9314232245035524467',
-      height: 1
+      height: 1,
     };
 
-    function undoTransaction (trs, sender, done) {
+    function undoTransaction(trs, sender, done) {
       chat.undo.call(null, trs, dummyBlock, sender, done);
     }
 
@@ -364,36 +397,58 @@ describe('Chat', () => {
     });
 
     it('should be okay for a valid transaction', (done) => {
-      accountsModule.getAccount({ address: validUnconfirmedTransaction.recipientId }, function (err, accountBefore) {
-        expect(err).to.not.exist;
-        expect(accountBefore).to.exist;
-
-        const amount = new bignum(validUnconfirmedTransaction.amount.toString());
-        const balanceBefore = new bignum(accountBefore.balance.toString());
-
-        chat.apply.call(null, validUnconfirmedTransaction, dummyBlock, validSender, function (err) {
+      accountsModule.getAccount(
+        { address: validUnconfirmedTransaction.recipientId },
+        function (err, accountBefore) {
           expect(err).to.not.exist;
+          expect(accountBefore).to.exist;
 
-          accountsModule.getAccount({ address: validUnconfirmedTransaction.recipientId }, function (err, accountAfter) {
-            expect(err).to.not.exist;
-            expect(accountAfter).to.exist;
+          const amount = new bignum(
+            validUnconfirmedTransaction.amount.toString()
+          );
+          const balanceBefore = new bignum(accountBefore.balance.toString());
 
-            const balanceAfter = new bignum(accountAfter.balance.toString());
-            expect(balanceBefore.plus(amount).toString()).to.equal(balanceAfter.toString());
-            undoTransaction(validUnconfirmedTransaction, validSender, done);
-          });
-        });
-      });
+          chat.apply.call(
+            null,
+            validUnconfirmedTransaction,
+            dummyBlock,
+            validSender,
+            function (err) {
+              expect(err).to.not.exist;
+
+              accountsModule.getAccount(
+                { address: validUnconfirmedTransaction.recipientId },
+                function (err, accountAfter) {
+                  expect(err).to.not.exist;
+                  expect(accountAfter).to.exist;
+
+                  const balanceAfter = new bignum(
+                    accountAfter.balance.toString()
+                  );
+                  expect(balanceBefore.plus(amount).toString()).to.equal(
+                    balanceAfter.toString()
+                  );
+                  undoTransaction(
+                    validUnconfirmedTransaction,
+                    validSender,
+                    done
+                  );
+                }
+              );
+            }
+          );
+        }
+      );
     });
   });
 
   describe('undo', () => {
     const dummyBlock = {
       id: '9314232245035524467',
-      height: 1
+      height: 1,
     };
 
-    function applyTransaction (trs, sender, done) {
+    function applyTransaction(trs, sender, done) {
       chat.apply.call(null, trs, dummyBlock, sender, done);
     }
 
@@ -408,24 +463,46 @@ describe('Chat', () => {
     });
 
     it('should be okay for a valid transaction', (done) => {
-      accountsModule.getAccount({ address: validUnconfirmedTransaction.recipientId }, function (err, accountBefore) {
-        expect(err).to.not.exist;
-
-        const amount = new bignum(validUnconfirmedTransaction.amount.toString());
-        const balanceBefore = new bignum(accountBefore.balance.toString());
-
-        chat.undo.call(null, validUnconfirmedTransaction, dummyBlock, validSender, function (err) {
+      accountsModule.getAccount(
+        { address: validUnconfirmedTransaction.recipientId },
+        function (err, accountBefore) {
           expect(err).to.not.exist;
 
-          accountsModule.getAccount({ address: validUnconfirmedTransaction.recipientId }, function (err, accountAfter) {
-            expect(err).to.not.exist;
+          const amount = new bignum(
+            validUnconfirmedTransaction.amount.toString()
+          );
+          const balanceBefore = new bignum(accountBefore.balance.toString());
 
-            const balanceAfter = new bignum(accountAfter.balance.toString());
-            expect(balanceAfter.plus(amount).toString()).to.equal(balanceBefore.toString());
-            applyTransaction(validUnconfirmedTransaction, validSender, done);
-          });
-        });
-      });
+          chat.undo.call(
+            null,
+            validUnconfirmedTransaction,
+            dummyBlock,
+            validSender,
+            function (err) {
+              expect(err).to.not.exist;
+
+              accountsModule.getAccount(
+                { address: validUnconfirmedTransaction.recipientId },
+                function (err, accountAfter) {
+                  expect(err).to.not.exist;
+
+                  const balanceAfter = new bignum(
+                    accountAfter.balance.toString()
+                  );
+                  expect(balanceAfter.plus(amount).toString()).to.equal(
+                    balanceBefore.toString()
+                  );
+                  applyTransaction(
+                    validUnconfirmedTransaction,
+                    validSender,
+                    done
+                  );
+                }
+              );
+            }
+          );
+        }
+      );
     });
   });
 
@@ -433,13 +510,13 @@ describe('Chat', () => {
     it('should be okay with valid params', (done) => {
       chat.applyUnconfirmed.call(null, validTransaction, validSender, done);
     });
-  })
+  });
 
   describe('undoUnconfirmed', () => {
     it('should be okay with valid params', (done) => {
       chat.applyUnconfirmed.call(null, validTransaction, validSender, done);
     });
-  })
+  });
 
   describe('objectNormalize', () => {
     it('should remove null and undefined dapp from trs', () => {
@@ -448,7 +525,7 @@ describe('Chat', () => {
       trs.asset.chat.preview = null;
       trs.asset.chat.count = undefined;
 
-      const normalized = chat.objectNormalize(trs)
+      const normalized = chat.objectNormalize(trs);
       expect(normalized.asset.chat).to.not.have.key('preview');
       expect(normalized.asset.chat).to.not.have.key('count');
     });
@@ -469,15 +546,11 @@ describe('Chat', () => {
     it('should return chat object with correct fields', () => {
       const rawTrs = _.cloneDeep(rawValidTransaction);
       const trs = chat.dbRead(rawTrs);
-      const expectedKeys = [
-        'message',
-        'own_message',
-        'type'
-      ];
+      const expectedKeys = ['message', 'own_message', 'type'];
       expect(trs.chat).to.be.an('object');
       expect(trs.chat).to.have.keys(expectedKeys);
-    })
-  })
+    });
+  });
 
   describe('dbSave', () => {
     it('should throw an error with no param', () => {
@@ -486,22 +559,13 @@ describe('Chat', () => {
 
     it('should return promise object for valid parameters', () => {
       const saveQuery = chat.dbSave(validTransaction);
-      const keys = [
-        'table',
-        'fields',
-        'values'
-      ];
-      const valuesKeys = [
-        'message',
-        'own_message',
-        'type',
-        'transactionId'
-      ];
+      const keys = ['table', 'fields', 'values'];
+      const valuesKeys = ['message', 'own_message', 'type', 'transactionId'];
       expect(saveQuery).to.be.an('object');
       expect(saveQuery).to.have.keys(keys);
       expect(saveQuery.values).to.have.keys(valuesKeys);
-    })
-  })
+    });
+  });
 
   describe('afterSave', () => {
     it('should be okay', (done) => {

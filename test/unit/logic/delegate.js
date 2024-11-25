@@ -2,17 +2,18 @@
 
 const async = require('async');
 
-const expect = require('chai').expect;
+const { expect } = require('chai');
 const _ = require('lodash');
 
-const constants = require('../../../helpers/constants.js');
-
-const modulesLoader = require('../../common/initModule').modulesLoader;
 const TransactionLogic = require('../../../logic/transaction.js');
 const Rounds = require('../../../modules/rounds.js');
 const AccountLogic = require('../../../logic/account.js');
 const AccountModule = require('../../../modules/accounts.js');
 const Delegate = require('../../../logic/delegate.js');
+
+const modulesLoader = require('../../common/initModule').modulesLoader;
+
+const constants = require('../../../helpers/constants.js');
 const transactionTypes = require('../../../helpers/transactionTypes.js');
 
 const validSender = {
