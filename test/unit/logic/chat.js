@@ -344,7 +344,7 @@ describe('Chat', () => {
       });
     });
 
-    it('should verify okay for valid transaction', (done) => {
+    it('should verify for a valid transaction', (done) => {
       chat.verify(validTransaction, validSender, done);
     });
   });
