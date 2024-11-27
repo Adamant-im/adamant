@@ -208,7 +208,7 @@ describe('transactions', function () {
 
       it('should find transactions matching one of the "recipientIds"', (done) => {
         const body = {
-          recipientIds: [testAccount.address, genesisAccount.address],
+          recipientIds: [testAccount.address, 'U9781760580710719871'],
         };
 
         transactions.shared.getTransactions({ body }, (err, response) => {
