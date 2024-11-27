@@ -22,7 +22,7 @@ var accounts = {};
  */
 accounts.getAddressByPublicKey = function (publicKey) {
   if (!isPublicKey(publicKey)) {
-    return ''
+    return '';
   }
 
   var publicKeyHash = crypto.createHash('sha256').update(publicKey, 'hex').digest();
