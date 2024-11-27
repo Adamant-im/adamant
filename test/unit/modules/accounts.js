@@ -354,6 +354,15 @@ describe('accounts', function () {
         });
       });
 
+      it('should return error if "secret" is invalid mnemonic', (done) => {
+        const body = { secret: notAMnemonicPassphrase };
+        accounts.shared.open({ body }, (err, response) => {
+          expect(response).not.to.exist;
+          expect(err).to.include('Mnemonic string is invalid');
+          done();
+        });
+      });
+
       it('should return an existing account', (done) => {
         const body = { secret: testAccount.secret };
         accounts.shared.open({ body }, (err, response) => {
