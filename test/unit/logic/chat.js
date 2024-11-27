@@ -391,7 +391,7 @@ describe('Chat', () => {
       trs.amount = 1000;
       delete trs.recipientId;
       chat.apply.call(null, trs, dummyBlock, validSender, function (err) {
-        expect(err).to.equal('Invalid public key');
+        expect(err).to.equal('Missing address or public key');
         done();
       });
     });
@@ -457,7 +457,7 @@ describe('Chat', () => {
       trs.amount = 1000;
       delete trs.recipientId;
       chat.undo.call(null, trs, dummyBlock, validSender, function (err) {
-        expect(err).to.equal('Invalid public key');
+        expect(err).to.equal('Missing address or public key');
         done();
       });
     });
