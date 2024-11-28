@@ -1,6 +1,5 @@
 'use strict';
 
-var node = require('./../../node.js');
 var chai = require('chai');
 var expect = require('chai').expect;
 var async = require('async');
@@ -49,7 +48,7 @@ describe('cache', function () {
   var cache;
 
   before(function (done) {
-    node.config.cacheEnabled = true;
+    modulesLoader.scope.config.cacheEnabled = true;
     done();
   });
 

@@ -1,6 +1,7 @@
 'use strict';/* eslint*/
 
-var node = require('./../../node.js');
+const constants = require('../../../helpers/constants.js');
+const accounts = require('../../../helpers/accounts.js');
 var ed = require('../../../helpers/ed');
 var bignum = require('../../../helpers/bignum.js');
 var crypto = require('crypto');
@@ -59,8 +60,8 @@ var testSender = _.defaults({
   u_balance: 10000000000000,
   balance: 100000000000000
 }, validSender);
-const testSenderHash = node.accounts.createPassPhraseHash(testSender.secret);
-const testSenderKeypair = node.accounts.makeKeypair(testSenderHash);
+const testSenderHash = accounts.createPassPhraseHash(testSender.secret);
+const testSenderKeypair = accounts.makeKeypair(testSenderHash);
 
 // valid new tx sample from a test sender
 var validUnconfirmedTrs = {
@@ -178,7 +179,7 @@ describe('transfer', function () {
 
   describe('calculateFee', function () {
     it('should return the correct fee', function () {
-      expect(transfer.calculateFee()).to.equal(node.constants.fees.send);
+      expect(transfer.calculateFee()).to.equal(constants.fees.send);
     });
   });
 

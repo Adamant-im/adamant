@@ -1,6 +1,7 @@
 'use strict';/* eslint*/
 
-var node = require('./../../node.js');
+const constants = require('../../../helpers/constants.js');
+const accounts = require('../../../helpers/accounts.js');
 var ed = require('../../../helpers/ed');
 var bignum = require('../../../helpers/bignum.js');
 var crypto = require('crypto');
@@ -59,8 +60,8 @@ var testSender = _.defaults({
   u_balance: 10000000000000,
   balance: 100000000000000
 }, validSender);
-const testSenderHash = node.accounts.createPassPhraseHash(testSender.secret);
-const testSenderKeypair = node.accounts.makeKeypair(testSenderHash);
+const testSenderHash = accounts.createPassPhraseHash(testSender.secret);
+const testSenderKeypair = accounts.makeKeypair(testSenderHash);
 
 // genesis account
 const genesis = _.defaults({
@@ -700,7 +701,7 @@ describe('transaction', function () {
 
     it('should return error when transaction amount is invalid', function (done) {
       var trsData = _.cloneDeep(validUnconfirmedTrs);
-      trsData.amount = node.constants.totalAmount + 10;
+      trsData.amount = constants.totalAmount + 10;
       trsData.signature = transaction.sign(testSenderKeypair, trsData);
       transaction.verify(trsData, testSender, {}, function (err) {
         expect(err).to.include('Invalid transaction amount');
@@ -710,7 +711,7 @@ describe('transaction', function () {
 
     it('should return error when account balance is less than transaction amount', function (done) {
       var trsData = _.cloneDeep(validUnconfirmedTrs);
-      trsData.amount = node.constants.totalAmount;
+      trsData.amount = constants.totalAmount;
       trsData.signature = transaction.sign(testSenderKeypair, trsData);
       transaction.verify(trsData, testSender, {}, function (err) {
         expect(err).to.include('Account does not have enough ADM:');

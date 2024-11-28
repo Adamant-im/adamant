@@ -7,7 +7,7 @@ var chai = require('chai');
 var expect = require('chai').expect;
 var _ = require('lodash');
 
-var node = require('./../../node.js');
+const accounts = require('../../../helpers/accounts.js');
 var ed = require('../../../helpers/ed');
 var diff = require('../../../helpers/diff.js');
 var transactionTypes = require('../../../helpers/transactionTypes');
@@ -75,6 +75,16 @@ var validTransaction = {
 
 var existedDelegateKey = '81dd616f47bda681c929b9035aa1cbc9c41ba9d4af91f04744d1325e1b1af099';
 var invalidDelegateKey = 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30fg';
+
+
+// Account, holding 19.6 mln ADM, received from Genesis
+const iAccount = {
+  address: 'U5338684603617333081',
+  publicKey: '9184c87b846dec0dc4010def579fecf5dad592a59b37a013c7e6975597681f58',
+  password: 'floor myself rather hidden pepper make isolate vintage review flight century label',
+  balance: '1960000000000000'
+};
+iAccount.keypair = accounts.makeKeypair(accounts.createPassPhraseHash(iAccount.password));
 
 describe('vote', function () {
   var voteBindings;
@@ -252,14 +262,14 @@ describe('vote', function () {
 
   describe('calculateFee', function () {
     it('should return the correct fee', function () {
-      expect(vote.calculateFee()).to.equal(node.constants.fees.vote);
+      expect(vote.calculateFee()).to.equal(constants.fees.vote);
     });
   });
 
   describe('verify', function () {
     it('should return error when recipientId and sender id are different', function (done) {
       var trs = _.cloneDeep(validTransaction);
-      trs.recipientId = node.iAccount.address;
+      trs.recipientId = iAccount.address;
       vote.verify(trs, validSender, function (err) {
         expect(err).to.equal('Invalid recipient');
         done();
@@ -307,7 +317,7 @@ describe('vote', function () {
 
     it('should return error when removing vote for delegate sender has not voted', function (done) {
       var trs = _.cloneDeep(validTransaction);
-      trs.asset.votes = ['-' + node.iAccount.publicKey];
+      trs.asset.votes = ['-' + iAccount.publicKey];
       vote.verify(trs, validSender, function (err) {
         expect(err).to.equal('Failed to remove vote, account has not voted for this delegate');
         done();
@@ -417,7 +427,7 @@ describe('vote', function () {
 
     it('should return err when account is not a delegate', function (done) {
       var trs = _.cloneDeep(validTransaction);
-      trs.asset.votes = ['+' + node.iAccount.publicKey];
+      trs.asset.votes = ['+' + iAccount.publicKey];
       vote.checkConfirmedDelegates(trs, function (err) {
         expect(err).to.equal('Delegate not found');
         done();
@@ -606,7 +616,7 @@ describe('vote', function () {
     it('should return error when votes array is longer than maximum acceptable', function () {
       var trs = _.cloneDeep(validTransaction);
       trs.asset.votes = Array.apply(null, Array(constants.maxVotesPerTransaction + 1)).map(function () {
-        return '+' + node.iAccount.publicKey;
+        return '+' + iAccount.publicKey;
       });
       expect(function () {
         vote.objectNormalize.call(transaction, trs);
