@@ -80,7 +80,7 @@
     "z-schema": "=6.0.2"
   },
   "devDependencies": {
-    "chai": "^5.1.2",
+    "chai": "^4.3.10",
     "chai-bignumber": "^3.1.0",
     "eslint-config-google": "^0.14.0",
     "eslint-formatter-codeframe": "^7.32.1",
