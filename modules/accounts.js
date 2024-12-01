@@ -154,7 +154,14 @@ Accounts.prototype.generateAddressByPublicKey = function (publicKey) {
  */
 Accounts.prototype.getAccount = function (filter, fields, cb) {
   if (filter.publicKey) {
-    filter.address = self.generateAddressByPublicKey(filter.publicKey);
+    try {
+      filter.address = self.generateAddressByPublicKey(filter.publicKey);
+    } catch (error) {
+      if (typeof fields === 'function') {
+        return setImmediate(fields, error);
+      }
+      return setImmediate(cb, error);
+    }
     delete filter.publicKey;
   }
 
