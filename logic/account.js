@@ -670,7 +670,7 @@ Account.prototype.merge = function (address, diff, cb) {
   // Normalize address
   address = String(address).toUpperCase();
 
-  this.editable.forEach(function (value) {
+  for (const value of this.editable) {
     var val, i;
 
     if (diff[value] !== undefined) {
@@ -681,7 +681,7 @@ Account.prototype.merge = function (address, diff, cb) {
           break;
         case Number:
           if (isNaN(trueValue) || trueValue === Infinity) {
-            console.log(diff);
+            library.logger.error(`Encountered unsane number: ${JSON.stringify(diff)}`);
             return setImmediate(cb, 'Encountered unsane number: ' + trueValue);
           } else if (Math.abs(trueValue) === trueValue && trueValue !== 0) {
             update.$inc = update.$inc || {};
@@ -791,7 +791,7 @@ Account.prototype.merge = function (address, diff, cb) {
           break;
       }
     }
-  });
+  }
 
   var sqles = [];
 
