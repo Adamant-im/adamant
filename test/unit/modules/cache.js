@@ -151,7 +151,7 @@ describe('cache', function () {
             expect(result).to.be.an('array');
             expect(result).to.have.length(2);
             result.forEach(function (value) {
-              expect(value).to.eql(null);
+              expect(value).to.be.null;
             });
             return callback(err, result);
           });

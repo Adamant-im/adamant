@@ -34,7 +34,7 @@ describe('GET /api/blocks/getEpoch', function () {
 describe('GET /api/blocks/getHeight', function () {
   it('should be ok', function (done) {
     node.get('/api/blocks/getHeight', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       if (res.body.success && res.body.height != null) {
         node.expect(res.body).to.have.property('height').to.be.above(0);
         block.blockHeight = res.body.height;
@@ -51,7 +51,7 @@ describe('GET /api/blocks/getHeight', function () {
 describe('GET /api/blocks/getFee', function () {
   it('should be ok', function (done) {
     node.get('/api/blocks/getFee', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('fee');
       node.expect(res.body.fee).to.equal(node.fees.transactionFee);
       done();
@@ -62,7 +62,7 @@ describe('GET /api/blocks/getFee', function () {
 describe('GET /api/blocks/getfees', function () {
   it('should be ok', function (done) {
     node.get('/api/blocks/getFees', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('fees');
       node.expect(res.body.fees.send).to.equal(node.fees.transactionFee);
       node.expect(res.body.fees.vote).to.equal(node.fees.voteFee);
@@ -78,7 +78,7 @@ describe('GET /api/blocks/getfees', function () {
 describe('GET /api/blocks/getNethash', function () {
   it('should be ok', function (done) {
     node.get('/api/blocks/getNethash', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('nethash').to.be.a('string');
       node.expect(res.body.nethash).to.equal(node.config.nethash);
       done();
@@ -116,7 +116,7 @@ describe('GET /api/blocks/getSupply', function () {
 describe('GET /api/blocks/getStatus', function () {
   it('should be ok', function (done) {
     node.get('/api/blocks/getStatus', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('broadhash').to.be.a('string');
       node.expect(res.body).to.have.property('epoch').to.be.a('string');
       node.expect(res.body).to.have.property('height').to.be.a('number');
@@ -164,7 +164,7 @@ describe('GET /blocks (cache)', function () {
     url = '/api/blocks?';
     params = 'height=' + block.blockHeight;
     node.get(url + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
       node.expect(res.body).to.have.property('count').to.equal(1);
       var response = res.body;
@@ -184,7 +184,7 @@ describe('GET /blocks (cache)', function () {
       node.expect(res.body).to.have.property('success').to.not.be.ok;
       cache.getJsonForKey(url + params, function (err, res) {
         node.expect(err).to.not.exist;
-        node.expect(res).to.eql(null);
+        node.expect(res).to.be.null;
         done();
       });
     });
@@ -195,7 +195,7 @@ describe('GET /blocks (cache)', function () {
     url = '/api/blocks?';
     params = 'height=' + block.blockHeight;
     node.get(url + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
       node.expect(res.body).to.have.property('count').to.equal(1);
       var response = res.body;
@@ -206,7 +206,7 @@ describe('GET /blocks (cache)', function () {
           node.expect(err).to.not.exist;
           cache.getJsonForKey(url + params, function (err, res) {
             node.expect(err).to.not.exist;
-            node.expect(res).to.eql(null);
+            node.expect(res).to.be.null;
             done();
           });
         });
@@ -222,7 +222,7 @@ describe('GET /blocks', function () {
 
   it('using height should be ok', function (done) {
     getBlocks('height=' + block.blockHeight, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
       node.expect(res.body).to.have.property('count').to.equal(1);
       node.expect(res.body.blocks.length).to.equal(1);
@@ -248,7 +248,7 @@ describe('GET /blocks', function () {
     }
 
     getBlocks('height=' + 10, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('count');
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
       node.expect(res.body.blocks.length).to.equal(1);
@@ -270,7 +270,7 @@ describe('GET /blocks', function () {
 
   it('using generatorPublicKey should be ok', function (done) {
     getBlocks('generatorPublicKey=' + block.generatorPublicKey, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
       for (var i = 0; i < res.body.blocks.length; i++) {
         node.expect(res.body.blocks[i].generatorPublicKey).to.equal(block.generatorPublicKey);
@@ -281,7 +281,7 @@ describe('GET /blocks', function () {
 
   it('using totalFee should be ok', function (done) {
     getBlocks('totalFee=' + block.totalFee, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
       for (var i = 0; i < res.body.blocks.length; i++) {
         node.expect(res.body.blocks[i].totalFee).to.equal(block.totalFee);
@@ -292,7 +292,7 @@ describe('GET /blocks', function () {
 
   it('using totalAmount should be ok', function (done) {
     getBlocks('totalAmount=' + block.totalAmount, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
       for (var i = 0; i < res.body.blocks.length; i++) {
         node.expect(res.body.blocks[i].totalAmount).to.equal(block.totalAmount);
@@ -310,7 +310,7 @@ describe('GET /blocks', function () {
 
     node.onNewBlock(function (err) {
       getBlocks('previousBlock=' + block.id, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.ok;
+        node.expect(res.body).to.have.property('success').to.be.true;
         node.expect(res.body).to.have.property('blocks').that.is.an('array');
         node.expect(res.body.blocks).to.have.length(1);
         node.expect(res.body.blocks[0].previousBlock).to.equal(previousBlock);
@@ -321,7 +321,7 @@ describe('GET /blocks', function () {
 
   it('using orderBy == "height:asc" should be ok', function (done) {
     getBlocks('orderBy=' + 'height:asc', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
       for (var i = 0; i < res.body.blocks.length; i++) {
         if (res.body.blocks[i + 1] != null) {
@@ -334,7 +334,7 @@ describe('GET /blocks', function () {
 
   it('using orderBy == "height:desc" should be ok', function (done) {
     getBlocks('orderBy=' + 'height:desc', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
       for (var i = 0; i < res.body.blocks.length; i++) {
         if (res.body.blocks[i + 1] != null) {
@@ -347,7 +347,7 @@ describe('GET /blocks', function () {
 
   it('should be ordered by "height:desc" by default', function (done) {
     getBlocks('', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
       for (var i = 0; i < res.body.blocks.length; i++) {
         if (res.body.blocks[i + 1] != null) {
@@ -366,8 +366,8 @@ describe('GET /api/blocks/get?id=', function () {
 
   it('using genesisblock id should be ok', function (done) {
     getBlocks('6438017970172540087', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
-      node.expect(res.body).to.have.property('block').to.be.a('object');
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('block').to.be.an('object');
       node.expect(res.body.block).to.have.property('id').to.be.a('string');
       done();
     });
@@ -375,7 +375,7 @@ describe('GET /api/blocks/get?id=', function () {
 
   it('using unknown id should fail', function (done) {
     getBlocks('9928719876370886655', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.be.a('string');
       done();
     });
@@ -383,7 +383,7 @@ describe('GET /api/blocks/get?id=', function () {
 
   it('using no id should fail', function (done) {
     getBlocks('', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.be.a('string');
       done();
     });

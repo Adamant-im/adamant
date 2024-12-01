@@ -21,20 +21,24 @@ const {
 } = require('../../common/stubs/blocks.js');
 const { delegateKeyPair } = require('../../common/stubs/delegate.js');
 
-describe('Block', function () {
+describe('Block', () => {
   let block;
 
-  beforeEach(function (done) {
+  beforeEach((done) => {
     modulesLoader.initLogic(
       Block,
       {
         db: {},
         ed: ed,
+        logger: modulesLoader.scope.logger,
         schema: modulesLoader.scope.schema,
         genesisBlock: {},
-        logger: {},
       },
-      function (err, result) {
+      (error, result) => {
+        if (error) {
+          return done(error);
+        }
+
         block = result;
 
         const { transaction } = block.scope;
@@ -48,8 +52,8 @@ describe('Block', function () {
     );
   });
 
-  describe('create', function () {
-    it('should create a new block with sorted transactions', function () {
+  describe('create()', () => {
+    it('should create a new block with sorted transactions', () => {
       const newBlock = block.create({
         transactions: [
           firstMessage,
@@ -107,7 +111,7 @@ describe('Block', function () {
     });
   });
 
-  describe('verifySignature', () => {
+  describe('verifySignature()', () => {
     it('should return true for a valid block with reward and total fee', () => {
       const validBlock = {
         id: '11114690216332606721',
@@ -131,7 +135,7 @@ describe('Block', function () {
         totalForged: '95000000',
       };
       const hasValidSignature = block.verifySignature(validBlock);
-      expect(hasValidSignature).to.equal(true);
+      expect(hasValidSignature).to.be.true;
     });
 
     it('should return true for a valid block with many transactions', () => {
@@ -157,7 +161,7 @@ describe('Block', function () {
         totalForged: '0',
       };
       const hasValidSignature = block.verifySignature(validBlock);
-      expect(hasValidSignature).to.equal(true);
+      expect(hasValidSignature).to.be.true;
     });
 
     it('should return true for a valid block with 0 transactions', () => {
@@ -183,7 +187,7 @@ describe('Block', function () {
         totalForged: '0',
       };
       const hasValidSignature = block.verifySignature(validBlock);
-      expect(hasValidSignature).to.equal(true);
+      expect(hasValidSignature).to.be.true;
     });
 
     it('should return false for a block with false amount of transactions', () => {
@@ -209,7 +213,7 @@ describe('Block', function () {
         totalForged: '0',
       };
       const hasValidSignature = block.verifySignature(validBlock);
-      expect(hasValidSignature).to.equal(false);
+      expect(hasValidSignature).to.be.false;
     });
 
     it('should return false for a block with wrong signature', () => {
@@ -235,7 +239,7 @@ describe('Block', function () {
         totalForged: '0',
       };
       const hasValidSignature = block.verifySignature(validBlock);
-      expect(hasValidSignature).to.equal(false);
+      expect(hasValidSignature).to.be.false;
     });
 
     it('should return false for a block with wrong generatorPublicKey', () => {
@@ -261,7 +265,7 @@ describe('Block', function () {
         totalForged: '0',
       };
       const hasValidSignature = block.verifySignature(validBlock);
-      expect(hasValidSignature).to.equal(false);
+      expect(hasValidSignature).to.be.false;
     });
 
     it('should return false for a block with wrong timestamp', () => {
@@ -287,7 +291,7 @@ describe('Block', function () {
         totalForged: '0',
       };
       const hasValidSignature = block.verifySignature(validBlock);
-      expect(hasValidSignature).to.equal(false);
+      expect(hasValidSignature).to.be.false;
     });
 
     it('should return false for a block with wrong total amount', () => {
@@ -313,7 +317,7 @@ describe('Block', function () {
         totalForged: '0',
       };
       const hasValidSignature = block.verifySignature(validBlock);
-      expect(hasValidSignature).to.equal(false);
+      expect(hasValidSignature).to.be.false;
     });
 
     it('should return false for a block with wrong total fee', () => {
@@ -339,7 +343,7 @@ describe('Block', function () {
         totalForged: '0',
       };
       const hasValidSignature = block.verifySignature(validBlock);
-      expect(hasValidSignature).to.equal(false);
+      expect(hasValidSignature).to.be.false;
     });
 
     it('should return false for a block with wrong reward amount', () => {
@@ -365,11 +369,11 @@ describe('Block', function () {
         totalForged: '0',
       };
       const hasValidSignature = block.verifySignature(validBlock);
-      expect(hasValidSignature).to.equal(false);
+      expect(hasValidSignature).to.be.false;
     });
   });
 
-  describe('objectNormalize', () => {
+  describe('objectNormalize()', () => {
     it('should remove values with null and undefined properties', () => {
       const normalizedBlock = block.objectNormalize({
         ...validBlock,
@@ -407,30 +411,30 @@ describe('Block', function () {
     });
   });
 
-  describe('getId', () => {
-    it('should throw an error with no param', function () {
+  describe('getId()', () => {
+    it('should throw an error with no param', () => {
       expect(block.getId).to.throw();
     });
 
-    it('should generate the id of the valid block', function () {
+    it('should generate the id of the valid block', () => {
       expect(block.getId(validBlock))
         .to.be.a('string')
         .which.is.equal(validBlock.id);
     });
 
-    it('should update id if a field in block value changes', function () {
+    it('should update id if a field in block value changes', () => {
       expect(
         block.getId({ ...validBlock, totalAmount: validBlock.totalAmount + 1 })
       ).to.not.equal(validBlock.id);
     });
   });
 
-  describe('sign', () => {
-    it('should throw an error with no param', function () {
+  describe('sign()', () => {
+    it('should throw an error with no param', () => {
       expect(block.sign).to.throw();
     });
 
-    it('should generate the signature of the valid block', function () {
+    it('should generate the signature of the valid block', () => {
       expect(
         block.sign(
           { ...validBlock, blockSignature: undefined },
@@ -441,7 +445,7 @@ describe('Block', function () {
         .which.is.equal(validBlock.blockSignature);
     });
 
-    it('should update signature if a field in block value changes', function () {
+    it('should update signature if a field in block value changes', () => {
       expect(
         block.sign(
           { ...validBlock, totalAmount: validBlock.totalAmount + 1 },

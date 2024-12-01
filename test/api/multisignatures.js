@@ -33,7 +33,7 @@ function sendADM (account, i, done) {
     amount: randomADM,
     recipientId: account.address
   }, function (err, res) {
-    node.expect(res.body).to.have.property('success').to.be.ok;
+    node.expect(res.body).to.have.property('success').to.be.true;
     if (res.body.success && i != null) {
       accounts[i].balance = randomADM / node.normalizer;
     }
@@ -47,7 +47,7 @@ function sendADMFromMultisigAccount (password, amount, recipient, done) {
     amount: amount,
     recipientId: recipient
   }, function (err, res) {
-    node.expect(res.body).to.have.property('success').to.be.ok;
+    node.expect(res.body).to.have.property('success').to.be.true;
     node.expect(res.body).to.have.property('transactionId');
     done(err, res.body.transactionId);
   });
@@ -136,7 +136,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.secret = node.randomAccount().password;
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.match(/Account does not have enough ADM: U[0-9]+ balance: 0/);
       done();
     });
@@ -146,7 +146,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.keysgroup = [];
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Array is too short (0), minimum 1');
       done();
     });
@@ -157,7 +157,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.keysgroup.push('+' + multisigAccount.publicKeyHex); //publicKey
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Invalid multisignature keysgroup. Can not contain sender');
       done();
     });
@@ -169,7 +169,7 @@ describe('PUT /api/multisignatures', function () {
     });
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Invalid math operator in multisignature keysgroup');
       done();
     });
@@ -181,7 +181,7 @@ describe('PUT /api/multisignatures', function () {
     });
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Invalid math operator in multisignature keysgroup');
       done();
     });
@@ -192,7 +192,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.keysgroup.push(validParams.keysgroup[1]);
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Encountered duplicate public key in multisignature keysgroup');
       done();
     });
@@ -203,7 +203,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.keysgroup.push(null);
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Invalid member in keysgroup');
       done();
     });
@@ -213,7 +213,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.keysgroup = [];
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Array is too short (0), minimum 1');
       done();
     });
@@ -225,7 +225,7 @@ describe('PUT /api/multisignatures', function () {
     });
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Array is too long (16), maximum 15');
       done();
     });
@@ -236,7 +236,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.min = validParams.keysgroup.length + 1;
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Invalid multisignature min. Must be less than or equal to keysgroup size');
       done();
     });
@@ -246,7 +246,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.min = constants.multisigConstraints.min.maximum + 1;
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Value 16 is greater than maximum 15');
       done();
     });
@@ -256,7 +256,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.min = 0;
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Value 0 is less than minimum 1');
       done();
     }, true);
@@ -266,7 +266,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.keysgroup = [];
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       done();
     });
@@ -276,7 +276,7 @@ describe('PUT /api/multisignatures', function () {
     delete validParams.keysgroup;
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       done();
     });
@@ -286,7 +286,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.keysgroup = 'invalid';
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       done();
     });
@@ -303,7 +303,7 @@ describe('PUT /api/multisignatures', function () {
     multiSigTx.keysgroup.push(null);
 
     node.put('/api/multisignatures', multiSigTx, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Invalid member in keysgroup');
       done();
     });
@@ -320,7 +320,7 @@ describe('PUT /api/multisignatures', function () {
     multiSigTx.keysgroup.push('+' + node.eAccount.publicKey + 'A');
 
     node.put('/api/multisignatures', multiSigTx, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Invalid public key in multisignature keysgroup');
       done();
     });
@@ -330,7 +330,7 @@ describe('PUT /api/multisignatures', function () {
     delete validParams.secret;
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       done();
     });
@@ -340,7 +340,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.secret = multisigAccount.password + 'invalid';
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       done();
     });
@@ -350,7 +350,7 @@ describe('PUT /api/multisignatures', function () {
     delete validParams.lifetime;
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       done();
     });
@@ -360,7 +360,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.lifetime = 'invalid';
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       done();
     });
@@ -370,7 +370,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.lifetime = constants.multisigConstraints.lifetime.maximum + 1;
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Value 73 is greater than maximum 72');
       done();
     });
@@ -380,7 +380,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.lifetime = 0;
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       done();
     });
@@ -390,7 +390,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.lifetime = -1;
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       done();
     });
@@ -400,7 +400,7 @@ describe('PUT /api/multisignatures', function () {
     delete validParams.min;
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       done();
     });
@@ -410,7 +410,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.min = 'invalid';
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       done();
     });
@@ -420,7 +420,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.min = totalMembers + 5;
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       done();
     });
@@ -430,7 +430,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.min = 0;
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       done();
     });
@@ -440,7 +440,7 @@ describe('PUT /api/multisignatures', function () {
     validParams.min = -1;
 
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       done();
     });
@@ -470,7 +470,7 @@ describe('PUT /api/multisignatures', function () {
       };
 
       node.put('/api/multisignatures', params, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.ok;
+        node.expect(res.body).to.have.property('success').to.be.true;
         node.expect(res.body).to.have.property('transactionId').that.is.not.empty;
         done();
       });
@@ -485,7 +485,7 @@ describe('PUT /api/multisignatures', function () {
       };
 
       node.put('/api/multisignatures', params, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.ok;
+        node.expect(res.body).to.have.property('success').to.be.true;
         node.expect(res.body).to.have.property('transactionId').that.is.not.empty;
         done();
       });
@@ -494,7 +494,7 @@ describe('PUT /api/multisignatures', function () {
 
   it('using valid params should be ok when min 15 and keysgroup array is 15', function (done) {
     node.put('/api/multisignatures', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('transactionId').that.is.not.empty;
       multiSigTx.txId = res.body.transactionId;
       multiSigTx.lifetime = validParams.lifetime;
@@ -515,7 +515,7 @@ describe('GET /api/multisignatures/pending', function () {
     var publicKey = 1234;
 
     node.get('/api/multisignatures/pending?publicKey=' + publicKey, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       done();
     });
@@ -524,7 +524,7 @@ describe('GET /api/multisignatures/pending', function () {
   it('using no public key should be ok', function (done) {
     node.get('/api/multisignatures/pending?publicKey=', function (err, res) {
       node.expect(res.body).to.have.property('success');
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('transactions').that.is.an('array');
       node.expect(res.body.transactions.length).to.equal(0);
       done();
@@ -533,7 +533,7 @@ describe('GET /api/multisignatures/pending', function () {
 
   it('using valid public key should be ok', function (done) {
     node.get('/api/multisignatures/pending?publicKey=' + multisigAccount.publicKey, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('transactions').that.is.an('array');
       node.expect(res.body.transactions.length).to.be.at.least(1);
 
@@ -575,7 +575,7 @@ describe('PUT /api/transactions', function () {
     sendADMFromMultisigAccount(multisigAccount.password, 100000000, node.iAccount.address, function (err, transactionId) {
       node.onNewBlock(function (err) {
         node.get('/api/transactions/get?id=' + transactionId, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.ok;
+          node.expect(res.body).to.have.property('success').to.be.true;
           node.expect(res.body).to.have.property('transaction');
           node.expect(res.body.transaction).to.have.property('id').to.equal(transactionId);
           done();
@@ -605,7 +605,7 @@ describe('POST /api/multisignatures/sign (group)', function () {
     validParams.secret = node.randomAccount().password;
 
     node.post('/api/multisignatures/sign', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       done();
     });
   });
@@ -614,7 +614,7 @@ describe('POST /api/multisignatures/sign (group)', function () {
     validParams.secret = null;
 
     node.post('/api/multisignatures/sign', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       done();
     });
   });
@@ -623,7 +623,7 @@ describe('POST /api/multisignatures/sign (group)', function () {
     validParams.secret = undefined;
 
     node.post('/api/multisignatures/sign', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       done();
     });
   });
@@ -632,7 +632,7 @@ describe('POST /api/multisignatures/sign (group)', function () {
     confirmTransaction(multiSigTx.txId, passphrases.slice(0, (passphrases.length - 1)), function () {
       node.onNewBlock(function (err) {
         node.get('/api/transactions/get?id=' + multiSigTx.txId, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           done();
         });
       });
@@ -641,7 +641,7 @@ describe('POST /api/multisignatures/sign (group)', function () {
 
   it('using same signature again should fail', function (done) {
     node.post('/api/multisignatures/sign', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Transaction already signed');
       done();
     });
@@ -651,7 +651,7 @@ describe('POST /api/multisignatures/sign (group)', function () {
     node.post('/api/multisignatures/sign', validParams, function (err, res) {
       node.onNewBlock(function (err) {
         node.get('/api/transactions/get?id=' + multiSigTx.txId, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           done();
         });
       });
@@ -662,7 +662,7 @@ describe('POST /api/multisignatures/sign (group)', function () {
     confirmTransaction(multiSigTx.txId, passphrases.slice(-1), function () {
       node.onNewBlock(function (err) {
         node.get('/api/transactions/get?id=' + multiSigTx.txId, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.ok;
+          node.expect(res.body).to.have.property('success').to.be.true;
           node.expect(res.body).to.have.property('transaction');
           node.expect(res.body.transaction).to.have.property('id').to.equal(multiSigTx.txId);
           done();
@@ -701,7 +701,7 @@ describe('POST /api/multisignatures/sign (transaction)', function () {
     confirmTransaction(multiSigTx.txId, passphrases.slice(0, (multiSigTx.min - 1)), function () {
       node.onNewBlock(function (err) {
         node.get('/api/transactions/get?id=' + multiSigTx.txId, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           done();
         });
       });
@@ -710,7 +710,7 @@ describe('POST /api/multisignatures/sign (transaction)', function () {
 
   it('using same signature again should fail', function (done) {
     node.post('/api/multisignatures/sign', validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Transaction already signed');
       done();
     });
@@ -720,7 +720,7 @@ describe('POST /api/multisignatures/sign (transaction)', function () {
     node.post('/api/multisignatures/sign', validParams, function (err, res) {
       node.onNewBlock(function (err) {
         node.get('/api/transactions/get?id=' + multiSigTx.txId, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           done();
         });
       });
@@ -731,7 +731,7 @@ describe('POST /api/multisignatures/sign (transaction)', function () {
     confirmTransaction(multiSigTx.txId, passphrases.slice(-1), function () {
       node.onNewBlock(function (err) {
         node.get('/api/transactions/get?id=' + multiSigTx.txId, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.ok;
+          node.expect(res.body).to.have.property('success').to.be.true;
           node.expect(res.body).to.have.property('transaction');
           node.expect(res.body.transaction).to.have.property('id').to.equal(multiSigTx.txId);
           done();
@@ -751,7 +751,7 @@ describe('POST /api/multisignatures/sign (regular account)', function () {
       amount: 1,
       recipientId: accounts[0].address
     }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('transactionId').that.is.not.empty;
       transactionId = res.body.transactionId;
       done();
@@ -761,7 +761,7 @@ describe('POST /api/multisignatures/sign (regular account)', function () {
   it('should be impossible to sign the transaction', function (done) {
     node.onNewBlock(function (err) {
       node.get('/api/transactions/get?id=' + transactionId, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.ok;
+        node.expect(res.body).to.have.property('success').to.be.true;
         node.expect(res.body).to.have.property('transaction');
         node.expect(res.body.transaction).to.have.property('id').to.equal(transactionId);
         confirmTransaction(transactionId, [multisigAccount.password], function (err, res) {
@@ -775,7 +775,7 @@ describe('POST /api/multisignatures/sign (regular account)', function () {
   it('should have no pending multisignatures', function (done) {
     node.get('/api/multisignatures/pending?publicKey=' + accounts[0].publicKey, function (err, res) {
       node.expect(res.body).to.have.property('success');
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('transactions').that.is.an('array');
       node.expect(res.body.transactions.length).to.equal(0);
       done();

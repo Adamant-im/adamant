@@ -6,16 +6,17 @@ const sinon = require('sinon');
 const Account = require('../../../logic/account.js');
 
 const { modulesLoader } = require('../../common/initModule.js');
-const { validAccount } = require('../../common/stubs/account.js');
+const { validAccount, nonExistingAccount } = require('../../common/stubs/account.js');
+const { validBlock } = require('../../common/stubs/blocks.js');
 
-describe('account', function () {
+describe('account', () => {
   /**
    * @type {Account}
    */
   let account;
   let db;
 
-  beforeEach(function (done) {
+  beforeEach((done) => {
     db = {
       none: sinon.fake.returns(Promise.resolve()),
       query: sinon.fake.returns(Promise.resolve()),
@@ -26,164 +27,155 @@ describe('account', function () {
       {
         db,
         schema: modulesLoader.scope.schema,
-        logger: {},
+        logger: modulesLoader.scope.logger,
       },
-      (err, instance) => {
+      (error, instance) => {
+        if (error) {
+          return done(error);
+        }
+
         account = instance;
         done();
       }
     );
   });
 
-  describe('merge', function () {
-    it('should update the account with a positive balance', function () {
-      const result = account.merge('U1234', {
-        balance: 150,
-        publicKey:
-          'a9407418dafb3c8aeee28f3263fd55bae0f528a5697a9df0e77e6568b19dfe34',
-        blockId: '5808058151912629759',
-        round: 1,
-      });
+  describe('merge()', () => {
+    const { address } = nonExistingAccount;
+
+    const delegate1 = 'system';
+    const delegate2 = 'minecraft';
+
+    let diff;
+    let round = 1;
+
+    beforeEach(() => {
+      diff = {
+        round,
+      };
+      diff.publicKey = nonExistingAccount.publicKey;
+      diff.blockId = validBlock.id
+
+      round += 1;
+    })
+
+    it('should update the account with a positive balance', () => {
+      diff.balance = 150;
+
+      const { address } = nonExistingAccount;
+      const result = account.merge(address, diff);
 
       expect(result).to.equal(
-        `update "mem_accounts" set "balance" = "balance" + 150, "blockId" = '5808058151912629759' where "address" = 'U1234';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT 'U1234', (150)::bigint, "dependentId", '5808058151912629759', 1 FROM mem_accounts2delegates WHERE "accountId" = 'U1234';`
+        `update "mem_accounts" set "balance" = "balance" + ${diff.balance}, "blockId" = '${diff.blockId}' where "address" = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (${diff.balance})::bigint, "dependentId", '${diff.blockId}', 1 FROM mem_accounts2delegates WHERE "accountId" = '${address}';`
       );
     });
 
-    it('should update the account with a negative balance', function () {
-      const result = account.merge('U1234', {
-        balance: -50,
-        publicKey:
-          'a9407418dafb3c8aeee28f3263fd55bae0f528a5697a9df0e77e6568b19dfe34',
-        blockId: '5808058151912629759',
-        round: 2,
-      });
+    it('should update the account with a negative balance', () => {
+      diff.balance = -50;
+
+      const result = account.merge(address, diff);
 
       expect(result).to.equal(
-        `update "mem_accounts" set "balance" = "balance" - 50, "blockId" = '5808058151912629759' where "address" = 'U1234';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT 'U1234', (-50)::bigint, "dependentId", '5808058151912629759', 2 FROM mem_accounts2delegates WHERE "accountId" = 'U1234';`
+        `update "mem_accounts" set "balance" = "balance" - ${Math.abs(diff.balance)}, "blockId" = '${diff.blockId}' where "address" = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (${diff.balance})::bigint, "dependentId", '${diff.blockId}', 2 FROM mem_accounts2delegates WHERE "accountId" = '${address}';`
       );
     });
 
-    it('should insert new delegates to the account', function () {
-      const result = account.merge('U5678', {
-        delegates: ['+delegate1', '+delegate2'],
-        publicKey:
-          'b7507418dafb3c8aeee28f3263fd55bae0f528a5697a9df0e77e6568b19dfe34',
-        blockId: '5808058151912629759',
-        round: 3,
-      });
+    it('should insert new delegates to the account', () => {
+      diff.delegates = [`+${delegate1}`, `+${delegate2}`];
+
+      const result = account.merge(address, diff);
 
       expect(result).to.equal(
-        `insert into "mem_accounts2delegates" ("accountId", "dependentId") values ('U5678', 'delegate1');insert into "mem_accounts2delegates" ("accountId", "dependentId") values ('U5678', 'delegate2');update "mem_accounts" set "blockId" = '5808058151912629759' where "address" = 'U5678';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT 'U5678', (balance)::bigint, 'delegate1', '5808058151912629759', 3 FROM mem_accounts WHERE address = 'U5678';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT 'U5678', (balance)::bigint, 'delegate2', '5808058151912629759', 3 FROM mem_accounts WHERE address = 'U5678';`
+        `insert into "mem_accounts2delegates" ("accountId", "dependentId") values ('${address}', '${delegate1}');insert into "mem_accounts2delegates" ("accountId", "dependentId") values ('${address}', '${delegate2}');update "mem_accounts" set "blockId" = '${diff.blockId}' where "address" = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (balance)::bigint, '${delegate1}', '${diff.blockId}', 3 FROM mem_accounts WHERE address = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (balance)::bigint, '${delegate2}', '${diff.blockId}', 3 FROM mem_accounts WHERE address = '${address}';`
       );
     });
 
-    it('should remove delegates from the account', function () {
-      const result = account.merge('U5678', {
-        delegates: ['-delegate1', '-delegate2'],
-        publicKey:
-          'c8507418dafb3c8aeee28f3263fd55bae0f528a5697a9df0e77e6568b19dfe34',
-        blockId: '5808058151912629759',
-        round: 4,
-      });
+    it('should remove delegates from the account', () => {
+      diff.delegates = [`-${delegate1}`, `-${delegate2}`];
+
+      const result = account.merge(address, diff);
 
       expect(result).to.equal(
-        `delete from "mem_accounts2delegates" where "dependentId" in ('delegate1', 'delegate2') and "accountId" = 'U5678';update "mem_accounts" set "blockId" = '5808058151912629759' where "address" = 'U5678';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT 'U5678', (-balance)::bigint, 'delegate1', '5808058151912629759', 4 FROM mem_accounts WHERE address = 'U5678';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT 'U5678', (-balance)::bigint, 'delegate2', '5808058151912629759', 4 FROM mem_accounts WHERE address = 'U5678';`
+        `delete from "mem_accounts2delegates" where "dependentId" in ('${delegate1}', '${delegate2}') and "accountId" = '${address}';update "mem_accounts" set "blockId" = '${diff.blockId}' where "address" = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (-balance)::bigint, '${delegate1}', '${diff.blockId}', 4 FROM mem_accounts WHERE address = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (-balance)::bigint, '${delegate2}', '${diff.blockId}', 4 FROM mem_accounts WHERE address = '${address}';`
       );
     });
 
-    it('should handle an unsafe number for balance', function () {
-      account.get = sinon.fake();
+    it('should handle an unsafe number for balance', (done) => {
+      diff.balance = NaN;
 
-      return new Promise((resolve) => {
-        account.merge(
-          'U5678',
-          {
-            balance: NaN,
-            publicKey:
-              'd9507418dafb3c8aeee28f3263fd55bae0f528a5697a9df0e77e6568b19dfe34',
-          },
-          function (error, _) {
-            expect(error).to.equal('Encountered unsane number: NaN');
-            expect(account.get.called).to.be.true;
-            resolve();
-          }
-        );
+      account.merge(address, diff, (error) => {
+        expect(error).to.equal('Encountered unsane number: NaN');
+        done();
       });
     });
 
-    it('should insert multiple complex objects', function () {
-      const result = account.merge('U9999', {
-        delegates: [
-          { action: '+', value: 'system' },
-          { action: '+', value: 'minecraft' },
-        ],
-        publicKey:
-          'e9607418dafb3c8aeee28f3263fd55bae0f528a5697a9df0e77e6568b19dfe34',
-      });
+    it('should insert multiple complex objects', () => {
+      diff.delegates = [
+        { action: '+', value: delegate1 },
+        { action: '+', value: delegate2 },
+      ];
+
+      const result = account.merge(address, diff);
 
       expect(result).to.equal(
-        `insert into "mem_accounts2delegates" ("value") values ('system'), ('minecraft');insert into "mem_accounts2delegates" ("value") values ('system'), ('minecraft');`
+        `insert into "mem_accounts2delegates" ("value") values ('${delegate1}'), ('${delegate2}');insert into "mem_accounts2delegates" ("value") values ('${delegate1}'), ('${delegate2}');update "mem_accounts" set "blockId" = '${diff.blockId}' where "address" = '${address}';`
       );
     });
 
-    it('should remove multiple complex objects', function () {
-      const result = account.merge('U9999', {
-        delegates: [
-          { action: '-', value: 'system' },
-          { action: '-', value: 'minecraft' },
-        ],
-        publicKey:
-          'f9607418dafb3c8aeee28f3263fd55bae0f528a5697a9df0e77e6568b19dfe34',
-      });
+    it('should remove multiple complex objects', () => {
+      diff.delegates = [
+        { action: '-', value: delegate1 },
+        { action: '-', value: delegate2 },
+      ];
+
+      const result = account.merge(address, diff);
 
       expect(result).to.equal(
-        `delete from "mem_accounts2delegates" where "value" = 'system' and "value" = 'minecraft';`
+        `delete from "mem_accounts2delegates" where "value" = '${delegate1}' and "value" = '${delegate2}';update "mem_accounts" set "blockId" = '${diff.blockId}' where "address" = '${address}';`
       );
     });
 
-    it('should remove and insert complex objects', function () {
-      const result = account.merge('U9999', {
-        delegates: [
-          { action: '-', value: 'system' },
-          { action: '+', value: 'minecraft' },
-        ],
-        publicKey:
-          'f9607418dafb3c8aeee28f3263fd55bae0f528a5697a9df0e77e6568b19dfe34',
-      });
+    it('should remove and insert complex objects', () => {
+      diff.delegates = [
+        { action: '-', value: delegate1 },
+        { action: '+', value: delegate2 },
+      ];
+      delete diff.blockId;
+
+      const result = account.merge(address, diff);
 
       expect(result).to.equal(
-        `delete from "mem_accounts2delegates" where "value" = 'system';insert into "mem_accounts2delegates" ("value") values ('minecraft');`
+        `delete from "mem_accounts2delegates" where "value" = '${delegate1}';insert into "mem_accounts2delegates" ("value") values ('${delegate2}');`
       );
     });
   });
 
-  describe('createTables', function () {
-    it('should read memoryTables file and execute queries without error', () => {
+  describe('createTables()', () => {
+    it('should read sql/memoryTables.sql file and execute the queries without errors', () => {
       account.createTables(() => {
         const called = db.query.calledWithMatch(
           sinon.match({ error: sinon.match.typeOf('undefined') })
         );
 
-        expect(called).to.equal(true);
+        expect(called).to.be.true;
       });
     });
   });
 
-  describe('removeTables', () => {
-    it('should execute the right sql query', () => {
+  describe('removeTables()', () => {
+    it('should execute the sql query to remove the tables', () => {
       account.removeTables(() => {
         const called = db.query.calledWithMatch(
           'delete from "mem_accounts";delete from "mem_round";delete from "mem_accounts2delegates";delete from "mem_accounts2u_delegates";delete from "mem_accounts2multisignatures";delete from "mem_accounts2u_multisignatures";'
         );
 
-        expect(called).to.equal(true);
+        expect(called).to.be.true;
       });
     });
   });
 
-  describe('verifyPublicKey', () => {
-    it('should ignore if no publicKey was provided', () => {
+  describe('verifyPublicKey()', () => {
+    it('should ignore if `publicKey` was not provided', () => {
       expect(account.verifyPublicKey).to.not.throw();
     });
 
@@ -236,34 +228,34 @@ describe('account', function () {
     });
   });
 
-  describe('toDB', () => {
+  describe('toDB()', () => {
     it('should convert public key to buffer', () => {
       const normalizedAccount = account.toDB({
         publicKey: validAccount.publicKey,
         secondPublicKey: null,
-        address: 'U777355171330060015',
+        address: validAccount.address,
       });
 
-      expect(Buffer.isBuffer(normalizedAccount.publicKey)).to.equal(true);
+      expect(Buffer.isBuffer(normalizedAccount.publicKey)).to.be.true;
       expect(normalizedAccount.secondPublicKey).to.equal(null);
-      expect(normalizedAccount.address).to.equal('U777355171330060015');
+      expect(normalizedAccount.address).to.equal(validAccount.address);
     });
 
     it('should convert address to upper case', () => {
       const normalizedAccount = account.toDB({
-        address: 'u777355171330060015',
+        address: nonExistingAccount.address.toLowerCase(),
       });
 
-      expect(normalizedAccount.address).to.equal('U777355171330060015');
+      expect(normalizedAccount.address).to.equal(nonExistingAccount.address);
     });
   });
 
-  describe('getAll', () => {
+  describe('getAll()', () => {
     it('should apply limit filter', (done) => {
       account.getAll({ limit: 1 }, ['username'], () => {
         const matched = db.query.calledWithMatch(sinon.match(/limit 1/));
 
-        expect(matched).to.equal(true);
+        expect(matched).to.be.true;
         done();
       });
     });
@@ -272,7 +264,7 @@ describe('account', function () {
       account.getAll({ offset: 100 }, ['username'], () => {
         const matched = db.query.calledWithMatch(sinon.match(/offset 100/));
 
-        expect(matched).to.equal(true);
+        expect(matched).to.be.true;
         done();
       });
     });
@@ -283,7 +275,7 @@ describe('account', function () {
           sinon.match(/order by "balance" desc/)
         );
 
-        expect(matched).to.equal(true);
+        expect(matched).to.be.true;
         done();
       });
     });
@@ -294,7 +286,7 @@ describe('account', function () {
           sinon.match(/order by "balance" asc/)
         );
 
-        expect(matched).to.equal(true);
+        expect(matched).to.be.true;
         done();
       });
     });
@@ -305,7 +297,7 @@ describe('account', function () {
           sinon.match(/upper\("address"\) = upper\(/)
         );
 
-        expect(matched).to.equal(true);
+        expect(matched).to.be.true;
         done();
       });
     });
@@ -332,7 +324,7 @@ describe('account', function () {
           'select "username", "isDelegate", UPPER("address") as "address", ENCODE("publicKey", \'hex\') as "publicKey", ("balance")::bigint as "balance", "virgin" from "mem_accounts" as "a" where upper("address") = upper(${p1});'
         );
 
-        expect(matched).to.equal(true);
+        expect(matched).to.be.true;
         done();
       });
     });
@@ -351,32 +343,32 @@ describe('account', function () {
             'select "username" from "mem_accounts" as "a" where upper("address") = upper(${p1}) order by "virgin" asc limit 1;'
           );
 
-          expect(matched).to.equal(true);
+          expect(matched).to.be.true;
           done();
         }
       );
     });
   });
 
-  describe('set', () => {
+  describe('set()', () => {
     it('should set balance to 100000', (done) => {
       account.set(validAccount.address, { balance: 100000 }, () => {
         const matched = db.none.calledWithMatch(/"balance" = 100000/);
 
-        expect(matched).to.equal(true);
+        expect(matched).to.be.true;
         done();
       });
     });
   });
 
-  describe('remove', () => {
+  describe('remove()', () => {
     it('should remove the account based on address', (done) => {
       account.remove(validAccount.address, () => {
         const matched = db.none.calledWithMatch(
           /^delete from "mem_accounts" where "address" = /
         );
 
-        expect(matched).to.equal(true);
+        expect(matched).to.be.true;
         done();
       });
     });

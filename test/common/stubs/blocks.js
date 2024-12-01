@@ -1,3 +1,9 @@
+const dummyBlock = {
+  id: '9314232245035524467',
+  height: 1,
+  timestamp: 0,
+};
+
 const validBlock = {
   id: '2970021393187988089',
   version: 0,
@@ -154,6 +160,7 @@ const validPreviousBlockTransactions = [];
 const genesisBlockId = '6438017970172540087';
 
 module.exports = {
+  dummyBlock,
   validBlock,
   validBlockTransactions,
   validPreviousBlock,

@@ -16,7 +16,7 @@ function postTransactions (transactions, done) {
 
 function sendADM (params, done) {
   node.put('/api/transactions', params, function (err, res) {
-    node.expect(res.body).to.have.property('success').to.be.ok;
+    node.expect(res.body).to.have.property('success').to.be.true;
     node.onNewBlock(function (err) {
       return done(err, res);
     });
@@ -55,7 +55,7 @@ describe('POST /peer/transactions', function () {
           }
 
           postTransactions(bundled, function (err, res) {
-            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('success').to.be.true;
             node.onNewBlock(function (err) {
               next();
             });
@@ -73,7 +73,7 @@ describe('POST /peer/transactions', function () {
       node.waitForBlocks(blocksToWait, function (err) {
         node.async.eachSeries(transactions, function (transaction, eachSeriesCb) {
           node.get('/api/transactions/get?id=' + transaction.id, function (err, res) {
-            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('success').to.be.true;
             node.expect(res.body).to.have.property('transaction').that.is.an('object');
             return setImmediate(eachSeriesCb);
           });
@@ -104,7 +104,7 @@ describe('POST /peer/transactions', function () {
           transaction.fee = node.fees.transactionFee;
 
           postTransaction(transaction, function (err, res) {
-            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('success').to.be.true;
             node.expect(res.body).to.have.property('transactionId').to.equal(transaction.id);
             transactions.push(transaction);
             count++;
@@ -123,7 +123,7 @@ describe('POST /peer/transactions', function () {
       node.waitForBlocks(blocksToWait, function (err) {
         node.async.eachSeries(transactions, function (transaction, eachSeriesCb) {
           node.get('/api/transactions/get?id=' + transaction.id, function (err, res) {
-            node.expect(res.body).to.have.property('success').to.be.ok;
+            node.expect(res.body).to.have.property('success').to.be.true;
             node.expect(res.body).to.have.property('transaction').that.is.an('object');
             return setImmediate(eachSeriesCb);
           });

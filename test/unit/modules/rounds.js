@@ -29,7 +29,7 @@ describe('rounds', function () {
 
     it('should calculate round number from Number.MAX_VALUE', function () {
       var res = rounds.calc(Number.MAX_VALUE);
-      expect(_.isNumber(res)).to.be.ok;
+      expect(_.isNumber(res)).to.be.true;
       expect(res).to.be.below(Number.MAX_VALUE);
     });
   });

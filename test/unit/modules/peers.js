@@ -50,7 +50,7 @@ describe('peers', function () {
       var sandboxHelper = require('../../../helpers/sandbox.js');
       sinon.stub(sandboxHelper, 'callMethod').returns(true);
       peers.sandboxApi();
-      expect(sandboxHelper.callMethod.calledOnce).to.be.ok;
+      expect(sandboxHelper.callMethod.calledOnce).to.be.true;
       sandboxHelper.callMethod.restore();
     });
   });
@@ -182,7 +182,7 @@ describe('peers', function () {
         expect(peerToRemove).to.be.an('object').and.not.to.be.empty;
         expect(peerToRemove.state).that.equals(2);
 
-        expect(peers.remove(peerToRemove.ip, peerToRemove.port)).to.be.ok;
+        expect(peers.remove(peerToRemove.ip, peerToRemove.port)).to.be.true;
         getPeers(function (err, __peers) {
           expect(currentPeers.length - 1).that.equals(__peers.length);
           currentPeers = __peers;
@@ -247,8 +247,8 @@ describe('peers', function () {
       });
 
       peers.ping(randomPeer, function (err, res) {
-        expect(modules.transport.getFromPeer.calledOnce).to.be.ok;
-        expect(modules.transport.getFromPeer.calledWith(randomPeer)).to.be.ok;
+        expect(modules.transport.getFromPeer.calledOnce).to.be.true;
+        expect(modules.transport.getFromPeer.calledWith(randomPeer)).to.be.true;
         modules.transport.getFromPeer.restore();
         done();
       });
@@ -269,7 +269,7 @@ describe('peers', function () {
       }
       peers.onBlockchainReady();
       setTimeout(function () {
-        expect(peers.discover.calledOnce).to.be.ok;
+        expect(peers.discover.calledOnce).to.be.true;
         peers.discover.restore();
         done();
       }, 1000);
@@ -285,7 +285,7 @@ describe('peers', function () {
       sinon.stub(peers, 'discover').callsArgWith(0, null);
       peers.onPeersReady();
       setTimeout(function () {
-        expect(peers.discover.calledOnce).to.be.ok;
+        expect(peers.discover.calledOnce).to.be.true;
         peers.discover.restore();
         done();
       }, 1000);

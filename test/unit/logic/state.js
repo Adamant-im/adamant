@@ -10,55 +10,16 @@ const Rounds = require('../../../modules/rounds.js');
 const AccountLogic = require('../../../logic/account.js');
 const State = require('../../../logic/state.js');
 
-const { modulesLoader } = require('../../common/initModule.js');
 const transactionTypes = require('../../../helpers/transactionTypes.js');
 
-const validSender = {
-  balance: 8067474861277,
-  u_balance: 8067474861277,
-  password:
-    'rally clean ladder crane gadget century timber jealous shine scorpion beauty salon',
-  username: 'market',
-  publicKey: 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0',
-  multimin: 0,
-  address: 'U810656636599221322',
-};
-
-const validTransactionData = {
-  value: '0x84609a38fedbcd02b657233340e6a8cb09db61a8',
-  key: 'eth:address',
-  state_type: 0,
-};
-
-const validTransaction = {
-  type: 9,
-  timestamp: 226647468,
-  amount: 0,
-  senderPublicKey:
-    'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0',
-  senderId: 'U810656636599221322',
-  asset: {},
-  recipientId: null,
-  signature:
-    'e3d569ec587dd0a47ff3c7fffa85506f98f5dd3ce56deb1e1108db3ac6c3c77c404f399cb8d1d712cbceb82e83fe8c9c818e76e3e2734d1f821b78496af91904',
-  height: 6361977,
-  blockId: '14557933175886918347',
-  block_timestamp: 39015790,
-  timestamp: 39015780,
-  requesterPublicKey: null,
-  recipientPublicKey: null,
-  fee: 100000,
-  signSignature: null,
-  signatures: [],
-  confirmations: null,
-  asset: {},
-};
-
-const rawValidTransaction = {
-  st_stored_value: '0x84609a38fedbcd02b657233340e6a8cb09db61a8',
-  st_stored_key: 'eth:address',
-  st_type: 0,
-};
+const { modulesLoader } = require('../../common/initModule.js');
+const { validSender } = require('../../common/stubs/transactions/common.js');
+const {
+  validTransaction,
+  validTransactionData,
+  rawValidTransaction,
+} = require('../../common/stubs/transactions/state.js');
+const { dummyBlock } = require('../../common/stubs/blocks.js');
 
 describe('State', () => {
   /**
@@ -66,11 +27,6 @@ describe('State', () => {
    */
   let state;
   let transaction;
-
-  const dummyBlock = {
-    id: '9314232245035524467',
-    height: 1,
-  };
 
   before((done) => {
     async.auto(
@@ -120,7 +76,7 @@ describe('State', () => {
     );
   });
 
-  describe('bind', () => {
+  describe('bind()', () => {
     it('should be okay', () => {
       expect(() => state.bind()).to.not.throw();
     });
@@ -130,7 +86,7 @@ describe('State', () => {
     });
   });
 
-  describe('create', () => {
+  describe('create()', () => {
     it('should throw with empty parameters', () => {
       expect(() => {
         state.create();
@@ -147,7 +103,7 @@ describe('State', () => {
     });
   });
 
-  describe('calculateFee', () => {
+  describe('calculateFee()', () => {
     it('should set higher fees for very long values', () => {
       const longValueTransaction = {
         id: '13031380580772800310',
@@ -194,11 +150,11 @@ describe('State', () => {
     });
   });
 
-  describe('verify', () => {
+  describe('verify()', () => {
     it('should return error if asset is not set', (done) => {
       const trs = _.cloneDeep(validTransaction);
       delete trs.asset.state;
-      state.verify(trs, validSender, function (err) {
+      state.verify(trs, validSender, (err) => {
         expect(err).to.equal('Invalid transaction asset');
         done();
       });
@@ -207,7 +163,7 @@ describe('State', () => {
     it('should return error if asset type is out of range', (done) => {
       const trs = _.cloneDeep(validTransaction);
       trs.asset.state.type = -1;
-      state.verify(trs, validSender, function (err) {
+      state.verify(trs, validSender, (err) => {
         expect(err).to.equal('Invalid state type');
         done();
       });
@@ -216,7 +172,7 @@ describe('State', () => {
     it('should return error if asset value is empty', (done) => {
       const trs = _.cloneDeep(validTransaction);
       trs.asset.state.value = ' ';
-      state.verify(trs, validSender, function (err) {
+      state.verify(trs, validSender, (err) => {
         expect(err).to.equal('Value must not be blank');
         done();
       });
@@ -225,7 +181,7 @@ describe('State', () => {
     it('should return error if asset value is too long', (done) => {
       const trs = _.cloneDeep(validTransaction);
       trs.asset.state.value = 'a'.repeat(20482);
-      state.verify(trs, validSender, function (err) {
+      state.verify(trs, validSender, (err) => {
         expect(err).to.equal('Value is too long. Maximum is 20480 characters');
         done();
       });
@@ -233,20 +189,20 @@ describe('State', () => {
 
     it('should be okay for a valid transaction', (done) => {
       const trs = _.cloneDeep(validTransaction);
-      state.verify(trs, validSender, function (err) {
+      state.verify(trs, validSender, (err) => {
         expect(err).to.be.null;
         done();
       });
     });
   });
 
-  describe('process', () => {
+  describe('process()', () => {
     it('should be okay', (done) => {
       state.process(validTransaction, validSender, done);
     });
   });
 
-  describe('getBytes', () => {
+  describe('getBytes()', () => {
     it('should throw an error with no param', () => {
       expect(state.getBytes).to.throw();
     });
@@ -254,7 +210,7 @@ describe('State', () => {
     it('should return same result when called multiple times', () => {
       const firstCalculation = state.getBytes(validTransaction);
       const secondCalculation = state.getBytes(validTransaction);
-      expect(firstCalculation.equals(secondCalculation)).to.be.ok;
+      expect(firstCalculation.equals(secondCalculation)).to.be.true;
     });
 
     it('should return the valid buffer', () => {
@@ -267,31 +223,31 @@ describe('State', () => {
     });
   });
 
-  describe('apply', () => {
+  describe('apply()', () => {
     it('should be okay', (done) => {
       state.apply(validTransaction, dummyBlock, validSender, done);
     });
   });
 
-  describe('undo', () => {
+  describe('undo()', () => {
     it('should be okay', (done) => {
       state.undo(validTransaction, dummyBlock, validSender, done);
     });
   });
 
-  describe('applyUnconfirmed', () => {
+  describe('applyUnconfirmed()', () => {
     it('should be okay', (done) => {
       state.applyUnconfirmed(validTransaction, validSender, done);
     });
   });
 
-  describe('undoUnconfirmed', () => {
+  describe('undoUnconfirmed()', () => {
     it('should be okay', (done) => {
       state.undoUnconfirmed(validTransaction, validSender, done);
     });
   });
 
-  describe('objectNormalize', () => {
+  describe('objectNormalize()', () => {
     it('should throw an error with no param', () => {
       expect(state.objectNormalize).to.throw();
     });
@@ -308,7 +264,7 @@ describe('State', () => {
     });
   });
 
-  describe('dbRead', () => {
+  describe('dbRead()', () => {
     it('should throw an error with no param', () => {
       expect(state.dbRead).to.throw();
     });
@@ -317,7 +273,7 @@ describe('State', () => {
       const rawTrs = _.cloneDeep(rawValidTransaction);
       delete rawTrs.st_stored_value;
       const trs = state.dbRead(rawTrs);
-      expect(trs).to.be.a('null');
+      expect(trs).to.be.null;
     });
 
     it('should return chat object with correct fields', () => {
@@ -329,7 +285,7 @@ describe('State', () => {
     });
   });
 
-  describe('dbSave', () => {
+  describe('dbSave()', () => {
     it('should throw an error with no param', () => {
       expect(state.dbSave).to.throw();
     });
@@ -349,13 +305,13 @@ describe('State', () => {
     });
   });
 
-  describe('afterSave', () => {
+  describe('afterSave()', () => {
     it('should be okay', (done) => {
       state.afterSave(validTransaction, done);
     });
   });
 
-  describe('ready', () => {
+  describe('ready()', () => {
     it('should return true when sender does not have multisignatures', () => {
       expect(state.ready(validTransaction, validSender)).to.be.true;
     });
