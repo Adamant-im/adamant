@@ -1,4 +1,5 @@
 const { Server } = require('socket.io');
+const TransactionSubscription = require('./clientWs/transactionSubscription')
 
 class ClientWs {
   constructor (config, logger, cb) {
@@ -15,15 +16,37 @@ class ClientWs {
     this.logger = logger;
     io.sockets.on('connection', (socket) => {
       try {
-        let address = '';
-        let aId = '';
-        socket.on('address', (a) => {
-          address = a;
-          aId = address + '_' + socket.id;
-          this.describes[aId] = socket;
+        const describe = new TransactionSubscription(socket);
+
+        socket.on('address', (address) => {
+          const addresses = Array.isArray(address) ? address : [address];
+          const subscribed = describe.subscribeToAddresses(...addresses)
+
+          if (subscribed) {
+            this.describes[socket.id] = describe;
+          }
         });
+
+        socket.on('types', (type) => {
+          const types = Array.isArray(type) ? type : [type];
+          const subscribed = describe.subscribeToTypes(...types)
+
+          if (subscribed) {
+            this.describes[socket.id] = describe;
+          }
+        });
+
+        socket.on('assetChatTypes', (type) => {
+          const types = Array.isArray(type) ? type : [type];
+          const subscribed = describe.subscribeToAssetChatTypes(...types)
+
+          if (subscribed) {
+            this.describes[socket.id] = describe;
+          }
+        })
+
         socket.on('disconnect', () => {
-          delete this.describes[aId];
+          delete this.describes[socket.id];
         });
       } catch (e) {
         logger.debug('Error Connection socket: ' + e);
@@ -41,9 +64,9 @@ class ClientWs {
     }
     lastTransactionsIds[t.id] = getUTime();
     try {
-      const subs = findSubs(t.recipientId, t.senderId, this.describes);
+      const subs = findSubs(t, Object.values(this.describes));
       subs.forEach((s) => {
-        s.emit('newTrans', t);
+        s.socket.emit('newTrans', t);
       });
     } catch (e) {
       this.logger.debug('Socket error emit ' + e);
@@ -65,14 +88,10 @@ function getUTime () {
   return new Date().getTime() / 1000;
 }
 
-function findSubs (address1, address2, subs) {
-  const filterred = [];
-  for (let aId in subs) {
-    if (aId.startsWith(address1) || aId.startsWith(address2)) {
-      filterred.push(subs[aId]);
-    }
-  }
-  return filterred;
+function findSubs (transaction, subs) {
+  return subs.filter((sub) =>
+    sub.impliesTransaction(transaction),
+  );
 }
 
 module.exports = ClientWs;

@@ -197,7 +197,7 @@ describe('peers', function () {
       process.env['NODE_ENV'] = 'DEV';
     });
 
-    var ip = require('ip');
+    var ip = require('neoip');
 
     it('should accept peer with public ip', function () {
       expect(peers.acceptable([randomPeer])).that.is.an('array').and.to.deep.equal([randomPeer]);

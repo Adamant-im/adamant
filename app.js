@@ -33,7 +33,7 @@ var https = require('https');
 var Logger = require('./logger.js');
 var packageJson = require('./package.json');
 var path = require('path');
-var program = require('commander');
+var Command = require('commander').Command;
 var httpApi = require('./helpers/httpApi.js');
 var Sequence = require('./helpers/sequence.js');
 var util = require('util');
@@ -53,6 +53,8 @@ if (typeof gc !== 'undefined') {
     gc();
   }, 60000);
 }
+
+const program = new Command();
 
 program
     .version(packageJson.version)

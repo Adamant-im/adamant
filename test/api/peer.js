@@ -1,7 +1,7 @@
 'use strict';
 
 var node = require('./../node.js');
-var ip = require('ip');
+var ip = require('neoip');
 var packageJSON = require('./../../package.json');
 
 describe('GET /peer/list', function () {

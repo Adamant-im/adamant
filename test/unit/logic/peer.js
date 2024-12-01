@@ -2,7 +2,7 @@
 
 const { expect } = require('chai');
 
-const ip = require('ip');
+const ip = require('neoip');
 const _ = require('lodash');
 
 const Peer = require('../../../logic/peer.js');

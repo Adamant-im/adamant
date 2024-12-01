@@ -2,8 +2,7 @@
 
 var async = require('async');
 var extend = require('extend');
-var jsonSql = require('json-sql')();
-jsonSql.setDialect('postgresql');
+var knex = require('knex')({ client: 'pg' });
 var sandboxHelper = require('../helpers/sandbox.js');
 
 // Private fields
@@ -115,7 +114,6 @@ __private.pass = function (obj, dappid) {
 
 /**
  * Creates sql query to dapps
- * @implements {jsonSql.build}
  * @implements {library.db.query}
  * @implements {async.until}
  * @param {string} action
@@ -137,20 +135,30 @@ __private.query = function (action, config, cb) {
   if (action !== 'batch') {
     __private.pass(config, config.dappid);
 
-    var defaultConfig = {
-      type: action
-    };
-
     try {
-      sql = jsonSql.build(extend({}, config, defaultConfig));
+      const table = knex(config.table);
+
+      switch (action) {
+        case 'select':
+          sql = table.select(config.fields || '*').where(config.condition);
+          break;
+        case 'insert':
+          sql = table.insert(config.values);
+          break;
+        case 'update':
+          sql = table.update(config.modifier).where(config.condition);
+          break;
+        case 'remove':
+          sql = table.where(config.condition).del();
+          break;
+      }
+
       library.logger.trace('sql.query:', sql);
     } catch (e) {
       return done(e);
     }
 
-    // console.log(sql.query, sql.values);
-
-    library.db.query(sql.query, sql.values).then(function (rows) {
+    library.db.query(sql.toString() + ';').then(function (rows) {
       return done(null, rows);
     }).catch(function (err) {
       library.logger.error(err.stack);
@@ -159,38 +167,32 @@ __private.query = function (action, config, cb) {
   } else {
     var batchPack = [];
     async.until(
-        function (testCb) {
-          batchPack = config.values.splice(0, 10);
-          return testCb(null, batchPack.length === 0);
-        }, function (cb) {
-          var fields = Object.keys(config.fields).map(function (field) {
-            return __private.escape2(config.fields[field]); // Add double quotes to field identifiers
-          });
-          sql = 'INSERT INTO ' + 'dapp_' + config.dappid + '_' + config.table + ' (' + fields.join(',') + ') ';
-          var rows = [];
-          batchPack.forEach(function (value, rowIndex) {
-            var currentRow = batchPack[rowIndex];
-            var fields = [];
-            for (var i = 0; i < currentRow.length; i++) {
-              fields.push(__private.escape(currentRow[i]));
-            }
-            rows.push('SELECT ' + fields.join(','));
-          });
-          sql = sql + ' ' + rows.join(' UNION ');
-          library.db.none(sql).then(function () {
-            return setImmediate(cb);
-          }).catch(function (err) {
-            library.logger.error(err.stack);
-            return setImmediate(cb, 'Sql#query error');
-          });
-        }, done);
+      function (testCb) {
+        batchPack = config.values.splice(0, 10);
+        return testCb(null, batchPack.length === 0);
+      }, function (cb) {
+        var fields = Object.keys(config.fields).map(function (field) {
+          return __private.escape2(config.fields[field]);
+        });
+        var rows = [];
+        batchPack.forEach(function (value) {
+          var currentRow = value.map(__private.escape);
+          rows.push('SELECT ' + currentRow.join(','));
+        });
+        sql = knex.raw('INSERT INTO ?? (' + fields.join(',') + ') ' + rows.join(' UNION '), ['dapp_' + config.dappid + '_' + config.table]).toString();
+        library.db.none(sql).then(function () {
+          return setImmediate(cb);
+        }).catch(function (err) {
+          library.logger.error(err.stack);
+          return setImmediate(cb, 'Sql#query error');
+        });
+      }, done);
   }
 };
 
 // Public methods
 /**
  * Creates sql sentences to dapp_ tables based on config param and runs them.
- * @implements {jsonSql.build}
  * @implements {async.eachSeries}
  * @implements {library.db.none}
  * @param {string} dappid
@@ -219,8 +221,20 @@ Sql.prototype.createTables = function (dappid, config, cb) {
       return setImmediate(cb, 'Unknown table type: ' + config[i].type);
     }
 
-    var sql = jsonSql.build(config[i]);
-    sqles.push(sql.query);
+    var sql = knex.schema.createTable(config[i].table, function (table) {
+      config[i].fields.forEach(function (field) {
+        table.specificType(field.name, field.type);
+      });
+      if (config[i].primaryKey) {
+        table.primary(config[i].primaryKey);
+      }
+      if (config[i].foreignKeys) {
+        config[i].foreignKeys.forEach(function (fk) {
+          table.foreign(fk.field).references(fk.table + '.' + fk.refField).onDelete(fk.onDelete || 'CASCADE');
+        });
+      }
+    }).toString() + ';';
+    sqles.push(sql);
   }
 
   async.eachSeries(sqles, function (command, cb) {
