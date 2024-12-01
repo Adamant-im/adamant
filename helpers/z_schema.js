@@ -1,6 +1,6 @@
 'use strict';
 
-var ip = require('ip');
+var ip = require('neoip');
 /**
  * Uses JSON Schema validator z_schema to register custom formats.
  * - id
