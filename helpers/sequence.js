@@ -18,15 +18,20 @@ function Sequence (config) {
   _default = extend(_default, config);
   var self = this;
   this.sequence = [];
+  this.isTicking = false;
 
-  setImmediate(function nextSequenceTick () {
+  this.nextSequenceTick = function () {
+    if (!self.sequence.length) {
+      self.isTicking = false;
+      return;
+    }
+
     if (_default.onWarning && self.sequence.length >= _default.warningLimit) {
       _default.onWarning(self.sequence.length, _default.warningLimit);
     }
-    self.__tick(function () {
-      setTimeout(nextSequenceTick, 3);
-    });
-  });
+
+    self.__tick(self.nextSequenceTick);
+  };
 }
 
 /**
@@ -68,6 +73,11 @@ Sequence.prototype.add = function (worker, args, done) {
       task.args = args;
     }
     this.sequence.push(task);
+
+    if (!this.isTicking) {
+      this.isTicking = true;
+      setImmediate(this.nextSequenceTick);
+    }
   }
 };
 
