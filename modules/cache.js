@@ -44,18 +44,21 @@ Cache.prototype.isReady = function () {
  * @param {Function} cb
  * @return {Function} cb
  */
-Cache.prototype.getJsonForKey = function (key, cb) {
+Cache.prototype.getJsonForKey = async function (key, cb) {
   if (!self.isConnected()) {
     return cb(errorCacheDisabled);
   }
-  client.get(key)
-      .then((value) => {
-        // parsing string to json
-        return cb(null, JSON.parse(value));
-      })
-      .catch((err) => {
-        return cb(err, key);
-      });
+
+  let parsedValue;
+
+  try {
+    const value = await client.get(key);
+    parsedValue = JSON.parse(value);
+  } catch (err) {
+    cb(err, key);
+  }
+
+  cb(null, parsedValue);
 };
 
 /**
