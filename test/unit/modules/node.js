@@ -3,8 +3,9 @@
 const { expect } = require('chai');
 const semver = require('semver');
 
+const { removeQueuedJob } = require('../../common/globalAfter.js');
 const { modulesLoader } = require('../../common/initModule.js');
-const { isHex } = require('../../common/utils.js');
+const { isHex } = require('../../common/assert.js');
 
 const Node = require('../../../modules/node.js');
 const constants = require('../../../helpers/constants.js');

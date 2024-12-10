@@ -21,28 +21,34 @@ describe('peers', () => {
 
       __modules.peers.onBind(__modules);
 
-      modulesLoader.initLogic(Peers, modulesLoader.scope, function (err, __peers) {
-        if (err) {
-          return done(err);
-        }
+      modulesLoader.initLogic(
+        Peers,
+        modulesLoader.scope,
+        function (err, __peers) {
+          if (err) {
+            return done(err);
+          }
 
-        peers = __peers;
-        peers.bindModules({ peers: __modules.peers });
-        done();
-      });
+          peers = __peers;
+          peers.bindModules({ peers: __modules.peers });
+          done();
+        }
+      );
     });
   });
 
-  function removeAll () {
+  function removeAll() {
     peers.list().forEach((peer) => peers.remove(peer));
 
     expect(peers.list()).to.be.an('array').and.empty;
   }
 
-  function arePeersEqual (peerA, peerB) {
+  function arePeersEqual(peerA, peerB) {
     const allPeersProperties = (peer) => {
       return _.keys(peer).every((property) => {
-        return Peer.prototype.properties.concat(['string']).indexOf(property) !== -1;
+        return (
+          Peer.prototype.properties.concat(['string']).indexOf(property) !== -1
+        );
       });
     };
 
@@ -56,8 +62,13 @@ describe('peers', () => {
 
     const commonProperties = _.intersection(_.keys(peerA), _.keys(peerB));
 
-    if (commonProperties.indexOf('ip') === -1 || commonProperties.indexOf('port') === -1) {
-      throw new Error('Insufficient data to compare the peers (no port or ip provided)');
+    if (
+      commonProperties.indexOf('ip') === -1 ||
+      commonProperties.indexOf('port') === -1
+    ) {
+      throw new Error(
+        'Insufficient data to compare the peers (no port or ip provided)'
+      );
     }
 
     return commonProperties.every((property) => {
@@ -114,8 +125,8 @@ describe('peers', () => {
       removeAll();
 
       peers.upsert(validPeer);
-      const  list = peers.list();
-      const  inserted = list[0];
+      let list = peers.list();
+      const inserted = list[0];
       expect(list.length).equal(1);
       expect(arePeersEqual(inserted, validPeer)).to.be.true;
 
@@ -135,7 +146,7 @@ describe('peers', () => {
       removeAll();
 
       peers.upsert(validPeer);
-      const list = peers.list();
+      let list = peers.list();
       const inserted = list[0];
       expect(list.length).equal(1);
       expect(arePeersEqual(inserted, validPeer)).to.be.true;

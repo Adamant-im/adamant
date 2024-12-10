@@ -6,10 +6,11 @@ const _ = require('lodash');
 const sinon = require('sinon');
 
 const { modulesLoader } = require('../../common/initModule.js');
-const { dummyBlock } = require('../../common/objectStubs.js');
+const { dummyBlock } = require('../../common/stubs/blocks.js');
 
 const constants = require('../../../helpers/constants.js');
 const Blocks = require('../../../modules/blocks.js');
+const { removeQueuedJob } = require('../../common/globalAfter.js');
 
 const generateFreshTimestamp = (secondsAgo) => {
   const delta =

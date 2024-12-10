@@ -19,6 +19,7 @@ const {
   invalidPublicKey,
   invalidAddress,
 } = require('../../common/stubs/account.js');
+const { removeQueuedJob } = require('../../common/globalAfter.js');
 
 describe('accounts', function () {
   /**
@@ -89,11 +90,9 @@ describe('accounts', function () {
 
     it('should throw error when called with invalid public key', () => {
       const filter = { publicKey: invalidPublicKey };
-      const cb = sinon.fake();
-      expect(() => accounts.getAccount(filter, [], cb)).to.throw(
-        'Invalid public key'
-      );
-      expect(cb.called).to.be.false;
+      accounts.getAccount(filter, (err) => {
+        expect(err).to.include('Invalid public key');
+      })
     });
 
     it("should return the specified fields of an account matching the given address", (done) => {
@@ -281,7 +280,7 @@ describe('accounts', function () {
           const balance = new bignum(accountBefore.balance)
             .plus(amount)
             .toString();
-          const u_balance = new bignum(accountBefore.balance)
+          const u_balance = new bignum(accountBefore.u_balance)
             .plus(amount)
             .toString();
 

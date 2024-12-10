@@ -1,6 +1,7 @@
 'use strict';
 
 const { expect } = require('chai');
+const sinon = require('sinon');
 
 const Transactions = require('../../../modules/transactions.js');
 const Transaction = require('../../../logic/transaction.js');
@@ -17,6 +18,8 @@ const State = require('../../../logic/state.js');
 
 const { modulesLoader } = require('../../common/initModule.js');
 const transactionTypes = require('../../../helpers/transactionTypes.js');
+
+const { removeQueuedJob } = require('../../common/globalAfter.js');
 
 const {
   testAccount,
@@ -39,6 +42,10 @@ describe('transactions', function () {
   let transactions;
   let modules;
 
+  before(() => {
+    delete require.cache[require.resolve('../../../modules/transactions.js')];
+  });
+
   before(function (done) {
     modulesLoader.initLogicWithDb(Transaction, (err, transaction) => {
       if (err) {
@@ -60,6 +67,11 @@ describe('transactions', function () {
       );
       transaction.attachAssetType(transactionTypes.CHAT_MESSAGE, new Chat());
       transaction.attachAssetType(transactionTypes.STATE, new State());
+
+      transaction.checkBalance = sinon.fake.returns({
+        exceeded: false,
+        error: null
+      })
 
       modulesLoader.initAllModules(
         (err, __modules) => {

@@ -1,11 +1,14 @@
 'use strict';
 
+const whyIsNodeRunning = require('why-is-node-running')
 const { expect } = require('chai');
 
+const { removeQueuedJob } = require('../../common/globalAfter.js');
 const { modulesLoader } = require('../../common/initModule.js');
 const {
   testAccount,
   invalidPublicKey,
+  invalidAddress,
 } = require('../../common/stubs/account.js');
 
 const constants = require('../../../helpers/constants.js');
@@ -27,6 +30,10 @@ describe('delegates', function () {
     height: 1,
     timestamp: 0,
   };
+
+  before(() => {
+    delete require.cache[require.resolve('../../../modules/delegates.js')];
+  });
 
   before(function (done) {
     modulesLoader.initAllModules((err, __modules) => {
@@ -83,7 +90,7 @@ describe('delegates', function () {
     });
 
     it('should return all 101 delegates', (done) => {
-      delegates.getDelegates({}, (err, response) => {
+      delegates.getDelegates({}, {}, (err, response) => {
         expect(response.delegates).to.be.an('array');
         expect(response.count).to.equal(101);
         expect(err).not.to.exist;
@@ -103,23 +110,23 @@ describe('delegates', function () {
         });
       });
 
-      // it('should return error when invalid publicKey is provided', (done) => {
-      //   const body = {publicKey: 'market'}
-      //   delegates.shared.getDelegate({ body }, (err, response) => {
-      //     expect(err).to.include('Expected type string')
-      //     expect(response).not.to.exist;
-      //     done();
-      //   });
-      // });
+      it('should return error when invalid publicKey is provided', (done) => {
+        const body = {publicKey: invalidPublicKey}
+        delegates.shared.getDelegate({ body }, (err, response) => {
+          expect(err).to.include("Object didn't pass validation for format publicKey")
+          expect(response).not.to.exist;
+          done();
+        });
+      });
 
-      // it('should return error when invalid address is provided', (done) => {
-      //   const body = {address: 'market'}
-      //   delegates.shared.getDelegate({ body }, (err, response) => {
-      //     expect(err).to.include('Expected type string')
-      //     expect(response).not.to.exist;
-      //     done();
-      //   });
-      // });
+      it('should return error when invalid address is provided', (done) => {
+        const body = {address: invalidAddress}
+        delegates.shared.getDelegate({ body }, (err, response) => {
+          expect(err).to.include("Object didn't pass validation for format address")
+          expect(response).not.to.exist;
+          done();
+        });
+      });
 
       it('should find delegate matching the username', (done) => {
         const body = { username: aDelegate.username };

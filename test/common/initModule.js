@@ -21,6 +21,7 @@ var Transaction = require('../../logic/transaction.js');
 var Account = require('../../logic/account.js');
 var accounts = require('../../helpers/accounts');
 var Sequence = require('../../helpers/sequence.js');
+const { removeQueuedJob } = require('../common/globalAfter.js');
 
 var modulesLoader = new function () {
   this.db = null;
@@ -131,7 +132,7 @@ var modulesLoader = new function () {
         }.bind(this), waterCb);
       }.bind(this),
       function (logic, waterCb) {
-        scope = _.merge(this.scope, { logic: logic }, scope);
+        scope = _.merge(this.scope, { logic: { ...logic, ...scope.logic } }, scope);
         async.reduce(modules, {}, function (memo, moduleObj, mapCb) {
           var name = _.keys(moduleObj)[0];
           return this.initModule(moduleObj[name], scope, function (err, module) {
@@ -176,7 +177,6 @@ var modulesLoader = new function () {
       { sql: require('../../modules/sql') },
       { system: require('../../modules/system') },
       { transactions: require('../../modules/transactions') },
-      { transport: require('../../modules/transport') }
     ], [
       { 'transaction': require('../../logic/transaction') },
       { 'account': require('../../logic/account') },
@@ -260,6 +260,10 @@ var modulesLoader = new function () {
     }.bind(this));
   };
 };
+
+afterEach(() => {
+  removeQueuedJob(['transactionPoolNextBundle', 'transactionPoolNextExpiry', 'broadcasterNextRelease'])
+})
 
 module.exports = {
   modulesLoader: modulesLoader

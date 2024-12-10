@@ -5,7 +5,7 @@ const express = require('express');
 
 const RequestLimiter = require('../../../helpers/request-limiter.js');
 
-describe('RequestLimiter', function () {
+describe('RequestLimiter', () => {
   /**
    * @type {express.Express}
    */
@@ -39,7 +39,7 @@ describe('RequestLimiter', function () {
   describe('when limits are `undefined`', () => {
     let limiter;
 
-    beforeEach(function () {
+    beforeEach(() => {
       limiter = RequestLimiter(app, {});
     });
 
@@ -49,10 +49,10 @@ describe('RequestLimiter', function () {
         .that.has.property('client')
         .that.is.an('object');
       expect(limiter.client).to.have.property('delayAfter').to.equal(0);
-      expect(limiter.client).to.have.property('delayAfter').to.equal(0);
-      expect(limiter.client).to.have.property('delayMs').to.equal(0);
-      expect(limiter.client).to.have.property('max').to.equal(0);
+      expect(limiter.client).to.have.property('delayMs').that.is.a('function');
+      expect(limiter.client).to.have.property('skip').that.is.a('function');
       expect(limiter.client).to.have.property('windowMs').to.equal(60000);
+      expect(limiter.client.delayMs(100)).to.equal(0);
     });
 
     it('should return the default peer limits', () => {
@@ -61,10 +61,10 @@ describe('RequestLimiter', function () {
         .that.has.property('peer')
         .that.is.an('object');
       expect(limiter.peer).to.have.property('delayAfter').to.equal(0);
-      expect(limiter.peer).to.have.property('delayAfter').to.equal(0);
-      expect(limiter.peer).to.have.property('delayMs').to.equal(0);
-      expect(limiter.peer).to.have.property('max').to.equal(0);
+      expect(limiter.peer).to.have.property('delayMs').that.is.a('function');
+      expect(limiter.peer).to.have.property('skip').that.is.a('function');
       expect(limiter.peer).to.have.property('windowMs').to.equal(60000);
+      expect(limiter.peer.delayMs(100)).to.equal(0);
     });
 
     it('should enable the client middleware', () => {
@@ -93,7 +93,6 @@ describe('RequestLimiter', function () {
 
     beforeEach(() => {
       limits = {
-        max: 1,
         delayMs: 2,
         delayAfter: 3,
         windowMs: 4,
@@ -107,10 +106,10 @@ describe('RequestLimiter', function () {
         .to.be.an('object')
         .that.has.property('client')
         .that.is.an('object');
-      expect(limiter.client).to.have.property('max').to.equal(1);
-      expect(limiter.client).to.have.property('delayMs').to.equal(2);
+      expect(limiter.client).to.have.property('delayMs').that.is.a('function');
       expect(limiter.client).to.have.property('delayAfter').to.equal(3);
       expect(limiter.client).to.have.property('windowMs').to.equal(4);
+      expect(limiter.client.delayMs(4)).to.equal(2);
     });
 
     it('should return the defined peer limits', function () {
@@ -118,10 +117,10 @@ describe('RequestLimiter', function () {
         .to.be.an('object')
         .that.has.property('peer')
         .that.is.an('object');
-      expect(limiter.peer).to.have.property('max').to.equal(1);
-      expect(limiter.peer).to.have.property('delayMs').to.equal(2);
+      expect(limiter.peer).to.have.property('delayMs').that.is.a('function');
       expect(limiter.peer).to.have.property('delayAfter').to.equal(3);
       expect(limiter.peer).to.have.property('windowMs').to.equal(4);
+      expect(limiter.peer.delayMs(4)).to.equal(2);
     });
 
     it('should enable the client middleware', function () {

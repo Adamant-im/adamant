@@ -229,6 +229,11 @@ describe('account', () => {
   });
 
   describe('toDB()', () => {
+    const keys = [
+      'raw',
+      'values'
+    ];
+
     it('should convert public key to buffer', () => {
       const normalizedAccount = account.toDB({
         publicKey: validAccount.publicKey,
@@ -236,9 +241,14 @@ describe('account', () => {
         address: validAccount.address,
       });
 
-      expect(Buffer.isBuffer(normalizedAccount.publicKey)).to.be.true;
-      expect(normalizedAccount.secondPublicKey).to.equal(null);
-      expect(normalizedAccount.address).to.equal(validAccount.address);
+      expect(normalizedAccount).to.have.all.keys(keys);
+
+      const { raw, values } = normalizedAccount;
+
+      expect(raw.publicKey).to.have.property('sql').that.equals('$(publicKey)');
+      expect(values.publicKey).to.be.an.instanceof(Buffer)
+      expect(raw.secondPublicKey).to.equal(null);
+      expect(raw.address).to.equal(validAccount.address);
     });
 
     it('should convert address to upper case', () => {
@@ -246,7 +256,10 @@ describe('account', () => {
         address: nonExistingAccount.address.toLowerCase(),
       });
 
-      expect(normalizedAccount.address).to.equal(nonExistingAccount.address);
+      expect(normalizedAccount).to.have.all.keys(keys);
+
+      const { raw } = normalizedAccount;
+      expect(raw).to.have.property('address').that.equals(nonExistingAccount.address);
     });
   });
 
@@ -294,7 +307,7 @@ describe('account', () => {
     it('should search by address in uppercase', (done) => {
       account.getAll({ address: validAccount.address }, ['username'], () => {
         const matched = db.query.calledWithMatch(
-          sinon.match(/upper\("address"\) = upper\(/)
+          sinon.match(/upper\("address"\) = '/)
         );
 
         expect(matched).to.be.true;
@@ -321,7 +334,7 @@ describe('account', () => {
 
       account.getAll({ address: validAccount.address }, fields, () => {
         const matched = db.query.calledWithMatch(
-          'select "username", "isDelegate", UPPER("address") as "address", ENCODE("publicKey", \'hex\') as "publicKey", ("balance")::bigint as "balance", "virgin" from "mem_accounts" as "a" where upper("address") = upper(${p1});'
+          `select "username", "isDelegate", UPPER("address") as "address", ENCODE("publicKey", \'hex\') as "publicKey", ("balance")::bigint as "balance", "virgin" from "mem_accounts" as "a" where upper("address") = '${validAccount.address}';`
         );
 
         expect(matched).to.be.true;
@@ -340,7 +353,7 @@ describe('account', () => {
         ['username', 'nonexistingfield'],
         () => {
           const matched = db.query.calledWithMatch(
-            'select "username" from "mem_accounts" as "a" where upper("address") = upper(${p1}) order by "virgin" asc limit 1;'
+            `select "username" from "mem_accounts" as "a" where upper("address") = '${validAccount.address}' order by "virgin" asc limit 1;`
           );
 
           expect(matched).to.be.true;
