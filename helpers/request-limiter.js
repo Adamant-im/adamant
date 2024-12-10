@@ -24,7 +24,9 @@ var defaults = {
  * @param {Object} [limits]
  * @return {Object} max, delayMs, delayAfter, windowMs
  */
-function applyLimits (limits) {
+function applyLimits(config) {
+  const limits = config ?? defaults;
+
   if (typeof limits === 'object') {
     const settings = {
       max: Math.floor(limits.max) || defaults.max,
@@ -35,7 +37,7 @@ function applyLimits (limits) {
       windowMs: Math.floor(limits.windowMs) || defaults.windowMs
     };
 
-    if (!limits.max) {
+    if (!limits.delayAfter) {
       settings.skip = skip;
     }
 
