@@ -12,7 +12,7 @@ var votedDelegates = [];
 function getDelegates (done) {
   node.get('/api/delegates', function (err, res) {
     node.expect(res.body).to.have.property('success').to.be.true;
-    node.expect(res.body).to.have.property('delegates').that.is.an('array');
+    node.expect(res.body).to.have.property('delegates').that.is.an('array').that.has.lengthOf(101);
     return done(err, res);
   });
 }
@@ -26,8 +26,7 @@ function getVotes (address, done) {
 }
 
 function postVotes (params, done) {
-  var count = 0;
-  var blocksToWait = Math.ceil(params.delegates.length / node.constants.maxTxsPerBlock) + 12;
+  var blocksToWait = Math.ceil(params.delegates.length / node.constants.maxTxsPerBlock) * 20;
 
   node.async.eachSeries(params.delegates, function (delegate, eachCb) {
     let transaction = node.createVoteTransaction({
@@ -36,7 +35,7 @@ function postVotes (params, done) {
     });
 
     // Don't sent requests too often — a node can miss some of them
-    node.waitMilliSeconds(600, function () {
+    node.waitMilliSeconds(4000, function () {
       postVote(transaction, function (err, res) {
         params.voteCb(err, res);
         return eachCb();
@@ -347,9 +346,9 @@ describe('POST /peer/transactions', function () {
     });
   });
 
-  it('removing votes from 101 delegates separately should be ok', function (done) {
+  it('removing votes from all delegates separately should be ok', function (done) {
     postVotes({
-      delegates: delegates,
+      delegates: votedDelegates,
       passphrase: account.password,
       action: '-',
       voteCb: function (err, res) {

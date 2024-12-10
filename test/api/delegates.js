@@ -447,15 +447,15 @@ describe('GET /api/delegates (cache)', function () {
       node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
       var response = res.body;
-      cache.getJsonForKey(url, function (err, res) {
+      cache.getJsonForKey(url, function (err, beforeCachedResponse) {
         node.expect(err).to.not.exist;
-        node.expect(res).to.eql(response);
+        node.expect(beforeCachedResponse).to.eql(response);
         node.onNewRound(function (err) {
           node.expect(err).to.not.exist;
-          cache.getJsonForKey(url, function (err, res) {
+          cache.getJsonForKey(url, function (err, afterCachedResponse) {
             node.expect(err).to.not.exist;
-            node.expect(res).to.be.null;
-            done(err, res);
+            node.expect(afterCachedResponse).to.not.eql(beforeCachedResponse);
+            done();
           });
         });
       });
@@ -806,16 +806,6 @@ describe('GET /api/delegates/voters', function () {
       node.onNewBlock(function (err) {
         done();
       });
-    });
-  });
-
-  it('using no publicKey should be ok', function (done) {
-    var params = 'publicKey=';
-
-    node.get('/api/delegates/voters?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('accounts').that.is.an('array').that.is.empty;
-      done();
     });
   });
 

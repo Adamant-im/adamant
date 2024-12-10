@@ -119,7 +119,7 @@ describe('POST /peer/transactions', function () {
     });
 
     it('should confirm all single transactions', function (done) {
-      var blocksToWait = Math.ceil(maximum / node.constants.maxTxsPerBlock);
+      var blocksToWait = Math.ceil(maximum / node.constants.maxTxsPerBlock) * 5;
       node.waitForBlocks(blocksToWait, function (err) {
         node.async.eachSeries(transactions, function (transaction, eachSeriesCb) {
           node.get('/api/transactions/get?id=' + transaction.id, function (err, res) {

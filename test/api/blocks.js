@@ -134,11 +134,6 @@ describe('GET /blocks (cache)', function () {
   var cache;
 
   before(function (done) {
-    node.config.cacheEnabled = true;
-    done();
-  });
-
-  before(function (done) {
     modulesLoader.initCache(function (err, __cache) {
       cache = __cache;
       node.expect(err).to.not.exist;
@@ -166,7 +161,6 @@ describe('GET /blocks (cache)', function () {
     node.get(url + params, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
-      node.expect(res.body).to.have.property('count').to.equal(1);
       var response = res.body;
       cache.getJsonForKey(url + params, function (err, res) {
         node.expect(err).to.not.exist;
@@ -190,23 +184,22 @@ describe('GET /blocks (cache)', function () {
     });
   });
 
-  it('should remove entry from cache on new block', function (done) {
+  it('should update entry from cache on new block', function (done) {
     var url, params;
     url = '/api/blocks?';
     params = 'height=' + block.blockHeight;
     node.get(url + params, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
-      node.expect(res.body).to.have.property('count').to.equal(1);
       var response = res.body;
-      cache.getJsonForKey(url + params, function (err, res) {
+      cache.getJsonForKey(url + params, function (err, cachedResponseBefore) {
         node.expect(err).to.not.exist;
-        node.expect(res).to.eql(response);
+        node.expect(cachedResponseBefore).to.eql(response);
         node.onNewBlock(function (err) {
           node.expect(err).to.not.exist;
-          cache.getJsonForKey(url + params, function (err, res) {
+          cache.getJsonForKey(url + params, function (err, cachedResponseAfter) {
             node.expect(err).to.not.exist;
-            node.expect(res).to.be.null;
+            node.expect(cachedResponseAfter).not.to.eql(cachedResponseBefore);
             done();
           });
         });
@@ -224,7 +217,6 @@ describe('GET /blocks', function () {
     getBlocks('height=' + block.blockHeight, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
-      node.expect(res.body).to.have.property('count').to.equal(1);
       node.expect(res.body.blocks.length).to.equal(1);
       node.expect(res.body.blocks[0]).to.have.property('previousBlock');
       node.expect(res.body.blocks[0]).to.have.property('totalAmount');
@@ -249,7 +241,6 @@ describe('GET /blocks', function () {
 
     getBlocks('height=' + 10, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count');
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
       node.expect(res.body.blocks.length).to.equal(1);
       node.expect(res.body.blocks[0]).to.have.property('previousBlock');

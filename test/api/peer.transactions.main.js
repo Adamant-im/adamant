@@ -34,7 +34,7 @@ describe('GET /peer/transactions', function () {
           node.debug('> Response:'.grey, JSON.stringify(res.body));
           node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body).to.have.property('message').to.eql('Request is made from incompatible version');
-          node.expect(res.body).to.have.property('expected').to.eql('>=0.4.0');
+          node.expect(res.body).to.have.property('expected').to.eql('>=0.6.0');
           node.expect(res.body).to.have.property('received').to.eql('0.1.0a');
           done();
         });
@@ -69,7 +69,7 @@ describe('POST /peer/transactions', function () {
           node.debug('> Response:'.grey, JSON.stringify(res.body));
           node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body).to.have.property('message').to.eql('Request is made from incompatible version');
-          node.expect(res.body).to.have.property('expected').to.eql('>=0.4.0');
+          node.expect(res.body).to.have.property('expected').to.eql('>=0.6.0');
           node.expect(res.body).to.have.property('received').to.eql('0.1.0a');
           done();
         });
