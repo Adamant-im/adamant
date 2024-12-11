@@ -283,6 +283,25 @@ describe('delegates', function () {
           done();
         });
       });
+
+      it('should return voters of the delegate in descending order by balance', (done) => {
+        const body = { publicKey: aDelegate.publicKey };
+        delegates.shared.getVoters({ body }, (err, response) => {
+          expect(err).not.to.exist;
+          expect(response).to.have.property('accounts').that.is.an("array").that.is
+            .not.empty;
+
+          const isSorted = response.accounts.every((_, index, array) => {
+            if (index === 0) {
+              return true;
+            }
+
+            return Number(array[index].balance) <= Number(array[index - 1].balance);
+          });
+          expect(isSorted).to.be.true;
+          done();
+        });
+      });
     });
 
     describe('getFee', () => {
