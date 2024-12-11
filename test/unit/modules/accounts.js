@@ -80,19 +80,45 @@ describe('accounts', function () {
       expect(accounts.getAccount).to.throw();
     });
 
-    it('should return null if no account matches the address', () => {
+    it('should return null if no account matches the address', (done) => {
       const filter = { address: nonExistingAddress };
       accounts.getAccount(filter, ['address'], (err, account) => {
         expect(err).not.to.exist;
         expect(account).to.be.null;
+        done();
       });
     });
 
-    it('should throw error when called with invalid public key', () => {
+    it('should return error when called with invalid public key and NO fields provided', (done) => {
       const filter = { publicKey: invalidPublicKey };
       accounts.getAccount(filter, (err) => {
         expect(err).to.include('Invalid public key');
-      })
+        done();
+      });
+    });
+
+    it('should return error when called with invalid public key and fields argument is provided', (done) => {
+      const filter = { publicKey: invalidPublicKey };
+      accounts.getAccount(filter, ['balance'], (err) => {
+        expect(err).to.include('Invalid public key');
+        done();
+      });
+    });
+
+    it('should throw an error when called with no callback AND fields parameter', () => {
+      const filter = { publicKey: invalidPublicKey };
+      expect(() => accounts.getAccount(filter)).to.throw();
+    });
+
+    it('should throw an error when called with no callback but fields parameter', () => {
+      const filter = { publicKey: invalidPublicKey };
+      expect(() => accounts.getAccount(filter, ['balance'])).to.throw();
+    });
+
+    it('should throw an error when fields parameter is not an array', () => {
+      const filter = { publicKey: testAccount.publicKey };
+      const invalidFields = 123;
+      expect(() => accounts.getAccount(filter, invalidFields)).to.throw();
     });
 
     it("should return the specified fields of an account matching the given address", (done) => {
