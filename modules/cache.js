@@ -56,6 +56,7 @@ Cache.prototype.getJsonForKey = async function (key, cb) {
     parsedValue = JSON.parse(value);
   } catch (err) {
     cb(err, key);
+    return;
   }
 
   cb(null, parsedValue);
