@@ -413,7 +413,7 @@ describe('transactions', function () {
       });
 
       it('should find transactions with AND logic across ranges (fromHeight AND toHeight)', (done) => {
-        const body = { toHeight: 100, 'and:fromHeight': 2 };
+        const body = { toHeight: 100, 'and:fromHeight': 1 };
 
         transactions.shared.getTransactions({ body }, (err, response) => {
           expect(err).not.to.exist;
@@ -421,7 +421,7 @@ describe('transactions', function () {
 
           expect(response.transactions).not.to.be.empty;
           response.transactions.forEach((transaction) => {
-            expect(transaction.height).to.be.within(2, 100);
+            expect(transaction.height).to.be.within(1, 100);
           });
 
           done();
@@ -429,7 +429,7 @@ describe('transactions', function () {
       });
 
       it('should ignore "or" from the first parameter', (done) => {
-        const body = { 'or:fromHeight': 2, 'and:toHeight': 100 };
+        const body = { 'or:fromHeight': 1, 'and:toHeight': 100 };
 
         transactions.shared.getTransactions({ body }, (err, response) => {
           expect(err).not.to.exist;
@@ -437,7 +437,7 @@ describe('transactions', function () {
 
           expect(response.transactions).not.to.be.empty;
           response.transactions.forEach((transaction) => {
-            expect(transaction.height).to.be.within(2, 100);
+            expect(transaction.height).to.be.within(1, 100);
           });
 
           done();
