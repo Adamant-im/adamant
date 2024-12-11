@@ -689,8 +689,9 @@ Account.prototype.merge = function (address, diff, cb) {
           break;
         case Number:
           if (isNaN(trueValue) || trueValue === Infinity) {
-            library.logger.error(`Encountered unsane number: ${JSON.stringify(diff)}`);
-            return setImmediate(cb, 'Encountered unsane number: ' + trueValue);
+            const error = new Error(`Encountered unsafe number: ${trueValue}`)
+            library.logger.error(error.stack, diff);
+            return setImmediate(cb, error.message);
           } else if (Math.abs(trueValue) === trueValue && trueValue !== 0) {
             update[value] = knex.raw('?? + ?', [value, Math.floor(trueValue)])
 

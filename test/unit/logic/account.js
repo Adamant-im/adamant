@@ -104,7 +104,7 @@ describe('account', () => {
       diff.balance = NaN;
 
       account.merge(address, diff, (error) => {
-        expect(error).to.equal('Encountered unsane number: NaN');
+        expect(error).to.equal('Encountered unsafe number: NaN');
         done();
       });
     });
