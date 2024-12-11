@@ -147,10 +147,25 @@ Accounts.prototype.generateAddressByPublicKey = function (publicKey) {
 
 /**
  * Gets account information, calls logic.account.get().
+ * @overload
+ * @param {Object} filter - Contains publicKey.
+ * @param {Array} fields - Fields to get.
+ * @param {function} cb - Callback function.
+ */
+
+/**
+ * Gets account information, calls logic.account.get().
+ * @overload
+ * @param {Object} filter - Contains publicKey.
+ * @param {function} fields - Callback function.
+ */
+
+/**
+ * Gets account information, calls logic.account.get().
  * @implements module:accounts#Account~get
  * @param {Object} filter - Contains publicKey.
- * @param {function} fields - Fields to get.
- * @param {function} cb - Callback function.
+ * @param {Array | function} fields - Fields to get or callback function.
+ * @param {function} [cb] - Callback function.
  */
 Accounts.prototype.getAccount = function (filter, fields, cb) {
   if (filter.publicKey) {
