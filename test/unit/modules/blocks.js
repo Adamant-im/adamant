@@ -1,29 +1,105 @@
 'use strict';
 
-var chai = require('chai');
-var expect = require('chai').expect;
+const { expect } = require('chai');
 
-var express = require('express');
-var sinon = require('sinon');
+const _ = require('lodash');
+const sinon = require('sinon');
 
-var modulesLoader = require('../../common/initModule').modulesLoader;
+const { modulesLoader } = require('../../common/initModule.js');
+const { dummyBlock } = require('../../common/stubs/blocks.js');
+
+const constants = require('../../../helpers/constants.js');
+const Blocks = require('../../../modules/blocks.js');
+const { removeQueuedJob } = require('../../common/globalAfter.js');
+
+const generateFreshTimestamp = (secondsAgo) => {
+  const delta =
+    secondsAgo === undefined ? constants.blockReceiptTimeOut - 1 : secondsAgo;
+  const currentTimestamp =
+    Math.floor(Date.now() / 1000) - Math.floor(constants.epochTime / 1000);
+
+  return currentTimestamp - delta;
+};
 
 describe('blocks', function () {
-  var blocks;
+  /**
+   * @type {Blocks}
+   */
+  let blocks;
 
   before(function (done) {
-    modulesLoader.initModules([
-      { blocks: require('../../../modules/blocks') }
-    ], [
-      { 'transaction': require('../../../logic/transaction') },
-      { 'block': require('../../../logic/block') },
-      { 'peers': require('../../../logic/peers.js') }
-    ], {}, function (err, __blocks) {
-      if (err) {
-        return done(err);
+    modulesLoader.initModules(
+      [{ blocks: Blocks }],
+      [
+        { transaction: require('../../../logic/transaction') },
+        { block: require('../../../logic/block') },
+        { peers: require('../../../logic/peers.js') },
+      ],
+      {},
+      function (err, __blocks) {
+        if (err) {
+          return done(err);
+        }
+        blocks = __blocks.blocks;
+        done();
       }
-      blocks = __blocks.blocks;
-      done();
+    );
+  });
+
+  describe('lastBlock', () => {
+    afterEach(() => {
+      blocks.lastBlock.set({});
+    });
+
+    describe('set()', () => {
+      it('should set the last block and return it', () => {
+        const block = _.cloneDeep(dummyBlock);
+
+        const result = blocks.lastBlock.set(block);
+        expect(result).to.eql(block);
+
+        const lastBlock = blocks.lastBlock.get();
+        expect(lastBlock).to.eql(block);
+      });
+    });
+
+    describe('get()', () => {
+      it('should return the last set block', () => {
+        const beforeBlock = blocks.lastBlock.get();
+        expect(beforeBlock).to.eql({});
+
+        blocks.lastBlock.set(dummyBlock);
+
+        const afterBlock = blocks.lastBlock.get();
+        expect(afterBlock).to.eql(dummyBlock);
+      });
+    });
+
+    describe('isFresh()', () => {
+      it('should return false when last block is not set', () => {
+        const fresh = blocks.lastBlock.isFresh();
+        expect(fresh).to.be.false;
+      });
+
+      it('should return false when the last block is too old', () => {
+        const block = _.cloneDeep(dummyBlock);
+        block.timestamp = 0;
+
+        blocks.lastBlock.set(block);
+
+        const fresh = blocks.lastBlock.isFresh();
+        expect(fresh).to.be.false;
+      });
+
+      it('should return true for the block with the timestamp within constants.blockRecepitTimeOut', () => {
+        const block = _.cloneDeep(dummyBlock);
+        block.timestamp = generateFreshTimestamp();
+
+        blocks.lastBlock.set(block);
+
+        const fresh = blocks.lastBlock.isFresh();
+        expect(fresh).to.be.true;
+      });
     });
   });
 
@@ -49,7 +125,9 @@ describe('blocks', function () {
       expect(tracker.log.calledThrice).to.ok;
       expect(tracker.applied).to.equals(5);
 
-      expect(tracker.applyNext.bind(tracker)).to.throw('Cannot apply transaction over the limit: 5');
+      expect(tracker.applyNext.bind(tracker)).to.throw(
+        'Cannot apply transaction over the limit: 5'
+      );
     });
   });
 });

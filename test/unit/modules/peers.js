@@ -8,7 +8,9 @@ var randomString = require('randomstring');
 var _ = require('lodash');
 
 var config = require('../../config.json');
-var randomPeer = require('../../common/objectStubs').randomPeer;
+
+const { removeQueuedJob } = require('../../common/globalAfter.js');
+const { validPeer } = require('../../common/stubs/peers.js');
 var modulesLoader = require('../../common/initModule').modulesLoader;
 
 var currentPeers = [];
@@ -27,7 +29,13 @@ describe('peers', function () {
   }
 
   before(function (done) {
-    modulesLoader.initAllModules(function (err, __modules) {
+    modulesLoader.initModules([
+      { system: require('../../../modules/system.js') },
+      { peers: require('../../../modules/peers.js') },
+      { transport: require('../../../modules/transport.js') },
+    ], [
+      { 'peers': require('../../../logic/peers.js') }
+    ], { nonce: NONCE }, (err, __modules) => {
       if (err) {
         return done(err);
       }
@@ -35,7 +43,7 @@ describe('peers', function () {
       modules = __modules;
       peers.onBind(__modules);
       done();
-    }, { nonce: NONCE });
+    });
   });
 
   beforeEach(function (done) {
@@ -50,20 +58,20 @@ describe('peers', function () {
       var sandboxHelper = require('../../../helpers/sandbox.js');
       sinon.stub(sandboxHelper, 'callMethod').returns(true);
       peers.sandboxApi();
-      expect(sandboxHelper.callMethod.calledOnce).to.be.ok;
+      expect(sandboxHelper.callMethod.calledOnce).to.be.true;
       sandboxHelper.callMethod.restore();
     });
   });
 
   describe('update', function () {
     it('should insert new peer', function (done) {
-      peers.update(randomPeer);
+      peers.update(validPeer);
 
       getPeers(function (err, __peers) {
         expect(currentPeers.length + 1).that.equals(__peers.length);
         currentPeers = __peers;
         var inserted = __peers.find(function (p) {
-          return p.ip + ':' + p.port === randomPeer.ip + ':' + randomPeer.port;
+          return p.ip + ':' + p.port === validPeer.ip + ':' + validPeer.port;
         });
         expect(inserted).to.be.an('object');
         expect(inserted).not.to.be.empty;
@@ -72,7 +80,7 @@ describe('peers', function () {
     });
 
     it('should update existing peer', function (done) {
-      var toUpdate = _.clone(randomPeer);
+      var toUpdate = _.clone(validPeer);
       toUpdate.height += 1;
       peers.update(toUpdate);
 
@@ -80,18 +88,18 @@ describe('peers', function () {
         expect(currentPeers.length).that.equals(__peers.length);
         currentPeers = __peers;
         var updated = __peers.find(function (p) {
-          return p.ip + ':' + p.port === randomPeer.ip + ':' + randomPeer.port;
+          return p.ip + ':' + p.port === validPeer.ip + ':' + validPeer.port;
         });
         expect(updated).to.be.an('object');
         expect(updated).not.to.be.empty;
-        expect(updated.ip + ':' + updated.port).that.equals(randomPeer.ip + ':' + randomPeer.port);
+        expect(updated.ip + ':' + updated.port).that.equals(validPeer.ip + ':' + validPeer.port);
         expect(updated.height).that.equals(toUpdate.height);
         done();
       });
     });
 
     it('should insert new peer if ip or port changed', function (done) {
-      var toUpdate = _.clone(randomPeer);
+      var toUpdate = _.clone(validPeer);
       toUpdate.port += 1;
       peers.update(toUpdate);
 
@@ -169,7 +177,7 @@ describe('peers', function () {
 
   describe('remove', function () {
     before(function (done) {
-      peers.update(randomPeer);
+      peers.update(validPeer);
       done();
     });
 
@@ -177,12 +185,12 @@ describe('peers', function () {
       getPeers(function (err, __peers) {
         currentPeers = __peers;
         var peerToRemove = currentPeers.find(function (p) {
-          return p.ip + ':' + p.port === randomPeer.ip + ':' + randomPeer.port;
+          return p.ip + ':' + p.port === validPeer.ip + ':' + validPeer.port;
         });
         expect(peerToRemove).to.be.an('object').and.not.to.be.empty;
         expect(peerToRemove.state).that.equals(2);
 
-        expect(peers.remove(peerToRemove.ip, peerToRemove.port)).to.be.ok;
+        expect(peers.remove(peerToRemove.ip, peerToRemove.port)).to.be.true;
         getPeers(function (err, __peers) {
           expect(currentPeers.length - 1).that.equals(__peers.length);
           currentPeers = __peers;
@@ -200,23 +208,23 @@ describe('peers', function () {
     var ip = require('neoip');
 
     it('should accept peer with public ip', function () {
-      expect(peers.acceptable([randomPeer])).that.is.an('array').and.to.deep.equal([randomPeer]);
+      expect(peers.acceptable([validPeer])).that.is.an('array').and.to.deep.equal([validPeer]);
     });
 
     it('should not accept peer with private ip', function () {
-      var privatePeer = _.clone(randomPeer);
+      var privatePeer = _.clone(validPeer);
       privatePeer.ip = '127.0.0.1';
       expect(peers.acceptable([privatePeer])).that.is.an('array').and.to.be.empty;
     });
 
     it('should not accept peer with adm-js-api os', function () {
-      var privatePeer = _.clone(randomPeer);
+      var privatePeer = _.clone(validPeer);
       privatePeer.os = 'adm-js-api';
       expect(peers.acceptable([privatePeer])).that.is.an('array').and.to.be.empty;
     });
 
     it('should not accept peer with host\'s nonce', function () {
-      var peer = _.clone(randomPeer);
+      var peer = _.clone(validPeer);
       peer.nonce = NONCE;
       expect(peers.acceptable([peer])).that.is.an('array').and.to.be.empty;
     });
@@ -240,15 +248,15 @@ describe('peers', function () {
     it('should accept peer with public ip', function (done) {
       sinon.stub(modules.transport, 'getFromPeer').callsArgWith(2, null, {
         success: true,
-        peer: randomPeer,
+        peer: validPeer,
         body: {
-          success: true, height: randomPeer.height, peers: [randomPeer]
+          success: true, height: validPeer.height, peers: [validPeer]
         }
       });
 
-      peers.ping(randomPeer, function (err, res) {
-        expect(modules.transport.getFromPeer.calledOnce).to.be.ok;
-        expect(modules.transport.getFromPeer.calledWith(randomPeer)).to.be.ok;
+      peers.ping(validPeer, function (err, res) {
+        expect(modules.transport.getFromPeer.calledOnce).to.be.true;
+        expect(modules.transport.getFromPeer.calledWith(validPeer)).to.be.true;
         modules.transport.getFromPeer.restore();
         done();
       });
@@ -265,11 +273,11 @@ describe('peers', function () {
       var config = require('../../config.json');
       var initialPeers = _.clone(config.peers.list);
       if (initialPeers.length === 0) {
-        config.peers.list.push(randomPeer);
+        config.peers.list.push(validPeer);
       }
       peers.onBlockchainReady();
       setTimeout(function () {
-        expect(peers.discover.calledOnce).to.be.ok;
+        expect(peers.discover.calledOnce).to.be.true;
         peers.discover.restore();
         done();
       }, 1000);
@@ -285,7 +293,7 @@ describe('peers', function () {
       sinon.stub(peers, 'discover').callsArgWith(0, null);
       peers.onPeersReady();
       setTimeout(function () {
-        expect(peers.discover.calledOnce).to.be.ok;
+        expect(peers.discover.calledOnce).to.be.true;
         peers.discover.restore();
         done();
       }, 1000);

@@ -870,7 +870,7 @@ Delegates.prototype.shared = {
 
         modules.accounts.getAccounts({
           address: { $in: addresses },
-          sort: 'balance'
+          sort: { balance: -1 }
         }, ['address', 'balance', 'username', 'publicKey'], function (err, rows) {
           if (err) {
             return setImmediate(cb, err);

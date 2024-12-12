@@ -20,7 +20,7 @@ describe('POST /peer/transactions', function () {
   describe('registering a delegate', function () {
     it('using undefined transaction', function (done) {
       postTransaction(undefined, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.not.ok;
+        node.expect(res.body).to.have.property('success').to.be.false;
         node.expect(res.body).to.have.property('message').to.contain('Invalid transaction body');
         done();
       });
@@ -36,7 +36,7 @@ describe('POST /peer/transactions', function () {
       delete transaction.asset;
 
       postTransaction(transaction, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.not.ok;
+        node.expect(res.body).to.have.property('success').to.be.false;
         node.expect(res.body).to.have.property('message').to.contain('Invalid transaction body');
         done();
       });
@@ -51,7 +51,7 @@ describe('POST /peer/transactions', function () {
         });
 
         postTransaction(transaction, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body).to.have.property('message').to.match(/Account does not have enough ADM/);
           done();
         });
@@ -68,9 +68,9 @@ describe('POST /peer/transactions', function () {
           amount: node.fees.delegateRegistrationFee,
           recipientId: account.address
         }, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.ok;
+          node.expect(res.body).to.have.property('success').to.be.true;
           node.expect(res.body).to.have.property('transactionId');
-          node.expect(res.body.transactionId).to.be.not.empty;
+          node.expect(res.body.transactionId).not.to.be.empty;
           done();
         });
       });
@@ -88,7 +88,7 @@ describe('POST /peer/transactions', function () {
         });
 
         postTransaction(transaction, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           done();
         });
       });
@@ -100,7 +100,7 @@ describe('POST /peer/transactions', function () {
         });
 
         postTransaction(transaction, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           done();
         });
       });
@@ -113,7 +113,7 @@ describe('POST /peer/transactions', function () {
           });
 
           postTransaction(transaction, function (err, res) {
-            node.expect(res.body).to.have.property('success').to.be.not.ok;
+            node.expect(res.body).to.have.property('success').to.be.false;
             done();
           });
         });
@@ -127,7 +127,7 @@ describe('POST /peer/transactions', function () {
         });
 
         postTransaction(transaction, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.ok;
+          node.expect(res.body).to.have.property('success').to.be.true;
           done();
         });
       });
@@ -164,11 +164,11 @@ describe('POST /peer/transactions', function () {
         });
 
         postTransaction(transaction, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.ok;
+          node.expect(res.body).to.have.property('success').to.be.true;
 
           node.onNewBlock(function () {
             postTransaction(transaction2, function (err, res) {
-              node.expect(res.body).to.have.property('success').to.be.not.ok;
+              node.expect(res.body).to.have.property('success').to.be.false;
               done();
             });
           });

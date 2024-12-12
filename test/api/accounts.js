@@ -13,7 +13,7 @@ describe('POST /api/accounts/open', function () {
     openAccount({
       secret: node.iAccount.password
     }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('account').that.is.an('object');
       node.expect(res.body.account).to.have.property('address').to.equal(node.iAccount.address);
       node.expect(res.body.account).to.have.property('unconfirmedBalance').that.is.a('string');
@@ -34,7 +34,7 @@ describe('POST /api/accounts/open', function () {
     openAccount({
       secret: account.password
     }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('account').that.is.an('object');
       node.expect(res.body.account).to.have.property('address').to.equal(account.address);
       node.expect(res.body.account).to.have.property('unconfirmedBalance').that.is.a('string');
@@ -51,7 +51,7 @@ describe('POST /api/accounts/open', function () {
 
   it('using empty json should fail', function (done) {
     openAccount({}, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       node.expect(res.body.error).to.contain('Missing required property: secret');
       done();
@@ -60,7 +60,7 @@ describe('POST /api/accounts/open', function () {
 
   it('using invalid json should fail', function (done) {
     openAccount('{\'invalid\'}', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       node.expect(res.body.error).to.contain('Missing required property: secret');
       done();
@@ -71,7 +71,7 @@ describe('POST /api/accounts/open', function () {
     openAccount({
       secret: ''
     }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       node.expect(res.body.error).to.contain('String is too short (0 chars), minimum 1');
       done();
@@ -86,7 +86,7 @@ describe('POST /api/accounts/open', function () {
     openAccount({
       secret: data
     }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('API error: request entity too large');
       done();
     });
@@ -100,7 +100,7 @@ describe('GET /api/accounts/getBalance?address=', function () {
 
   it('using known address should be ok', function (done) {
     getBalance(node.gAccount.address, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('balance').that.is.a('string');
       node.expect(res.body).to.have.property('unconfirmedBalance').that.is.a('string');
       node.expect(res.body.balance).to.equal(res.body.unconfirmedBalance);
@@ -110,7 +110,7 @@ describe('GET /api/accounts/getBalance?address=', function () {
 
   it('using unknown address should be ok', function (done) {
     getBalance(account.address, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('balance').that.is.a('string');
       node.expect(res.body).to.have.property('unconfirmedBalance').that.is.a('string');
       node.expect(res.body.balance).to.equal(res.body.unconfirmedBalance);
@@ -120,7 +120,7 @@ describe('GET /api/accounts/getBalance?address=', function () {
 
   it('using invalid address should fail', function (done) {
     getBalance('thisIsNOTAnAdamantAddress', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.eql('Object didn\'t pass validation for format address: thisIsNOTAnAdamantAddress');
       done();
     });
@@ -128,9 +128,9 @@ describe('GET /api/accounts/getBalance?address=', function () {
 
   it('using empty address should fail', function (done) {
     getBalance('', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
-      node.expect(res.body.error).to.contain('String is too short (0 chars), minimum 1');
+      node.expect(res.body.error).to.contain("Object didn't pass validation for format address");
       done();
     });
   });
@@ -143,7 +143,7 @@ describe('GET /api/accounts/getPublicKey?address=', function () {
 
   it('using known address should be ok', function (done) {
     getPublicKey(node.iAccount.address, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('publicKey').to.equal(node.iAccount.publicKey);
       done();
     });
@@ -151,7 +151,7 @@ describe('GET /api/accounts/getPublicKey?address=', function () {
 
   it('using unknown address should be ok', function (done) {
     getPublicKey(account.address, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.contain('Account not found');
       done();
     });
@@ -159,7 +159,7 @@ describe('GET /api/accounts/getPublicKey?address=', function () {
 
   it('using invalid address should fail', function (done) {
     getPublicKey('thisIsNOTAnAdamantAddress', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.contain('Object didn\'t pass validation for format address: thisIsNOTAnAdamantAddress');
       done();
     });
@@ -167,9 +167,9 @@ describe('GET /api/accounts/getPublicKey?address=', function () {
 
   it('using empty address should fail', function (done) {
     getPublicKey('', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
-      node.expect(res.body.error).to.contain('String is too short (0 chars), minimum 1');
+      node.expect(res.body.error).to.contain("Object didn't pass validation for format address");
       done();
     });
   });
@@ -184,7 +184,7 @@ describe('POST /api/accounts/generatePublicKey', function () {
     generatePublicKey({
       secret: node.iAccount.password
     }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('publicKey').to.equal(node.iAccount.publicKey);
       done();
     });
@@ -194,7 +194,7 @@ describe('POST /api/accounts/generatePublicKey', function () {
     generatePublicKey({
       secret: account.password
     }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('publicKey').to.equal(account.publicKey.toString('hex'));
       done();
     });
@@ -202,7 +202,7 @@ describe('POST /api/accounts/generatePublicKey', function () {
 
   it('using empty json should fail', function (done) {
     generatePublicKey({}, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       node.expect(res.body.error).to.contain('Missing required property: secret');
       done();
@@ -211,7 +211,7 @@ describe('POST /api/accounts/generatePublicKey', function () {
 
   it('using invalid json should fail', function (done) {
     generatePublicKey('{\'invalid\'}', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       node.expect(res.body.error).to.contain('Missing required property: secret');
       done();
@@ -222,7 +222,7 @@ describe('POST /api/accounts/generatePublicKey', function () {
     generatePublicKey({
       secret: ''
     }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       node.expect(res.body.error).to.contain('String is too short (0 chars), minimum 1');
       done();
@@ -237,7 +237,7 @@ describe('GET /accounts', function () {
 
   it('using known address should be ok', function (done) {
     getAccounts('address=' + node.iAccount.address, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('account').that.is.an('object');
       node.expect(res.body.account).to.have.property('address').to.equal(node.iAccount.address);
       node.expect(res.body.account).to.have.property('unconfirmedBalance').that.is.a('string');
@@ -254,7 +254,7 @@ describe('GET /accounts', function () {
 
   it('using known address and empty publicKey should be ok', function (done) {
     getAccounts('address=' + node.iAccount.address + '&publicKey=', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('account').that.is.an('object');
       node.expect(res.body.account).to.have.property('address').to.equal(node.iAccount.address);
       node.expect(res.body.account).to.have.property('unconfirmedBalance').that.is.a('string');
@@ -271,7 +271,7 @@ describe('GET /accounts', function () {
 
   it('using known lowercase address should be ok', function (done) {
     getAccounts('address=' + node.iAccount.address.toLowerCase(), function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('account').that.is.an('object');
       node.expect(res.body.account).to.have.property('address').to.equal(node.iAccount.address);
       node.expect(res.body.account).to.have.property('unconfirmedBalance').that.is.a('string');
@@ -288,7 +288,7 @@ describe('GET /accounts', function () {
 
   it('using unknown address should fail', function (done) {
     getAccounts('address=' + account.address, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.eql('Account not found');
       done();
     });
@@ -296,7 +296,7 @@ describe('GET /accounts', function () {
 
   it('using invalid address should fail', function (done) {
     getAccounts('address=' + 'thisIsNOTAnAdamantAddress', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       node.expect(res.body.error).to.contain('Object didn\'t pass validation for format address: thisIsNOTAnAdamantAddress');
       done();
@@ -305,16 +305,16 @@ describe('GET /accounts', function () {
 
   it('using empty address should fail', function (done) {
     getAccounts('address=', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
-      node.expect(res.body.error).to.contain('String is too short (0 chars), minimum 1');
+      node.expect(res.body.error).to.contain("Object didn't pass validation for format address");
       done();
     });
   });
 
   it('using known publicKey should be ok', function (done) {
     getAccounts('publicKey=' + node.iAccount.publicKey, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('account').that.is.an('object');
       node.expect(res.body.account).to.have.property('address').to.equal(node.iAccount.address);
       node.expect(res.body.account).to.have.property('unconfirmedBalance').that.is.a('string');
@@ -331,15 +331,15 @@ describe('GET /accounts', function () {
 
   it('using known publicKey and empty address should fail', function (done) {
     getAccounts('publicKey=' + node.iAccount.publicKey + '&address=', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
-      node.expect(res.body).to.have.property('error').to.eql('String is too short (0 chars), minimum 1');
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('error').to.contain("Object didn't pass validation for format address");
       done();
     });
   });
 
   it('using unknown publicKey should fail', function (done) {
     getAccounts('publicKey=' + account.publicKey.toString('hex'), function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.eql('Account not found');
       done();
     });
@@ -347,7 +347,7 @@ describe('GET /accounts', function () {
 
   it('using invalid publicKey should fail', function (done) {
     getAccounts('publicKey=' + 'thisIsNOTAnAdamantAccountPublicKey', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       node.expect(res.body.error).to.contain('Object didn\'t pass validation for format publicKey: thisIsNOTAnAdamantAccountPublicKey');
       done();
@@ -356,7 +356,7 @@ describe('GET /accounts', function () {
 
   it('using invalid publicKey (integer) should fail', function (done) {
     getAccounts('publicKey=' + '123', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       node.expect(res.body.error).to.contain('Expected type string but found type integer');
       done();
@@ -365,7 +365,7 @@ describe('GET /accounts', function () {
 
   it('using empty publicKey should fail', function (done) {
     getAccounts('publicKey=', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       node.expect(res.body.error).to.contain('Missing required property: address or publicKey');
       done();
@@ -374,16 +374,16 @@ describe('GET /accounts', function () {
 
   it('using empty publicKey and address should fail', function (done) {
     getAccounts('publicKey=&address=', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
-      node.expect(res.body.error).to.contain('String is too short (0 chars), minimum 1');
+      node.expect(res.body.error).to.contain("Object didn't pass validation for format address");
       done();
     });
   });
 
   it('using known address and matching publicKey should be ok', function (done) {
     getAccounts('address=' + node.iAccount.address + '&publicKey=' + node.iAccount.publicKey, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('account').that.is.an('object');
       node.expect(res.body.account).to.have.property('address').to.equal(node.iAccount.address);
       node.expect(res.body.account).to.have.property('unconfirmedBalance').that.is.a('string');
@@ -400,7 +400,7 @@ describe('GET /accounts', function () {
 
   it('using known address and not matching publicKey should fail', function (done) {
     getAccounts('address=' + node.iAccount.address + '&publicKey=' + account.publicKey.toString('hex'), function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       node.expect(res.body.error).to.contain('Account publicKey does not match address');
       done();

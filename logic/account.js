@@ -509,9 +509,7 @@ Account.prototype.verifyPublicKey = function (publicKey) {
       throw 'Invalid public key, must be 64 characters long';
     }
     // Check format
-    try {
-      Buffer.from(publicKey, 'hex');
-    } catch (e) {
+    if (!/^[0-9A-Fa-f]+$/.test(publicKey)) {
       throw 'Invalid public key, must be a hex string';
     }
   }
@@ -680,7 +678,7 @@ Account.prototype.merge = function (address, diff, cb) {
   // Normalize address
   address = String(address).toUpperCase();
 
-  this.editable.forEach(function (value) {
+  for (const value of this.editable) {
     var val, i;
 
     if (diff[value] !== undefined) {
@@ -691,7 +689,9 @@ Account.prototype.merge = function (address, diff, cb) {
           break;
         case Number:
           if (isNaN(trueValue) || trueValue === Infinity) {
-            return setImmediate(cb, 'Encountered unsane number: ' + trueValue);
+            const error = new Error(`Encountered unsafe number: ${trueValue}`)
+            library.logger.error(error.stack, diff);
+            return setImmediate(cb, error.message);
           } else if (Math.abs(trueValue) === trueValue && trueValue !== 0) {
             update[value] = knex.raw('?? + ?', [value, Math.floor(trueValue)])
 
@@ -800,7 +800,7 @@ Account.prototype.merge = function (address, diff, cb) {
           break;
       }
     }
-  });
+  }
 
   var sqles = [];
 

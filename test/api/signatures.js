@@ -27,7 +27,7 @@ function sendADM (account, done) {
     amount: randomADM,
     recipientId: account.address
   }, function (err, res) {
-    node.expect(res.body).to.have.property('success').to.be.ok;
+    node.expect(res.body).to.have.property('success').to.be.true;
     done(err, res);
   });
 }
@@ -64,7 +64,7 @@ before(function (done) {
       delete validParams.secondSecret;
 
       putTransaction(validParams, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.not.ok;
+        node.expect(res.body).to.have.property('success').to.be.false;
         node.expect(res.body).to.have.property('error');
         done();
       });
@@ -74,7 +74,7 @@ before(function (done) {
       delete validParams.secret;
 
       putTransaction(validParams, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.not.ok;
+        node.expect(res.body).to.have.property('success').to.be.false;
         node.expect(res.body).to.have.property('error');
         done();
       });
@@ -102,7 +102,7 @@ describe('PUT /api/signatures', function () {
     validParams.secondSecret = account3.password;
 
     putSignature(validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.match(/Account does not have enough ADM: U[0-9]+ balance: 0/);
       done();
     });
@@ -112,7 +112,7 @@ describe('PUT /api/signatures', function () {
     validParams.secret = 'invalid';
 
     putSignature(validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.match(/API error: Mnemonic string is invalid: invalid/);
       done();
     });
@@ -122,7 +122,7 @@ describe('PUT /api/signatures', function () {
     delete validParams.secondSecret;
 
     putSignature(validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.match(/Missing required property: secondSecret/);
       done();
     });
@@ -130,7 +130,7 @@ describe('PUT /api/signatures', function () {
 
   it('using valid parameters should be ok', function (done) {
     putSignature(validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('transaction').that.is.an('object');
       node.expect(res.body.transaction).to.have.property('type').to.equal(node.txTypes.SIGNATURE);
       node.expect(res.body.transaction).to.have.property('senderPublicKey').to.equal(account.publicKeyHex);
@@ -157,7 +157,7 @@ describe('PUT /api/delegates from account with second signature enabled', functi
     delete validParams.secondSecret;
 
     putDelegate(validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       done();
     });

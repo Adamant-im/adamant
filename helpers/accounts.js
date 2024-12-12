@@ -8,18 +8,23 @@ var bignum = require('./bignum.js');
 var sodium = require('sodium-browserify-tweetnacl');
 
 let Mnemonic = require('bitcore-mnemonic');
+const { isPublicKey } = require('./publicKey.js');
 
 var accounts = {};
 
 /**
- * Gets address by public
+ * Gets address by public key
  * @private
  * @implements {crypto.createHash}
  * @implements {bignum.fromBuffer}
- * @param {publicKey} publicKey
- * @return {address} address
+ * @param {string} publicKey
+ * @return {string} The address matching the public key, or an empty string if an invalid public key was provided
  */
 accounts.getAddressByPublicKey = function (publicKey) {
+  if (!isPublicKey(publicKey)) {
+    return '';
+  }
+
   var publicKeyHash = crypto.createHash('sha256').update(publicKey, 'hex').digest();
   var temp = Buffer.alloc(8);
 

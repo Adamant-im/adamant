@@ -41,7 +41,7 @@ describe('POST /peer/transactions', function () {
         recipientId: collision.address
       });
       postTransaction(transaction, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.ok;
+        node.expect(res.body).to.have.property('success').to.be.true;
         node.onNewBlock(done);
       });
     });
@@ -56,7 +56,7 @@ describe('POST /peer/transactions', function () {
     //     });
 
     //     postTransaction(transaction, function (err, res) {
-    //       node.expect(res.body).to.have.property('success').to.be.not.ok;
+    //       node.expect(res.body).to.have.property('success').to.be.false;
     //       node.expect(res.body).to.have.property('message').to.equal('Failed to verify signature');
     //       done();
     //     });
@@ -70,7 +70,7 @@ describe('POST /peer/transactions', function () {
     //     });
 
     //     postTransaction(transaction, function (err, res) {
-    //       node.expect(res.body).to.have.property('success').to.be.not.ok;
+    //       node.expect(res.body).to.have.property('success').to.be.false;
     //       node.expect(res.body).to.have.property('message').to.equal('Failed to verify signature');
     //       done();
     //     });
@@ -90,7 +90,7 @@ describe('POST /peer/transactions', function () {
         });
 
         postTransaction(transaction, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.ok;
+          node.expect(res.body).to.have.property('success').to.be.true;
           done();
         });
       });
@@ -103,7 +103,7 @@ describe('POST /peer/transactions', function () {
       //   });
 
       //   postTransaction(transaction, function (err, res) {
-      //     node.expect(res.body).to.have.property('success').to.be.not.ok;
+      //     node.expect(res.body).to.have.property('success').to.be.false;
       //     const pk1 = 'b26dd40ba33e4785e49ddc4f106c0493ed00695817235c778f487aea5866400a';
       //     const pk2 = 'ce33db918b059a6e99c402963b42cf51c695068007ef01d8c383bb8a41270263';
       //     node.expect(res.body).to.have.property('message').to.equal(`Invalid sender public key: ${pk1} expected: ${pk2}`);

@@ -553,7 +553,7 @@ node.waitForNewBlock = function (height, blocksToWait, cb) {
             });
       },
       function (testCb) {
-        return testCb(null, actualHeight === height);
+        return testCb(null, target > height);
       },
       function (err) {
         if (err) {
@@ -677,7 +677,7 @@ node.randomAccount = function () {
   const keypair = node.accounts.makeKeypair(node.accounts.createPassPhraseHash(account.password));
   account.publicKey = keypair.publicKey; // node.lisk.crypto.getKeys(account.password).publicKey;
   account.publicKeyHex = keypair.publicKey.toString('hex');
-  account.address = node.accounts.getAddressByPublicKey(account.publicKey); // node.lisk.crypto.getAddress(account.publicKey);
+  account.address = node.accounts.getAddressByPublicKey(account.publicKey.toString('hex')); // node.lisk.crypto.getAddress(account.publicKey);
   account.keypair = keypair;
   return account;
 };
@@ -738,6 +738,10 @@ function abstractRequest (options, done) {
 
   if (done) {
     request.end(function (err, res) {
+      if (!res) {
+        console.log(err, res)
+      }
+
       node.debug('> Response:'.grey, JSON.stringify(res.body));
       done(err, res);
     });
