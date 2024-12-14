@@ -22,7 +22,8 @@ var ip = require('neoip');
  * @constructor
  * @return {Boolean} True if the format is valid
  */
-var z_schema = require('z-schema');
+const z_schema = require('z-schema');
+const semver = require('semver');
 const { isPublicKey } = require('./publicKey.js');
 
 z_schema.registerFormat('id', function (str) {
@@ -129,7 +130,7 @@ z_schema.registerFormat('version', function (str) {
     return true;
   }
 
-  return /^([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})([a-z]{1})?$/g.test(str);
+  return !!semver.valid(str);
 });
 
 // var registeredFormats = z_schema.getRegisteredFormats();
