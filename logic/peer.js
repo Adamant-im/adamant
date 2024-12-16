@@ -3,7 +3,7 @@
 var _ = require('lodash');
 var ip = require('neoip');
 
-const SUCCESS_RATE_POOL_SIZE = 10;
+const SUCCESS_RATE_POOL_SIZE = 25;
 
 /**
  * Creates a peer.
