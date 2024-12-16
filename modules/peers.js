@@ -299,6 +299,12 @@ Peers.prototype.update = function (peer) {
   return library.logic.peers.upsert(peer);
 };
 
+/**
+ * Returns whether the peer is in config peers list
+ * @param {string} ip
+ * @param {number} port
+ * @returns {boolean}
+ */
 Peers.prototype.isFrozen = function (ip, port) {
   const peers = library.config.peers.list;
 
@@ -326,12 +332,12 @@ Peers.prototype.remove = function (pip, port) {
 };
 
 /**
- * Record request success or error for peer.
+ * Updates the request success rate for the peer.
  * @implements logic.peers.recordRequest
- * @param {string} ip - Peer ip
+ * @param {string} ip
  * @param {number} port
- * @param {string?} error
- * @return {boolean} Calls peers.recordRequest
+ * @param {string?} error Provide the error in case of failed request
+ * @return {boolean} Returns `true` if peer has been updated
  */
 Peers.prototype.recordRequest = function (ip, port, error) {
   return library.logic.peers.recordRequest(

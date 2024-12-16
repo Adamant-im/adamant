@@ -99,9 +99,11 @@ __private.removePeer = function (options, extraMessage) {
 };
 
 /**
- * Record request success rate
- * @private
- * @param {Object} options - Error code if present and peer
+ * Updates the request success rate for the peer.
+ * Provide the error if the request has been failed.
+ * @implements modules.peers.recordRequest
+ * @param {{ip: string, port: number, error?: string}} options
+ * @return {boolean} Returns `true` if peer has been updated
  */
 __private.recordRequest = function (options) {
   return modules.peers.recordRequest(

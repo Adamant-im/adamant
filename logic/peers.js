@@ -167,10 +167,10 @@ Peers.prototype.remove = function (peer) {
 };
 
 /**
- * Record request success or error for peer.
- * @param {Peer} data
- * @param {string?} error
- * @return {boolean} `true` if peer is updated
+ * Finds the peer and updates the request success rate.
+ * @param {Peer | {ip: string, port: number}} data Peer's IP and port
+ * @param {string?} error Provide error of a request failed
+ * @return {boolean} `true` if peer is successfully updated
  */
 Peers.prototype.recordRequest = function (data, error) {
   if (!self.exists(data)) {

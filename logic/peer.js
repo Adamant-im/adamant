@@ -87,7 +87,7 @@ Peer.STATE = {
 
 // Public methods
 /**
- * Calculate requests success rate.
+ * Calculates requests success rate
  * @returns {number} Success percentage
  */
 Peer.prototype.calcSuccessRate = function () {
@@ -96,7 +96,8 @@ Peer.prototype.calcSuccessRate = function () {
 }
 
 /**
- * Record request success rate stats
+ * Updates success request count and state when more than 80% requests have failed
+ * @param {string?} error Provide error if a request failed
  */
 Peer.prototype.recordRequest = function (error) {
   if (error) {
