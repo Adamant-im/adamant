@@ -261,9 +261,14 @@ var modulesLoader = new function () {
   };
 };
 
-afterEach(() => {
-  removeQueuedJob(['transactionPoolNextBundle', 'transactionPoolNextExpiry', 'broadcasterNextRelease'])
-})
+after(() => {
+  removeQueuedJob([
+    'transactionPoolNextBundle',
+    'transactionPoolNextExpiry',
+    'broadcasterNextRelease',
+    'peersDiscoveryAndUpdate',
+  ]);
+});
 
 module.exports = {
   modulesLoader: modulesLoader

@@ -1,6 +1,6 @@
 {
   "name": "adamant",
-  "version": "0.8.4-dev.0",
+  "version": "0.8.4",
   "description": "ADAMANT Blockchain Node",
   "private": true,
   "scripts": {

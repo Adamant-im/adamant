@@ -99,6 +99,19 @@ __private.removePeer = function (options, extraMessage) {
 };
 
 /**
+ * Record request success rate
+ * @private
+ * @param {Object} options - Error code if present and peer
+ */
+__private.recordRequest = function (options) {
+  return modules.peers.recordRequest(
+    options.peer.ip,
+    options.peer.port,
+    options.error,
+  );
+}
+
+/**
  * Validates signatures body and for each signature calls receiveSignature.
  * @private
  * @implements {library.schema.validate}
@@ -398,13 +411,14 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
           }
 
           modules.peers.update(peer);
+          __private.recordRequest({ peer })
 
           return setImmediate(cb, null, { body: res.data, peer: peer });
         }
       })
       .catch((err) => {
         if (peer) {
-          __private.removePeer({ peer: peer, code: err.code }, req.method + ' ' + req.url);
+          __private.recordRequest({ peer: peer, error: err.code });
         }
 
         return setImmediate(cb, [err.code, 'Request failed', req.method, req.url].join(' '));

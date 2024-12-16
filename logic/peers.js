@@ -44,12 +44,11 @@ Peers.prototype.create = function (peer) {
 
 /**
  * Checks if peer is in peers list.
- * @param {peer} peer
+ * @param {Peer} peer
  * @return {boolean} True if peer is in peers list
  */
 Peers.prototype.exists = function (peer) {
-  peer = self.create(peer);
-  return !!__private.peers[peer.string];
+  return !!self.get(peer);
 };
 
 /**
@@ -165,6 +164,27 @@ Peers.prototype.remove = function (peer) {
     library.logger.debug('Failed to remove peer', { err: 'AREMOVED', peer: peer });
     return false;
   }
+};
+
+/**
+ * Record request success or error for peer.
+ * @param {Peer} data
+ * @param {string?} error
+ * @return {boolean} `true` if peer is updated
+ */
+Peers.prototype.recordRequest = function (data, error) {
+  if (!self.exists(data)) {
+    library.logger.debug('Failed to update request success rate for peer', {
+      peer: data,
+      err: error,
+    });
+    return false;
+  }
+
+  const peer = self.get(data);
+  peer.recordRequest(error);
+
+  return true;
 };
 
 /**

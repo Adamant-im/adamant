@@ -3,6 +3,8 @@
 var _ = require('lodash');
 var ip = require('neoip');
 
+const SUCCESS_RATE_POOL_SIZE = 10;
+
 /**
  * Creates a peer.
  * @memberof module:peers
@@ -72,6 +74,11 @@ Peer.prototype.nullable = [
   'updated'
 ];
 
+/**
+ * Amount of success requests for the last 25 tries
+ */
+Peer.prototype.successRequestCount = SUCCESS_RATE_POOL_SIZE;
+
 Peer.STATE = {
   BANNED: 0,
   DISCONNECTED: 1,
@@ -79,6 +86,36 @@ Peer.STATE = {
 };
 
 // Public methods
+/**
+ * Calculate requests success rate.
+ * @returns {number} Success percentage
+ */
+Peer.prototype.calcSuccessRate = function () {
+  const successRate = (this.successRequestCount / SUCCESS_RATE_POOL_SIZE) * 100;
+  return Math.round(successRate * 100) / 100;
+}
+
+/**
+ * Record request success rate stats
+ */
+Peer.prototype.recordRequest = function (error) {
+  if (error) {
+    this.successRequestCount = Math.max(
+      this.successRequestCount - 1,
+      0,
+    )
+  } else {
+    this.successRequestCount = Math.min(
+      this.successRequestCount + 1,
+      SUCCESS_RATE_POOL_SIZE,
+    )
+  }
+
+  if (this.state === Peer.STATE.CONNECTED && this.calcSuccessRate() < 80) {
+    this.state = Peer.STATE.DISCONNECTED;
+  }
+}
+
 /**
  * Checks peer properties and adjusts according rules.
  * @param {peer} peer

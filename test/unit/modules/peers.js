@@ -7,11 +7,17 @@ var sinon = require('sinon');
 var randomString = require('randomstring');
 var _ = require('lodash');
 
-var config = require('../../config.json');
+const config = require('../../config.json');
 
-const { removeQueuedJob } = require('../../common/globalAfter.js');
 const { validPeer } = require('../../common/stubs/peers.js');
+const Peer = require('../../../logic/peer.js');
 var modulesLoader = require('../../common/initModule').modulesLoader;
+
+const initialPeers = _.clone(config.peers.list);
+
+if (initialPeers.length === 0) {
+  config.peers.list.push(validPeer);
+}
 
 var currentPeers = [];
 
@@ -175,6 +181,83 @@ describe('peers', function () {
     });
   });
 
+  describe('isFrozen()', () => {
+    it('should return true for every peer from config', () => {
+      const configPeers = _.clone(initialPeers);
+
+      configPeers.forEach((peer) => {
+        const isFrozen = peers.isFrozen(peer.ip, peer.port);
+        expect(isFrozen).to.be.true;
+      });
+    });
+
+    it('should return true for random peers', () => {
+      const otherPeers = [
+        { ip: '192.168.0.1', port: '54321' },
+        { ip: '10.0.0.2', port: '12345' },
+        { ip: '172.16.0.3', port: '65432' },
+        { ip: '8.8.8.8', port: '8080' },
+        { ip: '192.168.1.4', port: '5000' },
+        { ip: '203.0.113.5', port: '3000' },
+        { ip: '10.1.2.3', port: '4000' },
+        { ip: '172.20.10.4', port: '6000' },
+        { ip: '192.0.2.1', port: '7000' },
+        { ip: '192.168.100.10', port: '8000' },
+        { ip: '10.10.10.10', port: '9000' },
+        { ip: '203.0.113.6', port: '10000' },
+      ];
+
+      otherPeers.forEach((peer) => {
+        const isFrozen = peers.isFrozen(peer.ip, peer.port);
+        expect(isFrozen).to.be.false;
+      });
+    });
+  });
+
+  describe('recordRequest()', () => {
+    function expectState(peer, state, done) {
+      peers.shared.getPeer({
+        body: { ip: peer.ip, port: peer.port }
+      }, (error, response) => {
+        expect(error).not.to.exist;
+
+        expect(response.success).to.be.true;
+        expect(response.peer).to.be.an('object')
+          .that.has.property('state')
+          .that.equals(state);
+
+        done()
+      });
+    }
+
+    it('should NOT disconnect from the peer after only 1 failed requests', (done) => {
+      const targetPeer = currentPeers[0];
+      peers.recordRequest(targetPeer.ip, targetPeer.port, 'ECONNRESET');
+
+      expectState(targetPeer, Peer.STATE.CONNECTED, done);
+    });
+
+    it('should disconnect from the peer after 10 failed requests', (done) => {
+      const targetPeer = currentPeers[0];
+
+      Array.from({ length: 10 }).forEach(() => {
+        peers.recordRequest(targetPeer.ip, targetPeer.port, 'ECONNRESET');
+      });
+
+      expectState(targetPeer, Peer.STATE.DISCONNECTED, done);
+    });
+
+    it('should reconnect to the peer after 10 success requests', (done) => {
+      const targetPeer = currentPeers[0];
+
+      Array.from({ length: 10 }).forEach(() => {
+        peers.recordRequest(targetPeer.ip, targetPeer.port);
+      });
+
+      expectState(targetPeer, Peer.STATE.CONNECTED, done);
+    });
+  });
+
   describe('remove', function () {
     before(function (done) {
       peers.update(validPeer);
@@ -270,11 +353,7 @@ describe('peers', function () {
 
     it('should update peers during onBlockchainReady', function (done) {
       sinon.stub(peers, 'discover').callsArgWith(0, null);
-      var config = require('../../config.json');
-      var initialPeers = _.clone(config.peers.list);
-      if (initialPeers.length === 0) {
-        config.peers.list.push(validPeer);
-      }
+
       peers.onBlockchainReady();
       setTimeout(function () {
         expect(peers.discover.calledOnce).to.be.true;
