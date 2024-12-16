@@ -60,7 +60,8 @@ Node.prototype.onBind = function (scope) {
   modules = {
     blocks: scope.blocks,
     transport: scope.transport,
-    system: scope.system
+    system: scope.system,
+    loader: scope.loader,
   };
 };
 
@@ -121,6 +122,14 @@ Node.prototype.shared = {
     }
     return setImmediate(cb, null,
         {
+          loader: {
+            loaded: modules.loader.loaded(),
+            now: modules.loader.getHeight(),
+            syncing: modules.loader.syncing(),
+            consensus: modules.transport.consensus(),
+            blocks: modules.loader.getBlocksToSync(),
+            blocksCount: modules.loader.getTotalBlocks(),
+          },
           network: {
             broadhash: modules.system.getBroadhash(),
             epoch: constants.epochTime,
