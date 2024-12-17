@@ -38,8 +38,8 @@ module.exports = {
           type: ['boolean', 'string', 'array']
         },
         methods: {
-          type: 'array'
-        }
+          type: ['string', 'array']
+        },
       },
       db: {
         type: 'object',
@@ -298,11 +298,25 @@ module.exports = {
         },
         required: ['masterrequired', 'masterpassword', 'autoexec']
       },
+      wsClient: {
+        type: 'object',
+        properties: {
+          portWS: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 65535
+          },
+          enabled: {
+            type: 'boolean'
+          }
+        },
+        required: ['portWS', 'enabled']
+      },
       nethash: {
         type: 'string',
         format: 'hex'
       }
     },
-    required: ['port', 'address', 'fileLogLevel', 'logFileName', 'consoleLogLevel', 'trustProxy', 'topAccounts', 'db', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'dapp', 'nethash', 'cacheEnabled', 'redis']
+    required: ['port', 'address', 'fileLogLevel', 'logFileName', 'consoleLogLevel', 'trustProxy', 'topAccounts', 'cacheEnabled', 'db', 'redis', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'dapp', 'wsClient', 'nethash']
   }
 };
