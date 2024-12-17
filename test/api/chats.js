@@ -7,17 +7,23 @@ const node = require('./../node.js');
 const { iAccount } = require('../common/stubs/account.js');
 const transactionTypes = require('../../helpers/transactionTypes.js');
 
-function getTransactions (params, done) {
-  const args = Object.keys(params).map((key) => `${key}=${params[key]}`);
-  node.get(`/api/chats/get${args.length > 0 ?'?' + args.join('&') : ''}`, done);
+function getTransactions(params, done) {
+  const queryString = new URLSearchParams(params).toString();
+  node.get(`/api/chats/get${queryString ? `?${queryString}` : ''}`, done);
 }
 
 const test = it;
 
 describe('GET /api/chats/get', () => {
   describe('?withoutDirectTransfers', () => {
+    let options;
+
+    beforeEach(() => {
+      options = { senderId: iAccount.address };
+    });
+
     it('should return transactions only with chat message type by default', (done) => {
-      getTransactions({ senderId: iAccount.address }, (err, response) => {
+      getTransactions(options, (err, response) => {
         expect(err).not.to.exist;
         expect(response.body)
           .to.have.property('transactions')
@@ -33,7 +39,9 @@ describe('GET /api/chats/get', () => {
     });
 
     it('should return transactions of both chat message and transfer types when withoutDirectTransfers=0', (done) => {
-      getTransactions({ senderId: iAccount.address, withoutDirectTransfers: 0 }, (err, response) => {
+      options.withoutDirectTransfers = 0;
+
+      getTransactions(options, (err, response) => {
         expect(err).not.to.exist;
         expect(response.body)
           .to.have.property('transactions')
@@ -67,7 +75,9 @@ describe('GET /api/chats/get', () => {
 
       values.forEach((value) => {
         test(`withoutDirectTransfers=${value}`, (done) => {
-          getTransactions({ senderId: iAccount.address, withoutDirectTransfers: value }, (err, response) => {
+          options.withoutDirectTransfers = value;
+
+          getTransactions(options, (err, response) => {
             expect(err).not.to.exist;
             expect(response.body)
               .to.have.property('transactions')
