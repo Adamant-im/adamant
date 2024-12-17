@@ -85,12 +85,15 @@ Transaction.prototype.create = function (data) {
     throw 'Invalid keypair';
   }
 
+  const timestampMs = slots.getTimeMs();
+
   var trs = {
     type: data.type,
     amount: 0,
     senderPublicKey: data.sender.publicKey,
     requesterPublicKey: data.requester ? data.requester.publicKey.toString('hex') : null,
-    timestamp: slots.getTime(),
+    timestamp: Math.floor(timestampMs / 1000),
+    timestampMs,
     asset: {}
   };
 
@@ -476,6 +479,10 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
     return setImmediate(cb, 'Missing sender');
   }
 
+  if (typeof trs.timestampMs !== 'number') {
+    return setImmediate(cb, 'Missing timestampMs');
+  }
+
   // Check transaction type
   if (!__private.types[trs.type]) {
     return setImmediate(cb, 'Unknown transaction type ' + trs.type);
@@ -647,8 +654,24 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
   if (trs.timestamp < INT_32_MIN || trs.timestamp > INT_32_MAX) {
     return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is not in the int32 range');
   }
-  if (slots.getSlotNumber(trs.timestamp) > slots.getSlotNumber()) {
+
+  if (Math.abs(trs.timestampMs - trs.timestamp * 1000) >= 1000) {
+    return setImmediate(cb, 'Invalid transaction timestamp. Timestamp and timestampMs delta is greater than 1000ms');
+  }
+
+  const currentTime = slots.getTime();
+
+  const currentSlotNumber = slots.getSlotNumber(currentTime);
+  const transactionSlotNumber = slots.getSlotNumber(trs.timestamp);
+
+  if (transactionSlotNumber > currentSlotNumber) {
     return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is in the future');
+  }
+
+  // Transaction may be maximum 15 seconds behind the node
+  const earliestValidTime = currentTime - 15;
+  if (transactionSlotNumber < slots.getSlotNumber(earliestValidTime)) {
+    return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is more than 15 seconds in the past');
   }
 
   // Call verify on transaction type
@@ -975,6 +998,7 @@ Transaction.prototype.dbFields = [
   'blockId',
   'type',
   'timestamp',
+  'timestampMs',
   'senderPublicKey',
   'requesterPublicKey',
   'senderId',
@@ -1017,6 +1041,7 @@ Transaction.prototype.dbSave = function (trs) {
       blockId: trs.blockId,
       type: trs.type,
       timestamp: trs.timestamp,
+      timestampMs: trs.timestampMs,
       senderPublicKey: senderPublicKey,
       requesterPublicKey: requesterPublicKey,
       senderId: trs.senderId,
@@ -1066,6 +1091,7 @@ Transaction.prototype.afterSave = function (trs, cb) {
  * @property {string} blockId
  * @property {number} type
  * @property {number} timestamp
+ * @property {number} timestampMs
  * @property {publicKey} senderPublicKey
  * @property {publicKey} requesterPublicKey
  * @property {string} senderId
@@ -1106,6 +1132,9 @@ Transaction.prototype.schema = {
       type: 'integer'
     },
     timestamp: {
+      type: 'integer'
+    },
+    timestampMs: {
       type: 'integer'
     },
     senderPublicKey: {
@@ -1150,7 +1179,7 @@ Transaction.prototype.schema = {
       type: 'object'
     }
   },
-  required: ['type', 'timestamp', 'senderPublicKey', 'signature']
+  required: ['type', 'timestamp', 'timestampMs', 'senderPublicKey', 'signature']
 };
 
 /**
@@ -1207,6 +1236,7 @@ Transaction.prototype.dbRead = function (raw) {
       type: parseInt(raw.t_type),
       block_timestamp: parseInt(raw.block_timestamp),
       timestamp: parseInt(raw.t_timestamp),
+      timestampMs: parseInt(raw.t_timestampMs),
       senderPublicKey: raw.t_senderPublicKey,
       requesterPublicKey: raw.t_requesterPublicKey,
       senderId: raw.t_senderId,

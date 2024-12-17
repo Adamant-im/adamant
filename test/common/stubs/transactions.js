@@ -27,6 +27,7 @@ const existingTransactionWithAsset = {
 const unconfirmedTransaction = {
   type: 0,
   timestamp: 228144202,
+  timestampMs: 228144202000,
   amount: 50000000,
   fee: 50000000,
   senderPublicKey:

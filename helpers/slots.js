@@ -28,7 +28,7 @@ function getEpochTime (time) {
   var d = beginEpochTime();
   var t = d.getTime();
 
-  return Math.floor((time - t) / 1000);
+  return time - t;
 }
 /**
  * @namespace
@@ -50,6 +50,15 @@ module.exports = {
    * @return {number} ADAMANT epoch time constant.
    */
   getTime: function (time) {
+    return Math.floor(getEpochTime(time) / 1000);
+  },
+
+  /**
+   * @method
+   * @param {number?} time
+   * @return {number} ADAMANT epoch time in ms.
+   */
+  getTimeMs: function (time) {
     return getEpochTime(time);
   },
 

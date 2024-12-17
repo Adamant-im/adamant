@@ -19,7 +19,7 @@ const State = require('../../../logic/state.js');
 const { modulesLoader } = require('../../common/initModule.js');
 const transactionTypes = require('../../../helpers/transactionTypes.js');
 
-const { removeQueuedJob } = require('../../common/globalAfter.js');
+const { validSenderKeyPair } = require('../../common/stubs/transactions/common.js');
 
 const {
   testAccount,
@@ -34,12 +34,17 @@ const {
   existingTransactionWithAsset,
 } = require('../../common/stubs/transactions.js');
 const { genesisBlockId } = require('../../common/stubs/blocks.js');
+const slots = require('../../../helpers/slots.js');
 
 describe('transactions', function () {
   /**
    * @type {Transactions}
    */
   let transactions;
+  /**
+   * @type {Transaction}
+   */
+  let transaction;
   let modules;
 
   before(() => {
@@ -47,10 +52,12 @@ describe('transactions', function () {
   });
 
   before(function (done) {
-    modulesLoader.initLogicWithDb(Transaction, (err, transaction) => {
+    modulesLoader.initLogicWithDb(Transaction, (err, __transaction) => {
       if (err) {
         throw err;
       }
+
+      transaction = __transaction;
 
       transaction.attachAssetType(transactionTypes.VOTE, new Vote());
       transaction.attachAssetType(transactionTypes.SEND, new Transfer());
@@ -786,6 +793,12 @@ describe('transactions', function () {
 
     describe('transactions in pool', () => {
       beforeEach((done) => {
+        unconfirmedTransaction.timestamp = slots.getTime();
+        unconfirmedTransaction.timestampMs = slots.getTimeMs();
+
+        delete unconfirmedTransaction.signature;
+        unconfirmedTransaction.signature = transaction.sign(validSenderKeyPair, unconfirmedTransaction);
+
         transactions.receiveTransactions([unconfirmedTransaction], true, done);
       });
 

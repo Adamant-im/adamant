@@ -18,6 +18,7 @@ const validTransaction = {
   type: 0,
   block_timestamp: null,
   timestamp: 0,
+  timestampMs: 0,
   senderPublicKey:
     'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae',
   senderId: 'U15365455923155964650',
@@ -56,6 +57,7 @@ const validUnconfirmedTransaction = {
   recipientId: 'U7771441689362721578',
   fee: 50000000,
   timestamp: 1000,
+  timestampMs: 1000000,
   asset: {}
 };
 

@@ -33,6 +33,7 @@ const firstTransfer = {
   type: 0,
   block_timestamp: 224138470,
   timestamp: 224138454,
+  timestampMs: 224138454000,
   senderPublicKey:
     'b0b4d346382aa07b23c0b733d040424532201b9eb22004b66a79d4b44e9d1449',
   senderId: 'U9781760580710719871',
@@ -55,6 +56,7 @@ const secondTransfer = {
   type: 0,
   block_timestamp: 224138470,
   timestamp: 224138455,
+  timestampMs: 224138455000,
   senderPublicKey:
     'b0b4d346382aa07b23c0b733d040424532201b9eb22004b66a79d4b44e9d1449',
   senderId: 'U9781760580710719871',
@@ -77,6 +79,7 @@ const firstMessage = {
   type: 8,
   block_timestamp: 224138470,
   timestamp: 224138456,
+  timestampMs: 224138456000,
   senderPublicKey:
     'b0b4d346382aa07b23c0b733d040424532201b9eb22004b66a79d4b44e9d1449',
   senderId: 'U9781760580710719871',
@@ -105,6 +108,7 @@ const secondMessage = {
   type: 8,
   block_timestamp: 224138470,
   timestamp: 224138458,
+  timestampMs: 224138458000,
   senderPublicKey:
     'b0b4d346382aa07b23c0b733d040424532201b9eb22004b66a79d4b44e9d1449',
   senderId: 'U9781760580710719871',

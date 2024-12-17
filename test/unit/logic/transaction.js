@@ -110,6 +110,10 @@ describe('transaction', () => {
     );
   });
 
+  before(() => {
+
+  });
+
   describe('create()', () => {
     it('should throw an error with no param', () => {
       expect(transaction.create).to.throw();
@@ -682,7 +686,12 @@ describe('transaction', () => {
 
     it('should verify transaction with correct fee (without data field)', (done) => {
       let trs = _.cloneDeep(validUnconfirmedTransaction);
+
+      trs.timestamp = slots.getTime();
+      trs.timestampMs = slots.getTimeMs();
+
       trs.signature = transaction.sign(testSenderKeypair, trs);
+
       transaction.verify(trs, testSender, {}, (err) => {
         expect(err).to.not.exist;
         done();
@@ -742,8 +751,65 @@ describe('transaction', () => {
       });
     });
 
+    it('should return error on timestamp that is 16 seconds in the past', (done) => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestamp = slots.getTime() - 100;
+      trs.timestampMs = trs.timestamp * 1000;
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+      transaction.verify(trs, testSender, {}, (err) => {
+        expect(err).to.include('Invalid transaction timestamp');
+        done();
+      });
+    });
+
+    it('should return error when timestampMs is not provided', (done) => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      delete trs.timestampMs;
+      transaction.verify(trs, testSender, {}, (err) => {
+        expect(err).to.include('Missing timestampMs');
+        done();
+      });
+    });
+
+    it('should return error when timestampMs is less than timestamp by a second', (done) => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+
+      trs.timestamp = slots.getTime();
+      const timestampMs = trs.timestamp * 1000;
+      trs.timestampMs = timestampMs - 1000;
+
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+
+      transaction.verify(trs, testSender, {}, (err) => {
+        expect(err).to.include('Invalid transaction timestamp. Timestamp and timestampMs delta is greater than 1000ms');
+        done();
+      });
+    });
+
+    it('should return error when timestampMs is greater than timestamp by a second', (done) => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+
+      trs.timestamp = slots.getTime();
+      const timestampMs = trs.timestamp * 1000;
+      trs.timestampMs = timestampMs + 1000;
+
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+
+      transaction.verify(trs, testSender, {}, (err) => {
+        expect(err).to.include('Invalid transaction timestamp. Timestamp and timestampMs delta is greater than 1000ms');
+        done();
+      });
+    });
+
     it('should verify proper transaction with proper sender', (done) => {
       let trs = _.cloneDeep(validUnconfirmedTransaction);
+
+      trs.timestamp = slots.getTime();
+      trs.timestampMs = slots.getTimeMs();
+
       trs.signature = transaction.sign(testSenderKeypair, trs);
       transaction.verify(trs, testSender, {}, (err) => {
         expect(err).to.not.be.ok;
@@ -1079,7 +1145,7 @@ describe('transaction', () => {
         .which.is.equal(trs.signatures.join(','));
     });
 
-    it('should return promise object for valid parameters', () => {
+    it('should return query object for valid parameters', () => {
       const saveQuery = transaction.dbSave(validTransaction);
       const keys = ['table', 'fields', 'values'];
       const valuesKeys = [
@@ -1087,6 +1153,7 @@ describe('transaction', () => {
         'blockId',
         'type',
         'timestamp',
+        'timestampMs',
         'senderPublicKey',
         'requesterPublicKey',
         'senderId',
@@ -1128,7 +1195,7 @@ describe('transaction', () => {
     it('should not remove any keys with valid entries', () => {
       expect(
         _.keys(transaction.objectNormalize(validTransaction))
-      ).to.have.length(11);
+      ).to.have.length(12);
     });
 
     it('should throw error for invalid schema types', () => {
@@ -1162,6 +1229,7 @@ describe('transaction', () => {
         'block_timestamp',
         'type',
         'timestamp',
+        'timestampMs',
         'senderPublicKey',
         'requesterPublicKey',
         'senderId',
