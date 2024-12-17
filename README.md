@@ -127,6 +127,8 @@ vim config.json
 
 Make the necessary changes to the configuration values in the file. At minimum, you should change the value of the `db.password` property to your actual database password.
 
+See [Documentation for configuration file](https://github.com/Adamant-im/adamant/wiki/Configuration) for details.
+
 ### Bootstrap with a blockchain image
 
 A blockchain image saves time on node sync, but you must completely trust the image. If you skip this step, your node will check every single transaction, which takes time (up to several days).
