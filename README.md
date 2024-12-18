@@ -160,6 +160,10 @@ npm run start:testnet
 
 The testnet explorer is available at [testnet.adamant.im](https://testnet.adamant.im/).
 
+#### test nodes
+
+You can view the IPs and ports of the running test nodes in the [test/config.default.json](./test/config.default.json) file.
+
 ### Bootstrap with a blockchain image
 
 A blockchain image saves time on node sync, but you must completely trust the image. If you skip this step, your node will check every single transaction, which takes time (up to several days).
