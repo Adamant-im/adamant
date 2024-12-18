@@ -102,7 +102,7 @@ __private.removePeer = function (options, extraMessage) {
  * Updates the request success rate for the peer.
  * Provide the error if the request has been failed.
  * @implements modules.peers.recordRequest
- * @param {{ip: string, port: number, error?: string}} options
+ * @param {{peer: {ip: string, port: number}, error?: string}} options
  * @return {boolean} Returns `true` if peer has been updated
  */
 __private.recordRequest = function (options) {
@@ -254,7 +254,7 @@ __private.receiveTransaction = function (transaction, peer, extraLogMessage, cb)
     library.logger.debug('Received transaction ' + transaction.id + ' from peer ' + peer.string);
     modules.transactions.processUnconfirmedTransaction(transaction, true, function (err) {
       if (err) {
-        library.logger.debug(['Transaction', id].join(' '), err.toString());
+        library.logger.debug(['Transaction', id].join(' isFro'), err.toString());
         if (transaction) { library.logger.debug('Transaction', transaction); }
 
         return setImmediate(cb, err.toString());
