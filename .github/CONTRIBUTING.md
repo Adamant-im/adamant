@@ -24,7 +24,17 @@ npm run test:single test/path/to/the/test.js
 
 If you have changed any common files (e.g., files inside `test/common/`, `test/node.js` package, etc.), consider running all tests:
 
-```
+```sh
+# run all unit tests
+npm run test:unit
+
+# run only fast unit tests (excluding time-consuming ones)
+npm run test:unit:fast
+
+# run all API tests
+npm run test:api
+
+# run both unit and API tests
 npm run test:all
 ```
 
@@ -52,13 +62,13 @@ Since we use the Chai package for assertions, we have a few rules for consistenc
   expect(true).to.be.true;
   ```
 
-- **Use `to.not` instead of `not.to`**
+- **Use `not.to` instead of `to.not`**
 
   Prefer `not.to` for convention:
 
   ```js
   // ❌
-  expect(true).to.not.equal(false);
+  expect(true).to.not.be.false;
   // ✅
   expect(true).not.to.be.false;
   ```
