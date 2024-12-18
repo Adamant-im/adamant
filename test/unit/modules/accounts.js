@@ -19,7 +19,6 @@ const {
   invalidPublicKey,
   invalidAddress,
 } = require('../../common/stubs/account.js');
-const { removeQueuedJob } = require('../../common/globalAfter.js');
 
 describe('accounts', function () {
   /**

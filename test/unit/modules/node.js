@@ -3,7 +3,6 @@
 const { expect } = require('chai');
 const semver = require('semver');
 
-const { removeQueuedJob } = require('../../common/globalAfter.js');
 const { modulesLoader } = require('../../common/initModule.js');
 const { isHex } = require('../../common/assert.js');
 

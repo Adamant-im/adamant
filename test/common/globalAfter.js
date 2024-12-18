@@ -1,7 +1,7 @@
 const jobsQueue = require('../../helpers/jobsQueue.js');
 
-function removeQueuedJob(names) {
-  names.forEach((name) => {
+function removeQueuedJobs() {
+  Object.keys(jobsQueue.jobs).forEach((name) => {
     const timeout = jobsQueue.jobs[name];
     clearTimeout(timeout);
     delete jobsQueue.jobs[name];
@@ -9,5 +9,5 @@ function removeQueuedJob(names) {
 }
 
 module.exports = {
-  removeQueuedJob,
+  removeQueuedJobs,
 };

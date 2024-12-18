@@ -1,9 +1,7 @@
 'use strict';
 
-const whyIsNodeRunning = require('why-is-node-running')
 const { expect } = require('chai');
 
-const { removeQueuedJob } = require('../../common/globalAfter.js');
 const { modulesLoader } = require('../../common/initModule.js');
 const {
   testAccount,
