@@ -160,7 +160,7 @@ npm run start:testnet
 
 The testnet explorer is available at [testnet.adamant.im](https://testnet.adamant.im/).
 
-#### test nodes
+#### Test nodes
 
 You can view the IPs and ports of the running test nodes in the [test/config.default.json](./test/config.default.json) file.
 
