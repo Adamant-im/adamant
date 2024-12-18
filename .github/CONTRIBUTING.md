@@ -2,6 +2,8 @@
 
 To be merged, pull requests **MUST** include tests for any new features or bug fixes.
 
+### Structure
+
 The tests are located in the test/ directory. The structure of the directory is as follows:
 - `api/` - End-to-end tests that require running a local test node.
 - `unit/` - Unit tests that DO NOT require running a test node.
@@ -15,6 +17,16 @@ The tests are located in the test/ directory. The structure of the directory is 
 All tests inside `api/` and `unit/` should mirror (as much as possible) the structure of the project. For example, unit tests for the `modules/blocks.js` module should be located in the `test/unit/modules/blocks.js` file.
 
 ### Commands
+
+> [!NOTE]
+> API tests require the `testnet` node to be running in parallel during their execution, whereas unit tests require the `testnet` to be run at least once:
+>
+> ```
+> npm run start:testnet
+> ```
+>
+> See [Test Environment](../README.md#Test-Environment) for reference.
+
 
 To run a single test file, use the following command:
 
