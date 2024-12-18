@@ -254,7 +254,7 @@ __private.receiveTransaction = function (transaction, peer, extraLogMessage, cb)
     library.logger.debug('Received transaction ' + transaction.id + ' from peer ' + peer.string);
     modules.transactions.processUnconfirmedTransaction(transaction, true, function (err) {
       if (err) {
-        library.logger.debug(['Transaction', id].join(' isFro'), err.toString());
+        library.logger.debug(['Transaction', id].join(' '), err.toString());
         if (transaction) { library.logger.debug('Transaction', transaction); }
 
         return setImmediate(cb, err.toString());
