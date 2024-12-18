@@ -34,12 +34,14 @@ module.exports = {
       },
       cors: {
         type: 'object',
-        origin: {
-          type: ['boolean', 'string', 'array']
-        },
-        methods: {
-          type: ['string', 'array']
-        },
+        properties: {
+          origin: {
+            type: ['boolean', 'string', 'array']
+          },
+          methods: {
+            type: ['string', 'array']
+          }
+        }
       },
       db: {
         type: 'object',
@@ -213,10 +215,12 @@ module.exports = {
       },
       transactions: {
         type: 'object',
-        maxTxsPerQueue: {
-          type: 'integer',
-          minimum: 100,
-          maximum: 5000
+        properties: {
+          maxTxsPerQueue: {
+            type: 'integer',
+            minimum: 100,
+            maximum: 5000
+          }
         },
         required: ['maxTxsPerQueue']
       },
