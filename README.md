@@ -127,6 +127,8 @@ vim config.json
 
 Make the necessary changes to the configuration values in the file. At minimum, you should change the value of the `db.password` property to your actual database password.
 
+See [Documentation for configuration file](https://github.com/Adamant-im/adamant/wiki/Configuration) for details.
+
 ### Test Environment
 
 You may want to test the node in a safe environment before running a `mainnet` node. The `testnet` configuration allows to experiment and run tests without affecting the `mainnet`.

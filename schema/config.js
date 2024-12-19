@@ -34,11 +34,13 @@ module.exports = {
       },
       cors: {
         type: 'object',
-        origin: {
-          type: ['boolean', 'string', 'array']
-        },
-        methods: {
-          type: 'array'
+        properties: {
+          origin: {
+            type: ['boolean', 'string', 'array']
+          },
+          methods: {
+            type: ['string', 'array']
+          }
         }
       },
       db: {
@@ -213,10 +215,12 @@ module.exports = {
       },
       transactions: {
         type: 'object',
-        maxTxsPerQueue: {
-          type: 'integer',
-          minimum: 100,
-          maximum: 5000
+        properties: {
+          maxTxsPerQueue: {
+            type: 'integer',
+            minimum: 100,
+            maximum: 5000
+          }
         },
         required: ['maxTxsPerQueue']
       },
@@ -298,11 +302,25 @@ module.exports = {
         },
         required: ['masterrequired', 'masterpassword', 'autoexec']
       },
+      wsClient: {
+        type: 'object',
+        properties: {
+          portWS: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 65535
+          },
+          enabled: {
+            type: 'boolean'
+          }
+        },
+        required: ['portWS', 'enabled']
+      },
       nethash: {
         type: 'string',
         format: 'hex'
       }
     },
-    required: ['port', 'address', 'fileLogLevel', 'logFileName', 'consoleLogLevel', 'trustProxy', 'topAccounts', 'db', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'dapp', 'nethash', 'cacheEnabled', 'redis']
+    required: ['port', 'address', 'fileLogLevel', 'logFileName', 'consoleLogLevel', 'trustProxy', 'topAccounts', 'cacheEnabled', 'db', 'redis', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'dapp', 'wsClient', 'nethash']
   }
 };
