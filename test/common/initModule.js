@@ -21,7 +21,7 @@ var Transaction = require('../../logic/transaction.js');
 var Account = require('../../logic/account.js');
 var accounts = require('../../helpers/accounts');
 var Sequence = require('../../helpers/sequence.js');
-const { removeQueuedJob } = require('../common/globalAfter.js');
+const { removeQueuedJobs } = require('../common/globalAfter.js');
 
 var modulesLoader = new function () {
   this.db = null;
@@ -261,9 +261,9 @@ var modulesLoader = new function () {
   };
 };
 
-afterEach(() => {
-  removeQueuedJob(['transactionPoolNextBundle', 'transactionPoolNextExpiry', 'broadcasterNextRelease'])
-})
+afterEach(() =>
+  removeQueuedJobs()
+)
 
 module.exports = {
   modulesLoader: modulesLoader

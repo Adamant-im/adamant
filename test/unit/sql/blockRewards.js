@@ -3,7 +3,7 @@
 var chai = require('chai');
 var expect = require('chai').expect;
 
-var sql = require('../../sql/blockRewards.js');
+var sql = require('../../common/sql/blockRewards.js');
 var constants = require('../../../helpers/constants.js');
 var modulesLoader = require('../../common/initModule').modulesLoader;
 var db;
