@@ -1,15 +1,12 @@
 'use strict';
 
-var chai = require('chai');
 var expect = require('chai').expect;
-var express = require('express');
 var sinon = require('sinon');
 var randomString = require('randomstring');
 var _ = require('lodash');
 
 var config = require('../../config.json');
 
-const { removeQueuedJob } = require('../../common/globalAfter.js');
 const { validPeer } = require('../../common/stubs/peers.js');
 var modulesLoader = require('../../common/initModule').modulesLoader;
 
