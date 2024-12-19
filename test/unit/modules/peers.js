@@ -1,8 +1,6 @@
 'use strict';
 
-var chai = require('chai');
 var expect = require('chai').expect;
-var express = require('express');
 var sinon = require('sinon');
 var randomString = require('randomstring');
 var _ = require('lodash');
