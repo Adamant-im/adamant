@@ -89,7 +89,7 @@ describe('node', function () {
             'blocks',
             'blocksCount',
           ];
-          expect(response.loader).to.be.an('object').that.have.keys(loaderKeys);
+          expect(response.loader).to.be.an('object').that.has.keys(loaderKeys);
 
           expect(isHex(response.network.broadhash)).to.be.true;
 
