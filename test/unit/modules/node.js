@@ -78,8 +78,18 @@ describe('node', function () {
       it('should return valid node status', (done) => {
         nodeModule.shared.getStatus({}, (err, response) => {
           expect(err).not.to.exist;
-          const keys = ['network', 'version', 'wsClient'];
+          const keys = ['loader', 'network', 'version', 'wsClient'];
           expect(response).to.have.keys(keys);
+
+          const loaderKeys = [
+            'loaded',
+            'now',
+            'syncing',
+            'consensus',
+            'blocks',
+            'blocksCount',
+          ];
+          expect(response.loader).to.be.an('object').that.have.keys(loaderKeys);
 
           expect(isHex(response.network.broadhash)).to.be.true;
 
