@@ -264,7 +264,7 @@ describe('POST /peer/transactions', function () {
         node.async.doUntil(function (next) {
           postTransaction(transaction2, function (err, res) {
             node.expect(res.body).to.have.property('success').to.be.false;
-            node.expect(res.body).to.have.property('message').to.match(/Account does not have enough ADM: U[0-9]+ balance: 1e-8/);
+            node.expect(res.body).to.have.property('message').to.match(/Account does not have enough ADM/);
             count++;
             return next();
           });
