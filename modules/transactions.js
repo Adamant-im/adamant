@@ -6,6 +6,7 @@ var constants = require('../helpers/constants.js');
 var crypto = require('crypto');
 var extend = require('extend');
 var OrderBy = require('../helpers/orderBy.js');
+const accounts = require('../helpers/accounts');
 var sandboxHelper = require('../helpers/sandbox.js');
 var schema = require('../schema/transactions.js');
 var sql = require('../sql/transactions.js');
@@ -388,6 +389,117 @@ Transactions.prototype.transactionInPool = function (id) {
 Transactions.prototype.getUnconfirmedTransaction = function (id) {
   return __private.transactionPool.getUnconfirmedTransaction(id);
 };
+
+
+/**
+ * Merge unconfirmed transactions in a sorted array
+ *
+ * @param {Array<Transaction>} targetArray Sorted array to merge unconfirmed transactions into
+ * @param {Array<UnconfirmedTransaction>} unconfirmedTransactions Array of unconfirmed transactions to merge
+ * @param {OrderBy} orderBy options for transactions order. See `helpers/orderBy.js`
+ * @param {number?} limit maximum amount of transactions in the final array
+ */
+Transactions.prototype.mergeUnconfirmedTransactions = function (
+  targetArray,
+  unconfirmedTransactions,
+  orderBy,
+  limit,
+) {
+  const { sortField, sortMethod } = orderBy;
+
+  const compare = (a, b) => {
+    if (a[sortField] < b[sortField]) return sortMethod === 'ASC' ? -1 : 1;
+    if (a[sortField] > b[sortField]) return sortMethod === 'ASC' ? 1 : -1;
+    return 0;
+  };
+
+  const mergedArray = [];
+
+  let i = 0;
+  let j = 0;
+
+  while (i < targetArray.length && j < unconfirmedTransactions.length) {
+    if (compare(targetArray[i], unconfirmedTransactions[j]) <= 0) {
+      mergedArray.push(targetArray[i++]);
+    } else {
+      mergedArray.push(unconfirmedTransactions[j++]);
+    }
+  }
+
+  while (i < targetArray.length) {
+    mergedArray.push(targetArray[i++]);
+  }
+  while (j < unconfirmedTransactions.length) {
+    mergedArray.push(unconfirmedTransactions[j++]);
+  }
+
+  return limit ? mergedArray.slice(0, limit) : mergedArray
+}
+
+Transactions.prototype.getUnconfirmedTransactions = function (filter, defaultCondition = 'AND') {
+  let transactions = this.getUnconfirmedTransactionList();
+
+  if (filter?.constructor !== Object) {
+    throw new Error('filter should be of type "object"');
+  }
+
+  if (JSON.stringify(filter) === '{}') {
+    return transactions;
+  }
+
+  if ('isIn' in filter && 'inId' in filter) {
+    // prioritize isIn as api/chats/get does
+    delete filter.inId;
+  }
+
+  transactions = transactions.filter((transaction) => {
+    const matches = {
+      type: (value) => transaction.type === value,
+      minAmount: (value) => transaction.amount >= value,
+      maxAmount: (value) => transaction.amount <= value,
+      senderId: (value) => transaction.senderId === value,
+      recipientId: (value) => transaction.recipientId === value,
+      inId: (value) => transaction.senderId === value || transaction.recipientId === value,
+      isIn: (value) => transaction.senderId === value || transaction.recipientId === value,
+      senderPublicKey: (value) => transaction.senderPublicKey === value,
+      recipientPublicKey: (value) => {
+        return accounts.getAddressByPublicKey(value) === transaction.recipientId;
+      },
+      fromTimestamp: (value) => transaction.timestamp >= value,
+      toTimestamp: (value) => transaction.timestamp <= value,
+      types: (value) => value?.includes(transaction.type),
+      senderIds: (value) => value?.includes(transaction.senderId),
+      recipientIds: (value) => value?.includes(transaction.recipientId),
+      senderPublicKeys: (value) => value?.includes(transaction.senderPublicKey),
+      recipientPublicKeys: (value) => value?.map(accounts.getAddressByPublicKey).includes(transaction.recipientId),
+    };
+
+    const evaluate = (key, value) => {
+      const actualKey = key.replace(/^(AND:|OR:)/, "");
+
+      if (!matches[actualKey]) {
+        return true;
+      }
+
+      return matches[actualKey](value);
+    };
+
+    return Object.entries(filter).reduce((result, [key, value], index) => {
+      const upperCaseKey = key.toUpperCase();
+      const isAnd = upperCaseKey.startsWith("AND:") || (!upperCaseKey.startsWith('OR:') && defaultCondition === 'AND');
+      const actualKey = key.replace(/^(AND:|OR:)/i, "");
+      const condition = evaluate(actualKey, value);
+
+      if (index === 0) {
+        return condition;
+      }
+
+      return isAnd ? result && condition : result || condition;
+    }, true);
+  });
+
+  return transactions;
+}
 
 /**
  * @param {string} id

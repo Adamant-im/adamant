@@ -48,7 +48,8 @@ function Chats (cb, scope) {
     balancesSequence: scope.balancesSequence,
     logic: {
       transaction: scope.logic.transaction,
-      chat: scope.logic.chat
+      chat: scope.logic.chat,
+      transactionPool: scope.logic.transactionPool
     }
   };
   self = this;
@@ -172,16 +173,31 @@ __private.list = function (filter, cb) {
   library.db.query(sql.countList({
     where: where
   }), params).then(function (rows) {
-    var count = rows.length ? rows[0].count : 0;
+    let count = rows.length ? Number(rows[0].count) : 0;
     library.db.query(sql.list({
       where: where,
       sortField: orderBy.sortField,
       sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {
-      var transactions = [];
+      let transactions = [];
 
       for (var i = 0; i < rows.length; i++) {
         transactions.push(library.logic.transaction.dbRead(rows[i]));
+      }
+
+      if (filter.returnUnconfirmed) {
+        const unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions({
+          ...filter,
+          type: 8
+        });
+        count += unconfirmedTransactions.length;
+
+        transactions = modules.transactions.mergeUnconfirmedTransactions(
+          transactions,
+          unconfirmedTransactions,
+          orderBy,
+          filter.limit,
+        );
       }
 
       var data = {

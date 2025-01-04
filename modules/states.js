@@ -168,7 +168,7 @@ __private.list = function (filter, cb) {
   library.db.query(sql.countList({
     where: where
   }), params).then(function (rows) {
-    var count = rows.length ? rows[0].count : 0;
+    var count = rows.length ? Number(rows[0].count) : 0;
     library.db.query(sql.list({
       where: where,
       sortField: orderBy.sortField,
@@ -178,6 +178,22 @@ __private.list = function (filter, cb) {
 
       for (var i = 0; i < rows.length; i++) {
         transactions.push(library.logic.transaction.dbRead(rows[i]));
+      }
+
+      if (filter.returnUnconfirmed) {
+        const unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions({
+          ...filter,
+          type: transactionTypes.STATE
+        });
+
+        count += unconfirmedTransactions.length;
+
+        transactions = modules.transactions.mergeUnconfirmedTransactions(
+          transactions,
+          unconfirmedTransactions,
+          orderBy,
+          filter.limit,
+        );
       }
 
       var data = {
