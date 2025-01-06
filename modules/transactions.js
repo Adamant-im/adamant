@@ -404,6 +404,7 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
   unconfirmedTransactions,
   orderBy,
   limit,
+  offset = 0,
 ) {
   const { sortField, sortMethod } = orderBy;
 
@@ -433,7 +434,7 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
     mergedArray.push(unconfirmedTransactions[j++]);
   }
 
-  return limit ? mergedArray.slice(0, limit) : mergedArray
+  return mergedArray.slice(offset, limit ? offset + limit : undefined);
 }
 
 Transactions.prototype.getUnconfirmedTransactions = function (filter, defaultCondition = 'AND') {

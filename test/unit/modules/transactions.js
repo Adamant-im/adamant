@@ -1053,6 +1053,26 @@ describe('transactions', function () {
         expect(mergedTxs).to.eql([unconfirmedTxs[0]]);
       });
 
+      it('should return only the second transaction when sorted by timestamp, limited to 1 and set offset to 1', () => {
+        orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
+        const limit = 1;
+        const offset = 1;
+
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, orderBy, limit, offset);
+
+        expect(mergedTxs).to.eql([txs[0]]);
+      });
+
+      it('should return only the second transaction when sorted by timestamp and set offset to 1 when limit option is skipped', () => {
+        orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
+        const limit = undefined;
+        const offset = 1;
+
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, orderBy, limit, offset);
+
+        expect(mergedTxs).to.eql([txs[0]]);
+      });
+
       it('should merge and sort by fee in ASC order', () => {
         orderBy = { sortField: 'fee', sortMethod: 'ASC' };
 
