@@ -979,6 +979,95 @@ describe('transactions', function () {
       });
     });
 
+    describe('mergeUnconfirmedTransactions()', () => {
+      const txs = [
+        {
+          id: '9175562912139726777',
+          height: 10288885,
+          blockId: '10475460465898092643',
+          type: 8,
+          block_timestamp: 58773245,
+          timestamp: 58773228,
+          senderPublicKey: '2ac5eef60303003c90f662d89e60570d8661c8ba569e667296f5c7c97a0413ee',
+          senderId: 'U8916295525136600565',
+          recipientPublicKey: '5a3c1da429ae925422892e69dc4f0ab6d7ac00cef229d2d992242dcfeca27b91',
+          recipientId: 'U2707535059340134112',
+          fee: 100000,
+          signature: '287dc2554025d8074d674d50ec785d530588e2b828f2d3f29687a4f05c8afc623e185896abc739ea2af8db199ec6e31c57426937343ff5ec154341cee8f72f0a',
+          signatures: [],
+          confirmations: 32801518,
+          asset: {},
+        },
+      ];
+
+      const unconfirmedTxs = [
+        {
+          id: '2521078418148431420',
+          type: 8,
+          amount: 9000000,
+          senderId: 'U11987698782411545765',
+          senderPublicKey: 'b87f9fe005c3533152230fdcbd7bf87a0cea83592c591f7e71be5b7a48bb6e44',
+          asset: {},
+          recipientId: 'U5885317311990438076',
+          timestamp: 58880317,
+          signature: '5ee972df476703492a667616eef428ed127e13fe5de8ba873b6579a806ddbd9fbd34147cf0321823d72e0d234466fc3dc89ebe7341e0b4a91a56b32d3bdb6a00',
+          fee: 50000000,
+          relays: 1,
+          receivedAt: '2019-07-16T04:38:38.492Z',
+        },
+      ];
+
+      let orderBy;
+
+      beforeEach(() => {
+        orderBy = {
+          sortField: undefined,
+          sortMethod: undefined,
+        };
+      });
+
+      it('should throw an error when parameters are not provided', () => {
+        expect(() => transactions.mergeUnconfirmedTransactions()).to.throw();
+      });
+
+      it('should merge transactions without orderBy and limit', () => {
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, orderBy);
+
+        expect(mergedTxs).to.eql([...txs, ...unconfirmedTxs]);
+      });
+
+      it('should merge and sort by timestamp in DESC order without limit', () => {
+        orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
+
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, orderBy);
+
+        expect(mergedTxs).to.eql([...unconfirmedTxs, ...txs]);
+      });
+
+      it('should return only the latest transaction when sorted by timestamp and limited to 1', () => {
+        orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
+        const limit = 1;
+
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, orderBy, limit);
+
+        expect(mergedTxs).to.eql([unconfirmedTxs[0]]);
+      });
+
+      it('should merge and sort by fee in ASC order', () => {
+        orderBy = { sortField: 'fee', sortMethod: 'ASC' };
+
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, orderBy);
+
+        expect(mergedTxs).to.eql([txs[0], unconfirmedTxs[0]]);
+      });
+
+      it('should handle an empty list of transactions', () => {
+        const mergedTxs = transactions.mergeUnconfirmedTransactions([], [], orderBy);
+
+        expect(mergedTxs).to.eql([]);
+      });
+    });
+
     describe('getTransactionsCount', () => {
       const getTransactionsCountKeys = [
         'confirmed',
