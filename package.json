@@ -53,7 +53,7 @@
     "cors": "=2.8.5",
     "ejs": "=3.1.10",
     "execa": "^5.1.1",
-    "express": "=4.21.1",
+    "express": "=4.21.2",
     "express-domain-middleware": "=0.1.0",
     "express-query-int": "=3.0.0",
     "express-rate-limit": "=7.4.1",
