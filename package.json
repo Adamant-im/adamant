@@ -12,7 +12,6 @@
     "test:unit:fast": "npx mocha test/unit/* --exclude test/unit/logic/blockReward.js --exclude test/unit/sql/blockRewards.js --trace-uncaught",
     "test:api": "npx mocha test/api/* --trace-uncaught",
     "test:fast": "npx mocha --exclude test/unit/sql/blockRewards.js --exclude test/api/delegates.js --exclude test/api/peer.transactions.stress.js --exclude test/api/peer.transactions.votes.js test/unit/**/* test/api/**/*",
-    "test:all": "npx mocha test/unit/**/* test/api/**/*",
     "eslint": "npx grunt eslint-nofix --verbose",
     "eslint:file": "npx eslint -f visualstudio",
     "eslint:fix": "npx eslint -f visualstudio --fix",
