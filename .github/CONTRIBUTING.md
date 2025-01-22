@@ -18,14 +18,15 @@ All tests inside `api/` and `unit/` should mirror (as much as possible) the stru
 
 ### Commands
 
-> [!NOTE]
-> API tests require the `testnet` node to be running in parallel during their execution, whereas unit tests require the `testnet` to be run at least once:
->
+> [!IMPORTANT]
+> **API tests** require the `testnet` node to be running in parallel during their execution:
 > ```
 > npm run start:testnet
 > ```
->
 > See [Test Environment](../README.md#Test-Environment) for reference.
+
+> [!CAUTION]
+> **Unit tests** should NOT be run in parallel to prevent disruption of the node's state, and the `testnet` should be run at least once before.
 
 
 To run a single test file, use the following command:
@@ -45,9 +46,6 @@ npm run test:unit:fast
 
 # run all API tests
 npm run test:api
-
-# run both unit and API tests
-npm run test:all
 ```
 
 ### Convention for tests
