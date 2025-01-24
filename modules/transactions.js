@@ -475,28 +475,35 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, defaultCon
       recipientPublicKeys: (value) => value?.map(accounts.getAddressByPublicKey).includes(transaction.recipientId),
     };
 
-    const evaluate = (key, value) => {
-      const actualKey = key.replace(/^(AND:|OR:)/, "");
+    const exclusiveKeys = ['blockId', 'fromHeight', 'toHeight'];
 
-      if (!matches[actualKey]) {
-        return true;
+    const evaluate = (key, value) => matches[key] ? matches[key](value) : true;
+
+    let result = true;
+    let isFirst = true;
+
+    for (const [key, value] of Object.entries(filter)) {
+      const upperCaseKey = key.toUpperCase();
+
+      const isOr = upperCaseKey.startsWith("OR:") || (!upperCaseKey.startsWith('AND:') && defaultCondition !== 'AND');
+
+      const actualKey = key.replace(/^(AND:|OR:)/i, "");
+      if (exclusiveKeys.includes(actualKey)) {
+        return false;
       }
 
-      return matches[actualKey](value);
-    };
-
-    return Object.entries(filter).reduce((result, [key, value], index) => {
-      const upperCaseKey = key.toUpperCase();
-      const isAnd = upperCaseKey.startsWith("AND:") || (!upperCaseKey.startsWith('OR:') && defaultCondition === 'AND');
-      const actualKey = key.replace(/^(AND:|OR:)/i, "");
       const condition = evaluate(actualKey, value);
 
-      if (index === 0) {
-        return condition;
+      if (isFirst && isOr) {
+        result = condition;
+      } else {
+        result = isOr ? result || condition : result && condition ;
       }
 
-      return isAnd ? result && condition : result || condition;
-    }, true);
+      isFirst = false;
+    }
+
+    return result;
   });
 
   return transactions;

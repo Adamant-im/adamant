@@ -977,6 +977,43 @@ describe('transactions', function () {
         expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
         unconfirmedTransactions.forEach((transaction) => expect(transaction.senderId).to.equal('U3716604363012166999'));
       });
+
+      describe('should return empty list if blockchain related filters are used', () => {
+        it('blockId', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ blockId: '8505659485551877884' });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+        });
+
+        it('blockId + senderId', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ senderId: 'U3716604363012166999', blockId: '8505659485551877884' });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+        });
+
+        it('fromHeight', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ fromHeight: 0 });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+        });
+
+        it('minAmount + and:fromHeight', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ minAmount: 9000000, 'and:fromHeight': 0 });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+        });
+
+        it('toHeight', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ toHeight: 99999999999999 });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+        });
+
+        it('toHeight + fromTimestamp', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ fromTimestamp: 0, toHeight: 99999999999999 });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+        });
+
+        it('fromHeight + and:toHeight', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ fromHeight: 0, 'and:toHeight': 99999999999999 });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+        });
+      });
     });
 
     describe('mergeUnconfirmedTransactions()', () => {
