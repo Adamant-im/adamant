@@ -402,10 +402,15 @@ Transactions.prototype.getUnconfirmedTransaction = function (id) {
 Transactions.prototype.mergeUnconfirmedTransactions = function (
   targetArray,
   unconfirmedTransactions,
-  orderBy,
-  limit,
-  offset = 0,
+  options = {},
 ) {
+  const {
+    orderBy,
+    limit,
+    withoutDirectTransfers = 0,
+    returnAsset = 1,
+    offset = 0,
+  } = options;
   const { sortField, sortMethod } = orderBy;
 
   const compare = (a, b) => {
@@ -434,7 +439,24 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
     mergedArray.push(unconfirmedTransactions[j++]);
   }
 
-  return mergedArray.slice(offset, limit ? offset + limit : undefined);
+  let result = mergedArray;
+
+  if (withoutDirectTransfers) {
+    result = result.filter((transaction) => (
+      transaction.type !== transactionTypes.SEND
+    ));
+  }
+
+  result = result.slice(offset, limit ? offset + limit : undefined)
+
+  if (!returnAsset) {
+    result = result.map((transaction) => ({
+      ...transaction,
+      asset: undefined,
+    }));
+  }
+
+  return result;
 }
 
 Transactions.prototype.getUnconfirmedTransactions = function (filter, defaultCondition = 'AND') {

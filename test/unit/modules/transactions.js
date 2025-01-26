@@ -1017,50 +1017,71 @@ describe('transactions', function () {
     });
 
     describe('mergeUnconfirmedTransactions()', () => {
-      const txs = [
-        {
-          id: '9175562912139726777',
-          height: 10288885,
-          blockId: '10475460465898092643',
-          type: 8,
-          block_timestamp: 58773245,
-          timestamp: 58773228,
-          senderPublicKey: '2ac5eef60303003c90f662d89e60570d8661c8ba569e667296f5c7c97a0413ee',
-          senderId: 'U8916295525136600565',
-          recipientPublicKey: '5a3c1da429ae925422892e69dc4f0ab6d7ac00cef229d2d992242dcfeca27b91',
-          recipientId: 'U2707535059340134112',
-          fee: 100000,
-          signature: '287dc2554025d8074d674d50ec785d530588e2b828f2d3f29687a4f05c8afc623e185896abc739ea2af8db199ec6e31c57426937343ff5ec154341cee8f72f0a',
-          signatures: [],
-          confirmations: 32801518,
-          asset: {},
-        },
-      ];
+      /**
+       * @type {Array}
+       */
+      let txs;
+      /**
+       * @type {Array}
+       */
+      let unconfirmedTxs;
 
-      const unconfirmedTxs = [
-        {
-          id: '2521078418148431420',
-          type: 8,
-          amount: 9000000,
-          senderId: 'U11987698782411545765',
-          senderPublicKey: 'b87f9fe005c3533152230fdcbd7bf87a0cea83592c591f7e71be5b7a48bb6e44',
-          asset: {},
-          recipientId: 'U5885317311990438076',
-          timestamp: 58880317,
-          signature: '5ee972df476703492a667616eef428ed127e13fe5de8ba873b6579a806ddbd9fbd34147cf0321823d72e0d234466fc3dc89ebe7341e0b4a91a56b32d3bdb6a00',
-          fee: 50000000,
-          relays: 1,
-          receivedAt: '2019-07-16T04:38:38.492Z',
-        },
-      ];
-
-      let orderBy;
+      let options = {};
 
       beforeEach(() => {
-        orderBy = {
-          sortField: undefined,
-          sortMethod: undefined,
+        options = {
+          orderBy: {
+            sortField: undefined,
+            sortMethod: undefined,
+          },
         };
+
+        txs = [
+          {
+            id: "9175562912139726777",
+            height: 10288885,
+            blockId: "10475460465898092643",
+            type: 8,
+            block_timestamp: 58773245,
+            timestamp: 58773228,
+            senderPublicKey:
+              "2ac5eef60303003c90f662d89e60570d8661c8ba569e667296f5c7c97a0413ee",
+            senderId: "U8916295525136600565",
+            recipientPublicKey:
+              "5a3c1da429ae925422892e69dc4f0ab6d7ac00cef229d2d992242dcfeca27b91",
+            recipientId: "U2707535059340134112",
+            fee: 100000,
+            signature:
+              "287dc2554025d8074d674d50ec785d530588e2b828f2d3f29687a4f05c8afc623e185896abc739ea2af8db199ec6e31c57426937343ff5ec154341cee8f72f0a",
+            signatures: [],
+            confirmations: 32801518,
+            asset: {
+              chat: {
+                message:
+                  "9ae819297240f00bdc3627133c2e41efd27b022fcd0d011dfdda0941ba08399697f3e3bb5c46a43aff714ae1bac616b84617ce446d808523a14f278e5d88909837848e7aa69d9d4f9a95baae56df6ad4c274248d3d01a2cfccae51367dfab265a055d5ce991af654ee418839f94885876638863d172226b0369cd488c5727e6b1a42ba46fed014c1bf586dd2cab3afe7f10cb54864c099a680d5963778c9c4052df305497edc43082a7d60193650c331c6db9c9d9c0c8bbc004e53ac56586331453164b984c57a495810d709c9b984e4f367888d8a8ce1b26f528c1abdec08747e",
+                own_message: "6802a9e744aa3ba570d7e48fce5fe0f49184d0ce38ea40f7",
+                type: 1,
+              },
+            },
+          },
+        ];
+
+        unconfirmedTxs = [
+          {
+            id: '2521078418148431420',
+            type: 8,
+            amount: 9000000,
+            senderId: 'U11987698782411545765',
+            senderPublicKey: 'b87f9fe005c3533152230fdcbd7bf87a0cea83592c591f7e71be5b7a48bb6e44',
+            asset: {},
+            recipientId: 'U5885317311990438076',
+            timestamp: 58880317,
+            signature: '5ee972df476703492a667616eef428ed127e13fe5de8ba873b6579a806ddbd9fbd34147cf0321823d72e0d234466fc3dc89ebe7341e0b4a91a56b32d3bdb6a00',
+            fee: 50000000,
+            relays: 1,
+            receivedAt: '2019-07-16T04:38:38.492Z',
+          },
+        ];
       });
 
       it('should throw an error when parameters are not provided', () => {
@@ -1068,60 +1089,97 @@ describe('transactions', function () {
       });
 
       it('should merge transactions without orderBy and limit', () => {
-        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, orderBy);
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
 
         expect(mergedTxs).to.eql([...txs, ...unconfirmedTxs]);
       });
 
       it('should merge and sort by timestamp in DESC order without limit', () => {
-        orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
+        options.orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
 
-        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, orderBy);
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
 
         expect(mergedTxs).to.eql([...unconfirmedTxs, ...txs]);
       });
 
       it('should return only the latest transaction when sorted by timestamp and limited to 1', () => {
-        orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
-        const limit = 1;
+        options.orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
+        options.limit = 1;
 
-        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, orderBy, limit);
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
 
         expect(mergedTxs).to.eql([unconfirmedTxs[0]]);
       });
 
       it('should return only the second transaction when sorted by timestamp, limited to 1 and set offset to 1', () => {
-        orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
-        const limit = 1;
-        const offset = 1;
+        options.orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
+        options.limit = 1;
+        options.offset = 1;
 
-        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, orderBy, limit, offset);
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
 
         expect(mergedTxs).to.eql([txs[0]]);
       });
 
       it('should return only the second transaction when sorted by timestamp and set offset to 1 when limit option is skipped', () => {
-        orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
-        const limit = undefined;
-        const offset = 1;
+        options.orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
+        options.limit = undefined;
+        options.offset = 1;
 
-        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, orderBy, limit, offset);
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
 
         expect(mergedTxs).to.eql([txs[0]]);
       });
 
       it('should merge and sort by fee in ASC order', () => {
-        orderBy = { sortField: 'fee', sortMethod: 'ASC' };
+        options.orderBy = { sortField: 'fee', sortMethod: 'ASC' };
 
-        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, orderBy);
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
 
         expect(mergedTxs).to.eql([txs[0], unconfirmedTxs[0]]);
       });
 
       it('should handle an empty list of transactions', () => {
-        const mergedTxs = transactions.mergeUnconfirmedTransactions([], [], orderBy);
+        const mergedTxs = transactions.mergeUnconfirmedTransactions([], [], options);
 
         expect(mergedTxs).to.eql([]);
+      });
+
+      describe('should remove transfer transactions when withoutDirectTransfers is', () => {
+        const values = [
+          1,
+          true,
+          'true'
+        ];
+
+        values.forEach((value) => {
+          it(JSON.stringify(value), () => {
+            options.withoutDirectTransfers = value;
+
+            const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
+
+            expect(mergedTxs).to.be.an('array').that.is.not.empty;
+            mergedTxs.forEach(tx => expect(tx.type).not.to.equal(transactionTypes.SEND));
+          });
+        });
+      });
+
+      describe('should remove asset from transactions when returnAsset is', () => {
+        const values = [
+          0,
+          false,
+        ];
+
+        values.forEach((value) => {
+          it(JSON.stringify(value), () => {
+            options.returnAsset = value;
+
+            const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
+
+            expect(mergedTxs).to.be.an('array').that.is.not.empty;
+            mergedTxs.forEach(tx => expect(tx.asset).not.to.exist);
+          });
+        });
       });
     });
 
