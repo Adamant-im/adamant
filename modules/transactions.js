@@ -495,6 +495,8 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, defaultCon
       recipientIds: (value) => value?.includes(transaction.recipientId),
       senderPublicKeys: (value) => value?.includes(transaction.senderPublicKey),
       recipientPublicKeys: (value) => value?.map(accounts.getAddressByPublicKey).includes(transaction.recipientId),
+      key: (value) => transaction.asset?.state?.key === value,
+      keyIds: (value) => value?.includes(transaction.asset?.state?.key),
     };
 
     const exclusiveKeys = ['blockId', 'fromHeight', 'toHeight'];

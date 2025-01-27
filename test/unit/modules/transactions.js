@@ -957,6 +957,40 @@ describe('transactions', function () {
         });
       });
 
+      it('should return state transactions with the given key', () => {
+        const key = 'eth:address';
+
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ key });
+
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => {
+          expect(
+            transaction.type === transactionTypes.STATE && transaction.asset.state.key === key,
+          ).to.be.true;
+        });
+      });
+
+      it('should return all transactions if the given key is undefined', () => {
+        const key = undefined;
+
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ key });
+
+        expect(unconfirmedTransactions).to.eql(testUnconfirmedTransactions);
+      });
+
+      it('should return state transactions with the multiple given keys', () => {
+        const keyIds = ['eth:address', 'btc:address'];
+
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ keyIds });
+
+        expect(unconfirmedTransactions).to.be.an('array').that.has.lengthOf(2);
+        unconfirmedTransactions.forEach((transaction) => {
+          expect(
+            transaction.type === transactionTypes.STATE && keyIds.includes(transaction.asset.state.key),
+          ).to.be.true;
+        });
+      });
+
       it('should ignore first prefix', () => {
         const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ 'OR:fromTimestamp': 58880317, toTimestamp: 231352261 });
         expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;

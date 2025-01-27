@@ -141,6 +141,54 @@ const testUnconfirmedTransactions = [
     relays: 1,
     receivedAt: "2025-01-01T09:31:01.112Z",
   },
+  {
+    id: "13920471299012339255",
+    type: 9,
+    timestamp: 39015780,
+    senderPublicKey:
+      "8cd9631f9f634a361ea3b85cbd0df882633e39e7d26d7bc615bbcf75e41524ef",
+    requesterPublicKey: null,
+    senderId: "U14236667426471084862",
+    recipientId: null,
+    recipientPublicKey: null,
+    amount: 0,
+    fee: 100000,
+    signature:
+      "56ac1fe17631e16197cd76398f300ab331a79469af18403d0b0f22156d03843bf2917f46e368d72dd91962eaacc91736e2f696d41738d6b573f92bdcaf335505",
+    asset: {
+      state: {
+        value: "0x84609a38fedbcd02b657233340e6a8cb09db61a8",
+        key: "eth:address",
+        type: 0,
+      },
+    },
+    relays: 1,
+    receivedAt: "2025-01-02T09:31:01.112Z",
+  },
+  {
+    id: "3724974640199664815",
+    type: 9,
+    timestamp: 190938796,
+    senderPublicKey:
+      "d2885bc8d4aa68f0f4c919077c1edcb9c9020a715f20cb6db7578cd6f68055bb",
+    requesterPublicKey: null,
+    senderId: "U7972131227889954319",
+    recipientId: null,
+    recipientPublicKey: null,
+    amount: 0,
+    fee: 100000,
+    signature:
+      "dcf8b02abc20b7d9a6c1d900facfac3dc7bbd74837fcdb1dfcc212f7901ad8301b1f909980ef2a0662bf0acbe5273cf88ce4ae4f421747afccf9b29748b5400e",
+    asset: {
+      state: {
+        value: "19TUtVUiomEL2z84sBtCxskmQw62vgSftv",
+        key: "btc:address",
+        type: 0,
+      },
+    },
+    relays: 1,
+    receivedAt: "2025-01-03T09:31:01.112Z",
+  },
 ];
 
 const existingTransaction = {
