@@ -215,10 +215,50 @@ __private.list = function (filter, cb) {
       sortField: orderBy.sortField,
       sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {
-      var transactions = [];
+      let transactions = [];
 
       for (var i = 0; i < rows.length; i++) {
         transactions.push(library.logic.transaction.dbRead(rows[i]));
+      }
+
+      if (filter.returnUnconfirmed) {
+        const allowedFilters = [
+          'blockId',
+          'fromHeight',
+          'toHeight',
+          'minAmount',
+          'maxAmount',
+          'senderId',
+          'senderIds',
+          'recipientId',
+          'recipientIds',
+          'senderPublicKey',
+          'senderPublicKeys',
+          'recipientPublicKey',
+          'recipientPublicKeys',
+          'inId',
+          'isIn',
+          'type',
+          'types',
+        ];
+
+        const unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(filter, {
+          allowedFilters,
+          defaultCondition: 'OR',
+        });
+
+        count += unconfirmedTransactions.length;
+
+        transactions = modules.transactions.mergeUnconfirmedTransactions(
+          transactions,
+          unconfirmedTransactions,
+          {
+            orderBy,
+            limit: params.limit,
+            offset: params.offset,
+            returnAsset: filter.returnAsset,
+          }
+        );
       }
 
       var data = {
@@ -459,7 +499,13 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
   return result;
 }
 
-Transactions.prototype.getUnconfirmedTransactions = function (filter, defaultCondition = 'AND') {
+Transactions.prototype.getUnconfirmedTransactions = function (filter, options = {}) {
+  const {
+    allowedFilters = [],
+    aliases = {},
+    defaultCondition = 'AND'
+  } = options;
+
   let transactions = this.getUnconfirmedTransactionList();
 
   if (filter?.constructor !== Object) {
@@ -477,6 +523,8 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, defaultCon
 
   transactions = transactions.filter((transaction) => {
     const matches = {
+      assetStateType: (value) => transaction.asset?.state?.type === value,
+      assetChatType: (value) => transaction.asset?.chat?.type === value,
       type: (value) => transaction.type === value,
       minAmount: (value) => transaction.amount >= value,
       maxAmount: (value) => transaction.amount <= value,
@@ -516,7 +564,11 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, defaultCon
         return false;
       }
 
-      const condition = evaluate(actualKey, value);
+      if (!allowedFilters.includes(actualKey) && allowedFilters.length !== 0) {
+        continue;
+      }
+
+      const condition = evaluate(aliases[actualKey] ?? actualKey, value);
 
       if (isFirst && isOr) {
         result = condition;

@@ -181,9 +181,26 @@ __private.list = function (filter, cb) {
       }
 
       if (filter.returnUnconfirmed) {
+        const allowedFilters = [
+          'senderId',
+          'recipientId',
+          'toHeight',
+          'fromHeight',
+          'senderIds',
+          'key',
+          'keyIds',
+          'type',
+        ];
+        const aliases = {
+          type: 'assetStateType',
+        };
+
         const unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions({
           ...filter,
           type: transactionTypes.STATE
+        }, {
+          allowedFilters,
+          aliases,
         });
 
         count += unconfirmedTransactions.length;
@@ -191,8 +208,11 @@ __private.list = function (filter, cb) {
         transactions = modules.transactions.mergeUnconfirmedTransactions(
           transactions,
           unconfirmedTransactions,
-          orderBy,
-          filter.limit,
+          {
+            orderBy,
+            limit: params.limit,
+            offset: params.offset,
+          }
         );
       }
 

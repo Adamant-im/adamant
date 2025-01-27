@@ -186,17 +186,37 @@ __private.list = function (filter, cb) {
       }
 
       if (filter.returnUnconfirmed) {
+        const allowedFilters = [
+          'fromHeight',
+          'toHeight',
+          'senderId',
+          'recipientId',
+          'inId',
+          'isIn',
+          'type',
+        ];
+        const aliases = {
+          type: 'assetChatType'
+        };
+
         const unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions({
-          ...filter,
-          type: 8
+          ...unconfirmedFilters,
+          type: transactionTypes.CHAT_MESSAGE
+        }, {
+          allowedFilters,
+          aliases,
         });
         count += unconfirmedTransactions.length;
 
         transactions = modules.transactions.mergeUnconfirmedTransactions(
           transactions,
           unconfirmedTransactions,
-          orderBy,
-          filter.limit,
+          {
+            orderBy,
+            limit: params.limit,
+            offset: params.offset,
+            withoutDirectTransfers: filter.withoutDirectTransfers
+          }
         );
       }
 

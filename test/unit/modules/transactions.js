@@ -911,7 +911,9 @@ describe('transactions', function () {
         const unconfirmedTransactions = transactions.getUnconfirmedTransactions({
           minAmount: 10000000,
           senderId: 'U3716604363012166999',
-        }, 'OR');
+        }, {
+          defaultCondition: 'OR',
+        });
         expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
         unconfirmedTransactions.forEach((transaction) => {
           expect(transaction.amount >= 10000000 || transaction.senderId === 'U3716604363012166999').to.be.true;
@@ -1046,6 +1048,33 @@ describe('transactions', function () {
         it('fromHeight + and:toHeight', () => {
           const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ fromHeight: 0, 'and:toHeight': 99999999999999 });
           expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+        });
+      });
+
+      describe('aliases', () => {
+        it('should filter by state types with alias type->assetStateType', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ type: 0 }, {
+            aliases: {
+              type: 'assetStateType',
+            },
+          });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+          unconfirmedTransactions.forEach((transaction) => {
+            expect(
+              transaction.asset.state.type
+            ).equal(0);
+          });
+        });
+      });
+
+      describe('allowedFilters', () => {
+        it('should ignore senderId filter because it is not in the list', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ minAmount: 100, senderId: 'U3716604363012166999' }, {
+            allowedFilters: ['minAmount']
+          });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+          const containsOtherSenders = unconfirmedTransactions.some((transaction) => transaction.senderId !== 'U3716604363012166999');
+          expect(containsOtherSenders).to.be.true;
         });
       });
     });

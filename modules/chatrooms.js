@@ -226,6 +226,39 @@ __private.listMessages = function (filter, cb) {
         const trs = library.logic.transaction.dbRead(rows[i]);
         transactions.push(trs);
       }
+
+      if (filter.returnUnconfirmed) {
+        const allowedFilters = [
+          'type',
+        ];
+        const aliases = {
+          type: 'assetChatType'
+        };
+
+        const unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions({
+          ...unconfirmedFilters,
+          senderIds: [filter.companionId, filter.userId],
+          recipientIds: [filter.companionId, filter.userId],
+          type: transactionTypes.CHAT_MESSAGE,
+        }, {
+          allowedFilters,
+          aliases,
+        });
+
+        count += unconfirmedTransactions.length;
+
+        transactions = modules.transactions.mergeUnconfirmedTransactions(
+          transactions,
+          unconfirmedTransactions,
+          {
+            orderBy,
+            limit: params.limit,
+            offset: params.offset,
+            withoutDirectTransfers: filter.withoutDirectTransfers
+          }
+        );
+      }
+
       const data = {
         messages: transactions,
         participants: transactions.length ? [
