@@ -200,7 +200,7 @@ __private.list = function (filter, cb) {
         };
 
         const unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions({
-          ...unconfirmedFilters,
+          ...filter,
           type: transactionTypes.CHAT_MESSAGE
         }, {
           allowedFilters,
