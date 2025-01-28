@@ -228,21 +228,20 @@ __private.listMessages = function (filter, cb) {
       }
 
       if (filter.returnUnconfirmed) {
-        const allowedFilters = [
-          'type',
-        ];
-        const aliases = {
-          type: 'assetChatType'
-        };
-
-        const unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions({
-          ...unconfirmedFilters,
+        const unconfirmedFilters = {
+          ...filter,
           senderIds: [filter.companionId, filter.userId],
           recipientIds: [filter.companionId, filter.userId],
           type: transactionTypes.CHAT_MESSAGE,
-        }, {
-          allowedFilters,
-          aliases,
+        };
+
+        const unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(unconfirmedFilters, {
+          allowedFilters: [
+            'type',
+          ],
+          aliases: {
+            type: 'assetChatType'
+          },
         });
 
         count += unconfirmedTransactions.length;

@@ -181,27 +181,25 @@ __private.list = function (filter, cb) {
       }
 
       if (filter.returnUnconfirmed) {
-        const allowedFilters = [
-          'senderId',
-          'recipientId',
-          'toHeight',
-          'fromHeight',
-          'senderIds',
-          'key',
-          'keyIds',
-          'type',
-        ];
-        const aliases = {
-          type: 'assetStateType',
-        };
-
-        const unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions({
-          ...filter,
-          type: transactionTypes.STATE
-        }, {
-          allowedFilters,
-          aliases,
-        });
+        const unconfirmedFilters = { ...filter, type: transactionTypes.STATE };
+        const unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(
+          unconfirmedFilters,
+          {
+            allowedFilters: [
+              'senderId',
+              'recipientId',
+              'toHeight',
+              'fromHeight',
+              'senderIds',
+              'key',
+              'keyIds',
+              'type',
+            ],
+            aliases: {
+              type: 'assetStateType',
+            },
+          },
+        );
 
         count += unconfirmedTransactions.length;
 
@@ -212,7 +210,7 @@ __private.list = function (filter, cb) {
             orderBy,
             limit: params.limit,
             offset: params.offset,
-          }
+          },
         );
       }
 

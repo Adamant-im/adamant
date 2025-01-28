@@ -437,8 +437,12 @@ Transactions.prototype.getUnconfirmedTransaction = function (id) {
  *
  * @param {Array<Transaction>} targetArray Sorted array to merge unconfirmed transactions into
  * @param {Array<UnconfirmedTransaction>} unconfirmedTransactions Array of unconfirmed transactions to merge
- * @param {OrderBy} orderBy options for transactions order. See `helpers/orderBy.js`
- * @param {number?} limit maximum amount of transactions in the final array
+ * @param {Object} options
+ * @param {Object} [options.orderBy] - Options for transaction ordering. See `helpers/orderBy.js`
+ * @param {number} [options.limit] - Maximum number of transactions in the final array
+ * @param {number} [options.offset] - Offset for the final array
+ * @param {number} [options.returnAsset=1] - Whether to remove assets from all transactions. Default is 1
+ * @param {number} [options.withoutDirectTransfers=0] - Whether to remove all transfer transactions. Default is 0
  */
 Transactions.prototype.mergeUnconfirmedTransactions = function (
   targetArray,
@@ -455,8 +459,14 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
   const { sortField, sortMethod } = orderBy;
 
   const compare = (a, b) => {
-    if (a[sortField] < b[sortField]) return sortMethod === 'ASC' ? -1 : 1;
-    if (a[sortField] > b[sortField]) return sortMethod === 'ASC' ? 1 : -1;
+    if (a[sortField] < b[sortField]) {
+      return sortMethod === 'ASC' ? -1 : 1;
+    }
+
+    if (a[sortField] > b[sortField]) {
+      return sortMethod === 'ASC' ? 1 : -1;
+    }
+
     return 0;
   };
 
@@ -500,6 +510,17 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
   return result;
 }
 
+/**
+ * Retrieves unconfirmed transactions based on the provided filter and options
+ *
+ * @param {Object} filter - Criteria to filter unconfirmed transactions
+ * @param {Object} [options]
+ * @param {string[]} [options.allowedFilters=[]] - List of keys allowed for filtering transactions
+ * @param {Object} [options.aliases={}] - Key-value pairs for aliasing filter keys
+ * @param {string} [options.defaultCondition='AND'] - Default logical condition for combining filters ('AND' or 'OR')
+ * @returns {Object[]} - Array of unconfirmed transactions matching the criteria
+ * @throws {Error} - If `filter` is not an object
+ */
 Transactions.prototype.getUnconfirmedTransactions = function (filter, options = {}) {
   const {
     allowedFilters = [],
@@ -548,6 +569,7 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
       keyIds: (value) => value?.includes(transaction.asset?.state?.key),
     };
 
+    // Returns empty array if any of the filters are included in the filter
     const exclusiveKeys = ['blockId', 'fromHeight', 'toHeight'];
 
     const evaluate = (key, value) => matches[key] ? matches[key](value) : true;
