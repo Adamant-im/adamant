@@ -67,7 +67,18 @@ __private.listChats = function (filter, cb) {
     where.push('"c_type" = ${type}');
     params.type = filter.type;
   }
-  if (filter.withoutDirectTransfers) {
+
+  let includeDirectTransfers = false;
+
+  if (typeof filter.includeDirectTransfers !== 'undefined') {
+    includeDirectTransfers = filter.includeDirectTransfers;
+  }
+
+  if (typeof filter.withoutDirectTransfers !== 'undefined') {
+    includeDirectTransfers = !filter.withoutDirectTransfers;
+  }
+
+  if (includeDirectTransfers) {
     where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
   } else {
     where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
@@ -164,10 +175,21 @@ __private.listMessages = function (filter, cb) {
   } else {
     where.push(`(NOT("c_type" = ${transactionTypes.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE}) OR c_type IS NULL)`);
   }
-  if (filter.withoutDirectTransfers) {
-    where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
-  } else {
+
+  let includeDirectTransfers = false;
+
+  if (typeof filter.includeDirectTransfers !== 'undefined') {
+    includeDirectTransfers = filter.includeDirectTransfers;
+  }
+
+  if (typeof filter.withoutDirectTransfers !== 'undefined') {
+    includeDirectTransfers = !filter.withoutDirectTransfers;
+  }
+
+  if (includeDirectTransfers) {
     where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
+  } else {
+    where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
   }
 
   if (filter.senderId) {

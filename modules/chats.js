@@ -127,14 +127,20 @@ __private.list = function (filter, cb) {
     where.push(`(NOT("c_type" = ${transactionTypes.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE}) OR c_type IS NULL)`);
   }
 
-  if (typeof filter.withoutDirectTransfers === 'undefined') {
-    filter.withoutDirectTransfers = true;
+  let includeDirectTransfers = false;
+
+  if (typeof filter.includeDirectTransfers !== 'undefined') {
+    includeDirectTransfers = filter.includeDirectTransfers;
+  }
+
+  if (typeof filter.withoutDirectTransfers !== 'undefined') {
+    includeDirectTransfers = !filter.withoutDirectTransfers;
   }
 
   where.push(
-    filter.withoutDirectTransfers ?
-      `"t_type" = ${transactionTypes.CHAT_MESSAGE}` :
-      `("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`,
+    includeDirectTransfers ?
+      `("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})` :
+      `"t_type" = ${transactionTypes.CHAT_MESSAGE}`,
   );
 
   if (filter.senderId) {
