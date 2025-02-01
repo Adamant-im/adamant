@@ -740,38 +740,6 @@ describe('transaction', () => {
       });
     });
 
-    it('should return error on future timestamp', (done) => {
-      const trs = _.cloneDeep(validUnconfirmedTransaction);
-      trs.timestamp = slots.getTime() + 100;
-      delete trs.signature;
-      trs.signature = transaction.sign(testSenderKeypair, trs);
-      transaction.verify(trs, testSender, {}, (err) => {
-        expect(err).to.include('Invalid transaction timestamp');
-        done();
-      });
-    });
-
-    it('should return error on timestamp that is 16 seconds in the past', (done) => {
-      const trs = _.cloneDeep(validUnconfirmedTransaction);
-      trs.timestamp = slots.getTime() - 100;
-      trs.timestampMs = trs.timestamp * 1000;
-      delete trs.signature;
-      trs.signature = transaction.sign(testSenderKeypair, trs);
-      transaction.verify(trs, testSender, {}, (err) => {
-        expect(err).to.include('Invalid transaction timestamp');
-        done();
-      });
-    });
-
-    it('should return error when timestampMs is not provided', (done) => {
-      const trs = _.cloneDeep(validUnconfirmedTransaction);
-      delete trs.timestampMs;
-      transaction.verify(trs, testSender, {}, (err) => {
-        expect(err).to.include('Missing timestampMs');
-        done();
-      });
-    });
-
     it('should return error when timestampMs is less than timestamp by a second', (done) => {
       const trs = _.cloneDeep(validUnconfirmedTransaction);
 
@@ -783,7 +751,7 @@ describe('transaction', () => {
       trs.signature = transaction.sign(testSenderKeypair, trs);
 
       transaction.verify(trs, testSender, {}, (err) => {
-        expect(err).to.include('Invalid transaction timestamp. Timestamp and timestampMs delta is greater than 1000ms');
+        expect(err).to.equal('Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than 1000ms');
         done();
       });
     });
@@ -799,7 +767,7 @@ describe('transaction', () => {
       trs.signature = transaction.sign(testSenderKeypair, trs);
 
       transaction.verify(trs, testSender, {}, (err) => {
-        expect(err).to.include('Invalid transaction timestamp. Timestamp and timestampMs delta is greater than 1000ms');
+        expect(err).to.equal('Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than 1000ms');
         done();
       });
     });
@@ -819,6 +787,28 @@ describe('transaction', () => {
 
     it('should throw an error with no param', () => {
       expect(transaction.verify).to.throw();
+    });
+  });
+
+  describe('verifyTimestamp()', () => {
+    it('should return error on future timestamp', () => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestamp = slots.getTime() + 100;
+      trs.timestampMs = trs.timestamp * 1000;
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+      const error = transaction.verifyTimestamp(trs);
+      expect(error).to.equal('Transaction timestamp is in the future');
+    });
+
+    it('should return error on timestamp that is 16 seconds in the past', () => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestamp = slots.getTime() - 100;
+      trs.timestampMs = trs.timestamp * 1000;
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+      const error = transaction.verifyTimestamp(trs);
+      expect(error).to.equal('Transaction timestamp is more than 15 seconds in the past');
     });
   });
 

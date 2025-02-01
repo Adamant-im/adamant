@@ -670,6 +670,14 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
     return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is not in the int32 range');
   }
 
+  if (typeof trs.timestampMs === 'number') {
+    const timestampMsDelta = Math.abs(trs.timestampMs - trs.timestamp * 1000);
+
+    if (timestampMsDelta >= 1000) {
+      return setImmediate(cb, 'Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than 1000ms');
+    }
+  }
+
   // Call verify on transaction type
   __private.types[trs.type].verify.call(this, trs, sender, function (err) {
     if (err) {
