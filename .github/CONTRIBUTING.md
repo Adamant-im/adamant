@@ -2,6 +2,8 @@
 
 To be merged, pull requests **MUST** include tests for any new features or bug fixes.
 
+### Structure
+
 The tests are located in the test/ directory. The structure of the directory is as follows:
 - `api/` - End-to-end tests that require running a local test node.
 - `unit/` - Unit tests that DO NOT require running a test node.
@@ -16,6 +18,16 @@ All tests inside `api/` and `unit/` should mirror (as much as possible) the stru
 
 ### Commands
 
+> [!NOTE]
+> API tests require the `testnet` node to be running in parallel during their execution, whereas unit tests require the `testnet` to be run at least once:
+>
+> ```
+> npm run start:testnet
+> ```
+>
+> See [Test Environment](../README.md#Test-Environment) for reference.
+
+
 To run a single test file, use the following command:
 
 ```
@@ -24,7 +36,17 @@ npm run test:single test/path/to/the/test.js
 
 If you have changed any common files (e.g., files inside `test/common/`, `test/node.js` package, etc.), consider running all tests:
 
-```
+```sh
+# run all unit tests
+npm run test:unit
+
+# run only fast unit tests (excluding time-consuming ones)
+npm run test:unit:fast
+
+# run all API tests
+npm run test:api
+
+# run both unit and API tests
 npm run test:all
 ```
 
@@ -52,13 +74,13 @@ Since we use the Chai package for assertions, we have a few rules for consistenc
   expect(true).to.be.true;
   ```
 
-- **Use `to.not` instead of `not.to`**
+- **Use `not.to` instead of `to.not`**
 
   Prefer `not.to` for convention:
 
   ```js
   // ❌
-  expect(true).to.not.equal(false);
+  expect(true).to.not.be.false;
   // ✅
   expect(true).not.to.be.false;
   ```

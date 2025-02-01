@@ -127,6 +127,45 @@ vim config.json
 
 Make the necessary changes to the configuration values in the file. At minimum, you should change the value of the `db.password` property to your actual database password.
 
+See [Documentation for configuration file](https://github.com/Adamant-im/adamant/wiki/Configuration) for details.
+
+### Test Environment
+
+You may want to test the node in a safe environment before running a `mainnet` node. The `testnet` configuration allows to experiment and run tests without affecting the `mainnet`.
+
+- **Automatic installation**
+
+  You can use installation script to automatically install the node for testnet:
+
+  ```bash
+  # Fetches the script and install the last stable ADAMANT version using testnet config
+  sudo bash -c "$(wget -O - https://adamant.im/install_node.sh)" -O -b master -n testnet
+  ```
+
+  This will create `test/config.json` file, which you can edit as needed.
+
+- **Manually setup**
+
+  To manually set up and run a local test node, copy the default config file and edit your copy:
+
+  ```
+  cp test/config.default.json test/config.json
+  ```
+
+To start the testnet node:
+
+```
+npm run start:testnet
+```
+
+#### Testnet Explorer
+
+The testnet explorer is available at [testnet.adamant.im](https://testnet.adamant.im/).
+
+#### Test nodes
+
+You can view the IPs and ports of the running test nodes in the [test/config.default.json](./test/config.default.json) file.
+
 ### Bootstrap with a blockchain image
 
 A blockchain image saves time on node sync, but you must completely trust the image. If you skip this step, your node will check every single transaction, which takes time (up to several days).
@@ -162,23 +201,7 @@ To add ADAMANT node to crontab for autostart after system reboot (fix installati
 
 ## Tests
 
-Before running any tests, run the ADAMANT node with a testnet configuration:
-
-```
-npm run start:testnet
-```
-
-Then run the test suite:
-
-```
-npm run test:full
-```
-
-Run individual tests:
-
-```
-npm run test:single test/api/accounts.js
-```
+Refer to [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
 
 ## Authors
 

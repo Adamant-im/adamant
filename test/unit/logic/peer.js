@@ -16,6 +16,51 @@ describe('peer', () => {
     peer = new Peer({});
   });
 
+  describe('recordRequest()', () => {
+    let successRateBefore, successRateAfter;
+
+    it('should lower success rate after recording a failed request', () => {
+      successRateBefore = peer.calcSuccessRate();
+
+      peer.recordRequest('TEST_ERROR');
+      successRateAfter = peer.calcSuccessRate();
+
+      expect(successRateAfter).to.be.lessThan(successRateBefore);
+    });
+
+    it('should not increment success rate when already at the limit', () => {
+      successRateBefore = peer.calcSuccessRate();
+
+      peer.recordRequest();
+      successRateAfter = peer.calcSuccessRate();
+
+      expect(successRateAfter).to.equal(successRateBefore);
+    });
+
+    it('should hit the bottom limit after 100 failed requests', () => {
+      Array.from({ length: 100 }).forEach(() => peer.recordRequest('an error'));
+
+      const successRate = peer.calcSuccessRate();
+      expect(successRate).to.equal(0);
+    });
+
+    it('should not change state for a banned peer', () => {
+      peer.state = Peer.STATE.BANNED;
+
+      Array.from({ length: 100 }).forEach(() => peer.recordRequest('an error'));
+
+      expect(peer.state).to.equal(Peer.STATE.BANNED);
+    });
+
+    it('should change peer state to disconnected after too many failures', () => {
+      peer.state = Peer.STATE.CONNECTED;
+
+      Array.from({ length: 100 }).forEach(() => peer.recordRequest('an error'));
+
+      expect(peer.state).to.equal(Peer.STATE.DISCONNECTED);
+    });
+  });
+
   describe('accept()', () => {
     it('should accept valid peer', () => {
       const peer = new Peer({});

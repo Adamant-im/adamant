@@ -300,6 +300,22 @@ Peers.prototype.update = function (peer) {
 };
 
 /**
+ * Returns whether the peer is in config peers list
+ * @param {string} ip
+ * @param {number} port
+ * @returns {boolean}
+ */
+Peers.prototype.isFrozen = function (ip, port) {
+  const peers = library.config.peers.list;
+
+  const isFrozen = peers.some(
+    (peer) => peer.ip === ip && peer.port === port,
+  );
+
+  return isFrozen;
+}
+
+/**
  * Removes peer from peers list if it is not a peer from config file list.
  * @implements logic.peers.remove
  * @param {string} pip - Peer ip
@@ -307,15 +323,27 @@ Peers.prototype.update = function (peer) {
  * @return {function} Calls peers.remove
  */
 Peers.prototype.remove = function (pip, port) {
-  var frozenPeer = _.find(library.config.peers.list, function (peer) {
-    return peer.ip === pip && peer.port === port;
-  });
-  if (frozenPeer) {
+  if (self.isFrozen(pip, port)) {
     // FIXME: Keeping peer frozen is bad idea at all
     library.logger.debug('Cannot remove frozen peer', pip + ':' + port);
   } else {
     return library.logic.peers.remove({ ip: pip, port: port });
   }
+};
+
+/**
+ * Updates the request success rate for the peer.
+ * @implements logic.peers.recordRequest
+ * @param {string} ip
+ * @param {number} port
+ * @param {string?} error Provide the error in case of failed request
+ * @return {boolean} Returns `true` if peer has been updated
+ */
+Peers.prototype.recordRequest = function (ip, port, error) {
+  return library.logic.peers.recordRequest(
+    { ip, port },
+    error,
+  );
 };
 
 /**
