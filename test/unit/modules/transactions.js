@@ -29,7 +29,6 @@ const {
 const {
   unconfirmedTransaction,
   nonExistingTransactionId,
-  unconfirmedTransactionId,
   existingTransaction,
   existingTransactionWithAsset,
 } = require('../../common/stubs/transactions.js');
@@ -792,12 +791,16 @@ describe('transactions', function () {
     });
 
     describe('transactions in pool', () => {
+      let unconfirmedTransactionId;
+
       beforeEach((done) => {
         unconfirmedTransaction.timestamp = slots.getTime();
         unconfirmedTransaction.timestampMs = slots.getTimeMs();
 
         delete unconfirmedTransaction.signature;
         unconfirmedTransaction.signature = transaction.sign(validSenderKeyPair, unconfirmedTransaction);
+
+        unconfirmedTransactionId = transaction.getId(unconfirmedTransaction);
 
         transactions.receiveTransactions([unconfirmedTransaction], true, done);
       });

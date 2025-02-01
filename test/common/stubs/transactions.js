@@ -39,8 +39,6 @@ const unconfirmedTransaction = {
     'd1f77e6d44b1b25138647aac3e1868b79df103d87ae272fa02f0e519dabf7714588ca9b4971da322cde4f0d717800b7a1a34bb42f2311c2977e22976c2c52808',
 };
 
-const unconfirmedTransactionId = '15096340494692671309';
-
 const nonExistingTransactionId = '11111111111111111111';
 
 module.exports = {
@@ -48,5 +46,4 @@ module.exports = {
   existingTransaction,
   existingTransactionWithAsset,
   unconfirmedTransaction,
-  unconfirmedTransactionId,
 };
