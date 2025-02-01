@@ -110,10 +110,6 @@ describe('transaction', () => {
     );
   });
 
-  before(() => {
-
-  });
-
   describe('create()', () => {
     it('should throw an error with no param', () => {
       expect(transaction.create).to.throw();
