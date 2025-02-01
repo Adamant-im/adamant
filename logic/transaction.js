@@ -12,6 +12,9 @@ var sql = require('../sql/transactions.js');
 // Private fields
 var self, modules, __private = {};
 
+const INT_32_MIN = -2147483648;
+const INT_32_MAX = 2147483647;
+
 /**
  * @typedef {Object} privateTypes
  * - 0: Transfer
@@ -121,6 +124,12 @@ Transaction.prototype.publish = function (data) {
 
   if (!data.signature) {
     throw 'Invalid signature';
+  }
+
+  const error = this.verifyTimestamp(data);
+
+  if (error) {
+    throw `Invalid timestamp. ${error}`;
   }
 
   var trs = data;
@@ -467,8 +476,6 @@ Transaction.prototype.process = function (trs, sender, requester, cb) {
 Transaction.prototype.verify = function (trs, sender, requester, cb) {
   var valid = false;
   var err = null;
-  const INT_32_MIN = -2147483648;
-  const INT_32_MAX = 2147483647;
 
   if (typeof requester === 'function') {
     cb = requester;
@@ -479,13 +486,21 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
     return setImmediate(cb, 'Missing sender');
   }
 
-  if (typeof trs.timestampMs !== 'number') {
-    return setImmediate(cb, 'Missing timestampMs');
-  }
-
   // Check transaction type
   if (!__private.types[trs.type]) {
     return setImmediate(cb, 'Unknown transaction type ' + trs.type);
+  }
+
+  if (trs.timestamp < INT_32_MIN || trs.timestamp > INT_32_MAX) {
+    return setImmediate(cb, 'Invalid timestamp. Timestamp is not within the int32 range');
+  }
+
+  if (typeof timestampMs === 'number') {
+    const timestampMsDelta = Math.abs(timestampMs - timestamp * 1000);
+
+    if (timestampMsDelta >= 1000) {
+      return setImmediate(cb, 'Invalid timestamp. The difference between timestamp and timestampMs is greater than 1000ms');
+    }
   }
 
   // Check for missing sender second signature
@@ -655,25 +670,6 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
     return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is not in the int32 range');
   }
 
-  if (Math.abs(trs.timestampMs - trs.timestamp * 1000) >= 1000) {
-    return setImmediate(cb, 'Invalid transaction timestamp. Timestamp and timestampMs delta is greater than 1000ms');
-  }
-
-  const currentTime = slots.getTime();
-
-  const currentSlotNumber = slots.getSlotNumber(currentTime);
-  const transactionSlotNumber = slots.getSlotNumber(trs.timestamp);
-
-  if (transactionSlotNumber > currentSlotNumber) {
-    return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is in the future');
-  }
-
-  // Transaction may be maximum 15 seconds behind the node
-  const earliestValidTime = currentTime - 15;
-  if (transactionSlotNumber < slots.getSlotNumber(earliestValidTime)) {
-    return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is more than 15 seconds in the past');
-  }
-
   // Call verify on transaction type
   __private.types[trs.type].verify.call(this, trs, sender, function (err) {
     if (err) {
@@ -683,6 +679,43 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
       return self.checkConfirmed(trs, cb);
     }
   });
+};
+
+/**
+ * Validates the timestamp and timestampMs of a transaction to ensure they are within an acceptable range
+ * @param {Transaction} trs - The transaction object to validate
+ * @returns {string | undefined} - Returns string if the timestamp is invalid with the provided reason
+ */
+Transaction.prototype.verifyTimestamp = function (trs) {
+  const { timestamp, timestampMs } = trs;
+
+  if (timestamp < INT_32_MIN || timestamp > INT_32_MAX) {
+    return 'Invalid timestamp. Timestamp is not within the int32 range';
+  }
+
+  if (typeof timestampMs === 'number') {
+    const timestampMsDelta = Math.abs(timestampMs - timestamp * 1000);
+
+    if (timestampMsDelta >= 1000) {
+      return 'Invalid timestamp. The difference between timestamp and timestampMs is greater than 1000ms';
+    }
+  }
+
+  const currentTime = slots.getTime();
+
+  const currentSlotNumber = slots.getSlotNumber(currentTime);
+  const transactionSlotNumber = slots.getSlotNumber(timestamp);
+
+  if (transactionSlotNumber > currentSlotNumber) {
+    return 'Transaction timestamp is in the future';
+  }
+
+  const earliestValidTime = currentTime - 15 /* seconds */;
+  const earliestValidSlotNumber = slots.getSlotNumber(earliestValidTime);
+
+  if (transactionSlotNumber < earliestValidSlotNumber) {
+    return 'Transaction timestamp is more than 15 seconds in the past';
+  }
 };
 
 /**
@@ -1135,7 +1168,7 @@ Transaction.prototype.schema = {
       type: 'integer'
     },
     timestampMs: {
-      type: 'integer'
+      type: ['integer', 'null']
     },
     senderPublicKey: {
       type: 'string',
@@ -1179,7 +1212,7 @@ Transaction.prototype.schema = {
       type: 'object'
     }
   },
-  required: ['type', 'timestamp', 'timestampMs', 'senderPublicKey', 'signature']
+  required: ['type', 'timestamp', 'senderPublicKey', 'signature']
 };
 
 /**
@@ -1236,7 +1269,7 @@ Transaction.prototype.dbRead = function (raw) {
       type: parseInt(raw.t_type),
       block_timestamp: parseInt(raw.block_timestamp),
       timestamp: parseInt(raw.t_timestamp),
-      timestampMs: parseInt(raw.t_timestampMs),
+      timestampMs: typeof raw.t_timestampMs === 'string' ? parseInt(raw.t_timestampMs) : null,
       senderPublicKey: raw.t_senderPublicKey,
       requesterPublicKey: raw.t_requesterPublicKey,
       senderId: raw.t_senderId,
