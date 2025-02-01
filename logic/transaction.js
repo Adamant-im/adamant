@@ -666,16 +666,10 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
   }
 
   // Check timestamp
-  if (trs.timestamp < INT_32_MIN || trs.timestamp > INT_32_MAX) {
-    return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is not in the int32 range');
-  }
+  const timestampValidationError = this.validateTimestampMs(trs);
 
-  if (typeof trs.timestampMs === 'number') {
-    const timestampMsDelta = Math.abs(trs.timestampMs - trs.timestamp * 1000);
-
-    if (timestampMsDelta >= 1000) {
-      return setImmediate(cb, 'Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than 1000ms');
-    }
+  if (timestampValidationError) {
+    return setImmediate(cb, timestampValidationError);
   }
 
   // Call verify on transaction type
@@ -690,11 +684,11 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
 };
 
 /**
- * Validates the timestamp and timestampMs of a transaction to ensure they are within an acceptable range
+ * Validates timestamp and timestampMs formats
  * @param {Transaction} trs - The transaction object to validate
  * @returns {string | undefined} - Returns string if the timestamp is invalid with the provided reason
  */
-Transaction.prototype.verifyTimestamp = function (trs) {
+Transaction.prototype.validateTimestampMs = function (trs) {
   const { timestamp, timestampMs } = trs;
 
   if (timestamp < INT_32_MIN || timestamp > INT_32_MAX) {
@@ -707,6 +701,21 @@ Transaction.prototype.verifyTimestamp = function (trs) {
     if (timestampMsDelta >= 1000) {
       return 'Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than 1000ms';
     }
+  }
+};
+
+/**
+ * Validates the timestamp and timestampMs of a transaction to ensure they are within an acceptable range
+ * @param {Transaction} trs - The transaction object to validate
+ * @returns {string | undefined} - Returns string if the timestamp is invalid with the provided reason
+ */
+Transaction.prototype.verifyTimestamp = function (trs) {
+  const { timestamp } = trs;
+
+  const validationError = this.validateTimestampMs(trs);
+
+  if (validationError) {
+    return validationError;
   }
 
   const currentTime = slots.getTime();
