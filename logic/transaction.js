@@ -129,7 +129,7 @@ Transaction.prototype.publish = function (data) {
   const error = this.verifyTimestamp(data);
 
   if (error) {
-    throw `Invalid timestamp. ${error}`;
+    throw `Invalid transaction timestamp. ${error}`;
   }
 
   var trs = data;
@@ -492,14 +492,14 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
   }
 
   if (trs.timestamp < INT_32_MIN || trs.timestamp > INT_32_MAX) {
-    return setImmediate(cb, 'Invalid timestamp. Timestamp is not within the int32 range');
+    return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is not within the int32 range');
   }
 
   if (typeof timestampMs === 'number') {
     const timestampMsDelta = Math.abs(timestampMs - timestamp * 1000);
 
     if (timestampMsDelta >= 1000) {
-      return setImmediate(cb, 'Invalid timestamp. The difference between timestamp and timestampMs is greater than 1000ms');
+      return setImmediate(cb, 'Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than 1000ms');
     }
   }
 
@@ -690,14 +690,14 @@ Transaction.prototype.verifyTimestamp = function (trs) {
   const { timestamp, timestampMs } = trs;
 
   if (timestamp < INT_32_MIN || timestamp > INT_32_MAX) {
-    return 'Invalid timestamp. Timestamp is not within the int32 range';
+    return 'Invalid transaction timestamp. Timestamp is not within the int32 range';
   }
 
   if (typeof timestampMs === 'number') {
     const timestampMsDelta = Math.abs(timestampMs - timestamp * 1000);
 
     if (timestampMsDelta >= 1000) {
-      return 'Invalid timestamp. The difference between timestamp and timestampMs is greater than 1000ms';
+      return 'Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than 1000ms';
     }
   }
 
