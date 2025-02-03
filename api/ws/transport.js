@@ -18,6 +18,8 @@ function TransportWsApi(modules, library, options) {
   this.reconnectionDelay = defaultReconnectionDelay;
 
   this.connections = new Map();
+
+  this.peers.events.on('peers:update', () => this.updatePeers());
 }
 
 TransportWsApi.prototype.initialize = function() {
@@ -171,6 +173,43 @@ TransportWsApi.prototype.setupEventHandlers = function(socket, peer) {
       }
     });
   });
+};
+
+TransportWsApi.prototype.updatePeers = function() {
+  const self = this;
+
+  this.connections.forEach(({ peer }) => {
+    if (self.peers.isBanned(peer)) {
+      self.cleanupConnection(peer);
+    }
+  });
+
+  const availableSlots = this.maxConnections - this.connections.size;
+
+  if (availableSlots <= 0) {
+    return;
+  }
+
+  this.getRandomPeers(availableSlots, (err, candidates) => {
+    if (err || !candidates.length) {
+      return;
+    }
+
+    candidates.forEach(peer => {
+      self.connectToPeer(peer);
+    });
+  });
+};
+
+TransportWsApi.prototype.cleanupConnection = function(peer) {
+  const peerUrl = `ws://${peer.ip}:${peer.port}`;
+  const connection = this.connections.get(peerUrl);
+
+  if (connection) {
+    connection.socket.removeAllListeners();
+    connection.socket.disconnect();
+    this.connections.delete(peerUrl);
+  }
 };
 
 module.exports = TransportWsApi;

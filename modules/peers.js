@@ -1,5 +1,7 @@
 'use strict';
 
+const EventEmitter = require('node:events');
+
 var _ = require('lodash');
 var async = require('async');
 var constants = require('../helpers/constants.js');
@@ -46,6 +48,8 @@ function Peers (cb, scope) {
     }
   };
   self = this;
+
+  self.events = new EventEmitter();
 
   setImmediate(cb, null, self);
 }
@@ -471,6 +475,14 @@ Peers.prototype.acceptable = function (peers) {
 };
 
 /**
+ * Returns true if the peer's state is banned
+ * @param {Peer} peer
+ */
+Peers.prototype.isBanned = function (peer) {
+  return library.logic.peers.get(peer).state === Peer.STATE.BANNED;
+};
+
+/**
  * Gets peers list and calculated consensus.
  * @param {Object} options - Contains limit, broadhash.
  * @param {function} cb - Callback function.
@@ -620,6 +632,9 @@ Peers.prototype.onPeersReady = function () {
           }
         }, function () {
           library.logger.trace('Peers updated', { updated: updated, total: peers.length });
+          if (updated) {
+            self.events.emit('peers:update');
+          }
           return setImmediate(seriesCb);
         });
       }
