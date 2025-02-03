@@ -44,13 +44,13 @@ TransportWsApi.prototype.initialize = function() {
 
 TransportWsApi.prototype.connectToPeer = function(peer) {
   const self = this;
-  const peerUrl = `wss://${peer.ip}:${peer.port}`;
+  const peerUrl = `ws://${peer.ip}:${peer.port}`;
 
   if (this.connections.has(peerUrl)) {
     return;
   }
 
-  self.logger.error(`Connecting to WebSocket peer: ${peerUrl}`);
+  self.logger.debug(`Connecting to WebSocket peer: ${peerUrl}`);
 
   const socket = io(peerUrl, {
     reconnection: false,
@@ -88,7 +88,7 @@ TransportWsApi.prototype.replacePeer = function(peer) {
   const self = this;
 
   // Remove the disconnected peer
-  self.connections.delete(`wss://${peer.ip}:${peer.port}`);
+  self.connections.delete(`ws://${peer.ip}:${peer.port}`);
 
   // Find a new peer to replace it
   self.getRandomPeer((err, newPeer) => {
