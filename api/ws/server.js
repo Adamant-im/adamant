@@ -6,9 +6,16 @@ function WebSocketServer(server, appConfig) {
     allowEIO3: true,
     cors: appConfig.cors,
   });
+
+  this.enabled = appConfig.wsNode.enabled;
+  this.max = appConfig.wsNode.maxConnections;
 }
 
 WebSocketServer.prototype.linkPeers = function (logic) {
+  if (!this.enabled) {
+    return;
+  }
+
   this.io.on('connection', (socket) => {
     const peerIp = socket.handshake.address || socket.request.socket.remoteAddress;
     const { nonce } = socket.handshake.auth;
@@ -32,6 +39,11 @@ WebSocketServer.prototype.linkPeers = function (logic) {
       return;
     }
 
+    if (logic.peers.getSocketCount() >= this.max) {
+      socket.disconnect(true);
+      return;
+    }
+
     logic.peers.upsert({ ip, port, viaSocket: true });
 
     socket.on('disconnect', () => {
@@ -39,5 +51,11 @@ WebSocketServer.prototype.linkPeers = function (logic) {
     });
   });
 };
+
+WebSocketServer.prototype.emit = function (eventName, data) {
+  if (this.enabled) {
+    this.io.sockets.emit(eventName, data);
+  }
+}
 
 module.exports = WebSocketServer;

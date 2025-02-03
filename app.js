@@ -353,7 +353,6 @@ d.run(function () {
         app: app,
         server: server,
         wsServer,
-        io: wsServer.io,
         https: https,
         https_io: https_io
       });
@@ -610,7 +609,7 @@ d.run(function () {
      */
     transportWs: ['network', 'config', 'modules', 'logic', function (scope, cb) {
       const { options } = appConfig.peers;
-      if (options.maxWsConnections !== 0) {
+      if (options.maxWsConnections > 0) {
         const transportWs = new TransportWsApi(scope.modules, scope.logic, appConfig.peers.options);
         transportWs.initialize();
       }

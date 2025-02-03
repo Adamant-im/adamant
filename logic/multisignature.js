@@ -447,7 +447,7 @@ Multisignature.prototype.dbSave = function (trs) {
  * @return {setImmediateCallback} cb
  */
 Multisignature.prototype.afterSave = function (trs, cb) {
-  library.network.io.sockets.emit('multisignatures/change', trs);
+  library.network.wsServer.emit('multisignatures/change', trs);
   return setImmediate(cb);
 };
 

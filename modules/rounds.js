@@ -330,12 +330,12 @@ Rounds.prototype.onBlockchainReady = function () {
 
 /**
  * Emits a 'rounds/change' socket message.
- * @implements {library.network.io.sockets.emit}
+ * @implements {library.network.wsServer.emit}
  * @param {number} round
  * @emits rounds/change
  */
 Rounds.prototype.onFinishRound = function (round) {
-  library.network.io.sockets.emit('rounds/change', { number: round });
+  library.network.wsServer.emit('rounds/change', { number: round });
 };
 
 /**

@@ -160,7 +160,7 @@ Multisignatures.prototype.processSignature = function (tx, cb) {
         return setImmediate(cb, 'Failed to verify signature');
       }
 
-      library.network.io.sockets.emit('multisignatures/signature/change', transaction);
+      library.network.wsServer.emit('multisignatures/signature/change', transaction);
       return done(cb);
     });
   }
@@ -478,7 +478,7 @@ Multisignatures.prototype.shared = {
         transaction.ready = Multisignature.prototype.ready(transaction, scope.sender);
 
         library.bus.message('signature', { transaction: transaction.id, signature: scope.signature }, true);
-        library.network.io.sockets.emit('multisignatures/signature/change', transaction);
+        library.network.wsServer.emit('multisignatures/signature/change', transaction);
 
         return setImmediate(cb, null, { transactionId: transaction.id });
       });
@@ -554,7 +554,7 @@ Multisignatures.prototype.shared = {
         if (err) {
           return setImmediate(cb, err);
         } else {
-          library.network.io.sockets.emit('multisignatures/change', scope.transaction);
+          library.network.wsServer.emit('multisignatures/change', scope.transaction);
           return setImmediate(cb, null, { transactionId: scope.transaction.id });
         }
       });

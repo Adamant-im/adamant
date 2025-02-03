@@ -319,6 +319,19 @@ module.exports = {
         },
         required: ['portWS', 'enabled']
       },
+      wsNode: {
+        type: 'object',
+        properties: {
+          maxConnections: {
+            type: 'integer',
+            minimum: 1,
+          },
+          enabled: {
+            type: 'boolean'
+          }
+        },
+        required: ['maxConnections', 'enabled']
+      },
       nethash: {
         type: 'string',
         format: 'hex'

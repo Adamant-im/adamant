@@ -81,7 +81,7 @@ __private.initialize = function () {
  * or Sync trigger by sending a socket signal with 'loader/sync' and setting
  * next sync with 1000 milliseconds.
  * @private
- * @implements {library.network.io.sockets.emit}
+ * @implements {library.network.wsServer.emit}
  * @implements {modules.blocks.lastBlock.get}
  * @param {boolean} turnOn
  * @emits loader/sync
@@ -96,7 +96,7 @@ __private.syncTrigger = function (turnOn) {
     library.logger.trace('Setting sync interval');
     setImmediate(function nextSyncTrigger () {
       library.logger.trace('Sync trigger');
-      library.network.io.sockets.emit('loader/sync', {
+      library.network.wsServer.emit('loader/sync', {
         blocks: __private.blocksToSync,
         height: modules.blocks.lastBlock.get().height
       });
