@@ -38,6 +38,8 @@ var httpApi = require('./helpers/httpApi.js');
 var Sequence = require('./helpers/sequence.js');
 var util = require('util');
 var z_schema = require('./helpers/z_schema.js');
+const TransportWsApi = require('./api/ws/transport.js');
+const WebSocketServer = require('./api/ws/server.js');
 process.stdin.resume();
 
 var versionBuild = fs.readFileSync(path.join(__dirname, 'build'), 'utf8');
@@ -326,11 +328,7 @@ d.run(function () {
 
       var server = require('http').createServer(app);
 
-      const { Server } = require('socket.io');
-      const io = new Server(server, {
-        allowEIO3: true,
-        cors: appConfig.cors
-      });
+      const wsServer = new WebSocketServer(server, appConfig);
 
       var privateKey, certificate, https, https_io;
 
@@ -354,7 +352,8 @@ d.run(function () {
         express: express,
         app: app,
         server: server,
-        io: io,
+        wsServer,
+        io: wsServer.io,
         https: https,
         https_io: https_io
       });
@@ -604,6 +603,21 @@ d.run(function () {
       async.parallel(tasks, function (err, results) {
         cb(err, results);
       });
+    }],
+
+    /**
+     * Listens for new transacttions using websocket and links peers to the websocket server
+     */
+    transportWs: ['network', 'config', 'modules', 'logic', function (scope, cb) {
+      const { options } = appConfig.peers;
+      if (options.maxWsConnections !== 0) {
+        const transportWs = new TransportWsApi(scope.modules, scope.logic, appConfig.peers.options);
+        transportWs.initialize();
+      }
+
+      scope.network.wsServer.linkPeers(scope.logic)
+
+      cb();
     }],
 
     /**

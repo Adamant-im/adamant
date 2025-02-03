@@ -111,6 +111,9 @@ module.exports = {
           options: {
             type: 'object',
             properties: {
+              maxWsConnections: {
+                type: 'integer',
+              },
               limits: {
                 type: 'object',
                 properties: {
@@ -130,7 +133,7 @@ module.exports = {
                 required: ['max', 'delayMs', 'delayAfter', 'windowMs']
               }
             },
-            required: ['limits']
+            required: ['limits', 'maxWsConnections']
           }
         },
         required: ['enabled', 'access', 'options']

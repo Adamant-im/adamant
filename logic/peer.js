@@ -15,7 +15,12 @@ const SUCCESS_RATE_POOL_SIZE = 25;
  * @return calls accept method
  */
 // Constructor
-function Peer (peer) {
+function Peer(peer) {
+  /**
+   * Is peer listening to transactions using websocket?
+   */
+  this.viaSocket = false;
+
   return this.accept(peer || {});
 }
 
@@ -46,7 +51,8 @@ Peer.prototype.properties = [
   'height',
   'clock',
   'updated',
-  'nonce'
+  'nonce',
+  'viaSocket'
 ];
 
 Peer.prototype.immutable = [
