@@ -111,9 +111,6 @@ module.exports = {
           options: {
             type: 'object',
             properties: {
-              maxWsConnections: {
-                type: 'integer',
-              },
               limits: {
                 type: 'object',
                 properties: {
@@ -133,7 +130,7 @@ module.exports = {
                 required: ['max', 'delayMs', 'delayAfter', 'windowMs']
               }
             },
-            required: ['limits', 'maxWsConnections']
+            required: ['limits']
           }
         },
         required: ['enabled', 'access', 'options']
@@ -158,6 +155,9 @@ module.exports = {
           },
           options: {
             properties: {
+              maxWsConnections: {
+                type: 'integer',
+              },
               limits: {
                 type: 'object',
                 properties: {
@@ -180,7 +180,7 @@ module.exports = {
                 type: 'integer'
               }
             },
-            required: ['limits', 'timeout']
+            required: ['maxWsConnections', 'limits', 'timeout']
           }
         },
         required: ['enabled', 'list', 'access', 'options']
