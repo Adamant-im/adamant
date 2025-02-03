@@ -30,6 +30,18 @@ function Peers (logger, cb) {
 }
 
 /**
+ * Finds the peer by nonce
+ * @param {string} nonce
+ */
+Peers.prototype.getByNonce = function (nonce) {
+  for (const [peerString, peer] of Object.entries(__private.peers)) {
+    if (peer.nonce === nonce) {
+      return __private.peers[peerString];
+    }
+  }
+}
+
+/**
  * Returns a peer instance.
  * @param {peer} peer
  * @return {peer} peer instance
@@ -205,7 +217,7 @@ Peers.prototype.list = function (normalize) {
  * @returns {number}
  */
 Peers.prototype.getSocketCount = function () {
-  return Object.keys(__private.peers).reduce((acc, peer) => acc + (peer.isBroadcastingViaSocket ? 1 : 0), 0);
+  return Object.values(__private.peers).reduce((acc, peer) => acc + (peer.isBroadcastingViaSocket ? 1 : 0), 0);
 }
 
 // Public methods
