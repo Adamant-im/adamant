@@ -204,8 +204,8 @@ Peers.prototype.list = function (normalize) {
  * Returns amount of peers that are connected via socket
  * @returns {number}
  */
-Peers.prototype.getSocketConnectionsCount = function () {
-  return Object.keys(__private.peers).reduce((acc, peer) => acc + (peer.viaSocket ? 1 : 0), 0);
+Peers.prototype.getSocketCount = function () {
+  return Object.keys(__private.peers).reduce((acc, peer) => acc + (peer.isBroadcastingViaSocket ? 1 : 0), 0);
 }
 
 // Public methods

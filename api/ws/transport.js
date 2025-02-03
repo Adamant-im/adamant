@@ -127,7 +127,7 @@ TransportWsApi.prototype.getRandomPeers = function(limit, callback) {
   this.peers.list({
     limit,
     allowedStates: [Peer.STATE.CONNECTED],
-    protocol: 'http',
+    syncProtocol: 'http',
     broadhash: this.modules.system.getBroadhash()
   }, callback);
 };

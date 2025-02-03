@@ -304,7 +304,7 @@ Peers.prototype.update = function (peer) {
  * @param {Peer} peer
  */
 Peers.prototype.switchToWs = function (peer) {
-  peer.protocol = 'ws';
+  peer.syncProtocol = 'ws';
   library.logic.peers.upsert(peer);
 };
 
@@ -313,7 +313,7 @@ Peers.prototype.switchToWs = function (peer) {
  * @param {Peer} peer
  */
 Peers.prototype.switchToHttp = function (peer) {
-  peer.protocol = 'http';
+  peer.syncProtocol = 'http';
   library.logic.peers.upsert(peer);
 };
 
@@ -492,7 +492,7 @@ Peers.prototype.list = function (options, cb) {
       found = peersList.length;
       // Apply filters
       peersList = peersList.filter(function (peer) {
-        if (options.protocol && peer.protocol !== options.protocol) {
+        if (options.syncProtocol && peer.syncProtocol !== options.syncProtocol) {
           return false;
         }
 

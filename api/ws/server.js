@@ -44,10 +44,10 @@ WebSocketServer.prototype.linkPeers = function (logic) {
       return;
     }
 
-    logic.peers.upsert({ ip, port, viaSocket: true });
+    logic.peers.upsert({ ip, port, isBroadcastingViaSocket: true });
 
     socket.on('disconnect', () => {
-      logic.peers.upsert({ ip, port, viaSocket: false });
+      logic.peers.upsert({ ip, port, isBroadcastingViaSocket: false });
     });
   });
 };

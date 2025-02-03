@@ -19,12 +19,12 @@ function Peer(peer) {
   /**
    * Is peer listening to transactions using websocket?
    */
-  this.viaSocket = false;
+  this.isBroadcastingViaSocket = false;
 
   /**
    * 'ws' or 'http'
    */
-  this.protocol = 'http';
+  this.syncProtocol = 'http';
 
   return this.accept(peer || {});
 }
@@ -57,8 +57,8 @@ Peer.prototype.properties = [
   'clock',
   'updated',
   'nonce',
-  'viaSocket',
-  'protocol'
+  'isBroadcastingViaSocket',
+  'syncProtocol'
 ];
 
 Peer.prototype.immutable = [
