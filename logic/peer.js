@@ -21,6 +21,11 @@ function Peer(peer) {
    */
   this.viaSocket = false;
 
+  /**
+   * 'ws' or 'http'
+   */
+  this.protocol = 'http';
+
   return this.accept(peer || {});
 }
 
@@ -52,7 +57,8 @@ Peer.prototype.properties = [
   'clock',
   'updated',
   'nonce',
-  'viaSocket'
+  'viaSocket',
+  'protocol'
 ];
 
 Peer.prototype.immutable = [

@@ -69,18 +69,25 @@ TransportWsApi.prototype.connectToPeer = function(peer) {
 
 TransportWsApi.prototype.handleConnect = function(socket, peer) {
   this.logger.debug(`WebSocket: Connected to peer WebSocket at ${peer.ip}:${peer.port}`);
+
+  this.peers.switchToWs(peer);
   this.peers.recordRequest(peer.ip, peer.port, null);
+
   this.setupEventHandlers(socket, peer);
 };
 
 TransportWsApi.prototype.handleConnectError = function(peer, err) {
   this.logger.debug(`WebSocket: Connection error with ${peer.ip}:${peer.port}`, err.message);
+
+  this.peers.switchToHttp(peer);
   this.peers.recordRequest(peer.ip, peer.port, err);
+
   this.replacePeer(peer);
 };
 
 TransportWsApi.prototype.handleDisconnect = function(peer, reason) {
   this.logger.debug(`WebSocket: Disconnected from ${peer.ip}:${peer.port}`, reason);
+  this.peers.switchToHttp(peer);
   this.replacePeer(peer);
 };
 
@@ -120,6 +127,7 @@ TransportWsApi.prototype.getRandomPeers = function(limit, callback) {
   this.peers.list({
     limit,
     allowedStates: [Peer.STATE.CONNECTED],
+    protocol: 'http',
     broadhash: this.modules.system.getBroadhash()
   }, callback);
 };

@@ -300,6 +300,24 @@ Peers.prototype.update = function (peer) {
 };
 
 /**
+ * Changes the connection type to ws
+ * @param {Peer} peer
+ */
+Peers.prototype.switchToWs = function (peer) {
+  peer.protocol = 'ws';
+  library.logic.peers.upsert(peer);
+};
+
+/**
+ * Changes the connection type to http
+ * @param {Peer} peer
+ */
+Peers.prototype.switchToHttp = function (peer) {
+  peer.protocol = 'http';
+  library.logic.peers.upsert(peer);
+};
+
+/**
  * Returns whether the peer is in config peers list
  * @param {string} ip
  * @param {number} port
@@ -474,6 +492,10 @@ Peers.prototype.list = function (options, cb) {
       found = peersList.length;
       // Apply filters
       peersList = peersList.filter(function (peer) {
+        if (options.protocol && peer.protocol !== options.protocol) {
+          return false;
+        }
+
         if (options.broadhash) {
           // Skip banned and disconnected peers (state 0 and 1)
           return options.allowedStates.indexOf(peer.state) !== -1 && (
