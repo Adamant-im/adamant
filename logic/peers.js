@@ -99,9 +99,12 @@ Peers.prototype.upsert = function (peer, insertOnly) {
   var update = function (peer) {
     peer.updated = Date.now();
 
+    const existingPeer = __private.peers[peer.string];
+
     var diff = {};
     _.each(peer, function (value, key) {
-      if (key !== 'updated' && __private.peers[peer.string][key] !== value) {
+      const isImmutableProperty = existingPeer.immutable.includes(key);
+      if (key !== 'updated'  && !isImmutableProperty && existingPeer[key] !== value) {
         diff[key] = value;
       }
     });
