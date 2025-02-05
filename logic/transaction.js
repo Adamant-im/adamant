@@ -12,7 +12,6 @@ var sql = require('../sql/transactions.js');
 // Private fields
 var self, modules, __private = {};
 
-const INT_32_MIN = -2147483648;
 const INT_32_MAX = 2147483647;
 
 /**
@@ -491,16 +490,10 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
     return setImmediate(cb, 'Unknown transaction type ' + trs.type);
   }
 
-  if (trs.timestamp < INT_32_MIN || trs.timestamp > INT_32_MAX) {
-    return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is not within the int32 range');
-  }
+  const timestampValidationError = this.validateTimestampMs(trs);
 
-  if (typeof timestampMs === 'number') {
-    const timestampMsDelta = Math.abs(timestampMs - timestamp * 1000);
-
-    if (timestampMsDelta >= 1000) {
-      return setImmediate(cb, 'Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than 1000ms');
-    }
+  if (timestampValidationError) {
+    return setImmediate(cb, timestampValidationError);
   }
 
   // Check for missing sender second signature
@@ -665,13 +658,6 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
     return setImmediate(cb, senderBalance.error);
   }
 
-  // Check timestamp
-  const timestampValidationError = this.validateTimestampMs(trs);
-
-  if (timestampValidationError) {
-    return setImmediate(cb, timestampValidationError);
-  }
-
   // Call verify on transaction type
   __private.types[trs.type].verify.call(this, trs, sender, function (err) {
     if (err) {
@@ -691,8 +677,12 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
 Transaction.prototype.validateTimestampMs = function (trs) {
   const { timestamp, timestampMs } = trs;
 
-  if (timestamp < INT_32_MIN || timestamp > INT_32_MAX) {
+  if (timestamp > INT_32_MAX) {
     return 'Invalid transaction timestamp. Timestamp is not within the int32 range';
+  }
+
+  if (timestamp < 0) {
+    return 'Invalid transaction timestamp. The timestamp is after the epoch time'
   }
 
   if (typeof timestampMs === 'number') {

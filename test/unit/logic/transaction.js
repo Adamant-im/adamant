@@ -714,13 +714,13 @@ describe('transaction', () => {
       });
     });
 
-    it('should return error on timestamp smaller than the int32 range', (done) => {
+    it('should return error on negative timestamp', (done) => {
       const trs = _.cloneDeep(validUnconfirmedTransaction);
-      trs.timestamp = -2147483648 - 1;
+      trs.timestamp = -1;
       delete trs.signature;
       trs.signature = transaction.sign(testSenderKeypair, trs);
       transaction.verify(trs, testSender, {}, (err) => {
-        expect(err).to.include('Invalid transaction timestamp');
+        expect(err).to.include('timestamp is after the epoch time');
         done();
       });
     });
