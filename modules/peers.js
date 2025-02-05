@@ -308,8 +308,10 @@ Peers.prototype.update = function (peer) {
  * @param {Peer} peer
  */
 Peers.prototype.switchToWs = function (peer) {
-  peer.syncProtocol = 'ws';
-  library.logic.peers.upsert(peer);
+  const existingPeer = library.logic.peers.get(peer);
+  if (existingPeer) {
+    existingPeer.syncProtocol = 'ws';
+  }
 };
 
 /**
@@ -317,8 +319,10 @@ Peers.prototype.switchToWs = function (peer) {
  * @param {Peer} peer
  */
 Peers.prototype.switchToHttp = function (peer) {
-  peer.syncProtocol = 'http';
-  library.logic.peers.upsert(peer);
+  const existingPeer = library.logic.peers.get(peer);
+  if (existingPeer) {
+    existingPeer.syncProtocol = 'http';
+  }
 };
 
 /**

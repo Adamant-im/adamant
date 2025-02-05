@@ -16,16 +16,6 @@ const SUCCESS_RATE_POOL_SIZE = 25;
  */
 // Constructor
 function Peer(peer) {
-  /**
-   * Is peer listening to transactions using websocket?
-   */
-  this.isBroadcastingViaSocket = false;
-
-  /**
-   * 'ws' or 'http'
-   */
-  this.syncProtocol = 'http';
-
   return this.accept(peer || {});
 }
 
@@ -64,7 +54,9 @@ Peer.prototype.properties = [
 Peer.prototype.immutable = [
   'ip',
   'port',
-  'string'
+  'string',
+  'isBroadcastingViaSocket',
+  'syncProtocol'
 ];
 
 Peer.prototype.headers = [
@@ -85,6 +77,11 @@ Peer.prototype.nullable = [
   'clock',
   'updated'
 ];
+
+Peer.prototype.defaultValues = {
+  isBroadcastingViaSocket: false,
+  syncProtocol: 'http'
+};
 
 /**
  * Amount of success requests for the last 25 tries
@@ -230,7 +227,8 @@ Peer.prototype.object = function () {
   var copy = {};
 
   _.each(this.properties, function (key) {
-    copy[key] = this[key];
+    const defaultValue = this.defaultValues[key];
+    copy[key] = this[key] ?? defaultValue;
   }.bind(this));
 
   _.each(this.nullable, function (key) {
