@@ -20,6 +20,8 @@ function TransportWsApi(modules, library, options) {
   this.connections = new Map();
 
   this.peers.events.on('peers:update', () => this.updatePeers());
+
+  this.startRotation();
 }
 
 TransportWsApi.prototype.initialize = function() {
@@ -209,6 +211,53 @@ TransportWsApi.prototype.cleanupConnection = function(peer) {
     connection.socket.removeAllListeners();
     connection.socket.disconnect();
     this.connections.delete(peerUrl);
+  }
+};
+
+TransportWsApi.prototype.rotatePeers = function () {
+  const self = this;
+
+  const totalConnections = self.connections.size;
+
+  if (totalConnections === 0) {
+    return;
+  }
+
+  const countToRotate = Math.ceil(totalConnections * 0.2); // rotate 20%
+  const connectionsArray = Array.from(self.connections.values());
+
+  const shuffled = connectionsArray.sort(() => Math.random() - 0.5);
+
+  self.getRandomPeers(countToRotate, (err, newPeers) => {
+    if (err || !newPeers.length) {
+      return;
+    }
+
+    self.logger.debug(`Rotating ${newPeers.length} out of ${totalConnections} peers.`);
+
+    const peersToRotate = shuffled.slice(0, newPeers.length).map((connection) => connection.peer);
+
+    peersToRotate.forEach(peer => {
+      self.logger.debug(`Rotating peer ${peer.ip}:${peer.port}`);
+      self.cleanupConnection(peer);
+    });
+
+    newPeers.forEach(newPeer => {
+      self.connectToPeer(newPeer);
+    });
+  });
+};
+
+TransportWsApi.prototype.startRotation = function() {
+  this.rotationInterval = setInterval(() => {
+    this.rotatePeers();
+  }, 1000 * 60 * 30); // 30 minutes
+};
+
+TransportWsApi.prototype.stopRotation = function() {
+  if (this.rotationInterval) {
+    clearInterval(this.rotationInterval);
+    this.rotationInterval = null;
   }
 };
 
