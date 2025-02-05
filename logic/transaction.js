@@ -688,8 +688,9 @@ Transaction.prototype.validateTimestampMs = function (trs) {
   if (typeof timestampMs === 'number') {
     const timestampMsDelta = Math.abs(timestampMs - timestamp * 1000);
 
-    if (timestampMsDelta >= 1000) {
-      return 'Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than 1000ms';
+    const { maxTimestampMsDelta } = constants;
+    if (timestampMsDelta >= maxTimestampMsDelta) {
+      return `Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than ${maxTimestampMsDelta}ms`;
     }
   }
 };
