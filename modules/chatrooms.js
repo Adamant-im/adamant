@@ -71,7 +71,7 @@ __private.listChats = function (filter, cb) {
   let includeDirectTransfers = false;
 
   if (typeof filter.includeDirectTransfers !== 'undefined') {
-    includeDirectTransfers = filter.includeDirectTransfers;
+    includeDirectTransfers = Boolean(filter.includeDirectTransfers);
   }
 
   if (typeof filter.withoutDirectTransfers !== 'undefined') {
@@ -179,7 +179,7 @@ __private.listMessages = function (filter, cb) {
   let includeDirectTransfers = false;
 
   if (typeof filter.includeDirectTransfers !== 'undefined') {
-    includeDirectTransfers = filter.includeDirectTransfers;
+    includeDirectTransfers = Boolean(filter.includeDirectTransfers);
   }
 
   if (typeof filter.withoutDirectTransfers !== 'undefined') {
