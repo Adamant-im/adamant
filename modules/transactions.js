@@ -914,6 +914,20 @@ Transactions.prototype.shared = {
       if (err) {
         return setImmediate(cb, err[0].message);
       }
+
+      if (req.body.returnUnconfirmed) {
+        const unconfirmedTransaction = __private.getUnconfirmedTransaction(req.body.id);
+
+        if (unconfirmedTransaction) {
+          const asset = req.body.returnAsset ? unconfirmedTransaction.asset : {};
+
+          return {
+            ...unconfirmedTransaction,
+            asset
+          };
+        }
+      }
+
       var method = 'getById';
       if (req.body.returnAsset) {
         method = 'getByIdFullAsset';
