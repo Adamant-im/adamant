@@ -201,6 +201,41 @@ __private.list = function (filter, cb) {
     return setImmediate(cb, orderBy.error);
   }
 
+  let unconfirmedTransactions = [];
+
+  if (filter.returnUnconfirmed) {
+    const allowedFilters = [
+      'blockId',
+      'fromHeight',
+      'toHeight',
+      'minAmount',
+      'maxAmount',
+      'senderId',
+      'senderIds',
+      'recipientId',
+      'recipientIds',
+      'senderPublicKey',
+      'senderPublicKeys',
+      'recipientPublicKey',
+      'recipientPublicKeys',
+      'inId',
+      'isIn',
+      'type',
+      'types',
+    ];
+
+    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(filter, {
+      allowedFilters,
+      defaultCondition: 'OR',
+    });
+
+    params.mergingOffset = unconfirmedTransactions.length;
+    params.mergingLimit = filter.limit;
+
+    params.offset = Math.max(0, params.offset - unconfirmedTransactions.length);
+    params.limit += unconfirmedTransactions.length * 2;
+  }
+
   library.db.query(sql.countList({
     where: where,
     owner: owner
@@ -223,31 +258,6 @@ __private.list = function (filter, cb) {
       }
 
       if (filter.returnUnconfirmed) {
-        const allowedFilters = [
-          'blockId',
-          'fromHeight',
-          'toHeight',
-          'minAmount',
-          'maxAmount',
-          'senderId',
-          'senderIds',
-          'recipientId',
-          'recipientIds',
-          'senderPublicKey',
-          'senderPublicKeys',
-          'recipientPublicKey',
-          'recipientPublicKeys',
-          'inId',
-          'isIn',
-          'type',
-          'types',
-        ];
-
-        const unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(filter, {
-          allowedFilters,
-          defaultCondition: 'OR',
-        });
-
         count += unconfirmedTransactions.length;
 
         transactions = modules.transactions.mergeUnconfirmedTransactions(
@@ -255,8 +265,8 @@ __private.list = function (filter, cb) {
           unconfirmedTransactions,
           {
             orderBy,
-            limit: params.limit,
-            offset: params.offset,
+            limit: params.mergingLimit,
+            offset: params.mergingOffset,
             returnAsset: filter.returnAsset,
           }
         );
@@ -264,7 +274,7 @@ __private.list = function (filter, cb) {
 
       var data = {
         transactions: transactions,
-        count: count
+        count: String(count + unconfirmedTransactions.length)
       };
 
       return setImmediate(cb, null, data);

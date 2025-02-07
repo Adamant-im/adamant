@@ -165,6 +165,38 @@ __private.list = function (filter, cb) {
   if (orderBy.error) {
     return setImmediate(cb, orderBy.error);
   }
+
+
+  let unconfirmedTransactions = [];
+
+  if (filter.returnUnconfirmed) {
+    const unconfirmedFilters = { ...filter, type: transactionTypes.STATE };
+    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(
+      unconfirmedFilters,
+      {
+        allowedFilters: [
+          'senderId',
+          'recipientId',
+          'toHeight',
+          'fromHeight',
+          'senderIds',
+          'key',
+          'keyIds',
+          'type',
+        ],
+        aliases: {
+          type: 'assetStateType',
+        },
+      },
+    );
+
+    params.mergingOffset = unconfirmedTransactions.length;
+    params.mergingLimit = filter.limit;
+
+    params.offset = Math.max(0, params.offset - unconfirmedTransactions.length);
+    params.limit += unconfirmedTransactions.length * 2;
+  }
+
   library.db.query(sql.countList({
     where: where
   }), params).then(function (rows) {
@@ -181,42 +213,20 @@ __private.list = function (filter, cb) {
       }
 
       if (filter.returnUnconfirmed) {
-        const unconfirmedFilters = { ...filter, type: transactionTypes.STATE };
-        const unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(
-          unconfirmedFilters,
-          {
-            allowedFilters: [
-              'senderId',
-              'recipientId',
-              'toHeight',
-              'fromHeight',
-              'senderIds',
-              'key',
-              'keyIds',
-              'type',
-            ],
-            aliases: {
-              type: 'assetStateType',
-            },
-          },
-        );
-
-        count += unconfirmedTransactions.length;
-
         transactions = modules.transactions.mergeUnconfirmedTransactions(
           transactions,
           unconfirmedTransactions,
           {
             orderBy,
-            limit: params.limit,
-            offset: params.offset,
+            limit: params.mergingLimit,
+            offset: params.mergingOffset,
           },
         );
       }
 
       var data = {
         transactions: transactions,
-        count: count
+        count: String(count + unconfirmedTransactions.length)
       };
 
       return setImmediate(cb, null, data);

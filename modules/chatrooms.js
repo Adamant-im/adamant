@@ -112,11 +112,26 @@ __private.listChats = function (filter, cb) {
   if (orderBy.error) {
     return setImmediate(cb, orderBy.error);
   }
+
+  let unconfirmedTransactions = [];
+
+  if (filter.returnUnconfirmed) {
+    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions({
+      isIn: filter.userId,
+    });
+
+    params.mergingOffset = unconfirmedTransactions.length;
+    params.mergingLimit = filter.limit;
+
+    params.offset = Math.max(0, params.offset - unconfirmedTransactions.length);
+    params.limit += unconfirmedTransactions.length * 2;
+  }
+
   library.db.query(sql.countChats({
     where: where,
     whereOr: whereOr
   }), params).then(function (rows) {
-    const count = rows.length ? rows[0].count : 0;
+    const count = rows.length ? Number(rows[0].count) : 0;
     library.db.query(sql.listChats({
       where: where,
       whereOr: whereOr,
@@ -126,17 +141,13 @@ __private.listChats = function (filter, cb) {
       let transactions = rows.map(library.logic.transaction.dbRead);
 
       if (filter.returnUnconfirmed) {
-        const unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions({
-          isIn: filter.userId,
-        });
-
         transactions = modules.transactions.mergeUnconfirmedTransactions(
           transactions,
           unconfirmedTransactions,
           {
             orderBy,
-            limit: params.limit,
-            offset: params.offset,
+            limit: params.mergingLimit,
+            offset: params.mergingOffset,
             withoutDirectTransfers: filter.withoutDirectTransfers
           }
         );
@@ -158,7 +169,7 @@ __private.listChats = function (filter, cb) {
 
       const data = {
         chats: Object.values(chats),
-        count: count
+        count: String(count + unconfirmedTransactions.length)
       };
       return setImmediate(cb, null, data);
     }).catch(function (err) {
@@ -226,6 +237,35 @@ __private.listMessages = function (filter, cb) {
   if (orderBy.error) {
     return setImmediate(cb, orderBy.error);
   }
+
+  let unconfirmedTransactions = [];
+
+  if (filter.returnUnconfirmed) {
+    const unconfirmedFilters = {
+      ...filter,
+      senderIds: [filter.companionId, filter.userId],
+      recipientIds: [filter.companionId, filter.userId],
+      type: transactionTypes.CHAT_MESSAGE,
+    };
+
+    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(unconfirmedFilters, {
+      allowedFilters: [
+        'type',
+      ],
+      aliases: {
+        type: 'assetChatType'
+      },
+    });
+
+    count += unconfirmedTransactions.length;
+
+    params.mergingOffset = unconfirmedTransactions.length;
+    params.mergingLimit = filter.limit;
+
+    params.offset = Math.max(0, params.offset - unconfirmedTransactions.length);
+    params.limit += unconfirmedTransactions.length * 2;
+  }
+
   library.db.query(sql.countList({
     where: where,
     whereOr: whereOr
@@ -244,31 +284,13 @@ __private.listMessages = function (filter, cb) {
       }
 
       if (filter.returnUnconfirmed) {
-        const unconfirmedFilters = {
-          ...filter,
-          senderIds: [filter.companionId, filter.userId],
-          recipientIds: [filter.companionId, filter.userId],
-          type: transactionTypes.CHAT_MESSAGE,
-        };
-
-        const unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(unconfirmedFilters, {
-          allowedFilters: [
-            'type',
-          ],
-          aliases: {
-            type: 'assetChatType'
-          },
-        });
-
-        count += unconfirmedTransactions.length;
-
         transactions = modules.transactions.mergeUnconfirmedTransactions(
           transactions,
           unconfirmedTransactions,
           {
             orderBy,
-            limit: params.limit,
-            offset: params.offset,
+            limit: params.mergingLimit,
+            offset: params.mergingOffset,
             withoutDirectTransfers: filter.withoutDirectTransfers
           }
         );
@@ -280,7 +302,7 @@ __private.listMessages = function (filter, cb) {
           { address: transactions[0].senderId, publicKey: transactions[0].senderPublicKey },
           { address: transactions[0].recipientId, publicKey: transactions[0].recipientPublicKey }
         ] : [],
-        count: count
+        count: String(count + unconfirmedTransactions.length)
       };
       return setImmediate(cb, null, data);
     }).catch(function (err) {
