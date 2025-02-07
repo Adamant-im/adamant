@@ -123,25 +123,41 @@ __private.listChats = function (filter, cb) {
       sortField: orderBy.sortField,
       sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {
-      let transactions = [], chats = {};
-      for (let i = 0; i < rows.length; i++) {
-        let trs = {};
-        trs.lastTransaction = library.logic.transaction.dbRead(rows[i]);
-        trs.participants = [
-          { address: trs.lastTransaction.senderId, publicKey: trs.lastTransaction.senderPublicKey },
-          { address: trs.lastTransaction.recipientId, publicKey: trs.lastTransaction.recipientPublicKey }
-        ];
-        const uid = trs.lastTransaction.senderId !== filter.userId ? trs.lastTransaction.senderId : trs.lastTransaction.recipientId;
-        if (!chats[uid]) {
-          chats[uid] = [];
-        }
-        chats[uid].push(trs);
+      let transactions = rows.map(library.logic.transaction.dbRead);
+
+      if (filter.returnUnconfirmed) {
+        const unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions({
+          isIn: filter.userId,
+        });
+
+        transactions = modules.transactions.mergeUnconfirmedTransactions(
+          transactions,
+          unconfirmedTransactions,
+          {
+            orderBy,
+            limit: params.limit,
+            offset: params.offset,
+            withoutDirectTransfers: filter.withoutDirectTransfers
+          }
+        );
       }
-      for (const uid in chats) {
-        transactions.push(chats[uid][0]);
+
+      const chats = {};
+
+      for (const trs of transactions) {
+        const uid = trs.senderId !== filter.userId ? trs.senderId : trs.recipientId;
+
+        chats[uid] = {
+          lastTransaction: trs,
+          participants: [
+            { address: trs.senderId, publicKey: trs.senderPublicKey },
+            { address: trs.recipientId, publicKey: trs.recipientPublicKey },
+          ]
+        };
       }
+
       const data = {
-        chats: transactions,
+        chats: Object.values(chats),
         count: count
       };
       return setImmediate(cb, null, data);
@@ -332,7 +348,7 @@ Chatrooms.prototype.internal = {
             return setImmediate(waterCb, 'Failed to get transactions: ' + err);
           } else {
             return setImmediate(waterCb, null, {
-              chats: _.uniqBy(data.chats, (x) => x.lastTransaction.id),
+              chats: data.chats,
               count: data.count
             });
           }
