@@ -25,15 +25,17 @@ The manual describes API endpoints to manage accounts, transactions, chats, and 
 
 ### Requirements
 
-- Ubuntu 18/20/22 (others are not tested)
+- Ubuntu 18–24 (others are not tested)
 - 2 GB RAM
-- 70 GB disk space as of November 2023
+- 70 GB disk space as of February 2025 (+10 GB per year)
 
 ### Installation script
 
 For new droplets, use the [Installation script](./tools/install_node.sh), included in this repository, or run it from the ADAMANT website:
 
-`sudo bash -c "$(wget -O - https://adamant.im/install_node.sh)"`
+```sh
+sudo bash -c "$(wget -O - https://adamant.im/install_node.sh)"
+```
 
 The script updates Ubuntu packages, creates the user named `adamant`, installs PostgreSQL, Node.js, and other necessary packages, sets up the ADAMANT node, and optionally downloads an up-to-date ADAMANT blockchain image.
 
@@ -44,30 +46,36 @@ Script parameters:
 
 F. e.,
 
-`sudo bash -c "$(wget -O - https://adamant.im/install_node.sh)" -O -b dev -n testnet`
+```sh
+sudo bash -c "$(wget -O - https://adamant.im/install_node.sh)" -O -b dev -n testnet
+```
 
 ### Prerequisites
 
 - Toolchain components — Used for compiling dependencies
 
-  `sudo apt-get install -y python build-essential curl automake autoconf libtool`
+  ```sh
+  sudo apt-get install -y python build-essential curl automake autoconf libtool
+  ```
 
-- Git — Used for cloning and updating ADAMANT
+- Git — Used for cloning and updating ADAMANT GitHub repository
 
-  `sudo apt-get install -y git`
+  ```sh
+  sudo apt-get install -y git
+  ```
 
 - Node.js — Node.js serves as the underlying engine for code execution
 
-  System-wide via package manager:
+  System-wide via package manager (choose desired nodejs version):
 
-  ```
+  ```sh
   curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
   sudo apt-get install -y nodejs
   ```
 
   Locally using nvm:
 
-  ```
+  ```sh
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
   nvm i --lts=hydrogen
   ```
@@ -95,13 +103,16 @@ F. e.,
 
 - pm2 — Manages the node process for ADAMANT
 
-  `sudo npm install -g pm2`
+  ```sh
+  sudo npm install -g pm2
+  ```
 
 ### Installation Steps
 
 Clone the ADAMANT repository using Git and initialize the modules.
 
-```
+```sh
+su - adamant
 git clone https://github.com/Adamant-im/adamant
 cd adamant
 npm install
@@ -109,20 +120,14 @@ npm install
 
 Copy the default config file by running the following command:
 
-```
+```sh
 cp config.default.json config.json
 ```
 
-Edit the "config.json" file using your preferred text editor, for example, Vim or Nano.
+Edit the `config.json` file using your preferred text editor, for example, Vim or Nano.
 
-```
+```sh
 nano config.json
-```
-
-or
-
-```
-vim config.json
 ```
 
 Make the necessary changes to the configuration values in the file. At minimum, you should change the value of the `db.password` property to your actual database password.
@@ -137,8 +142,8 @@ You may want to test the node in a safe environment before running a `mainnet` n
 
   You can use installation script to automatically install the node for testnet:
 
-  ```bash
-  # Fetches the script and install the last stable ADAMANT version using testnet config
+  ```sh
+  # Fetches the script and install the latest stable ADAMANT version using testnet config
   sudo bash -c "$(wget -O - https://adamant.im/install_node.sh)" -O -b master -n testnet
   ```
 
@@ -148,29 +153,25 @@ You may want to test the node in a safe environment before running a `mainnet` n
 
   To manually set up and run a local test node, copy the default config file and edit your copy:
 
-  ```
+  ```sh
   cp test/config.default.json test/config.json
   ```
 
 To start the testnet node:
 
-```
+```sh
 npm run start:testnet
 ```
 
-#### Testnet Explorer
-
 The testnet explorer is available at [testnet.adamant.im](https://testnet.adamant.im/).
 
-#### Test nodes
-
-You can view the IPs and ports of the running test nodes in the [test/config.default.json](./test/config.default.json) file.
+You can view the IPs and ports of testnet nodes in the [test/config.default.json](./test/config.default.json) file.
 
 ### Bootstrap with a blockchain image
 
 A blockchain image saves time on node sync, but you must completely trust the image. If you skip this step, your node will check every single transaction, which takes time (up to several days).
 
-```
+```sh
 wget https://explorer.adamant.im/db_backup.sql.gz
 gunzip db_backup.sql.gz
 psql adamant_main < db_backup.sql
@@ -181,23 +182,33 @@ rm db_backup.sql
 
 To test that ADAMANT is built and configured correctly, run the following command:
 
-`node app.js`
+```sh
+node app.js
+```
 
 Once the process is verified as running correctly, `CTRL+C` and start the process with `pm2`. This will fork the process into the background and automatically recover the process if it fails.
 
-`pm2 start --name adamant app.js`
+```sh
+pm2 start --name adamant app.js
+```
 
 After the process is started, its runtime status and log location can be retrieved by issuing the following command:
 
-`pm2 show adamant`
+```sh
+pm2 show adamant
+```
 
 To stop ADAMANT after it has been started with `pm2`, issue the following command:
 
-`pm2 stop adamant`
+```sh
+pm2 stop adamant
+```
 
-To add ADAMANT node to crontab for autostart after system reboot (fix installation path):
+To add ADAMANT node to crontab for autostart after system reboot (fix installation path). You can alternatively use `pm2 save` - `pm2 startup` for this purpose.
 
-`crontab -l | { cat; echo "@reboot cd /home/adamant/adamant && pm2 start --name adamant app.js"; } | crontab -`
+```sh
+crontab -l | { cat; echo "@reboot cd /home/adamant/adamant && pm2 start --name adamant app.js"; } | crontab -
+```
 
 ## Tests
 
@@ -205,6 +216,7 @@ Refer to [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
 
 ## Authors
 
+- ADAMANT community developers <devs@adamant.im>
 - ADAMANT Foundation <devs@adamant.im>
 - ADAMANT TECH LABS LP <devs@adamant.im>
 - Boris Povod <boris@crypti.me>
@@ -217,7 +229,9 @@ Refer to [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
 
 ## License
 
-Copyright © 2020-2023 ADAMANT Foundation
+Copyright © 2025 ADAMANT community developers
+
+Copyright © 2020-2025 ADAMANT Foundation
 
 Copyright © 2017-2020 ADAMANT TECH LABS LP
 
