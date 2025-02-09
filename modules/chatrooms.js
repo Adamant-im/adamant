@@ -123,8 +123,8 @@ __private.listChats = function (filter, cb) {
     params.mergingOffset = unconfirmedTransactions.length;
     params.mergingLimit = filter.limit;
 
+    params.limit += Math.min(params.offset, unconfirmedTransactions.length);
     params.offset = Math.max(0, params.offset - unconfirmedTransactions.length);
-    params.limit += unconfirmedTransactions.length * 2;
   }
 
   library.db.query(sql.countChats({
@@ -262,8 +262,8 @@ __private.listMessages = function (filter, cb) {
     params.mergingOffset = unconfirmedTransactions.length;
     params.mergingLimit = filter.limit;
 
+    params.limit += Math.min(params.offset, unconfirmedTransactions.length);
     params.offset = Math.max(0, params.offset - unconfirmedTransactions.length);
-    params.limit += unconfirmedTransactions.length * 2;
   }
 
   library.db.query(sql.countList({
