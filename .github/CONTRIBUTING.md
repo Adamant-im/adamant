@@ -19,7 +19,8 @@ All tests inside `api/` and `unit/` should mirror (as much as possible) the stru
 
 ### Commands
 
-[!IMPORTANT] **API tests** require the `testnet` local node to be running in parallel during their execution:
+> [!IMPORTANT]
+> **API tests** require the `testnet` local node to be running in parallel during their execution:
 
 ```sh
 npm run start:testnet
@@ -27,7 +28,8 @@ npm run start:testnet
 
 See [Test Environment](../README.md#Test-Environment) for reference.
 
-[!CAUTION] **Unit tests** should NOT be run in parallel to prevent disruption of the node's state, and the `testnet` should be run at least once before.
+> [!CAUTION]
+> **Unit tests** should NOT be run in parallel to prevent disruption of the node's state, and the `testnet` should be run at least once before.
 
 To run a single test file, use the following command:
 
