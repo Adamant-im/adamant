@@ -4,47 +4,49 @@ To be merged, pull requests **MUST** include tests for any new features or bug f
 
 ### Structure
 
-The tests are located in the test/ directory. The structure of the directory is as follows:
-- `api/` - End-to-end tests that require running a local test node.
-- `unit/` - Unit tests that DO NOT require running a test node.
-- `common/` - Contains stub objects and utilities for the tests.
-- `node.js` - Package for making requests to the local test node.
+The tests are located in the `test/` directory. The structure of the directory is as follows:
+
+- `api/` - End-to-end tests that require running a local test node
+- `unit/` - Unit tests that DO NOT require running a test node
+- `common/` - Contains stub objects and utilities for the tests
+- `node.js` - Package for making requests to the local test node
 - `config.json` - Configuration file to run a local test node; copy `config.default.json`
-- `genesisBlock.json` - Genesis block data.
-- `genesisDelegates.json` - Genesis delegate accounts.
-- `genesisPasses.json` - Passphrases for the genesis accounts.
+- `genesisBlock.json` - Genesis block data
+- `genesisDelegates.json` - Genesis delegate accounts
+- `genesisPasses.json` - Passphrases for the genesis accounts
 
 All tests inside `api/` and `unit/` should mirror (as much as possible) the structure of the project. For example, unit tests for the `modules/blocks.js` module should be located in the `test/unit/modules/blocks.js` file.
 
 ### Commands
 
-> [!IMPORTANT]
-> **API tests** require the `testnet` node to be running in parallel during their execution:
-> ```
-> npm run start:testnet
-> ```
-> See [Test Environment](../README.md#Test-Environment) for reference.
+[!IMPORTANT]
+**API tests** require the `testnet` local node to be running in parallel during their execution:
 
-> [!CAUTION]
-> **Unit tests** should NOT be run in parallel to prevent disruption of the node's state, and the `testnet` should be run at least once before.
+```sh
+npm run start:testnet
+```
 
+See [Test Environment](../README.md#Test-Environment) for reference.
+
+[!CAUTION]
+**Unit tests** should NOT be run in parallel to prevent disruption of the node's state, and the `testnet` should be run at least once before.
 
 To run a single test file, use the following command:
 
-```
+```sh
 npm run test:single test/path/to/the/test.js
 ```
 
 If you have changed any common files (e.g., files inside `test/common/`, `test/node.js` package, etc.), consider running all tests:
 
 ```sh
-# run all unit tests
+# run all unit tests; remember to stop testnet node before
 npm run test:unit
 
 # run only fast unit tests (excluding time-consuming ones)
 npm run test:unit:fast
 
-# run all API tests
+# run all API tests; remember to run testnet node before
 npm run test:api
 ```
 
@@ -102,3 +104,5 @@ Since we use the Chai package for assertions, we have a few rules for consistenc
   // ✅
   describe(`functionName()`, () => { /* ... */ })
   ```
+
+Happy testing!
