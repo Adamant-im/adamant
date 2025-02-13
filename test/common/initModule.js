@@ -177,6 +177,7 @@ var modulesLoader = new function () {
       { sql: require('../../modules/sql') },
       { system: require('../../modules/system') },
       { transactions: require('../../modules/transactions') },
+      { transport: require('../../modules/transport') },
     ], [
       { 'transaction': require('../../logic/transaction') },
       { 'account': require('../../logic/account') },

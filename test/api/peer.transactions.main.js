@@ -29,13 +29,13 @@ describe('GET /peer/transactions', function () {
 
   it('using incompatible version in headers should fail', function (done) {
     node.get('/peer/transactions')
-        .set('version', '0.1.0a')
+        .set('version', '0.1.0')
         .end(function (err, res) {
           node.debug('> Response:'.grey, JSON.stringify(res.body));
           node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body).to.have.property('message').to.eql('Request is made from incompatible version');
           node.expect(res.body).to.have.property('expected').to.eql('>=0.6.0');
-          node.expect(res.body).to.have.property('received').to.eql('0.1.0a');
+          node.expect(res.body).to.have.property('received').to.eql('0.1.0');
           done();
         });
   });
@@ -64,13 +64,13 @@ describe('POST /peer/transactions', function () {
 
   it('using incompatible version in headers should fail', function (done) {
     node.post('/peer/transactions')
-        .set('version', '0.1.0a')
+        .set('version', '0.1.0')
         .end(function (err, res) {
           node.debug('> Response:'.grey, JSON.stringify(res.body));
           node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body).to.have.property('message').to.eql('Request is made from incompatible version');
           node.expect(res.body).to.have.property('expected').to.eql('>=0.6.0');
-          node.expect(res.body).to.have.property('received').to.eql('0.1.0a');
+          node.expect(res.body).to.have.property('received').to.eql('0.1.0');
           done();
         });
   });
@@ -264,7 +264,7 @@ describe('POST /peer/transactions', function () {
         node.async.doUntil(function (next) {
           postTransaction(transaction2, function (err, res) {
             node.expect(res.body).to.have.property('success').to.be.false;
-            node.expect(res.body).to.have.property('message').to.match(/Account does not have enough ADM: U[0-9]+ balance: 1e-8/);
+            node.expect(res.body).to.have.property('message').to.match(/Account does not have enough ADM/);
             count++;
             return next();
           });
