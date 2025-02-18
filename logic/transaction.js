@@ -718,11 +718,11 @@ Transaction.prototype.verifyTimestamp = function (trs) {
     return 'Transaction timestamp is in the future';
   }
 
-  const earliestValidTime = currentTime - 15 /* seconds */;
+  const earliestValidTime = currentTime - constants.maxTransactionAge;
   const earliestValidSlotNumber = slots.getSlotNumber(earliestValidTime);
 
   if (transactionSlotNumber < earliestValidSlotNumber) {
-    return 'Transaction timestamp is more than 15 seconds in the past';
+    return `Transaction timestamp is more than ${constants.maxTransactionAge} seconds in the past`;
   }
 };
 
