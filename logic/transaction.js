@@ -125,10 +125,10 @@ Transaction.prototype.publish = function (data) {
     throw 'Invalid signature';
   }
 
-  const error = this.verifyTimestamp(data);
+  const timestampValidationError = this.verifyTimestamp(data);
 
   if (error) {
-    throw `Invalid transaction timestamp. ${error}`;
+    throw `Invalid transaction timestamp. ${timestampValidationError}`;
   }
 
   var trs = data;
