@@ -682,7 +682,7 @@ Transaction.prototype.validateTimestampMs = function (trs) {
   }
 
   if (timestamp < 0) {
-    return 'Invalid transaction timestamp. The timestamp is after the epoch time'
+    return 'Invalid transaction timestamp. The timestamp is before the epoch time'
   }
 
   if (typeof timestampMs === 'number') {

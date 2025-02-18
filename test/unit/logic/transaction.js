@@ -720,7 +720,7 @@ describe('transaction', () => {
       delete trs.signature;
       trs.signature = transaction.sign(testSenderKeypair, trs);
       transaction.verify(trs, testSender, {}, (err) => {
-        expect(err).to.include('timestamp is after the epoch time');
+        expect(err).to.include('timestamp is before the epoch time');
         done();
       });
     });
