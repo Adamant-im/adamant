@@ -41,6 +41,7 @@ const {
   delegateAccountKeypair,
   genesisKeypair,
 } = require('../../common/stubs/account.js');
+const { consensusActivationHeights } = require('../../../logic/consensus/activationHeights.js');
 
 const validKeypair = testAccountKeypair;
 
@@ -78,6 +79,8 @@ describe('transaction', () => {
     );
   };
 
+  let dummyHeight = 1;
+
   before((done) => {
     async.auto(
       {
@@ -93,6 +96,11 @@ describe('transaction', () => {
             modulesLoader.initLogicWithDb(Transaction, cb, {
               ed: require('../../../helpers/ed'),
               account: result.accountLogic,
+              consensus: {
+                loader: {
+                  getHeight: () => dummyHeight,
+                },
+              },
             });
           },
         ],
@@ -714,17 +722,6 @@ describe('transaction', () => {
       });
     });
 
-    it('should return error on negative timestamp', (done) => {
-      const trs = _.cloneDeep(validUnconfirmedTransaction);
-      trs.timestamp = -1;
-      delete trs.signature;
-      trs.signature = transaction.sign(testSenderKeypair, trs);
-      transaction.verify(trs, testSender, {}, (err) => {
-        expect(err).to.include('timestamp is before the epoch time');
-        done();
-      });
-    });
-
     it('should return error on timestamp bigger than the int32 range', (done) => {
       const trs = _.cloneDeep(validUnconfirmedTransaction);
       trs.timestamp = 2147483647 + 1;
@@ -804,7 +801,7 @@ describe('transaction', () => {
       delete trs.signature;
       trs.signature = transaction.sign(testSenderKeypair, trs);
       const error = transaction.verifyTimestamp(trs);
-      expect(error).to.equal('Transaction timestamp is more than 15 seconds in the past');
+      expect(error).to.equal('Transaction timestamp is more than 5 seconds in the past');
     });
   });
 
@@ -1176,6 +1173,20 @@ describe('transaction', () => {
       const trs = _.cloneDeep(validTransaction);
       trs.amount = null;
       expect(_.keys(transaction.objectNormalize(trs))).to.not.include('amount');
+    });
+
+    it('should remove timestampMs when height is below consensus', () => {
+      dummyHeight = consensusActivationHeights.spaceship - 1;
+
+      const trs = _.cloneDeep(validTransaction);
+      expect(_.keys(transaction.objectNormalize(trs))).to.not.include('timestampMs');
+    });
+
+    it('should keep timestampMs when height meets consensus', () => {
+      dummyHeight = consensusActivationHeights.spaceship;
+
+      const trs = _.cloneDeep(validTransaction);
+      expect(_.keys(transaction.objectNormalize(trs))).to.include('timestampMs');
     });
 
     it('should not remove any keys with valid entries', () => {

@@ -9,10 +9,12 @@ var exceptions = require('../helpers/exceptions.js');
 var extend = require('extend');
 var slots = require('../helpers/slots.js');
 var sql = require('../sql/transactions.js');
+const Consensus = require('./consensus/consensus.js');
 // Private fields
 var self, modules, __private = {};
 
-const INT_32_MAX = 2147483647;
+const SIGN_INT_32_MAX = 2147483647;
+const SIGN_INT_32_MIN = -2147483648;
 
 /**
  * @typedef {Object} privateTypes
@@ -45,7 +47,7 @@ __private.types = {};
  * @return {setImmediateCallback} With `this` as data.
  */
 // Constructor
-function Transaction (db, ed, schema, genesisblock, account, logger, clientWs, cb) {
+function Transaction (db, ed, schema, genesisblock, account, logger, clientWs, consensus, cb) {
   this.scope = {
     db: db,
     ed: ed,
@@ -53,7 +55,8 @@ function Transaction (db, ed, schema, genesisblock, account, logger, clientWs, c
     genesisblock: genesisblock,
     account: account,
     logger: logger,
-    clientWs: clientWs
+    clientWs: clientWs,
+    consensus,
   };
   self = this;
   if (cb) {
@@ -127,7 +130,7 @@ Transaction.prototype.publish = function (data) {
 
   const timestampValidationError = this.verifyTimestamp(data);
 
-  if (error) {
+  if (timestampValidationError) {
     throw `Invalid transaction timestamp. ${timestampValidationError}`;
   }
 
@@ -671,18 +674,14 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
 
 /**
  * Validates timestamp and timestampMs formats
- * @param {Transaction} trs - The transaction object to validate
+ * @param {Transaction} trs - The normalized transaction object to validate
  * @returns {string | undefined} - Returns string if the timestamp is invalid with the provided reason
  */
 Transaction.prototype.validateTimestampMs = function (trs) {
   const { timestamp, timestampMs } = trs;
 
-  if (timestamp > INT_32_MAX) {
-    return 'Invalid transaction timestamp. Timestamp is not within the int32 range';
-  }
-
-  if (timestamp < 0) {
-    return 'Invalid transaction timestamp. The timestamp is before the epoch time'
+  if (timestamp > SIGN_INT_32_MAX || timestamp < SIGN_INT_32_MIN) {
+    return 'Invalid transaction timestamp. Timestamp is not within the signed int32 range';
   }
 
   if (typeof timestampMs === 'number') {
@@ -702,12 +701,6 @@ Transaction.prototype.validateTimestampMs = function (trs) {
  */
 Transaction.prototype.verifyTimestamp = function (trs) {
   const { timestamp } = trs;
-
-  const validationError = this.validateTimestampMs(trs);
-
-  if (validationError) {
-    return validationError;
-  }
 
   const currentTime = slots.getTime();
 
@@ -1240,6 +1233,10 @@ Transaction.prototype.objectNormalize = function (trs) {
     if (trs[i] === null || typeof trs[i] === 'undefined') {
       delete trs[i];
     }
+  }
+
+  if (!this.scope.consensus.isActivated('spaceship')) {
+    delete trs.timestampMs;
   }
 
   var report = this.scope.schema.validate(trs, Transaction.prototype.schema);
