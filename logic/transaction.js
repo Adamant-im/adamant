@@ -695,7 +695,8 @@ Transaction.prototype.validateTimestampMs = function (trs) {
 };
 
 /**
- * Validates the timestamp and timestampMs of a transaction to ensure they are within an acceptable range
+ * Validates the timestamp and timestampMs of a transaction to ensure ensures they are neither too old nor from the future
+ * This check applies only to new unconfirmed transactions
  * @param {Transaction} trs - The transaction object to validate
  * @returns {string | undefined} - Returns string if the timestamp is invalid with the provided reason
  */
