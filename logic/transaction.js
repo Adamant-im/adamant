@@ -128,7 +128,7 @@ Transaction.prototype.publish = function (data) {
     throw 'Invalid signature';
   }
 
-  const timestampValidationError = this.verifyTimestamp(data);
+  const timestampValidationError = this.validateTimestampWindow(data);
 
   if (timestampValidationError) {
     throw `Invalid transaction timestamp. ${timestampValidationError}`;
@@ -700,7 +700,7 @@ Transaction.prototype.validateTimestampMs = function (trs) {
  * @param {Transaction} trs - The transaction object to validate
  * @returns {string | undefined} - Returns string if the timestamp is invalid with the provided reason
  */
-Transaction.prototype.verifyTimestamp = function (trs) {
+Transaction.prototype.validateTimestampWindow = function (trs) {
   const { timestamp } = trs;
 
   const currentTime = slots.getTime();
