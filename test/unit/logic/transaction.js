@@ -41,6 +41,7 @@ const {
   delegateAccountKeypair,
   genesisKeypair,
 } = require('../../common/stubs/account.js');
+const { consensusActivationHeights } = require('../../../logic/consensus/activationHeights.js');
 
 const validKeypair = testAccountKeypair;
 
@@ -78,6 +79,8 @@ describe('transaction', () => {
     );
   };
 
+  let dummyHeight = 1;
+
   before((done) => {
     async.auto(
       {
@@ -93,6 +96,11 @@ describe('transaction', () => {
             modulesLoader.initLogicWithDb(Transaction, cb, {
               ed: require('../../../helpers/ed'),
               account: result.accountLogic,
+              consensus: {
+                loader: {
+                  getHeight: () => dummyHeight,
+                },
+              },
             });
           },
         ],
@@ -682,7 +690,12 @@ describe('transaction', () => {
 
     it('should verify transaction with correct fee (without data field)', (done) => {
       let trs = _.cloneDeep(validUnconfirmedTransaction);
+
+      trs.timestamp = slots.getTime();
+      trs.timestampMs = slots.getTimeMs();
+
       trs.signature = transaction.sign(testSenderKeypair, trs);
+
       transaction.verify(trs, testSender, {}, (err) => {
         expect(err).to.not.exist;
         done();
@@ -709,17 +722,6 @@ describe('transaction', () => {
       });
     });
 
-    it('should return error on timestamp smaller than the int32 range', (done) => {
-      const trs = _.cloneDeep(validUnconfirmedTransaction);
-      trs.timestamp = -2147483648 - 1;
-      delete trs.signature;
-      trs.signature = transaction.sign(testSenderKeypair, trs);
-      transaction.verify(trs, testSender, {}, (err) => {
-        expect(err).to.include('Invalid transaction timestamp');
-        done();
-      });
-    });
-
     it('should return error on timestamp bigger than the int32 range', (done) => {
       const trs = _.cloneDeep(validUnconfirmedTransaction);
       trs.timestamp = 2147483647 + 1;
@@ -731,19 +733,44 @@ describe('transaction', () => {
       });
     });
 
-    it('should return error on future timestamp', (done) => {
+    it('should return error when timestampMs is less than timestamp by a second', (done) => {
       const trs = _.cloneDeep(validUnconfirmedTransaction);
-      trs.timestamp = slots.getTime() + 100;
+
+      trs.timestamp = slots.getTime();
+      const timestampMs = trs.timestamp * 1000;
+      trs.timestampMs = timestampMs - 1000;
+
       delete trs.signature;
       trs.signature = transaction.sign(testSenderKeypair, trs);
+
       transaction.verify(trs, testSender, {}, (err) => {
-        expect(err).to.include('Invalid transaction timestamp');
+        expect(err).to.equal('Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than 1000ms');
+        done();
+      });
+    });
+
+    it('should return error when timestampMs is greater than timestamp by a second', (done) => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+
+      trs.timestamp = slots.getTime();
+      const timestampMs = trs.timestamp * 1000;
+      trs.timestampMs = timestampMs + 1000;
+
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+
+      transaction.verify(trs, testSender, {}, (err) => {
+        expect(err).to.equal('Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than 1000ms');
         done();
       });
     });
 
     it('should verify proper transaction with proper sender', (done) => {
       let trs = _.cloneDeep(validUnconfirmedTransaction);
+
+      trs.timestamp = slots.getTime();
+      trs.timestampMs = slots.getTimeMs();
+
       trs.signature = transaction.sign(testSenderKeypair, trs);
       transaction.verify(trs, testSender, {}, (err) => {
         expect(err).to.not.be.ok;
@@ -753,6 +780,28 @@ describe('transaction', () => {
 
     it('should throw an error with no param', () => {
       expect(transaction.verify).to.throw();
+    });
+  });
+
+  describe('validateTimestampWindow()', () => {
+    it('should return error on future timestamp', () => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestamp = slots.getTime() + 100;
+      trs.timestampMs = trs.timestamp * 1000;
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+      const error = transaction.validateTimestampWindow(trs);
+      expect(error).to.equal('Transaction timestamp is in the future');
+    });
+
+    it('should return error on timestamp that is 16 seconds in the past', () => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestamp = slots.getTime() - 100;
+      trs.timestampMs = trs.timestamp * 1000;
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+      const error = transaction.validateTimestampWindow(trs);
+      expect(error).to.equal('Transaction timestamp is more than 5 seconds in the past');
     });
   });
 
@@ -1079,7 +1128,7 @@ describe('transaction', () => {
         .which.is.equal(trs.signatures.join(','));
     });
 
-    it('should return promise object for valid parameters', () => {
+    it('should return query object for valid parameters', () => {
       const saveQuery = transaction.dbSave(validTransaction);
       const keys = ['table', 'fields', 'values'];
       const valuesKeys = [
@@ -1087,6 +1136,7 @@ describe('transaction', () => {
         'blockId',
         'type',
         'timestamp',
+        'timestampMs',
         'senderPublicKey',
         'requesterPublicKey',
         'senderId',
@@ -1125,10 +1175,24 @@ describe('transaction', () => {
       expect(_.keys(transaction.objectNormalize(trs))).to.not.include('amount');
     });
 
+    it('should remove timestampMs when height is below consensus', () => {
+      dummyHeight = consensusActivationHeights.spaceship - 1;
+
+      const trs = _.cloneDeep(validTransaction);
+      expect(_.keys(transaction.objectNormalize(trs))).to.not.include('timestampMs');
+    });
+
+    it('should keep timestampMs when height meets consensus', () => {
+      dummyHeight = consensusActivationHeights.spaceship;
+
+      const trs = _.cloneDeep(validTransaction);
+      expect(_.keys(transaction.objectNormalize(trs))).to.include('timestampMs');
+    });
+
     it('should not remove any keys with valid entries', () => {
       expect(
         _.keys(transaction.objectNormalize(validTransaction))
-      ).to.have.length(11);
+      ).to.have.length(12);
     });
 
     it('should throw error for invalid schema types', () => {
@@ -1162,6 +1226,7 @@ describe('transaction', () => {
         'block_timestamp',
         'type',
         'timestamp',
+        'timestampMs',
         'senderPublicKey',
         'requesterPublicKey',
         'senderId',

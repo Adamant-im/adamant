@@ -1,3 +1,5 @@
+const accounts = require('../../../../helpers/accounts.js');
+
 const validSender = {
   balance: 8067474861277,
   u_balance: 8067474861277,
@@ -8,6 +10,9 @@ const validSender = {
   multimin: 0,
   address: 'U810656636599221322',
 };
+
+const validSenderHash = accounts.createPassPhraseHash(validSender.password);
+const validSenderKeyPair = accounts.makeKeypair(validSenderHash);
 
 const senderDefault = {
   username: null,
@@ -29,5 +34,6 @@ const senderDefault = {
 
 module.exports = {
   validSender,
+  validSenderKeyPair,
   senderDefault
 };
