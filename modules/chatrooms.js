@@ -146,9 +146,9 @@ __private.listChats = function (filter, cb) {
           unconfirmedTransactions,
           {
             orderBy,
+            includeDirectTransfers,
             limit: params.mergingLimit,
             offset: params.mergingOffset,
-            withoutDirectTransfers: filter.withoutDirectTransfers
           }
         );
       }
@@ -289,9 +289,9 @@ __private.listMessages = function (filter, cb) {
           unconfirmedTransactions,
           {
             orderBy,
+            includeDirectTransfers,
             limit: params.mergingLimit,
             offset: params.mergingOffset,
-            withoutDirectTransfers: filter.withoutDirectTransfers
           }
         );
       }

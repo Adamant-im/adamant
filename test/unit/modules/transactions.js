@@ -1208,16 +1208,15 @@ describe('transactions', function () {
         expect(mergedTxs).to.eql([]);
       });
 
-      describe('should remove transfer transactions when withoutDirectTransfers is', () => {
+      describe('should remove transfer transactions when includeDirectTransfers is', () => {
         const values = [
-          1,
-          true,
-          'true'
+          0,
+          false,
         ];
 
         values.forEach((value) => {
           it(JSON.stringify(value), () => {
-            options.withoutDirectTransfers = value;
+            options.includeDirectTransfers = value;
 
             const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
 

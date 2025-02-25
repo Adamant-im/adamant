@@ -462,7 +462,7 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
   const {
     orderBy,
     limit,
-    withoutDirectTransfers = 0,
+    includeDirectTransfers = 1,
     returnAsset = 1,
     offset = 0,
   } = options;
@@ -502,7 +502,7 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
 
   let result = mergedArray;
 
-  if (withoutDirectTransfers) {
+  if (!includeDirectTransfers) {
     result = result.filter((transaction) => (
       transaction.type !== transactionTypes.SEND
     ));

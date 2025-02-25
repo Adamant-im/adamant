@@ -222,9 +222,9 @@ __private.list = function (filter, cb) {
           unconfirmedTransactions,
           {
             orderBy,
+            includeDirectTransfers,
             limit: params.mergingLimit,
             offset: params.mergingOffset,
-            withoutDirectTransfers: filter.withoutDirectTransfers,
           }
         );
       }
