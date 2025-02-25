@@ -1,34 +1,78 @@
 'use strict';
 
-var chai = require('chai');
-var expect = require('chai').expect;
+const { expect } = require('chai');
 
-var express = require('express');
-var ip = require('ip');
-var _ = require('lodash');
-var sinon = require('sinon');
-var randomPeer = require('../../common/objectStubs').randomPeer;
-var Peer = require('../../../logic/peer.js');
+const ip = require('neoip');
+const _ = require('lodash');
 
-describe('peer', function () {
-  var peer;
+const Peer = require('../../../logic/peer.js');
 
-  beforeEach(function () {
+const { validPeer } = require('../../common/stubs/peers.js');
+
+describe('peer', () => {
+  let peer;
+
+  beforeEach(() => {
     peer = new Peer({});
   });
 
-  describe('accept', function () {
-    it('should accept valid peer', function () {
-      var peer = new Peer({});
-      var __peer = peer.accept(randomPeer);
-      ['height', 'ip', 'port', 'state'].forEach(function (property) {
-        expect(__peer[property]).equals(randomPeer[property]);
-      });
-      expect(__peer.string).equals(randomPeer.ip + ':' + randomPeer.port);
+  describe('recordRequest()', () => {
+    let successRateBefore, successRateAfter;
+
+    it('should lower success rate after recording a failed request', () => {
+      successRateBefore = peer.calcSuccessRate();
+
+      peer.recordRequest('TEST_ERROR');
+      successRateAfter = peer.calcSuccessRate();
+
+      expect(successRateAfter).to.be.lessThan(successRateBefore);
     });
 
-    it('should accept empty peer and set default values', function () {
-      var __peer = peer.accept({});
+    it('should not increment success rate when already at the limit', () => {
+      successRateBefore = peer.calcSuccessRate();
+
+      peer.recordRequest();
+      successRateAfter = peer.calcSuccessRate();
+
+      expect(successRateAfter).to.equal(successRateBefore);
+    });
+
+    it('should hit the bottom limit after 100 failed requests', () => {
+      Array.from({ length: 100 }).forEach(() => peer.recordRequest('an error'));
+
+      const successRate = peer.calcSuccessRate();
+      expect(successRate).to.equal(0);
+    });
+
+    it('should not change state for a banned peer', () => {
+      peer.state = Peer.STATE.BANNED;
+
+      Array.from({ length: 100 }).forEach(() => peer.recordRequest('an error'));
+
+      expect(peer.state).to.equal(Peer.STATE.BANNED);
+    });
+
+    it('should change peer state to disconnected after too many failures', () => {
+      peer.state = Peer.STATE.CONNECTED;
+
+      Array.from({ length: 100 }).forEach(() => peer.recordRequest('an error'));
+
+      expect(peer.state).to.equal(Peer.STATE.DISCONNECTED);
+    });
+  });
+
+  describe('accept()', () => {
+    it('should accept valid peer', () => {
+      const peer = new Peer({});
+      const __peer = peer.accept(validPeer);
+      ['height', 'ip', 'port', 'state'].forEach((property) => {
+        expect(__peer[property]).equals(validPeer[property]);
+      });
+      expect(__peer.string).equals(`${validPeer.ip}:${validPeer.port}`);
+    });
+
+    it('should accept empty peer and set default values', () => {
+      const __peer = peer.accept({});
       expect(__peer.port).to.equal(0);
       expect(__peer.ip).to.be.undefined;
       expect(__peer.state).to.equal(1);
@@ -36,88 +80,88 @@ describe('peer', function () {
       expect(__peer.string).to.be.undefined;
     });
 
-    it('should accept peer with ip as long', function () {
-      var __peer = peer.accept({ ip: ip.toLong(randomPeer.ip) });
-      expect(__peer.ip).to.equal(randomPeer.ip);
+    it('should accept peer with ip as long', () => {
+      const __peer = peer.accept({ ip: ip.toLong(validPeer.ip) });
+      expect(__peer.ip).to.equal(validPeer.ip);
     });
 
-    it('should convert dappid to array', function () {
-      var __peer = peer.accept({ dappid: 'random-dapp-id' });
+    it('should convert dappid to array', () => {
+      const __peer = peer.accept({ dappid: 'random-dapp-id' });
       expect(__peer.dappid).to.be.an('array');
-      expect(_.isEqual(__peer.dappid, ['random-dapp-id'])).to.be.ok;
+      expect(_.isEqual(__peer.dappid, ['random-dapp-id'])).to.be.true;
       delete __peer.dappid;
     });
   });
 
-  describe('parseInt', function () {
-    it('should always return a number', function () {
+  describe('parseInt()', () => {
+    it('should always return a number', () => {
       expect(peer.parseInt('1')).to.equal(1);
       expect(peer.parseInt(1)).to.equal(1);
     });
 
-    it('should return default value when NaN passed', function () {
+    it('should return default value when NaN is provided', () => {
       expect(peer.parseInt('not a number', 1)).to.equal(1);
       expect(peer.parseInt(undefined, 1)).to.equal(1);
       expect(peer.parseInt(null, 1)).to.equal(1);
     });
   });
 
-  describe('applyHeaders', function () {
-    it('should not apply random values to the peer scope', function () {
+  describe('applyHeaders()', () => {
+    it('should not apply random values to the peer scope', () => {
       peer.applyHeaders({ headerA: 'HeaderA' });
-      expect(peer.headerA).to.not.exist;
+      expect(peer.headerA).not.to.exist;
     });
 
-    it('should apply defined values as headers', function () {
-      peer.headers.forEach(function (header) {
+    it('should apply defined values as headers', () => {
+      peer.headers.forEach((header) => {
         delete peer[header];
-        if (randomPeer[header]) {
-          var headers = {};
-          headers[header] = randomPeer[header];
+        if (validPeer[header]) {
+          const headers = {};
+          headers[header] = validPeer[header];
           peer.applyHeaders(headers);
-          expect(peer[header]).to.equal(randomPeer[header]);
+          expect(peer[header]).to.equal(validPeer[header]);
         }
       });
     });
 
-    it('should not apply nulls or undefined values as headers', function () {
-      peer.headers.forEach(function (header) {
+    it('should not apply nulls or undefined values as headers', () => {
+      peer.headers.forEach((header) => {
         delete peer[header];
-        if (randomPeer[header] === null || randomPeer[header] === undefined) {
-          var headers = {};
-          headers[header] = randomPeer[header];
+        if (validPeer[header] === null || validPeer[header] === undefined) {
+          const headers = {};
+          headers[header] = validPeer[header];
           peer.applyHeaders(headers);
-          expect(peer[header]).to.not.exist;
+          expect(peer[header]).not.to.exist;
         }
       });
     });
 
-    it('should parse height and port', function () {
-      var appliedHeaders = peer.applyHeaders({ port: '4000', height: '1' });
+    it('should parse height and port', () => {
+      const appliedHeaders = peer.applyHeaders({ port: '4000', height: '1' });
 
       expect(appliedHeaders.port).to.equal(4000);
       expect(appliedHeaders.height).to.equal(1);
     });
   });
 
-  describe('update', function () {
-    it('should not apply random values to the peer scope', function () {
+  describe('update()', () => {
+    it('should not pass the unexpected values to the peer scope', () => {
       peer.update({ someProp: 'someValue' });
-      expect(peer.someProp).to.not.exist;
+      expect(peer.someProp).not.to.exist;
     });
 
-    it('should not apply undefined to the peer scope', function () {
+    it('should not apply undefined to the peer scope', () => {
       peer.update({ someProp: undefined });
-      expect(peer.someProp).to.not.exist;
+      expect(peer.someProp).not.to.exist;
     });
 
-    it('should not apply null to the peer scope', function () {
+    it('should not apply null to the peer scope', () => {
       peer.update({ someProp: null });
-      expect(peer.someProp).to.not.exist;
+      expect(peer.someProp).not.to.exist;
     });
 
-    it('should change state of banned peer', function () {
-      var initialState = peer.state;
+    it('should change state of banned peer', () => {
+      const initialState = peer.state;
       // Ban peer
       peer.state = 0;
       // Try to unban peer
@@ -126,56 +170,61 @@ describe('peer', function () {
       peer.state = initialState;
     });
 
-    it('should update defined values', function () {
-      var updateData = {
+    it('should update defined values', () => {
+      const updateData = {
         os: 'test os',
         version: '0.0.0',
         dappid: ['test dappid'],
         broadhash: 'test broadhash',
         height: 3,
-        nonce: 'ABCD123'
+        nonce: 'ABCD123',
       };
-      expect(_.isEqual(_.keys(updateData), peer.headers)).to.be.ok;
+      expect(_.isEqual(_.keys(updateData), peer.headers)).to.be.true;
       peer.update(updateData);
-      peer.headers.forEach(function (header) {
-        expect(peer[header]).to.exist.and.equals(updateData[header]);
+      peer.headers.forEach((header) => {
+        expect(peer[header]).to.exist.and.equal(updateData[header]);
       });
     });
 
-    it('should not update immutable properties', function () {
-      var peerBeforeUpdate = _.clone(peer);
-      var updateImmutableData = {
-        ip: randomPeer.ip,
-        port: randomPeer.port,
-        string: randomPeer.ip + ':' + randomPeer.port
+    it('should not update immutable properties', () => {
+      const peerBeforeUpdate = _.clone(peer);
+      const updateImmutableData = {
+        ip: validPeer.ip,
+        port: validPeer.port,
+        string: validPeer.ip + ':' + validPeer.port,
       };
 
-      expect(_.isEqual(_.keys(updateImmutableData), peer.immutable)).to.be.ok;
+      expect(_.isEqual(_.keys(updateImmutableData), peer.immutable)).to.be.true;
       peer.update(updateImmutableData);
-      peer.headers.forEach(function (header) {
-        expect(peer[header]).equals(peerBeforeUpdate[header]).and.not.equal(updateImmutableData);
+      peer.headers.forEach((header) => {
+        expect(peer[header])
+          .to.equal(peerBeforeUpdate[header])
+          .and.not.equal(updateImmutableData);
       });
     });
   });
 
-  describe('object', function () {
-    it('should create proper copy of peer', function () {
-      var __peer = new Peer(randomPeer);
-      var peerCopy = __peer.object();
-      _.keys(randomPeer).forEach(function (property) {
+  describe('object()', () => {
+    it('should create proper copy of peer', () => {
+      const __peer = new Peer(validPeer);
+      const peerCopy = __peer.object();
+      _.keys(validPeer).forEach((property) => {
         if (__peer.properties.indexOf(property) !== -1) {
-          expect(peerCopy[property]).to.equal(randomPeer[property]);
-          if (__peer.nullable.indexOf(property) !== -1 && !randomPeer[property]) {
+          expect(peerCopy[property]).to.equal(validPeer[property]);
+          if (
+            __peer.nullable.indexOf(property) !== -1 &&
+            !validPeer[property]
+          ) {
             expect(peerCopy[property]).to.be.null;
           }
         }
       });
     });
 
-    it('should always return state', function () {
-      var initialState = peer.state;
+    it('should always return state', () => {
+      const initialState = peer.state;
       peer.update({ state: 'unreadable' });
-      var peerCopy = peer.object();
+      const peerCopy = peer.object();
       expect(peerCopy.state).to.equal(1);
       peer.state = initialState;
     });

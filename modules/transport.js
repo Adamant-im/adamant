@@ -8,7 +8,7 @@ var bignum = require('../helpers/bignum.js');
 var constants = require('../helpers/constants.js');
 var crypto = require('crypto');
 var extend = require('extend');
-var ip = require('ip');
+var ip = require('neoip');
 var axios = require('axios').default;
 var schema = require('../schema/transport.js');
 var sandboxHelper = require('../helpers/sandbox.js');
@@ -97,6 +97,21 @@ __private.removePeer = function (options, extraMessage) {
   library.logger.debug([options.code, 'Removing peer', options.peer.string, extraMessage].join(' '));
   modules.peers.remove(options.peer.ip, options.peer.port);
 };
+
+/**
+ * Updates the request success rate for the peer.
+ * Provide the error if the request has been failed.
+ * @implements modules.peers.recordRequest
+ * @param {{peer: {ip: string, port: number}, error?: string}} options
+ * @return {boolean} Returns `true` if peer has been updated
+ */
+__private.recordRequest = function (options) {
+  return modules.peers.recordRequest(
+    options.peer.ip,
+    options.peer.port,
+    options.error,
+  );
+}
 
 /**
  * Validates signatures body and for each signature calls receiveSignature.
@@ -398,13 +413,14 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
           }
 
           modules.peers.update(peer);
+          __private.recordRequest({ peer })
 
           return setImmediate(cb, null, { body: res.data, peer: peer });
         }
       })
       .catch((err) => {
         if (peer) {
-          __private.removePeer({ peer: peer, code: err.code }, req.method + ' ' + req.url);
+          __private.recordRequest({ peer: peer, error: err.code });
         }
 
         return setImmediate(cb, [err.code, 'Request failed', req.method, req.url].join(' '));

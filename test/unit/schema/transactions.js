@@ -1,6 +1,7 @@
 var expect = require('chai').expect;
 
-var node = require('../../node.js');
+const { testAccount, delegateAccount } = require('../../common/stubs/account.js')
+
 var ZSchema = require('../../../helpers/z_schema.js');
 var schema = require('../../../schema/transactions.js');
 
@@ -36,17 +37,17 @@ describe('transactions', function () {
       testBody = {
         blockId: '1465651642158264047',
         type: 0,
-        senderId: node.testSender.address,
-        senderPublicKey: node.testSender.publicKey,
-        ownerPublicKey: node.testSender.publicKey,
-        ownerAddress: node.testSender.address,
-        recipientId: node.kindDelegate.address,
+        senderId: testAccount.address,
+        senderPublicKey: testAccount.publicKey,
+        ownerPublicKey: testAccount.publicKey,
+        ownerAddress: testAccount.address,
+        recipientId: delegateAccount.address,
         amount: 100,
         fee: 20,
-        senderPublicKeys: [node.testSender.publicKey, node.kindDelegate.publicKey],
-        recipientPublicKeys: [node.testSender.publicKey, node.kindDelegate.publicKey],
-        senderIds: [node.testSender.address, node.kindDelegate.address],
-        recipientIds: [node.testSender.address, node.kindDelegate.address],
+        senderPublicKeys: [testAccount.publicKey, delegateAccount.publicKey],
+        recipientPublicKeys: [testAccount.publicKey, delegateAccount.publicKey],
+        senderIds: [testAccount.address, delegateAccount.address],
+        recipientIds: [testAccount.address, delegateAccount.address],
         fromHeight: 1,
         toHeight: 2,
         fromTimestamp: 0,

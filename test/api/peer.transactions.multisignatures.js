@@ -25,7 +25,7 @@ function sendADM (params, done) {
   var transaction = node.lisk.transaction.createTransaction(params.recipientId, params.amount, params.secret);
 
   postTransaction(transaction, function (err, res) {
-    node.expect(res.body).to.have.property('success').to.be.ok;
+    node.expect(res.body).to.have.property('success').to.be.true;
     node.onNewBlock(function (err) {
       done(err, res);
     });
@@ -42,7 +42,7 @@ describe('POST /peer/transactions', function () {
         var multiSigTx = node.lisk.multisignature.createMultisignature(multisigAccount.password, null, [node.randomAccount().publicKey], 1, 2);
 
         postTransaction(multiSigTx, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body).to.have.property('message').to.match(/Account does not have enough ADM: U[0-9]+ balance: 0/);
           done();
         });
@@ -63,7 +63,7 @@ describe('POST /peer/transactions', function () {
         var multiSigTx = node.lisk.multisignature.createMultisignature(multisigAccount.password, null, ['+' + node.eAccount.publicKey, null], 1, 2);
 
         postTransaction(multiSigTx, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body).to.have.property('message').to.equal('Invalid member in keysgroup');
           done();
         });
@@ -78,7 +78,7 @@ describe('POST /peer/transactions', function () {
           '+' + memberAccount1.publicKey, '+' + memberAccount2.publicKey], 1, 2);
 
         postTransaction(multiSigTx, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body).to.have.property('message').to.equal('Invalid public key in multisignature keysgroup');
           done();
         });

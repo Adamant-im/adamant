@@ -21,7 +21,7 @@ describe('GET /peer/transactions', function () {
         .set('nethash', 'incorrect')
         .end(function (err, res) {
           node.debug('> Response:'.grey, JSON.stringify(res.body));
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body.expected).to.equal(node.config.nethash);
           done();
         });
@@ -29,13 +29,13 @@ describe('GET /peer/transactions', function () {
 
   it('using incompatible version in headers should fail', function (done) {
     node.get('/peer/transactions')
-        .set('version', '0.1.0a')
+        .set('version', '0.1.0')
         .end(function (err, res) {
           node.debug('> Response:'.grey, JSON.stringify(res.body));
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body).to.have.property('message').to.eql('Request is made from incompatible version');
-          node.expect(res.body).to.have.property('expected').to.eql('>=0.4.0');
-          node.expect(res.body).to.have.property('received').to.eql('0.1.0a');
+          node.expect(res.body).to.have.property('expected').to.eql('>=0.6.0');
+          node.expect(res.body).to.have.property('received').to.eql('0.1.0');
           done();
         });
   });
@@ -43,7 +43,7 @@ describe('GET /peer/transactions', function () {
   it('using valid headers should be ok', function (done) {
     node.get('/peer/transactions')
         .end(function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.ok;
+          node.expect(res.body).to.have.property('success').to.be.true;
           node.expect(res.body).to.have.property('transactions').to.be.an('array');
           done();
         });
@@ -56,7 +56,7 @@ describe('POST /peer/transactions', function () {
         .set('nethash', 'incorrect')
         .end(function (err, res) {
           node.debug('> Response:'.grey, JSON.stringify(res.body));
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body.expected).to.equal(node.config.nethash);
           done();
         });
@@ -64,13 +64,13 @@ describe('POST /peer/transactions', function () {
 
   it('using incompatible version in headers should fail', function (done) {
     node.post('/peer/transactions')
-        .set('version', '0.1.0a')
+        .set('version', '0.1.0')
         .end(function (err, res) {
           node.debug('> Response:'.grey, JSON.stringify(res.body));
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body).to.have.property('message').to.eql('Request is made from incompatible version');
-          node.expect(res.body).to.have.property('expected').to.eql('>=0.4.0');
-          node.expect(res.body).to.have.property('received').to.eql('0.1.0a');
+          node.expect(res.body).to.have.property('expected').to.eql('>=0.6.0');
+          node.expect(res.body).to.have.property('received').to.eql('0.1.0');
           done();
         });
   });
@@ -87,7 +87,7 @@ describe('POST /peer/transactions', function () {
     });
 
     postTransaction(transaction, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('transactionId').to.equal(transaction.id);
       done();
     });
@@ -102,11 +102,11 @@ describe('POST /peer/transactions', function () {
     });
 
     postTransaction(transaction, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('transactionId').to.equal(transaction.id);
 
       postTransaction(transaction, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.not.ok;
+        node.expect(res.body).to.have.property('success').to.be.false;
         node.expect(res.body).to.have.property('message').to.match(/Transaction is already processed: [0-9]+/);
         done();
       });
@@ -122,12 +122,12 @@ describe('POST /peer/transactions', function () {
     });
 
     postTransaction(transaction, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('transactionId').to.equal(transaction.id);
 
       node.onNewBlock(function (err) {
         postTransaction(transaction, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body).to.have.property('message').to.match(/Transaction is already /);
           done();
         });
@@ -143,7 +143,7 @@ describe('POST /peer/transactions', function () {
       recipientId: account.address.toUpperCase()
     });
     postTransaction(transaction, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
 
       node.onNewBlock(function (err) {
         var transaction2 = node.createSendTransaction({
@@ -152,11 +152,11 @@ describe('POST /peer/transactions', function () {
           recipientId: account.address.toLowerCase()
         });
         postTransaction(transaction2, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.ok;
+          node.expect(res.body).to.have.property('success').to.be.true;
 
           node.onNewBlock(function (err) {
             getAddress(account.address, function (err, res) {
-              node.expect(res.body).to.have.property('success').to.be.ok;
+              node.expect(res.body).to.have.property('success').to.be.true;
               node.expect(res.body).to.have.property('account').that.is.an('object');
               node.expect(res.body.account).to.have.property('balance').to.equal('200000000');
               done();
@@ -175,7 +175,7 @@ describe('POST /peer/transactions', function () {
     });
 
     postTransaction(transaction, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('message').to.eql('Missing recipient');
       done();
     });
@@ -189,7 +189,7 @@ describe('POST /peer/transactions', function () {
     });
 
     postTransaction(transaction, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('message').to.contain('Invalid transaction body');
       done();
     });
@@ -204,7 +204,7 @@ describe('POST /peer/transactions', function () {
     });
 
     postTransaction(transaction, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('message');
       done();
     });
@@ -220,7 +220,7 @@ describe('POST /peer/transactions', function () {
     transaction.id = node.getId(transaction);
 
     postTransaction(transaction, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('message');
       done();
     });
@@ -235,7 +235,7 @@ describe('POST /peer/transactions', function () {
     });
 
     postTransaction(transaction, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('message').to.match(/Account does not have enough ADM: U[0-9]+ balance: 0/);
       done();
     });
@@ -250,7 +250,7 @@ describe('POST /peer/transactions', function () {
     });
 
     postTransaction(transaction, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('transactionId').to.equal(transaction.id);
 
       node.onNewBlock(function () {
@@ -263,8 +263,8 @@ describe('POST /peer/transactions', function () {
 
         node.async.doUntil(function (next) {
           postTransaction(transaction2, function (err, res) {
-            node.expect(res.body).to.have.property('success').to.be.not.ok;
-            node.expect(res.body).to.have.property('message').to.match(/Account does not have enough ADM: U[0-9]+ balance: 1e-8/);
+            node.expect(res.body).to.have.property('success').to.be.false;
+            node.expect(res.body).to.have.property('message').to.match(/Account does not have enough ADM/);
             count++;
             return next();
           });
@@ -288,7 +288,7 @@ describe('POST /peer/transactions', function () {
     transaction.id = node.getId(transaction);
 
     postTransaction(transaction, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('message');
       done();
     });
@@ -304,7 +304,7 @@ describe('POST /peer/transactions', function () {
     transaction.senderPublicKey = node.randomAccount().publicKeyHex;
 
     postTransaction(transaction, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('message');
       done();
     });
@@ -320,7 +320,7 @@ describe('POST /peer/transactions', function () {
     transaction.signature = node.randomAccount().password;
 
     postTransaction(transaction, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('message');
       done();
     });
@@ -336,7 +336,7 @@ describe('POST /peer/transactions', function () {
     transaction.blockId = genesisblock.id;
 
     postTransaction(transaction, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('message');
       done();
     });
@@ -351,7 +351,7 @@ describe('POST /peer/transactions', function () {
     });
 
     postTransaction(transaction, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('message');
       done();
     });
@@ -366,7 +366,7 @@ describe('POST /peer/transactions', function () {
     });
 
     postTransaction(transaction, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('message');
       done();
     });
@@ -382,7 +382,7 @@ describe('POST /peer/transactions', function () {
 
     it('should fail', function (done) {
       postTransaction(transaction, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.not.ok;
+        node.expect(res.body).to.have.property('success').to.be.false;
         node.expect(res.body).to.have.property('message').equals('Invalid sender. Can not send from genesis account');
         done();
       });

@@ -48,15 +48,15 @@ while getopts 'b:n:j:' OPTION; do
 done
 
 printf "\n"
-printf "Welcome to the ADAMANT node installer v2.1.1 for Ubuntu 18, 20, 22. Make sure you got this file from adamant.im website or GitHub.\n"
+printf "Welcome to the ADAMANT node installer v2.1.3 for Ubuntu 20, 22. Make sure you got this file from adamant.im website or GitHub.\n"
 printf "This installer is the easiest way to run ADAMANT node. We still recommend to consult IT specialist if you are not familiar with Linux systems.\n"
-printf "You can see full installation instructions on https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
+printf "You can see full installation instructions on https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc.\n"
 printf "The installer will ask you to set database and user passwords during the installation.\n"
 printf "Also, the system may ask to choose some parameters, like encoding, keyboard, and grub. Generally, you can leave them by default.\n\n"
 
-printf "Note: You've choosed '%s' network.\n" "$network"
-printf "Note: You've choosed '%s' branch.\n" "$branch"
-printf "Note: You've choosed '%s' Nodejs version.\n" "$nodejs"
+printf "Note: You've chosen '%s' network.\n" "$network"
+printf "Note: You've chosen '%s' branch.\n" "$branch"
+printf "Note: You've chosen '%s' Nodejs version.\n" "$nodejs"
 printf "\n"
 
 read -r -p "WARNING! Running this script is recommended for new droplets. Existing data MAY BE DAMAGED. If you agree to continue, type \"yes\": " agreement
@@ -115,13 +115,19 @@ then
   printf "User '%s' has been created.\n\n" "$username"
 fi
 
+#Don't disturb with dialogs to restart services
+printf "\nUpdating /etc/needrestart/needrestart.conf to skip dialogs during installation…\n"
+mkdir -p /etc/needrestart
+echo "\$nrconf{restart} = \"a\"" | sudo tee -a /etc/needrestart/needrestart.conf
+echo "\$nrconf{kernelhints} = 0;" | sudo tee -a /etc/needrestart/needrestart.conf
+
 #Packages
-printf "Updating system packages…\n\n"
+printf "\nUpdating system packages…\n\n"
 sudo apt update && sudo apt upgrade -y
 printf "\n\nInstalling postgresql and other prerequisites…\n\n"
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" > /etc/apt/sources.list.d/pgdg.list' && wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | sudo apt-key add -
 sudo apt update && sudo DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
-sudo apt install -y build-essential curl automake autoconf libtool rpl mc git postgresql postgresql-contrib libpq-dev redis-server
+sudo DEBIAN_FRONTEND=noninteractive apt install -y build-essential curl automake autoconf libtool htop jq rpl mc git postgresql postgresql-contrib libpq-dev redis-server
 
 #Start postgres. This step is necessary for Windows Subsystem for Linux machines
 sudo service postgresql start
@@ -138,12 +144,20 @@ su - "$username" <<EOSU
 
 #NodeJS
 printf "\n\nInstalling nvm & node.js…\n\n"
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 source ~/.nvm/nvm.sh
 source ~/.profile
 source ~/.bashrc
 nvm i --lts=$nodejs
 npm i -g pm2
+
+#Logrotate
+printf "\n\n"
+pm2 install pm2-logrotate
+pm2 set pm2-logrotate:max_size 500M
+pm2 set pm2-logrotate:retain 5
+pm2 set pm2-logrotate:compress true
+pm2 set pm2-logrotate:rotateInterval '0 0 0 1 *'
 
 #ADAMANT
 printf "\n\nInstalling ADAMANT '%s' node. Cloning project repository from GitHub ('%s' branch)…\n\n" "$network" "$branch"
@@ -180,14 +194,6 @@ then
   rm db_backup.sql
 fi
 
-printf "\n\nAdding ADAMANT '%s' node to crontab for autostart after system reboot…\n\n" "$network"
-if [[ $network == "mainnet" ]]
-then
-  crontab -l | { cat; echo "@reboot cd /home/adamant/adamant && pm2 start --name adamant app.js"; } | crontab -
-else
-  crontab -l | { cat; echo "@reboot cd /home/adamanttest/adamant && pm2 start --name adamanttest app.js -- --config test/config.json --genesis test/genesisBlock.json"; } | crontab -
-fi
-
 printf "\n\nRunning ADAMANT '%s' node…\n\n" "$network"
 if [[ $network == "mainnet" ]]
 then
@@ -196,10 +202,29 @@ else
   pm2 start --name adamanttest app.js -- --config test/config.json --genesis test/genesisBlock.json
 fi
 
+pm2 save
+
 EOSU
+
+printf "\n\nEnable restarting ADAMANT '%s' node after system reboot…\n\n" "$network"
+adamant_startup_output=$(su - adamant -c "source ~/.nvm/nvm.sh; pm2 startup")
+adamant_startup=$(echo "$adamant_startup_output" | grep -oP 'sudo env PATH=.*')
+bash -c "$adamant_startup"
 
 printf "\n\nFinished ADAMANT '%s' node installation script. Executed in %s seconds.\n" "$network" "$SECONDS"
 printf "Check your node status with 'pm2 show %s' command.\n" "$processname"
 printf "Current node's height: 'curl http://localhost:%s/api/blocks/getHeight'\n" "$port"
 printf "Thank you for supporting true decentralized ADAMANT Messenger.\n\n"
+
+read -n1 -r -p "Press any key to continue…"
+
+printf "\n\n"
+
+#Terminate screen session, if we are running it
+if [ -n "$STY" ]; then
+    screen -S "$STY" -X quit
+fi
+
+#Works only if run not in screen
 su - "$username"
+

@@ -3,7 +3,7 @@
 var chai = require('chai');
 var expect = require('chai').expect;
 
-var sql = require('../../sql/blockRewards.js');
+var sql = require('../../common/sql/blockRewards.js');
 var constants = require('../../../helpers/constants.js');
 var modulesLoader = require('../../common/initModule').modulesLoader;
 var db;
@@ -58,7 +58,7 @@ function calcSupply_test (height_start, height_end, expected_reward, done) {
     expect(rows).to.be.an('array');
     expect(rows.length).to.equal(1);
     expect(rows[0]).to.be.an('object');
-    expect(rows[0].result).to.equal(true);
+    expect(rows[0].result).to.be.true;
     done();
   }).catch(function (err) {
     done(err);
@@ -70,7 +70,7 @@ function calcSupply_test_fail (height_start, height_end, expected_reward, done) 
     expect(rows).to.be.an('array');
     expect(rows.length).to.equal(1);
     expect(rows[0]).to.be.an('object');
-    expect(rows[0].result).to.equal(false);
+    expect(rows[0].result).to.be.false;
     done();
   }).catch(function (err) {
     done(err);

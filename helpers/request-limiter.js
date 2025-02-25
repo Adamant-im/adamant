@@ -3,8 +3,16 @@
 var rateLimit = require('express-rate-limit');
 var slowDown = require('express-slow-down');
 
+/**
+ * Allow all requests through
+ * @returns {true}
+ */
+function skip() {
+  return true;
+}
+
 var defaults = {
-  max: 0, // Disabled
+  skip: skip, // Disabled
   delayMs: 0, // Disabled
   delayAfter: 0, // Disabled
   windowMs: 60000 // 1 minute window
@@ -16,14 +24,24 @@ var defaults = {
  * @param {Object} [limits]
  * @return {Object} max, delayMs, delayAfter, windowMs
  */
-function applyLimits (limits) {
+function applyLimits(config) {
+  const limits = config ?? defaults;
+
   if (typeof limits === 'object') {
-    return {
+    const settings = {
       max: Math.floor(limits.max) || defaults.max,
-      delayMs: Math.floor(limits.delayMs) || defaults.delayMs,
+      delayMs: function(used) {
+        return (used - this.delayAfter) * (Math.floor(limits.delayMs) || defaults.delayMs);
+      },
       delayAfter: Math.floor(limits.delayAfter) || defaults.delayAfter,
       windowMs: Math.floor(limits.windowMs) || defaults.windowMs
     };
+
+    if (!limits.delayAfter) {
+      settings.skip = skip;
+    }
+
+    return settings;
   } else {
     return defaults;
   }

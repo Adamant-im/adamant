@@ -1,7 +1,7 @@
 'use strict';
 
 var node = require('./../node.js');
-var ip = require('ip');
+var ip = require('neoip');
 var packageJSON = require('./../../package.json');
 
 describe('GET /peer/list', function () {
@@ -18,7 +18,7 @@ describe('GET /peer/list', function () {
         .set('nethash', 'incorrect')
         .end(function (err, res) {
           node.debug('> Response:'.grey, JSON.stringify(res.body));
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body.expected).to.equal(node.config.nethash);
           done();
         });
@@ -26,13 +26,13 @@ describe('GET /peer/list', function () {
 
   it('using incompatible version in headers should fail', function (done) {
     node.get('/peer/list')
-        .set('version', '0.1.0a')
+        .set('version', '0.1.0')
         .end(function (err, res) {
           node.debug('> Response:'.grey, JSON.stringify(res.body));
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body).to.have.property('message').to.eql('Request is made from incompatible version');
           node.expect(res.body).to.have.property('expected').to.eql(packageJSON.config.minVersion);
-          node.expect(res.body).to.have.property('received').to.eql('0.1.0a');
+          node.expect(res.body).to.have.property('received').to.eql('0.1.0');
           done();
         });
   });
@@ -41,7 +41,7 @@ describe('GET /peer/list', function () {
     node.get('/peer/list')
         .end(function (err, res) {
           node.debug('> Response:'.grey, JSON.stringify(res.body));
-          node.expect(res.body).to.have.property('success').to.be.ok;
+          node.expect(res.body).to.have.property('success').to.be.true;
           node.expect(res.body).to.have.property('peers').that.is.an('array');
           res.body.peers.forEach(function (peer) {
             node.expect(peer).to.have.property('ip').that.is.a('string');
@@ -60,7 +60,7 @@ describe('GET /peer/list', function () {
     node.get('/peer/list')
         .end(function (err, res) {
           node.debug('> Response:'.grey, JSON.stringify(res.body));
-          node.expect(res.body).to.have.property('success').to.be.ok;
+          node.expect(res.body).to.have.property('success').to.be.true;
           node.expect(res.body).to.have.property('peers').that.is.an('array');
           res.body.peers.forEach(function (peer) {
             node.expect(peer).to.have.property('ip').that.is.a('string');
@@ -77,7 +77,7 @@ describe('GET /peer/height', function () {
         .set('nethash', 'incorrect')
         .end(function (err, res) {
           node.debug('> Response:'.grey, JSON.stringify(res.body));
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body.expected).to.equal(node.config.nethash);
           done();
         });
@@ -85,13 +85,13 @@ describe('GET /peer/height', function () {
 
   it('using incompatible version in headers should fail', function (done) {
     node.get('/peer/height')
-        .set('version', '0.1.0a')
+        .set('version', '0.1.0')
         .end(function (err, res) {
           node.debug('> Response:'.grey, JSON.stringify(res.body));
-          node.expect(res.body).to.have.property('success').to.be.not.ok;
+          node.expect(res.body).to.have.property('success').to.be.false;
           node.expect(res.body).to.have.property('message').to.eql('Request is made from incompatible version');
           node.expect(res.body).to.have.property('expected').to.eql(packageJSON.config.minVersion);
-          node.expect(res.body).to.have.property('received').to.eql('0.1.0a');
+          node.expect(res.body).to.have.property('received').to.eql('0.1.0');
           done();
         });
   });
@@ -100,7 +100,7 @@ describe('GET /peer/height', function () {
     node.get('/peer/height')
         .end(function (err, res) {
           node.debug('> Response:'.grey, JSON.stringify(res.body));
-          node.expect(res.body).to.have.property('success').to.be.ok;
+          node.expect(res.body).to.have.property('success').to.be.true;
           node.expect(res.body).to.be.an('object').that.has.property('height');
           node.expect(res.body.height).to.be.a('number').to.be.above(1);
           done();

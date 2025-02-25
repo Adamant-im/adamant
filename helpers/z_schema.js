@@ -1,6 +1,6 @@
 'use strict';
 
-var ip = require('ip');
+var ip = require('neoip');
 /**
  * Uses JSON Schema validator z_schema to register custom formats.
  * - id
@@ -22,7 +22,9 @@ var ip = require('ip');
  * @constructor
  * @return {Boolean} True if the format is valid
  */
-var z_schema = require('z-schema');
+const z_schema = require('z-schema');
+const semver = require('semver');
+const { isPublicKey } = require('./publicKey.js');
 
 z_schema.registerFormat('id', function (str) {
   if (str.length === 0) {
@@ -33,11 +35,10 @@ z_schema.registerFormat('id', function (str) {
 });
 
 z_schema.registerFormat('address', function (str) {
-  if (str.length === 0) {
-    return true;
-  }
-
-  return /^[U][0-9]+$/ig.test(str);
+  return (
+    typeof str === 'string' &&
+    /^[U][0-9]{1,21}$/i.test(str)
+  );
 });
 
 z_schema.registerFormat('username', function (str) {
@@ -63,13 +64,7 @@ z_schema.registerFormat('publicKey', function (str) {
     return true;
   }
 
-  try {
-    var publicKey = Buffer.from(str, 'hex');
-
-    return publicKey.length === 32;
-  } catch (e) {
-    return false;
-  }
+  return isPublicKey(str)
 });
 
 z_schema.registerFormat('csv', function (str) {
@@ -135,7 +130,7 @@ z_schema.registerFormat('version', function (str) {
     return true;
   }
 
-  return /^([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})([a-z]{1})?$/g.test(str);
+  return !!semver.valid(str);
 });
 
 // var registeredFormats = z_schema.getRegisteredFormats();

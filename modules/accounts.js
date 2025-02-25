@@ -95,6 +95,10 @@ __private.newAccount = function (publicKey, cb) {
  * @return {setImmediateCallback} As per logic new|current account data object.
  */
 __private.openAccount = function (secret, cb) {
+  if (!library.ed.isValidPassphrase(secret)) {
+    return setImmediate(cb, `Mnemonic string is invalid: ${secret}`);
+  }
+
   var hash = library.ed.createPassPhraseHash(secret);
   var keypair = library.ed.makeKeypair(hash);
   var publicKey = keypair.publicKey.toString('hex');
@@ -143,14 +147,36 @@ Accounts.prototype.generateAddressByPublicKey = function (publicKey) {
 
 /**
  * Gets account information, calls logic.account.get().
+ * @overload
+ * @param {Object} filter - Contains publicKey.
+ * @param {Array} fields - Fields to get.
+ * @param {function} cb - Callback function.
+ */
+
+/**
+ * Gets account information, calls logic.account.get().
+ * @overload
+ * @param {Object} filter - Contains publicKey.
+ * @param {function} cb - Callback function.
+ */
+
+/**
+ * Gets account information, calls logic.account.get().
  * @implements module:accounts#Account~get
  * @param {Object} filter - Contains publicKey.
- * @param {function} fields - Fields to get.
- * @param {function} cb - Callback function.
+ * @param {Array | function} fields - Fields to get or callback function.
+ * @param {function} [cb] - Callback function.
  */
 Accounts.prototype.getAccount = function (filter, fields, cb) {
   if (filter.publicKey) {
-    filter.address = self.generateAddressByPublicKey(filter.publicKey);
+    try {
+      filter.address = self.generateAddressByPublicKey(filter.publicKey);
+    } catch (error) {
+      if (typeof fields === 'function') {
+        return setImmediate(fields, error);
+      }
+      return setImmediate(cb, error);
+    }
     delete filter.publicKey;
   }
 
@@ -189,10 +215,6 @@ Accounts.prototype.setAccountAndGet = function (data, cb) {
     }
   }
 
-  if (!address) {
-    err = 'Invalid public key';
-  }
-
   if (err) {
     if (typeof cb === 'function') {
       return setImmediate(cb, err);
@@ -228,10 +250,6 @@ Accounts.prototype.mergeAccountAndGet = function (data, cb) {
     } else {
       err = 'Missing address or public key';
     }
-  }
-
-  if (!address) {
-    err = 'Invalid public key';
   }
 
   if (err) {
@@ -418,7 +436,7 @@ Accounts.prototype.shared = {
         }
 
         if (account.delegates) {
-          modules.delegates.getDelegates(req.body, function (err, res) {
+          modules.delegates.getDelegates(req.body, {}, function (err, res) {
             var delegates = res.delegates.filter(function (delegate) {
               return account.delegates.indexOf(delegate.publicKey) !== -1;
             });

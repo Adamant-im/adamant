@@ -204,6 +204,9 @@ module.exports.connect = function (config, logger, cb) {
   });
 
   config.user = config.user || process.env.USER;
+  config.max = config.poolSize;
+
+  delete config.poolSize;
 
   var db = pgp(config);
   var migrator = new Migrator(pgp, db, logger);

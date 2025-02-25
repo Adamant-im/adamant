@@ -6,7 +6,7 @@ var peersSortFields = require('../../sql/peers').sortFields;
 describe('GET /api/peers/version', function () {
   it('should be ok', function (done) {
     node.get('/api/peers/version', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('build').to.be.a('string');
       node.expect(res.body).to.have.property('commit').to.be.a('string');
       node.expect(res.body).to.have.property('version').to.be.a('string');
@@ -18,7 +18,7 @@ describe('GET /api/peers/version', function () {
 describe('GET /api/peers/count', function () {
   it('should be ok', function (done) {
     node.get('/api/peers/count', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('connected').that.is.a('number');
       node.expect(res.body).to.have.property('disconnected').that.is.a('number');
       node.expect(res.body).to.have.property('banned').that.is.a('number');
@@ -33,7 +33,7 @@ describe('GET /api/peers', function () {
     var params = 'ip=' + ip;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Object didn\'t pass validation for format ip: invalid');
       done();
     });
@@ -44,7 +44,7 @@ describe('GET /api/peers', function () {
     var params = 'ip=' + ip;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       done();
     });
   });
@@ -54,7 +54,7 @@ describe('GET /api/peers', function () {
     var params = 'port=' + port;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Value 0 is less than minimum 1');
       done();
     });
@@ -65,7 +65,7 @@ describe('GET /api/peers', function () {
     var params = 'port=' + port;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       done();
     });
   });
@@ -75,7 +75,7 @@ describe('GET /api/peers', function () {
     var params = 'port=' + port;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Value 65536 is greater than maximum 65535');
       done();
     });
@@ -86,7 +86,7 @@ describe('GET /api/peers', function () {
     var params = 'state=' + state;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('peers').that.is.an('array');
       if (res.body.peers.length > 0) {
         for (var i = 0; i < res.body.peers.length; i++) {
@@ -102,7 +102,7 @@ describe('GET /api/peers', function () {
     var params = 'state=' + state;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('peers').that.is.an('array');
       if (res.body.peers.length > 0) {
         for (var i = 0; i < res.body.peers.length; i++) {
@@ -118,7 +118,7 @@ describe('GET /api/peers', function () {
     var params = 'state=' + state;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('peers').that.is.an('array');
       if (res.body.peers.length > 0) {
         for (var i = 0; i < res.body.peers.length; i++) {
@@ -134,7 +134,7 @@ describe('GET /api/peers', function () {
     var params = 'state=' + state;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Value 3 is greater than maximum 2');
       done();
     });
@@ -145,7 +145,7 @@ describe('GET /api/peers', function () {
     var params = 'os=' + os;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       done();
     });
   });
@@ -155,7 +155,7 @@ describe('GET /api/peers', function () {
     var params = 'os=' + os;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       done();
     });
   });
@@ -165,7 +165,7 @@ describe('GET /api/peers', function () {
     var params = 'os=' + os;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('String is too long (65 chars), maximum 64');
       done();
     });
@@ -176,7 +176,7 @@ describe('GET /api/peers', function () {
     var params = 'os=' + os;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       done();
     });
   });
@@ -186,7 +186,7 @@ describe('GET /api/peers', function () {
     var params = 'os=' + os;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       done();
     });
   });
@@ -196,7 +196,7 @@ describe('GET /api/peers', function () {
     var params = 'os=' + os;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       done();
     });
   });
@@ -206,7 +206,7 @@ describe('GET /api/peers', function () {
     var params = 'os=' + os;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       done();
     });
   });
@@ -216,7 +216,7 @@ describe('GET /api/peers', function () {
     var params = 'os=' + os;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       done();
     });
   });
@@ -226,7 +226,7 @@ describe('GET /api/peers', function () {
     var params = 'os=' + os;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       done();
     });
   });
@@ -236,7 +236,7 @@ describe('GET /api/peers', function () {
     var params = 'os=' + os;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Object didn\'t pass validation for format os: freebsd10.3_RELEASE-p7-@');
       done();
     });
@@ -247,50 +247,48 @@ describe('GET /api/peers', function () {
     var params = 'version=' + version;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       done();
     });
   });
 
-  it('using version == "9999.999.999" characters should fail', function (done) {
+  it('using version == "9999.999.999" characters should be ok', function (done) {
     var version = '9999.999.999';
     var params = 'version=' + version;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
-      node.expect(res.body).to.have.property('error').to.equal('Object didn\'t pass validation for format version: 9999.999.999');
+      node.expect(res.body).to.have.property('success').to.be.true;
       done();
     });
   });
 
-  it('using version == "999.9999.999" characters should fail', function (done) {
+  it('using version == "999.9999.999" characters should be ok', function (done) {
     var version = '999.9999.999';
     var params = 'version=' + version;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
-      node.expect(res.body).to.have.property('error').to.equal('Object didn\'t pass validation for format version: 999.9999.999');
+      node.expect(res.body).to.have.property('success').to.be.true;
       done();
     });
   });
 
-  it('using version == "999.999.9999" characters should fail', function (done) {
+  it('using version == "999.999.9999" characters should be ok', function (done) {
     var version = '999.999.9999';
     var params = 'version=' + version;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
-      node.expect(res.body).to.have.property('error').to.equal('Object didn\'t pass validation for format version: 999.999.9999');
+      node.expect(res.body).to.have.property('success').to.be.true;
       done();
     });
   });
 
-  it('using version == "999.999.999a" characters should be ok', function (done) {
+  it('using version == "999.999.999a" characters should fail', function (done) {
     var version = '999.999.999a';
     var params = 'version=' + version;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('error').to.equal('Object didn\'t pass validation for format version: 999.999.999a');
       done();
     });
   });
@@ -300,7 +298,7 @@ describe('GET /api/peers', function () {
     var params = 'version=' + version;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Object didn\'t pass validation for format version: 999.999.999ab');
       done();
     });
@@ -311,7 +309,7 @@ describe('GET /api/peers', function () {
   //   var params = 'broadhash=' + broadhash;
   //
   //   node.get('/api/peers?' + params, function (err, res) {
-  //     node.expect(res.body).to.have.property('success').to.be.not.ok;
+  //     node.expect(res.body).to.have.property('success').to.be.false;
   //     node.expect(res.body).to.have.property('error').to.equal('Object didn\'t pass validation for format hex: invalid');
   //     done();
   //   });
@@ -322,7 +320,7 @@ describe('GET /api/peers', function () {
     var params = 'broadhash=' + broadhash;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       done();
     });
   });
@@ -332,7 +330,7 @@ describe('GET /api/peers', function () {
     var params = 'orderBy=' + orderBy;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('peers').that.is.an('array');
 
       if (res.body.peers.length > 0) {
@@ -350,7 +348,7 @@ describe('GET /api/peers', function () {
   it('using orderBy with any of sort fields should not place NULLs first', function (done) {
     node.async.each(peersSortFields, function (sortField, cb) {
       node.get('/api/peers?orderBy=' + sortField, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.ok;
+        node.expect(res.body).to.have.property('success').to.be.true;
         node.expect(res.body).to.have.property('peers').that.is.an('array');
 
         var dividedIndices = res.body.peers.reduce(function (memo, peer, index) {
@@ -378,7 +376,7 @@ describe('GET /api/peers', function () {
     var params = 'limit=' + limit;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Expected type integer but found type string');
       done();
     });
@@ -389,7 +387,7 @@ describe('GET /api/peers', function () {
     var params = 'limit=' + limit;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Value -1 is less than minimum 1');
       done();
     });
@@ -400,7 +398,7 @@ describe('GET /api/peers', function () {
     var params = 'limit=' + limit;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Value 0 is less than minimum 1');
       done();
     });
@@ -411,7 +409,7 @@ describe('GET /api/peers', function () {
     var params = 'limit=' + limit;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('peers').that.is.an('array');
       node.expect(res.body.peers.length).to.be.at.most(limit);
       done();
@@ -423,7 +421,7 @@ describe('GET /api/peers', function () {
     var params = 'limit=' + limit;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('peers').that.is.an('array');
       node.expect(res.body.peers.length).to.be.at.most(limit);
       done();
@@ -435,7 +433,7 @@ describe('GET /api/peers', function () {
     var params = 'limit=' + limit;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Value 101 is greater than maximum 100');
       done();
     });
@@ -446,7 +444,7 @@ describe('GET /api/peers', function () {
     var params = 'offset=' + offset;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Expected type integer but found type string');
       done();
     });
@@ -457,7 +455,7 @@ describe('GET /api/peers', function () {
     var params = 'offset=' + offset;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Value -1 is less than minimum 0');
       done();
     });
@@ -468,7 +466,7 @@ describe('GET /api/peers', function () {
     var params = 'offset=' + offset;
 
     node.get('/api/peers?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.ok;
+      node.expect(res.body).to.have.property('success').to.be.true;
       done();
     });
   });
@@ -486,7 +484,7 @@ describe('GET /api/peers/get', function () {
 
   it('using known ip address with no port should fail', function (done) {
     node.get('/api/peers/get?ip=127.0.0.1', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Missing required property: port');
       done();
     });
@@ -494,7 +492,7 @@ describe('GET /api/peers/get', function () {
 
   it('using valid port with no ip address should fail', function (done) {
     node.get('/api/peers/get?port=' + validParams.port, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Missing required property: ip');
       done();
     });
@@ -502,7 +500,7 @@ describe('GET /api/peers/get', function () {
 
   // it('using ip address and port of frozen peer should be ok', function (done) {
   //   node.get('/api/peers/get?ip=127.0.0.1&port=' + frozenPeerPort, function (err, res) {
-  //     node.expect(res.body).to.have.property('success').to.be.ok;
+  //     node.expect(res.body).to.have.property('success').to.be.true;
   //     node.expect(res.body).to.have.property('peer').to.be.an('object');
   //     done();
   //   });
@@ -510,7 +508,7 @@ describe('GET /api/peers/get', function () {
 
   it('using unknown ip address and port should fail', function (done) {
     node.get('/api/peers/get?ip=0.0.0.0&port=' + validParams.port, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Peer not found');
       done();
     });
@@ -520,7 +518,7 @@ describe('GET /api/peers/get', function () {
 describe('GET /api/peers/unknown', function () {
   it('should not to do anything', function (done) {
     node.get('/api/peers/unknown', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.not.ok;
+      node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('API endpoint not found');
       done();
     });

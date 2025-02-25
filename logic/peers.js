@@ -44,12 +44,11 @@ Peers.prototype.create = function (peer) {
 
 /**
  * Checks if peer is in peers list.
- * @param {peer} peer
+ * @param {Peer} peer
  * @return {boolean} True if peer is in peers list
  */
 Peers.prototype.exists = function (peer) {
-  peer = self.create(peer);
-  return !!__private.peers[peer.string];
+  return !!self.get(peer);
 };
 
 /**
@@ -78,7 +77,7 @@ Peers.prototype.upsert = function (peer, insertOnly) {
     if (!_.isEmpty(modules.peers.acceptable([peer]))) {
       peer.updated = Date.now();
       __private.peers[peer.string] = peer;
-      library.logger.debug('Inserted new peer', peer.string);
+      library.logger.info('Added new peer', peer.string);
     } else {
       library.logger.debug('Rejecting unacceptable peer', peer.string);
     }
@@ -165,6 +164,27 @@ Peers.prototype.remove = function (peer) {
     library.logger.debug('Failed to remove peer', { err: 'AREMOVED', peer: peer });
     return false;
   }
+};
+
+/**
+ * Finds the peer and updates the request success rate.
+ * @param {Peer | {ip: string, port: number}} data Peer's IP and port
+ * @param {string?} error Provide error of a request failed
+ * @return {boolean} `true` if peer is successfully updated
+ */
+Peers.prototype.recordRequest = function (data, error) {
+  if (!self.exists(data)) {
+    library.logger.debug('Failed to update request success rate for peer', {
+      peer: data,
+      err: error,
+    });
+    return false;
+  }
+
+  const peer = self.get(data);
+  peer.recordRequest(error);
+
+  return true;
 };
 
 /**

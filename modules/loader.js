@@ -3,7 +3,7 @@
 var async = require('async');
 var constants = require('../helpers/constants.js');
 var jobsQueue = require('../helpers/jobsQueue.js');
-var ip = require('ip');
+var ip = require('neoip');
 var sandboxHelper = require('../helpers/sandbox.js');
 var schema = require('../schema/loader.js');
 var sql = require('../sql/loader.js');
@@ -753,6 +753,44 @@ Loader.prototype.getNetwork = function (cb) {
 Loader.prototype.syncing = function () {
   return !!__private.syncIntervalId;
 };
+
+/**
+ * Returns current blockchain height to achieve if in sync process;
+ * Returns `0` if syncing done.
+ *
+ * @returns {number}
+ */
+Loader.prototype.getBlocksToSync = function () {
+  return __private.blocksToSync;
+}
+
+/**
+ * Returns last blockchain height when syncing.
+ *
+ * @returns {number}
+ */
+Loader.prototype.getHeight = function () {
+  return __private.lastBlock.height;
+}
+
+/**
+ * Returns if the blockchain is in sync process.
+ *
+ * @returns {boolean}
+ */
+Loader.prototype.loaded = function () {
+  return __private.loaded;
+}
+
+
+/**
+ * Returns total synced blocks.
+ *
+ * @returns {number}
+ */
+Loader.prototype.getTotalBlocks = function () {
+  return __private.total;
+}
 
 /**
  * Calls helpers.sandbox.callMethod().

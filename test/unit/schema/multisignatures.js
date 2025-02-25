@@ -1,4 +1,4 @@
-var node = require('../../node.js');
+const { randomAccount } = require('../../common/utils.js');
 
 var ZSchema = require('../../../helpers/z_schema.js');
 var schema = require('../../../schema/multisignatures.js');
@@ -27,13 +27,13 @@ describe('multisignatures', function () {
     var testBody;
 
     beforeEach(function () {
-      var account = node.randomAccount();
+      var account = randomAccount();
       testBody = {
         secret: account.password,
         publicKey: account.publicKeyHex,
         min: 2,
         lifetime: 1,
-        keysgroup: Array.apply(null, Array(4)).map(function () { return '+' + node.randomAccount().publicKey; })
+        keysgroup: Array.apply(null, Array(4)).map(function () { return '+' + randomAccount().publicKey; })
       };
     });
 
@@ -81,7 +81,7 @@ describe('multisignatures', function () {
       });
 
       it('should return error when keysgroup length is greater than maximum acceptable length', function () {
-        testBody.keysgroup = Array.apply(null, Array(16)).map(function () { return node.randomAccount().publicKey; });
+        testBody.keysgroup = Array.apply(null, Array(16)).map(function () { return randomAccount().publicKey; });
         validator.validate(testBody, schema.addMultisignature);
         expect(validator.getLastErrors().map(function (e) {
           return e.message;

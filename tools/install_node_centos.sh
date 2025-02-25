@@ -48,15 +48,15 @@ while getopts 'b:n:j:' OPTION; do
 done
 
 printf "\n"
-printf "Welcome to the ADAMANT node installer v2.1.1 for CentOS 8. Make sure you got this file from adamant.im website or GitHub.\n"
+printf "Welcome to the ADAMANT node installer v2.1.3 for CentOS 8. Make sure you got this file from adamant.im website or GitHub.\n"
 printf "This installer is the easiest way to run ADAMANT node. We still recommend to consult IT specialist if you are not familiar with Linux systems.\n"
-printf "You can see full installation instructions (though for Ubuntu) on https://medium.com/adamant-im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
+printf "You can see full installation instructions (though for Ubuntu) on https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc.\n"
 printf "The installer will ask you to set database and user passwords during the installation.\n"
 printf "Also, the system may ask to choose some parameters, like encoding, keyboard, and grub. Generally, you can leave them by default.\n\n"
 
-printf "Note: You've choosed '%s' network.\n" "$network"
-printf "Note: You've choosed '%s' branch.\n" "$branch"
-printf "Note: You've choosed '%s' Nodejs version.\n" "$nodejs"
+printf "Note: You've chosen '%s' network.\n" "$network"
+printf "Note: You've chosen '%s' branch.\n" "$branch"
+printf "Note: You've chosen '%s' Nodejs version.\n" "$nodejs"
 printf "\n"
 
 read -r -p "WARNING! Running this script is recommended for new droplets. Existing data MAY BE DAMAGED. If you agree to continue, type \"yes\": " agreement
@@ -131,7 +131,7 @@ sudo dnf -y install postgresql13 postgresql13-server postgresql13-contrib
 sudo /usr/pgsql-13/bin/postgresql-13-setup initdb
 sudo systemctl enable --now postgresql-13
 sudo dnf group install "Development Tools" -y
-sudo dnf -y install wget python2 curl mc git nano automake autoconf libtool rpl wget libpq5-devel redis
+sudo dnf -y install wget python2 curl mc git nano automake autoconf libtool jq rpl wget libpq5-devel redis
 sudo systemctl enable --now redis
 
 #Postgres
@@ -146,12 +146,20 @@ su - "$username" <<EOSU
 
 #NodeJS
 printf "\n\nInstalling nvm & node.js…\n\n"
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 source ~/.nvm/nvm.sh
 source ~/.profile
 source ~/.bashrc
 nvm i --lts=$nodejs
 npm i -g pm2
+
+#Logrotate
+printf "\n\n"
+pm2 install pm2-logrotate
+pm2 set pm2-logrotate:max_size 500M
+pm2 set pm2-logrotate:retain 5
+pm2 set pm2-logrotate:compress true
+pm2 set pm2-logrotate:rotateInterval '0 0 0 1 *'
 
 #ADAMANT
 printf "\n\nInstalling ADAMANT '%s' node. Cloning project repository from GitHub ('%s' branch)…\n\n" "$network" "$branch"
