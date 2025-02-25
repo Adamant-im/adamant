@@ -30,6 +30,18 @@ function Peers (logger, cb) {
 }
 
 /**
+ * Finds the peer by nonce
+ * @param {string} nonce
+ */
+Peers.prototype.getByNonce = function (nonce) {
+  for (const [peerString, peer] of Object.entries(__private.peers)) {
+    if (peer.nonce === nonce) {
+      return __private.peers[peerString];
+    }
+  }
+}
+
+/**
  * Returns a peer instance.
  * @param {peer} peer
  * @return {peer} peer instance
@@ -87,9 +99,12 @@ Peers.prototype.upsert = function (peer, insertOnly) {
   var update = function (peer) {
     peer.updated = Date.now();
 
+    const existingPeer = __private.peers[peer.string];
+
     var diff = {};
     _.each(peer, function (value, key) {
-      if (key !== 'updated' && __private.peers[peer.string][key] !== value) {
+      const isImmutableProperty = existingPeer.immutable.includes(key);
+      if (key !== 'updated'  && !isImmutableProperty && existingPeer[key] !== value) {
         diff[key] = value;
       }
     });
@@ -199,6 +214,14 @@ Peers.prototype.list = function (normalize) {
     return Object.keys(__private.peers).map(function (key) { return __private.peers[key]; });
   }
 };
+
+/**
+ * Returns amount of peers that are connected via socket
+ * @returns {number}
+ */
+Peers.prototype.getSocketCount = function () {
+  return Object.values(__private.peers).reduce((acc, peer) => acc + (peer.isBroadcastingViaSocket ? 1 : 0), 0);
+}
 
 // Public methods
 /**

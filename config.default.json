@@ -77,6 +77,7 @@
       "blackList": []
     },
     "options": {
+      "maxWsConnections": 15,
       "limits": {
         "max": 0,
         "delayMs": 0,
@@ -126,6 +127,10 @@
   "wsClient": {
     "portWS": 36668,
     "enabled": true
+  },
+  "wsNode": {
+    "enabled": true,
+    "maxConnections": 25
   },
   "nethash": "bd330166898377fb28743ceef5e43a5d9d0a3efd9b3451fb7bc53530bb0a6d64"
 }

@@ -92,7 +92,7 @@ Broadcaster.prototype.bind = function (peers, transport, transactions) {
 };
 
 /**
- * Calls peers.list function to get peers.
+ * Calls peers.list function to get peers and removes peers that are connected using WebSocket.
  * @implements {modules.peers.list}
  * @param {Object} params
  * @param {function} cb
@@ -114,7 +114,9 @@ Broadcaster.prototype.getPeers = function (params, cb) {
       self.consensus = consensus;
     }
 
-    return setImmediate(cb, null, peers);
+    const httpApiPeers = peers.filter((peer) => !peer.isSocket);
+
+    return setImmediate(cb, null, httpApiPeers);
   });
 };
 

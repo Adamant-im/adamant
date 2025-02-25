@@ -155,6 +155,9 @@ module.exports = {
           },
           options: {
             properties: {
+              maxWsConnections: {
+                type: 'integer',
+              },
               limits: {
                 type: 'object',
                 properties: {
@@ -177,7 +180,7 @@ module.exports = {
                 type: 'integer'
               }
             },
-            required: ['limits', 'timeout']
+            required: ['maxWsConnections', 'limits', 'timeout']
           }
         },
         required: ['enabled', 'list', 'access', 'options']
@@ -316,11 +319,24 @@ module.exports = {
         },
         required: ['portWS', 'enabled']
       },
+      wsNode: {
+        type: 'object',
+        properties: {
+          maxConnections: {
+            type: 'integer',
+            minimum: 1,
+          },
+          enabled: {
+            type: 'boolean'
+          }
+        },
+        required: ['maxConnections', 'enabled']
+      },
       nethash: {
         type: 'string',
         format: 'hex'
       }
     },
-    required: ['port', 'address', 'fileLogLevel', 'logFileName', 'consoleLogLevel', 'trustProxy', 'topAccounts', 'cacheEnabled', 'db', 'redis', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'dapp', 'wsClient', 'nethash']
+    required: ['port', 'address', 'fileLogLevel', 'logFileName', 'consoleLogLevel', 'trustProxy', 'topAccounts', 'cacheEnabled', 'db', 'redis', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'dapp', 'wsClient', 'wsNode', 'nethash']
   }
 };
