@@ -52,7 +52,8 @@ node.fees = {
   delegateRegistrationFee: node.constants.fees.delegate,
   multisignatureRegistrationFee: node.constants.fees.multisignature,
   dappAddFee: node.constants.fees.dapp,
-  messageFee: node.constants.fees.chat_message
+  messageFee: node.constants.fees.chat_message,
+  stateFee: node.constants.fees.state_store,
 };
 
 // Test application
@@ -255,6 +256,32 @@ node.createVoteTransaction = function (data) {
   transaction.id = this.getId(transaction);
   transaction.fee = node.fees.voteFee;
   return transaction;
+};
+
+node.createStateTransaction = function (data) {
+  const details = {
+    ...data,
+    transactionType: transactionTypes.STATE,
+  };
+
+  const transaction = {
+    ...this.createBasicTransaction(details),
+    recipientId: null,
+    asset: {
+      state: {
+        key: details.key,
+        value: details.value,
+        type: 0,
+      },
+    },
+  };
+
+  const signature = this.transactionSign(transaction, details.keyPair);
+
+  return {
+    ...transaction,
+    signature,
+  };
 };
 
 // Returns a random property from the given object

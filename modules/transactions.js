@@ -6,6 +6,7 @@ var constants = require('../helpers/constants.js');
 var crypto = require('crypto');
 var extend = require('extend');
 var OrderBy = require('../helpers/orderBy.js');
+const accounts = require('../helpers/accounts');
 var sandboxHelper = require('../helpers/sandbox.js');
 var schema = require('../schema/transactions.js');
 var sql = require('../sql/transactions.js');
@@ -103,6 +104,7 @@ __private.list = function (filter, cb) {
     offset: null,
     orderBy: null,
     returnAsset: null,
+    returnUnconfirmed: null,
     // FIXME: Backward compatibility, should be removed after transitional period
     ownerAddress: null,
     ownerPublicKey: null
@@ -199,6 +201,41 @@ __private.list = function (filter, cb) {
     return setImmediate(cb, orderBy.error);
   }
 
+  let unconfirmedTransactions = [];
+
+  if (filter.returnUnconfirmed) {
+    const allowedFilters = [
+      'blockId',
+      'fromHeight',
+      'toHeight',
+      'minAmount',
+      'maxAmount',
+      'senderId',
+      'senderIds',
+      'recipientId',
+      'recipientIds',
+      'senderPublicKey',
+      'senderPublicKeys',
+      'recipientPublicKey',
+      'recipientPublicKeys',
+      'inId',
+      'isIn',
+      'type',
+      'types',
+    ];
+
+    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(filter, {
+      allowedFilters,
+      defaultCondition: 'OR',
+    });
+
+    params.mergingOffset = unconfirmedTransactions.length;
+    params.mergingLimit = filter.limit;
+
+    params.limit += Math.min(params.offset, unconfirmedTransactions.length);
+    params.offset = Math.max(0, params.offset - unconfirmedTransactions.length);
+  }
+
   library.db.query(sql.countList({
     where: where,
     owner: owner
@@ -214,15 +251,30 @@ __private.list = function (filter, cb) {
       sortField: orderBy.sortField,
       sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {
-      var transactions = [];
+      let transactions = [];
 
       for (var i = 0; i < rows.length; i++) {
         transactions.push(library.logic.transaction.dbRead(rows[i]));
       }
 
+      if (filter.returnUnconfirmed) {
+        count += unconfirmedTransactions.length;
+
+        transactions = modules.transactions.mergeUnconfirmedTransactions(
+          transactions,
+          unconfirmedTransactions,
+          {
+            orderBy,
+            limit: params.mergingLimit,
+            offset: params.mergingOffset,
+            returnAsset: filter.returnAsset,
+          }
+        );
+      }
+
       var data = {
         transactions: transactions,
-        count: count
+        count: String(count + unconfirmedTransactions.length)
       };
 
       return setImmediate(cb, null, data);
@@ -388,6 +440,183 @@ Transactions.prototype.transactionInPool = function (id) {
 Transactions.prototype.getUnconfirmedTransaction = function (id) {
   return __private.transactionPool.getUnconfirmedTransaction(id);
 };
+
+
+/**
+ * Merge unconfirmed transactions in a sorted array
+ *
+ * @param {Array<Transaction>} targetArray Sorted array to merge unconfirmed transactions into
+ * @param {Array<UnconfirmedTransaction>} unconfirmedTransactions Array of unconfirmed transactions to merge
+ * @param {Object} options
+ * @param {Object} [options.orderBy] - Options for transaction ordering. See `helpers/orderBy.js`
+ * @param {number} [options.limit] - Maximum number of transactions in the final array
+ * @param {number} [options.offset] - Offset for the final array
+ * @param {number} [options.returnAsset=1] - Whether to remove assets from all transactions. Default is 1
+ * @param {number} [options.withoutDirectTransfers=0] - Whether to remove all transfer transactions. Default is 0
+ */
+Transactions.prototype.mergeUnconfirmedTransactions = function (
+  targetArray,
+  unconfirmedTransactions,
+  options = {},
+) {
+  const {
+    orderBy,
+    limit,
+    includeDirectTransfers = 1,
+    returnAsset = 1,
+    offset = 0,
+  } = options;
+  const { sortField, sortMethod } = orderBy;
+
+  const compare = (a, b) => {
+    if (a[sortField] < b[sortField]) {
+      return sortMethod === 'ASC' ? -1 : 1;
+    }
+
+    if (a[sortField] > b[sortField]) {
+      return sortMethod === 'ASC' ? 1 : -1;
+    }
+
+    return 0;
+  };
+
+  const mergedArray = [];
+
+  let i = 0;
+  let j = 0;
+
+  while (i < targetArray.length && j < unconfirmedTransactions.length) {
+    if (compare(targetArray[i], unconfirmedTransactions[j]) <= 0) {
+      mergedArray.push(targetArray[i++]);
+    } else {
+      mergedArray.push(unconfirmedTransactions[j++]);
+    }
+  }
+
+  while (i < targetArray.length) {
+    mergedArray.push(targetArray[i++]);
+  }
+  while (j < unconfirmedTransactions.length) {
+    mergedArray.push(unconfirmedTransactions[j++]);
+  }
+
+  let result = mergedArray;
+
+  if (!includeDirectTransfers) {
+    result = result.filter((transaction) => (
+      transaction.type !== transactionTypes.SEND
+    ));
+  }
+
+  result = result.slice(offset, limit ? offset + limit : undefined)
+
+  if (!returnAsset) {
+    result = result.map((transaction) => ({
+      ...transaction,
+      asset: undefined,
+    }));
+  }
+
+  return result;
+}
+
+/**
+ * Retrieves unconfirmed transactions based on the provided filter and options
+ *
+ * @param {Object} filter - Criteria to filter unconfirmed transactions
+ * @param {Object} [options]
+ * @param {string[]} [options.allowedFilters=[]] - List of keys allowed for filtering transactions
+ * @param {Object} [options.aliases={}] - Key-value pairs for aliasing filter keys
+ * @param {string} [options.defaultCondition='AND'] - Default logical condition for combining filters ('AND' or 'OR')
+ * @returns {Object[]} - Array of unconfirmed transactions matching the criteria
+ * @throws {Error} - If `filter` is not an object
+ */
+Transactions.prototype.getUnconfirmedTransactions = function (filter, options = {}) {
+  const {
+    allowedFilters = [],
+    aliases = {},
+    defaultCondition = 'AND'
+  } = options;
+
+  let transactions = this.getUnconfirmedTransactionList();
+
+  if (filter?.constructor !== Object) {
+    throw new Error('filter should be of type "object"');
+  }
+
+  if (JSON.stringify(filter) === '{}') {
+    return transactions;
+  }
+
+  if ('isIn' in filter && 'inId' in filter) {
+    // prioritize isIn as api/chats/get does
+    delete filter.inId;
+  }
+
+  transactions = transactions.filter((transaction) => {
+    const matches = {
+      assetStateType: (value) => transaction.asset?.state?.type === value,
+      assetChatType: (value) => transaction.asset?.chat?.type === value,
+      type: (value) => transaction.type === value,
+      minAmount: (value) => transaction.amount >= value,
+      maxAmount: (value) => transaction.amount <= value,
+      senderId: (value) => transaction.senderId === value,
+      recipientId: (value) => transaction.recipientId === value,
+      inId: (value) => transaction.senderId === value || transaction.recipientId === value,
+      isIn: (value) => transaction.senderId === value || transaction.recipientId === value,
+      senderPublicKey: (value) => transaction.senderPublicKey === value,
+      recipientPublicKey: (value) => {
+        return accounts.getAddressByPublicKey(value) === transaction.recipientId;
+      },
+      fromTimestamp: (value) => transaction.timestamp >= value,
+      toTimestamp: (value) => transaction.timestamp <= value,
+      types: (value) => value?.includes(transaction.type),
+      senderIds: (value) => value?.includes(transaction.senderId),
+      recipientIds: (value) => value?.includes(transaction.recipientId),
+      senderPublicKeys: (value) => value?.includes(transaction.senderPublicKey),
+      recipientPublicKeys: (value) => value?.map(accounts.getAddressByPublicKey).includes(transaction.recipientId),
+      key: (value) => transaction.asset?.state?.key === value,
+      keyIds: (value) => value?.includes(transaction.asset?.state?.key),
+    };
+
+    // Returns empty array if any of the filters are included in the filter
+    const exclusiveKeys = ['blockId', 'fromHeight', 'toHeight'];
+
+    const evaluate = (key, value) => matches[key] ? matches[key](value) : true;
+
+    let result = true;
+    let isFirst = true;
+
+    for (const [key, value] of Object.entries(filter)) {
+      const upperCaseKey = key.toUpperCase();
+
+      const isOr = upperCaseKey.startsWith("OR:") || (!upperCaseKey.startsWith('AND:') && defaultCondition !== 'AND');
+
+      const actualKey = key.replace(/^(AND:|OR:)/i, "");
+      if (exclusiveKeys.includes(actualKey)) {
+        return false;
+      }
+
+      if (!allowedFilters.includes(actualKey) && allowedFilters.length !== 0) {
+        continue;
+      }
+
+      const condition = evaluate(aliases[actualKey] ?? actualKey, value);
+
+      if (isFirst && isOr) {
+        result = condition;
+      } else {
+        result = isOr ? result || condition : result && condition ;
+      }
+
+      isFirst = false;
+    }
+
+    return result;
+  });
+
+  return transactions;
+}
 
 /**
  * @param {string} id
@@ -695,6 +924,20 @@ Transactions.prototype.shared = {
       if (err) {
         return setImmediate(cb, err[0].message);
       }
+
+      if (req.body.returnUnconfirmed) {
+        const unconfirmedTransaction = __private.getUnconfirmedTransaction(req.body.id);
+
+        if (unconfirmedTransaction) {
+          const asset = req.body.returnAsset ? unconfirmedTransaction.asset : {};
+
+          return {
+            ...unconfirmedTransaction,
+            asset
+          };
+        }
+      }
+
       var method = 'getById';
       if (req.body.returnAsset) {
         method = 'getByIdFullAsset';

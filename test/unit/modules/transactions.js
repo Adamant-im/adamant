@@ -18,6 +18,7 @@ const State = require('../../../logic/state.js');
 
 const { modulesLoader } = require('../../common/initModule.js');
 const transactionTypes = require('../../../helpers/transactionTypes.js');
+const { testUnconfirmedTransactions } = require('../../common/stubs/transactions.js');
 
 const {
   testAccount,
@@ -32,6 +33,8 @@ const {
   existingTransactionWithAsset,
 } = require('../../common/stubs/transactions.js');
 const { genesisBlockId } = require('../../common/stubs/blocks.js');
+
+const test = it;
 
 describe('transactions', function () {
   /**
@@ -79,6 +82,8 @@ describe('transactions', function () {
 
           modules = __modules;
           transactions = __modules.transactions;
+
+          transactions.getUnconfirmedTransactionList = sinon.fake.returns(testUnconfirmedTransactions);
 
           done();
         },
@@ -756,6 +761,486 @@ describe('transactions', function () {
           expect(err).to.equal('Transaction not found');
           expect(response).not.to.exist;
           done();
+        });
+      });
+    });
+
+    describe('getUnconfirmedTransactions()', () => {
+      it('should throw when filter is not provided', () => {
+        expect(transactions.getUnconfirmedTransactions.bind(transactions)).to.throw('filter should be of type "object"');
+      });
+
+      describe('should throw when filter is not an object', () => {
+        const invalidTypes = [
+          123,
+          'string',
+          [],
+          null,
+        ];
+
+        invalidTypes.forEach((value) => {
+          test(JSON.stringify(value), () => {
+            expect(() => transactions.getUnconfirmedTransactions(value)).to.throw('filter should be of type "object"');
+          });
+        });
+      });
+
+      it('should return all transactions when filter is empty', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({});
+
+        expect(unconfirmedTransactions).to.eql(unconfirmedTransactions);
+      });
+
+      it('should return transactions with type 8', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ type: 8 });
+
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => expect(transaction.type).to.equal(8));
+      });
+
+      it('should return empty list when query transactions with type 1', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ type: 1 });
+
+        expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+      });
+
+      it('should filter transactions by minimum amount', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ minAmount: 10000000 });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => expect(transaction.amount).to.be.at.least(9000000));
+      });
+
+      it('should filter transactions by maximum amount', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ maxAmount: 10000000 });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => expect(transaction.amount).to.be.at.most(10000000));
+      });
+
+      it('should filter transactions by sender ID', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ senderId: 'U3716604363012166999' });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => expect(transaction.senderId).to.equal('U3716604363012166999'));
+      });
+
+      it('should filter transactions by recipient ID', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ recipientId: 'U2185870976635709603' });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => expect(transaction.recipientId).to.equal('U2185870976635709603'));
+      });
+
+      it('should filter transactions by sender public key', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ senderPublicKey: '1ed651ec1c686c23249dadb2cb656edd5f8e7d35076815d8a81c395c3eed1a85' });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => expect(transaction.senderPublicKey).to.equal('1ed651ec1c686c23249dadb2cb656edd5f8e7d35076815d8a81c395c3eed1a85'));
+      });
+
+      it('should filter transactions by recipient public key', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ recipientPublicKey: '88133402279c1882e2d2945253154f82eba01f547d5f57a228d814365817daa5' });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => expect(transaction.recipientId).to.equal('U2185870976635709603'));
+      });
+
+      it('should filter transactions by from timestamp', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ fromTimestamp: 231352260 });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => expect(transaction.timestamp).to.be.at.least(231352260));
+      });
+
+      it('should filter transactions by to timestamp', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ toTimestamp: 58880317 });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => expect(transaction.timestamp).to.be.at.most(58880317));
+      });
+
+      it('should filter transactions by multiple types', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ types: [0, 8] });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => expect([0, 8]).to.include(transaction.type));
+      });
+
+      it('should filter transactions by multiple sender IDs', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ senderIds: ['U3716604363012166999', 'U17569530934631988492'] });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => expect(['U3716604363012166999', 'U17569530934631988492']).to.include(transaction.senderId));
+      });
+
+      it('should filter transactions by multiple recipient IDs', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ recipientIds: ['U2185870976635709603', 'U1747430300387568664'] });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => expect(['U2185870976635709603', 'U1747430300387568664']).to.include(transaction.recipientId));
+      });
+
+      it('should filter transactions by multiple sender public keys', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({
+          senderPublicKeys: [
+            'b87f9fe005c3533152230fdcbd7bf87a0cea83592c591f7e71be5b7a48bb6e44',
+            '1ed651ec1c686c23249dadb2cb656edd5f8e7d35076815d8a81c395c3eed1a85',
+          ],
+        });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach(
+          (transaction) =>
+            expect([
+              'b87f9fe005c3533152230fdcbd7bf87a0cea83592c591f7e71be5b7a48bb6e44',
+              '1ed651ec1c686c23249dadb2cb656edd5f8e7d35076815d8a81c395c3eed1a85',
+            ]).to.include(transaction.senderPublicKey)
+        );
+      });
+
+      it('should filter transactions by multiple recipient public keys', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({
+          recipientPublicKeys: [
+            '88133402279c1882e2d2945253154f82eba01f547d5f57a228d814365817daa5',
+            '9627e198a1ed10994340f1e60b334b824b0573bab20190494f90663bfaa92eac',
+          ],
+        });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => expect(['U5885317311990438076', 'U2185870976635709603']).to.include(transaction.recipientId));
+      });
+
+      it('should filter transactions using AND condition by default', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ minAmount: 10000000, senderId: 'U3716604363012166999' });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => {
+          expect(transaction.amount).to.be.at.least(10000000);
+          expect(transaction.senderId).to.equal('U3716604363012166999');
+        });
+      });
+
+      it('should filter transactions using OR condition by default', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({
+          minAmount: 10000000,
+          senderId: 'U3716604363012166999',
+        }, {
+          defaultCondition: 'OR',
+        });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => {
+          expect(transaction.amount >= 10000000 || transaction.senderId === 'U3716604363012166999').to.be.true;
+        });
+      });
+
+      it('should filter transactions using OR condition with uppercase prefixes', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ 'OR:minAmount': 100000000, 'OR:senderId': 'U3716604363012166999' });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => {
+          expect(
+            transaction.amount >= 100000000 || transaction.senderId === 'U3716604363012166999'
+          ).to.be.true;
+        });
+      });
+
+      it('should filter transactions using OR condition with lowercase prefixes', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ 'or:minAmount': 100000000, 'or:senderId': 'U3716604363012166999' });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => {
+          expect(
+            transaction.amount >= 100000000 || transaction.senderId === 'U3716604363012166999'
+          ).to.be.true;
+        });
+      });
+
+      it('should filter transactions by minAmount AND maxAmount with lowercase prefix', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ minAmount: 9000000, 'and:maxAmount': 10000000 });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => {
+          expect(transaction.amount).to.be.at.least(9000000);
+          expect(transaction.amount).to.not.be.above(10000000);
+        });
+      });
+
+      it('should filter transactions by fromTimestamp OR toTimestamp with uppercase prefix', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ fromTimestamp: 231352261, 'OR:toTimestamp': 58880317 });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => {
+          expect(
+            transaction.timestamp <= 58880317 || transaction.timestamp >= 231352261
+          ).to.be.true;
+        });
+      });
+
+      it('should return state transactions with the given key', () => {
+        const key = 'eth:address';
+
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ key });
+
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => {
+          expect(
+            transaction.type === transactionTypes.STATE && transaction.asset.state.key === key,
+          ).to.be.true;
+        });
+      });
+
+      it('should return all transactions if the given key is undefined', () => {
+        const key = undefined;
+
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ key });
+
+        expect(unconfirmedTransactions).to.eql(testUnconfirmedTransactions);
+      });
+
+      it('should return state transactions with the multiple given keys', () => {
+        const keyIds = ['eth:address', 'btc:address'];
+
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ keyIds });
+
+        expect(unconfirmedTransactions).to.be.an('array').that.has.lengthOf(2);
+        unconfirmedTransactions.forEach((transaction) => {
+          expect(
+            transaction.type === transactionTypes.STATE && keyIds.includes(transaction.asset.state.key),
+          ).to.be.true;
+        });
+      });
+
+      it('should ignore first prefix', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ 'OR:fromTimestamp': 58880317, toTimestamp: 231352261 });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => {
+          expect(
+            transaction.timestamp <= 231352261 && transaction.timestamp >= 58880317
+          ).to.be.true;
+        });
+      });
+
+      it('should return empty array for contradictory conditions', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ fromTimestamp: 231352261, toTimestamp: 58880317 });
+        expect(unconfirmedTransactions).to.be.an('array').to.be.empty;
+      });
+
+      it('should ignore unrelated filters', () => {
+        const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ senderId: 'U3716604363012166999', returnUnconfirmed: 1 });
+        expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+        unconfirmedTransactions.forEach((transaction) => expect(transaction.senderId).to.equal('U3716604363012166999'));
+      });
+
+      describe('should return empty list if blockchain related filters are used', () => {
+        it('blockId', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ blockId: '8505659485551877884' });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+        });
+
+        it('blockId + senderId', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ senderId: 'U3716604363012166999', blockId: '8505659485551877884' });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+        });
+
+        it('fromHeight', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ fromHeight: 0 });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+        });
+
+        it('minAmount + and:fromHeight', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ minAmount: 9000000, 'and:fromHeight': 0 });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+        });
+
+        it('toHeight', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ toHeight: 99999999999999 });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+        });
+
+        it('toHeight + fromTimestamp', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ fromTimestamp: 0, toHeight: 99999999999999 });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+        });
+
+        it('fromHeight + and:toHeight', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ fromHeight: 0, 'and:toHeight': 99999999999999 });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+        });
+      });
+
+      describe('aliases', () => {
+        it('should filter by state types with alias type->assetStateType', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ type: 0 }, {
+            aliases: {
+              type: 'assetStateType',
+            },
+          });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+          unconfirmedTransactions.forEach((transaction) => {
+            expect(
+              transaction.asset.state.type
+            ).equal(0);
+          });
+        });
+      });
+
+      describe('allowedFilters', () => {
+        it('should ignore senderId filter because it is not in the list', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ minAmount: 100, senderId: 'U3716604363012166999' }, {
+            allowedFilters: ['minAmount']
+          });
+          expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
+          const containsOtherSenders = unconfirmedTransactions.some((transaction) => transaction.senderId !== 'U3716604363012166999');
+          expect(containsOtherSenders).to.be.true;
+        });
+      });
+    });
+
+    describe('mergeUnconfirmedTransactions()', () => {
+      /**
+       * @type {Array}
+       */
+      let txs;
+      /**
+       * @type {Array}
+       */
+      let unconfirmedTxs;
+
+      let options = {};
+
+      beforeEach(() => {
+        options = {
+          orderBy: {
+            sortField: undefined,
+            sortMethod: undefined,
+          },
+        };
+
+        txs = [
+          {
+            id: "9175562912139726777",
+            height: 10288885,
+            blockId: "10475460465898092643",
+            type: 8,
+            block_timestamp: 58773245,
+            timestamp: 58773228,
+            senderPublicKey:
+              "2ac5eef60303003c90f662d89e60570d8661c8ba569e667296f5c7c97a0413ee",
+            senderId: "U8916295525136600565",
+            recipientPublicKey:
+              "5a3c1da429ae925422892e69dc4f0ab6d7ac00cef229d2d992242dcfeca27b91",
+            recipientId: "U2707535059340134112",
+            fee: 100000,
+            signature:
+              "287dc2554025d8074d674d50ec785d530588e2b828f2d3f29687a4f05c8afc623e185896abc739ea2af8db199ec6e31c57426937343ff5ec154341cee8f72f0a",
+            signatures: [],
+            confirmations: 32801518,
+            asset: {
+              chat: {
+                message:
+                  "9ae819297240f00bdc3627133c2e41efd27b022fcd0d011dfdda0941ba08399697f3e3bb5c46a43aff714ae1bac616b84617ce446d808523a14f278e5d88909837848e7aa69d9d4f9a95baae56df6ad4c274248d3d01a2cfccae51367dfab265a055d5ce991af654ee418839f94885876638863d172226b0369cd488c5727e6b1a42ba46fed014c1bf586dd2cab3afe7f10cb54864c099a680d5963778c9c4052df305497edc43082a7d60193650c331c6db9c9d9c0c8bbc004e53ac56586331453164b984c57a495810d709c9b984e4f367888d8a8ce1b26f528c1abdec08747e",
+                own_message: "6802a9e744aa3ba570d7e48fce5fe0f49184d0ce38ea40f7",
+                type: 1,
+              },
+            },
+          },
+        ];
+
+        unconfirmedTxs = [
+          {
+            id: '2521078418148431420',
+            type: 8,
+            amount: 9000000,
+            senderId: 'U11987698782411545765',
+            senderPublicKey: 'b87f9fe005c3533152230fdcbd7bf87a0cea83592c591f7e71be5b7a48bb6e44',
+            asset: {},
+            recipientId: 'U5885317311990438076',
+            timestamp: 58880317,
+            signature: '5ee972df476703492a667616eef428ed127e13fe5de8ba873b6579a806ddbd9fbd34147cf0321823d72e0d234466fc3dc89ebe7341e0b4a91a56b32d3bdb6a00',
+            fee: 50000000,
+            relays: 1,
+            receivedAt: '2019-07-16T04:38:38.492Z',
+          },
+        ];
+      });
+
+      it('should throw an error when parameters are not provided', () => {
+        expect(() => transactions.mergeUnconfirmedTransactions()).to.throw();
+      });
+
+      it('should merge transactions without orderBy and limit', () => {
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
+
+        expect(mergedTxs).to.eql([...txs, ...unconfirmedTxs]);
+      });
+
+      it('should merge and sort by timestamp in DESC order without limit', () => {
+        options.orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
+
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
+
+        expect(mergedTxs).to.eql([...unconfirmedTxs, ...txs]);
+      });
+
+      it('should return only the latest transaction when sorted by timestamp and limited to 1', () => {
+        options.orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
+        options.limit = 1;
+
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
+
+        expect(mergedTxs).to.eql([unconfirmedTxs[0]]);
+      });
+
+      it('should return only the second transaction when sorted by timestamp, limited to 1 and set offset to 1', () => {
+        options.orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
+        options.limit = 1;
+        options.offset = 1;
+
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
+
+        expect(mergedTxs).to.eql([txs[0]]);
+      });
+
+      it('should return only the second transaction when sorted by timestamp and set offset to 1 when limit option is skipped', () => {
+        options.orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
+        options.limit = undefined;
+        options.offset = 1;
+
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
+
+        expect(mergedTxs).to.eql([txs[0]]);
+      });
+
+      it('should merge and sort by fee in ASC order', () => {
+        options.orderBy = { sortField: 'fee', sortMethod: 'ASC' };
+
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
+
+        expect(mergedTxs).to.eql([txs[0], unconfirmedTxs[0]]);
+      });
+
+      it('should handle an empty list of transactions', () => {
+        const mergedTxs = transactions.mergeUnconfirmedTransactions([], [], options);
+
+        expect(mergedTxs).to.eql([]);
+      });
+
+      describe('should remove transfer transactions when includeDirectTransfers is', () => {
+        const values = [
+          0,
+          false,
+        ];
+
+        values.forEach((value) => {
+          it(JSON.stringify(value), () => {
+            options.includeDirectTransfers = value;
+
+            const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
+
+            expect(mergedTxs).to.be.an('array').that.is.not.empty;
+            mergedTxs.forEach(tx => expect(tx.type).not.to.equal(transactionTypes.SEND));
+          });
+        });
+      });
+
+      describe('should remove asset from transactions when returnAsset is', () => {
+        const values = [
+          0,
+          false,
+        ];
+
+        values.forEach((value) => {
+          it(JSON.stringify(value), () => {
+            options.returnAsset = value;
+
+            const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
+
+            expect(mergedTxs).to.be.an('array').that.is.not.empty;
+            mergedTxs.forEach(tx => expect(tx.asset).not.to.exist);
+          });
         });
       });
     });

@@ -165,10 +165,42 @@ __private.list = function (filter, cb) {
   if (orderBy.error) {
     return setImmediate(cb, orderBy.error);
   }
+
+
+  let unconfirmedTransactions = [];
+
+  if (filter.returnUnconfirmed) {
+    const unconfirmedFilters = { ...filter, type: transactionTypes.STATE };
+    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(
+      unconfirmedFilters,
+      {
+        allowedFilters: [
+          'senderId',
+          'recipientId',
+          'toHeight',
+          'fromHeight',
+          'senderIds',
+          'key',
+          'keyIds',
+          'type',
+        ],
+        aliases: {
+          type: 'assetStateType',
+        },
+      },
+    );
+
+    params.mergingOffset = unconfirmedTransactions.length;
+    params.mergingLimit = filter.limit;
+
+    params.limit += Math.min(params.offset, unconfirmedTransactions.length);
+    params.offset = Math.max(0, params.offset - unconfirmedTransactions.length);
+  }
+
   library.db.query(sql.countList({
     where: where
   }), params).then(function (rows) {
-    var count = rows.length ? rows[0].count : 0;
+    var count = rows.length ? Number(rows[0].count) : 0;
     library.db.query(sql.list({
       where: where,
       sortField: orderBy.sortField,
@@ -180,9 +212,21 @@ __private.list = function (filter, cb) {
         transactions.push(library.logic.transaction.dbRead(rows[i]));
       }
 
+      if (filter.returnUnconfirmed) {
+        transactions = modules.transactions.mergeUnconfirmedTransactions(
+          transactions,
+          unconfirmedTransactions,
+          {
+            orderBy,
+            limit: params.mergingLimit,
+            offset: params.mergingOffset,
+          },
+        );
+      }
+
       var data = {
         transactions: transactions,
-        count: count
+        count: String(count + unconfirmedTransactions.length)
       };
 
       return setImmediate(cb, null, data);
