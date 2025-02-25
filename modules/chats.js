@@ -124,9 +124,24 @@ __private.list = function (filter, cb) {
     params.type = filter.type;
   } else {
     // message type=3 is reserved for system messages, and shouldn't be retrieved without a filter
-    where.push('NOT ("c_type" = 3)');
+    where.push(`(NOT("c_type" = ${transactionTypes.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE}) OR c_type IS NULL)`);
   }
-  where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
+
+  let includeDirectTransfers = false;
+
+  if (typeof filter.includeDirectTransfers !== 'undefined') {
+    includeDirectTransfers = Boolean(filter.includeDirectTransfers);
+  }
+
+  if (typeof filter.withoutDirectTransfers !== 'undefined') {
+    includeDirectTransfers = !filter.withoutDirectTransfers;
+  }
+
+  where.push(
+    includeDirectTransfers ?
+      `("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})` :
+      `"t_type" = ${transactionTypes.CHAT_MESSAGE}`,
+  );
 
   if (filter.senderId) {
     where.push('"t_senderId" = ${name}');
