@@ -101,6 +101,7 @@ Broadcaster.prototype.bind = function (peers, transport, transactions) {
 Broadcaster.prototype.getPeers = function (params, cb) {
   params.limit = params.limit || self.config.peerLimit;
   params.broadhash = params.broadhash || null;
+  params.prioritizeHttp = true;
 
   var originalLimit = params.limit;
 
@@ -114,9 +115,7 @@ Broadcaster.prototype.getPeers = function (params, cb) {
       self.consensus = consensus;
     }
 
-    const httpApiPeers = peers.filter((peer) => !peer.isSocket);
-
-    return setImmediate(cb, null, httpApiPeers);
+    return setImmediate(cb, null, peers);
   });
 };
 
