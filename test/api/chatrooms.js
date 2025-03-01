@@ -4,15 +4,7 @@ const node = require('./../node.js');
 const Mnemonic = require('bitcore-mnemonic');
 const _ = require('lodash');
 
-function sendADM (params, done) {
-  node.put('/api/transactions/', params, function (err, res) {
-    done(err, res);
-  });
-}
-
-function postMessage (transaction, done) {
-  node.post('/api/transactions', { transaction: transaction }, done);
-}
+const { postMessage, sendADM } = require('../common/api.js');
 
 function getChats (senderId, done, params) {
   const args = _.keys(params).map((key) => `${key}=${params[key]}`);
