@@ -6,6 +6,9 @@ const Peer = require('../../logic/peer.js');
 const maxReconnectDelay = 60000;
 const defaultReconnectionDelay = 5000;
 
+/**
+ * Connects to random peers via WebSocket to receive transactions/blocks/signature changes
+ */
 class TransportWsApi {
   constructor(modules, library, options) {
     this.modules = modules;
@@ -20,11 +23,16 @@ class TransportWsApi {
 
     this.connections = new Map();
 
+    // Update connections when peer list changes
     this.peers.events.on('peers:update', () => this.updatePeers());
 
+    // Schedule rotation
     this.startRotation();
   }
 
+  /**
+   * Clear connection list and connect to random peers
+   */
   initialize() {
     const self = this;
 
@@ -47,6 +55,11 @@ class TransportWsApi {
     });
   }
 
+  /**
+   * Connect to the peer and save the socket connection
+   * @param {Peer} peer peer to connect to
+   * @returns
+   */
   connectToPeer(peer) {
     const self = this;
     const peerUrl = `ws://${peer.ip}:${peer.port}`;
@@ -75,6 +88,11 @@ class TransportWsApi {
     self.connections.set(peerUrl, { socket, peer });
   }
 
+  /**
+   * Setup event handlers for the peer and change its connection type
+   * @param {Socket} socket socket.io socket instance
+   * @param {Peer} peer target peer
+   */
   handleConnect(socket, peer) {
     this.logger.debug(`WebSocket: Connected to peer WebSocket at ${peer.ip}:${peer.port}`);
 
