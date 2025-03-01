@@ -41,6 +41,8 @@ class WebSocketServer {
       }
 
       if (logic.peers.getSocketCount() >= this.max) {
+        const reason = 'Server connection limit exceeded';
+        socket.emit('disconnect_reason', reason);
         socket.disconnect(true);
         return;
       }

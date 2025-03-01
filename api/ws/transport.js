@@ -68,6 +68,9 @@ class TransportWsApi {
     socket.on('connect', () => self.handleConnect(socket, peer));
     socket.on('connect_error', (err) => self.handleConnectError(peer, err));
     socket.on('disconnect', (reason) => self.handleDisconnect(peer, reason));
+    socket.on('disconnect_reason', (reason) => {
+      this.logger.debug(`WebSocket: ${peer.ip}:${peer.port} rejected connection`, reason);
+    });
 
     self.connections.set(peerUrl, { socket, peer });
   }
