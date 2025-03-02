@@ -614,7 +614,7 @@ d.run(function () {
         transportWs.initialize();
       }
 
-      scope.network.wsServer.linkPeers(scope.logic)
+      scope.network.wsServer.initialize(scope.logic)
 
       cb();
     }],

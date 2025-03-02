@@ -58,7 +58,6 @@ class TransportWsApi {
   /**
    * Connect to the peer and save the socket connection
    * @param {Peer} peer peer to connect to
-   * @returns
    */
   connectToPeer(peer) {
     const self = this;
@@ -102,6 +101,11 @@ class TransportWsApi {
     this.setupEventHandlers(socket, peer);
   }
 
+  /**
+   * Changes connection type of the peer and chooses a random one to replace it
+   * @param {Peer} peer target peer to replace
+   * @param {string} err error message
+   */
   handleConnectError(peer, err) {
     this.logger.debug(`WebSocket: Connection error with ${peer.ip}:${peer.port}`, err.message);
 
@@ -111,12 +115,21 @@ class TransportWsApi {
     this.replacePeer(peer);
   }
 
+  /**
+   * Changes connection type to http and finds a replacement for the peer
+   * @param {Peer} peer target peer to replace
+   * @param {string} reason disconnection reason
+   */
   handleDisconnect(peer, reason) {
     this.logger.debug(`WebSocket: Disconnected from ${peer.ip}:${peer.port}`, reason);
     this.peers.switchToHttp(peer);
     this.replacePeer(peer);
   }
 
+  /**
+   * Replaces the provided peer with a randome one
+   * @param {Peer} peer peer to replace
+   */
   replacePeer(peer) {
     const self = this;
 
@@ -134,6 +147,9 @@ class TransportWsApi {
     });
   }
 
+  /**
+   * Schedules reconnection to all peers
+   */
   scheduleReconnect() {
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
@@ -149,6 +165,11 @@ class TransportWsApi {
     );
   }
 
+  /**
+   * Finds random peers that aren't connected via WebSocket
+   * @param {number} limit max amount of peers to retrieve
+   * @param {Function} callback callback with the result peers
+   */
   getRandomPeers(limit, callback) {
     this.peers.list({
       limit,
@@ -158,6 +179,10 @@ class TransportWsApi {
     }, callback);
   }
 
+  /**
+   * Returns a random peer that isn't connected via WebSocket
+   * @param {Function} callback callback with a random peer
+   */
   getRandomPeer(callback) {
     this.getRandomPeers(1, (err, peers) => {
       if (err || !peers.length) {
@@ -167,6 +192,11 @@ class TransportWsApi {
     });
   }
 
+  /**
+   * Setups event handlers and redirects the data to transport module
+   * @param {Socket} socket socket.io socket instance
+   * @param {Peer} peer target peer
+   */
   setupEventHandlers(socket, peer) {
     const self = this;
 
@@ -199,6 +229,9 @@ class TransportWsApi {
     });
   }
 
+  /**
+   * Fills the empty slots for WebSocket connections and removes banned peers
+   */
   updatePeers() {
     const self = this;
 
@@ -225,6 +258,10 @@ class TransportWsApi {
     });
   }
 
+  /**
+   * Disconects from the peer and removes its event listeners
+   * @param {Peer} peer target peer
+   */
   cleanupConnection(peer) {
     const peerUrl = `ws://${peer.ip}:${peer.port}`;
     const connection = this.connections.get(peerUrl);
@@ -236,6 +273,9 @@ class TransportWsApi {
     }
   }
 
+  /**
+   * Replace a specific % of the connected peers to avoid centralization
+   */
   rotatePeers() {
     const self = this;
 
@@ -270,12 +310,18 @@ class TransportWsApi {
     });
   }
 
+  /**
+   * Start rotating peers every 30 minutes
+   */
   startRotation() {
     this.rotationInterval = setInterval(() => {
       this.rotatePeers();
     }, 1000 * 60 * 30); // 30 minutes
   }
 
+  /**
+   * Stops interval rotation
+   */
   stopRotation() {
     if (this.rotationInterval) {
       clearInterval(this.rotationInterval);
@@ -283,6 +329,5 @@ class TransportWsApi {
     }
   }
 }
-
 
 module.exports = TransportWsApi;

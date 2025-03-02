@@ -1,6 +1,9 @@
 const { Server } = require('socket.io');
 const Peer = require('../../logic/peer');
 
+/**
+ * Creates a WebSocket server to broadcast transactions/blocks/signature changes
+ */
 class WebSocketServer {
   constructor(server, appConfig) {
     this.io = new Server(server, {
@@ -12,7 +15,11 @@ class WebSocketServer {
     this.max = appConfig.wsNode.maxConnections;
   }
 
-  linkPeers(logic) {
+  /**
+   * Initializes the server and authorizes connections
+   * @param {{ peers: Peers }} logic logic modules
+   */
+  initialize(logic) {
     if (!this.enabled) {
       return;
     }
@@ -59,6 +66,11 @@ class WebSocketServer {
     });
   }
 
+  /**
+   * Emits data to all socket connections
+   * @param {string} eventName emitting event name
+   * @param {any} data data to emit
+   */
   emit(eventName, data) {
     if (this.enabled) {
       this.io.sockets.emit(eventName, data);
