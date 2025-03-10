@@ -608,8 +608,8 @@ d.run(function () {
      * Listens for new transactions using websocket and links peers to the websocket server
      */
     transportWs: ['network', 'config', 'modules', 'logic', function (scope, cb) {
-      const { options } = appConfig.peers;
-      if (options.maxWsConnections > 0) {
+      const { wsNode } = appConfig;
+      if (wsNode.maxOutgoingConnections > 0) {
         const transportWs = new TransportWsApi(scope.modules, scope.logic, appConfig.peers.options);
         transportWs.initialize();
       }

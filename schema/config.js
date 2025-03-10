@@ -155,9 +155,6 @@ module.exports = {
           },
           options: {
             properties: {
-              maxWsConnections: {
-                type: 'integer',
-              },
               limits: {
                 type: 'object',
                 properties: {
@@ -180,7 +177,7 @@ module.exports = {
                 type: 'integer'
               }
             },
-            required: ['maxWsConnections', 'limits', 'timeout']
+            required: ['limits', 'timeout']
           }
         },
         required: ['enabled', 'list', 'access', 'options']
@@ -322,15 +319,19 @@ module.exports = {
       wsNode: {
         type: 'object',
         properties: {
-          maxConnections: {
+          maxOutgoingConnections: {
             type: 'integer',
-            minimum: 1,
+            minimum: 0,
+          },
+          maxIncomingConnections: {
+            type: 'integer',
+            minimum: 0,
           },
           enabled: {
             type: 'boolean'
           }
         },
-        required: ['maxConnections', 'enabled']
+        required: ['maxOutgoingConnections', 'maxIncomingConnections', 'enabled']
       },
       nethash: {
         type: 'string',

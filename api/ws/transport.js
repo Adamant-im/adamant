@@ -17,7 +17,7 @@ class TransportWsApi {
     this.transportModule = modules.transport;
     this.logger = library.logger;
 
-    this.maxConnections = options.maxWsConnections;
+    this.maxConnections = options.maxOutgoingConnections;
     this.reconnectionDelay = wsConstants.defaultReconnectionDelay;
 
     this.connections = new Map();
