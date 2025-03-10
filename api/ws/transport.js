@@ -3,8 +3,7 @@
 const { io } = require('socket.io-client');
 const Peer = require('../../logic/peer.js');
 
-const maxReconnectDelay = 60000;
-const defaultReconnectionDelay = 5000;
+const { wsNodeClient: wsConstants } = require('../../helpers/constants.js');
 
 /**
  * Connects to random peers via WebSocket to receive transactions/blocks/signature changes
@@ -19,7 +18,7 @@ class TransportWsApi {
     this.logger = library.logger;
 
     this.maxConnections = options.maxWsConnections;
-    this.reconnectionDelay = defaultReconnectionDelay;
+    this.reconnectionDelay = wsConstants.defaultReconnectionDelay;
 
     this.connections = new Map();
 
@@ -171,7 +170,7 @@ class TransportWsApi {
 
     this.reconnectionDelay = Math.min(
       this.reconnectionDelay * 2,
-      maxReconnectDelay
+      wsConstants.maxReconnectDelay
     );
   }
 
@@ -301,7 +300,7 @@ class TransportWsApi {
       return;
     }
 
-    const countToRotate = Math.ceil(totalConnections * 0.2); // rotate 20%
+    const countToRotate = Math.ceil(totalConnections * wsConstants.rotationPercentage);
     const connectionsArray = Array.from(self.connections.values());
 
     const shuffled = connectionsArray.sort(() => Math.random() - 0.5);
@@ -334,7 +333,7 @@ class TransportWsApi {
   startRotation() {
     this.rotationInterval = setInterval(() => {
       this.rotatePeers();
-    }, 1000 * 60 * 30); // 30 minutes
+    }, wsConstants.rotationInterval);
   }
 
   /**
