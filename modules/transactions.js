@@ -469,11 +469,14 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
   const { sortField, sortMethod } = orderBy;
 
   const compare = (a, b) => {
-    if (a[sortField] < b[sortField]) {
+    const aField = a[sortField] ?? Infinity;
+    const bField = b[sortField] ?? Infinity;
+
+    if (aField < bField) {
       return sortMethod === 'ASC' ? -1 : 1;
     }
 
-    if (a[sortField] > b[sortField]) {
+    if (aField > bField) {
       return sortMethod === 'ASC' ? 1 : -1;
     }
 
@@ -580,7 +583,7 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
     };
 
     // Returns empty array if any of the filters are included in the filter
-    const exclusiveKeys = ['blockId', 'fromHeight', 'toHeight'];
+    const exclusiveKeys = ['blockId', 'toHeight'];
 
     const evaluate = (key, value) => matches[key] ? matches[key](value) : true;
 
@@ -590,7 +593,7 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
     for (const [key, value] of Object.entries(filter)) {
       const upperCaseKey = key.toUpperCase();
 
-      const isOr = upperCaseKey.startsWith("OR:") || (!upperCaseKey.startsWith('AND:') && defaultCondition !== 'AND');
+      const isOr = upperCaseKey.startsWith('OR:') || (!upperCaseKey.startsWith('AND:') && defaultCondition !== 'AND');
 
       const actualKey = key.replace(/^(AND:|OR:)/i, "");
       if (exclusiveKeys.includes(actualKey)) {

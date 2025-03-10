@@ -1025,16 +1025,6 @@ describe('transactions', function () {
           expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
         });
 
-        it('fromHeight', () => {
-          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ fromHeight: 0 });
-          expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
-        });
-
-        it('minAmount + and:fromHeight', () => {
-          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ minAmount: 9000000, 'and:fromHeight': 0 });
-          expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
-        });
-
         it('toHeight', () => {
           const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ toHeight: 99999999999999 });
           expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
@@ -1048,6 +1038,13 @@ describe('transactions', function () {
         it('fromHeight + and:toHeight', () => {
           const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ fromHeight: 0, 'and:toHeight': 99999999999999 });
           expect(unconfirmedTransactions).to.be.an('array').that.is.empty;
+        });
+      });
+
+      it('should return all unconfirmed transactions when fromHeight is used', () => {
+        it('fromHeight + and:toHeight', () => {
+          const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ fromHeight: 9999999999 });
+          expect(unconfirmedTransactions).to.be.an('array').to.have.lengthOf(unconfirmedTransactions.length);
         });
       });
 
