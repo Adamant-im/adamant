@@ -34,11 +34,7 @@ function Peers (logger, cb) {
  * @param {string} nonce
  */
 Peers.prototype.getByNonce = function (nonce) {
-  for (const [peerString, peer] of Object.entries(__private.peers)) {
-    if (peer.nonce === nonce) {
-      return __private.peers[peerString];
-    }
-  }
+  return Object.values(__private.peers).find((peer) => peer.nonce === nonce);
 }
 
 /**
