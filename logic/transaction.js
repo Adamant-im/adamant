@@ -115,6 +115,15 @@ Transaction.prototype.create = function (data) {
 
   return trs;
 };
+
+/**
+ * Modifies a transaction by adding the calculated fee and transaction ID,
+ * and validates that the timestamp is recent.
+ * This should be called for freshly created transactions received from the Public API
+ * @param {object} data - The transaction object
+ * @throws {Error} If an invalid transaction is passed
+ * @returns {object} The modified transaction object
+ */
 Transaction.prototype.publish = function (data) {
   if (!__private.types[data.type]) {
     throw 'Unknown transaction type ' + data.type;
@@ -137,11 +146,11 @@ Transaction.prototype.publish = function (data) {
     throw 'Transaction timestamp is in the future';
   }
 
-  const earliestValidTime = currentTime - constants.maxTransactionAge;
+  const earliestValidTime = currentTime - constants.maxTransactionAgeSec;
   const earliestValidSlotNumber = slots.getSlotNumber(earliestValidTime);
 
   if (transactionSlotNumber < earliestValidSlotNumber) {
-    throw `Transaction timestamp is more than ${constants.maxTransactionAge} seconds in the past`;
+    throw `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`;
   }
 
   var trs = data;
@@ -503,21 +512,6 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
     return setImmediate(cb, 'Unknown transaction type ' + trs.type);
   }
 
-  const { timestamp, timestampMs } = trs;
-
-  if (timestamp > SIGN_INT_32_MAX || timestamp < SIGN_INT_32_MIN) {
-    return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is not within the signed int32 range');
-  }
-
-  if (typeof timestampMs === 'number') {
-    const timestampMsDelta = Math.abs(timestampMs - timestamp * 1000);
-
-    const { maxTimestampMsDelta } = constants;
-    if (timestampMsDelta >= maxTimestampMsDelta) {
-      return setImmediate(cb, `Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than ${maxTimestampMsDelta}ms`);
-    }
-  }
-
   // Check for missing sender second signature
   if (!trs.requesterPublicKey && sender.secondSignature && !trs.signSignature && trs.blockId !== this.scope.genesisblock.block.id) {
     return setImmediate(cb, 'Missing sender second signature');
@@ -678,6 +672,22 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
 
   if (senderBalance.exceeded) {
     return setImmediate(cb, senderBalance.error);
+  }
+
+  // Check timestamp
+  const { timestamp, timestampMs } = trs;
+
+  if (timestamp > SIGN_INT_32_MAX || timestamp < SIGN_INT_32_MIN) {
+    return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is not within the signed int32 range');
+  }
+
+  if (typeof timestampMs === 'number') {
+    const timestampMsDelta = Math.abs(timestampMs - timestamp * 1000);
+
+    const { maxTimestampMsDelta } = constants;
+    if (timestampMsDelta >= maxTimestampMsDelta) {
+      return setImmediate(cb, `Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than ${maxTimestampMsDelta}ms`);
+    }
   }
 
   // Call verify on transaction type
