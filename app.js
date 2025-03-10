@@ -605,7 +605,7 @@ d.run(function () {
     }],
 
     /**
-     * Listens for new transacttions using websocket and links peers to the websocket server
+     * Listens for new transactions using websocket and links peers to the websocket server
      */
     transportWs: ['network', 'config', 'modules', 'logic', function (scope, cb) {
       const { options } = appConfig.peers;
