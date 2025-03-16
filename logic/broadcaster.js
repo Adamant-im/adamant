@@ -101,7 +101,6 @@ Broadcaster.prototype.bind = function (peers, transport, transactions) {
 Broadcaster.prototype.getPeers = function (params, cb) {
   params.limit = params.limit || self.config.peerLimit;
   params.broadhash = params.broadhash || null;
-  params.prioritizeHttp = true;
 
   var originalLimit = params.limit;
 

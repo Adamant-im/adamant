@@ -111,33 +111,6 @@ __private.getByFilter = function (filter, cb) {
     return array;
   };
 
-  /**
-   * Adjust distribution to ensure every third peer is a socket connection in the beginning of the array
-   * @param {Array} array array of peers
-   * @returns copy of the array with a new order
-   */
-  const prioritizeHttpPeers = (array) => {
-    const socketPeers = array.filter(peer => peer.isSocket);
-    const nonSocketPeers = array.filter(peer => !peer.isSocket);
-
-    const result = [];
-
-    let socketIndex = 0;
-    let nonSocketIndex = 0;
-
-    for (let j = 0; j < array.length; j++) {
-      if (j % 3 === 2 && socketIndex < socketPeers.length) {
-        result.push(socketPeers[socketIndex++]);
-      } else if (nonSocketIndex < nonSocketPeers.length) {
-        result.push(nonSocketPeers[nonSocketIndex++]);
-      } else {
-        result.push(socketPeers[socketIndex++]);
-      }
-    }
-
-    return result;
-  };
-
   // Apply filters (by AND)
   var peers = library.logic.peers.list(true);
 
@@ -170,10 +143,6 @@ __private.getByFilter = function (filter, cb) {
   } else {
     // Sort randomly by default
     peers = shuffle(peers);
-
-    if (filter.prioritizeHttp) {
-      peers = prioritizeHttpPeers(peers);
-    }
   }
 
   // Apply limit if supplied
@@ -533,7 +502,7 @@ Peers.prototype.list = function (options, cb) {
 
   function randomList (options, peers, cb) {
     // Get full peers list (random)
-    __private.getByFilter({ prioritizeHttp: options.prioritizeHttp }, function (err, peersList) {
+    __private.getByFilter({}, function (err, peersList) {
       var accepted, found, matched, picked;
 
       found = peersList.length;
