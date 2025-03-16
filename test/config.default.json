@@ -217,8 +217,8 @@
   },
   "wsNode": {
     "enabled": true,
-    "maxOutgoingConnections": 25,
-    "maxIncomingConnections": 15
+    "maxBroadcastConnections": 15,
+    "maxReceiveConnections": 25
   },
   "nethash": "38f153a81332dea86751451fd992df26a9249f0834f72f58f84ac31cceb70f43"
 }
