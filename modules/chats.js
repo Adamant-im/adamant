@@ -48,7 +48,8 @@ function Chats (cb, scope) {
     balancesSequence: scope.balancesSequence,
     logic: {
       transaction: scope.logic.transaction,
-      chat: scope.logic.chat
+      chat: scope.logic.chat,
+      transactionPool: scope.logic.transactionPool
     }
   };
   self = this;
@@ -124,9 +125,24 @@ __private.list = function (filter, cb) {
     params.type = filter.type;
   } else {
     // message type=3 is reserved for system messages, and shouldn't be retrieved without a filter
-    where.push('NOT ("c_type" = 3)');
+    where.push(`(NOT("c_type" = ${transactionTypes.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE}) OR c_type IS NULL)`);
   }
-  where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
+
+  let includeDirectTransfers = false;
+
+  if (typeof filter.includeDirectTransfers !== 'undefined') {
+    includeDirectTransfers = Boolean(filter.includeDirectTransfers);
+  }
+
+  if (typeof filter.withoutDirectTransfers !== 'undefined') {
+    includeDirectTransfers = !filter.withoutDirectTransfers;
+  }
+
+  where.push(
+    includeDirectTransfers ?
+      `("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})` :
+      `"t_type" = ${transactionTypes.CHAT_MESSAGE}`,
+  );
 
   if (filter.senderId) {
     where.push('"t_senderId" = ${name}');
@@ -169,24 +185,68 @@ __private.list = function (filter, cb) {
   if (orderBy.error) {
     return setImmediate(cb, orderBy.error);
   }
+
+  let unconfirmedTransactions = [];
+
+  if (filter.returnUnconfirmed) {
+    const unconfirmedFilters = {
+      ...filter,
+      type: transactionTypes.CHAT_MESSAGE,
+    };
+
+    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(unconfirmedFilters, {
+      allowedFilters: [
+        'fromHeight',
+        'toHeight',
+        'senderId',
+        'recipientId',
+        'inId',
+        'isIn',
+        'type',
+      ],
+      aliases: {
+        type: 'assetChatType',
+      },
+    });
+
+    params.mergingOffset = unconfirmedTransactions.length;
+    params.mergingLimit = filter.limit;
+
+    params.limit += Math.min(params.offset, unconfirmedTransactions.length);
+    params.offset = Math.max(0, params.offset - unconfirmedTransactions.length);
+  }
+
   library.db.query(sql.countList({
     where: where
   }), params).then(function (rows) {
-    var count = rows.length ? rows[0].count : 0;
+    const count = rows.length ? Number(rows[0].count) : 0;
     library.db.query(sql.list({
       where: where,
       sortField: orderBy.sortField,
       sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {
-      var transactions = [];
+      let transactions = [];
 
       for (var i = 0; i < rows.length; i++) {
         transactions.push(library.logic.transaction.dbRead(rows[i]));
       }
 
+      if (filter.returnUnconfirmed) {
+        transactions = modules.transactions.mergeUnconfirmedTransactions(
+          transactions,
+          unconfirmedTransactions,
+          {
+            orderBy,
+            includeDirectTransfers,
+            limit: params.mergingLimit,
+            offset: params.mergingOffset,
+          }
+        );
+      }
+
       var data = {
         transactions: transactions,
-        count: count
+        count: String(count + unconfirmedTransactions.length)
       };
 
       return setImmediate(cb, null, data);

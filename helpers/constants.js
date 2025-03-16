@@ -50,6 +50,8 @@ module.exports = {
   blockReceiptTimeOut: 20, // 2 blocks
   confirmationLength: 77,
   epochTime: new Date(Date.UTC(2017, 8, 2, 17, 0, 0, 0)),
+  maxTimestampMsDelta: 1000,
+  maxTransactionAgeSec: 5,
   fairSystemActivateBlock: 4359464,
   wsNodeClient: {
     rotationPercentage: 0.2, // Rotate 20%
