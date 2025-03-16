@@ -319,11 +319,11 @@ module.exports = {
       wsNode: {
         type: 'object',
         properties: {
-          maxOutgoingConnections: {
+          maxBroadcastConnections: {
             type: 'integer',
             minimum: 0,
           },
-          maxIncomingConnections: {
+          maxReceiveConnections: {
             type: 'integer',
             minimum: 0,
           },
@@ -331,7 +331,7 @@ module.exports = {
             type: 'boolean'
           }
         },
-        required: ['maxOutgoingConnections', 'maxIncomingConnections', 'enabled']
+        required: ['maxBroadcastConnections', 'maxReceiveConnections', 'enabled']
       },
       nethash: {
         type: 'string',

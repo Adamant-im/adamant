@@ -12,7 +12,7 @@ class WebSocketServer {
     });
 
     this.enabled = appConfig.wsNode.enabled;
-    this.max = appConfig.wsNode.maxIncomingConnections;
+    this.max = appConfig.wsNode.maxBroadcastConnections;
   }
 
   /**

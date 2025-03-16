@@ -609,7 +609,7 @@ d.run(function () {
      */
     transportWs: ['network', 'config', 'modules', 'logic', function (scope, cb) {
       const { wsNode } = appConfig;
-      if (wsNode.maxOutgoingConnections > 0) {
+      if (wsNode.maxReceiveConnections > 0) {
         const transportWs = new TransportWsApi(scope.modules, scope.logic, appConfig.peers.options);
         transportWs.initialize();
       }
