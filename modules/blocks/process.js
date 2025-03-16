@@ -391,11 +391,20 @@ Process.prototype.onReceiveBlock = function (block) {
         library.logger.debug('Block already processed', block.id);
       } else {
         library.logger.warn([
-          'Discarded block that does not match with current chain:', block.id,
-          'height:', block.height,
-          'round:', modules.rounds.calc(block.height),
-          'slot:', slots.getSlotNumber(block.timestamp),
-          'generator:', block.generatorPublicKey
+          'Discarded the received block because it does not match the current chain.',
+
+          'Blockchain Last Block:',
+
+          'Id=', lastBlock.id,
+          'Height=', lastBlock.height,
+
+          'Received Block:',
+
+          'Id=', block.id,
+          'Height=', block.height,
+          'Round=', modules.rounds.calc(block.height),
+          'Slot=', slots.getSlotNumber(block.timestamp),
+          'Generator=', block.generatorPublicKey
         ].join(' '));
       }
 
