@@ -92,7 +92,7 @@ Broadcaster.prototype.bind = function (peers, transport, transactions) {
 };
 
 /**
- * Calls peers.list function to get peers.
+ * Calls peers.list function to get peers and removes peers that are connected using WebSocket.
  * @implements {modules.peers.list}
  * @param {Object} params
  * @param {function} cb

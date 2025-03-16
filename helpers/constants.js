@@ -53,6 +53,12 @@ module.exports = {
   maxTimestampMsDelta: 1000,
   maxTransactionAgeSec: 5,
   fairSystemActivateBlock: 4359464,
+  wsNodeClient: {
+    rotationPercentage: 0.2, // Rotate 20%
+    rotationInterval: 1000 * 60 * 30, // every 30 minutes
+    maxReconnectDelay: 60000,
+    defaultReconnectionDelay: 5000
+  },
   fees: {
     send: 50000000,
     vote: 5000000000,

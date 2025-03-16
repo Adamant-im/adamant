@@ -127,5 +127,10 @@
     "portWS": 36668,
     "enabled": true
   },
+  "wsNode": {
+    "enabled": true,
+    "maxBroadcastConnections": 15,
+    "maxReceiveConnections": 25
+  },
   "nethash": "bd330166898377fb28743ceef5e43a5d9d0a3efd9b3451fb7bc53530bb0a6d64"
 }

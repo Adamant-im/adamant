@@ -1298,14 +1298,14 @@ DApps.prototype.internal = {
                     });
                   });
                 } else {
-                  library.network.io.sockets.emit('dapps/change', dapp);
+                  library.network.wsServer.emit('dapps/change', dapp);
 
                   __private.loading[params.id] = false;
                   return setImmediate(cb, null, { success: true, path: dappPath });
                 }
               });
             } else {
-              library.network.io.sockets.emit('dapps/change', dapp);
+              library.network.wsServer.emit('dapps/change', dapp);
 
               __private.loading[params.id] = false;
               return setImmediate(cb, null, { success: true, path: dappPath });
@@ -1346,7 +1346,7 @@ DApps.prototype.internal = {
               if (err) {
                 return setImmediate(cb, null, { success: false, error: err });
               } else {
-                library.network.io.sockets.emit('dapps/change', dapp);
+                library.network.wsServer.emit('dapps/change', dapp);
 
                 return setImmediate(cb, null, { success: true });
               }
@@ -1360,7 +1360,7 @@ DApps.prototype.internal = {
           if (err) {
             return setImmediate(cb, null, { success: false, error: err });
           } else {
-            library.network.io.sockets.emit('dapps/change', dapp);
+            library.network.wsServer.emit('dapps/change', dapp);
 
             return setImmediate(cb, null, { success: true });
           }
@@ -1378,7 +1378,7 @@ DApps.prototype.internal = {
       if (err) {
         return setImmediate(cb, null, { 'success': false, 'error': err });
       } else {
-        library.network.io.sockets.emit('dapps/change', {});
+        library.network.wsServer.emit('dapps/change', {});
         return setImmediate(cb, null, { 'success': true });
       }
     });
@@ -1440,7 +1440,7 @@ DApps.prototype.internal = {
             library.logger.error(err);
             return setImmediate(cb, 'Failed to stop application');
           } else {
-            library.network.io.sockets.emit('dapps/change', dapp);
+            library.network.wsServer.emit('dapps/change', dapp);
             __private.launched[params.id] = false;
             return setImmediate(cb, null, { success: true });
           }

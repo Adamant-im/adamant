@@ -531,7 +531,7 @@ Delegates.prototype.fork = function (block, cause) {
   };
 
   library.db.none(sql.insertFork, fork).then(function () {
-    library.network.io.sockets.emit('delegates/fork', fork);
+    library.network.wsServer.emit('delegates/fork', fork);
   });
 };
 

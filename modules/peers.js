@@ -1,5 +1,7 @@
 'use strict';
 
+const EventEmitter = require('node:events');
+
 var _ = require('lodash');
 var async = require('async');
 var constants = require('../helpers/constants.js');
@@ -46,6 +48,8 @@ function Peers (cb, scope) {
     }
   };
   self = this;
+
+  self.events = new EventEmitter();
 
   setImmediate(cb, null, self);
 }
@@ -300,6 +304,28 @@ Peers.prototype.update = function (peer) {
 };
 
 /**
+ * Changes the connection type to ws
+ * @param {Peer} peer
+ */
+Peers.prototype.switchToWs = function (peer) {
+  const existingPeer = library.logic.peers.get(peer);
+  if (existingPeer) {
+    existingPeer.syncProtocol = 'ws';
+  }
+};
+
+/**
+ * Changes the connection type to http
+ * @param {Peer} peer
+ */
+Peers.prototype.switchToHttp = function (peer) {
+  const existingPeer = library.logic.peers.get(peer);
+  if (existingPeer) {
+    existingPeer.syncProtocol = 'http';
+  }
+};
+
+/**
  * Returns whether the peer is in config peers list
  * @param {string} ip
  * @param {number} port
@@ -453,6 +479,14 @@ Peers.prototype.acceptable = function (peers) {
 };
 
 /**
+ * Returns true if the peer's state is banned
+ * @param {Peer} peer
+ */
+Peers.prototype.isBanned = function (peer) {
+  return library.logic.peers.get(peer).state === Peer.STATE.BANNED;
+};
+
+/**
  * Gets peers list and calculated consensus.
  * @param {Object} options - Contains limit, broadhash.
  * @param {function} cb - Callback function.
@@ -474,6 +508,10 @@ Peers.prototype.list = function (options, cb) {
       found = peersList.length;
       // Apply filters
       peersList = peersList.filter(function (peer) {
+        if (options.syncProtocol && peer.syncProtocol !== options.syncProtocol) {
+          return false;
+        }
+
         if (options.broadhash) {
           // Skip banned and disconnected peers (state 0 and 1)
           return options.allowedStates.indexOf(peer.state) !== -1 && (
@@ -598,6 +636,9 @@ Peers.prototype.onPeersReady = function () {
           }
         }, function () {
           library.logger.trace('Peers updated', { updated: updated, total: peers.length });
+          if (updated) {
+            self.events.emit('peers:update');
+          }
           return setImmediate(seriesCb);
         });
       }

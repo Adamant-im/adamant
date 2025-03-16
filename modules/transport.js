@@ -474,7 +474,7 @@ Transport.prototype.onBlockchainReady = function () {
  * Calls enqueue signatures and emits a 'signature/change' socket message.
  * @implements {Broadcaster.maxRelays}
  * @implements {Broadcaster.enqueue}
- * @implements {library.network.io.sockets.emit}
+ * @implements {library.network.wsServer.emit}
  * @param {signature} signature
  * @param {Object} broadcast
  * @emits signature/change
@@ -482,7 +482,7 @@ Transport.prototype.onBlockchainReady = function () {
 Transport.prototype.onSignature = function (signature, broadcast) {
   if (broadcast && !__private.broadcaster.maxRelays(signature)) {
     __private.broadcaster.enqueue({}, { api: '/signatures', data: { signature: signature }, method: 'POST' });
-    library.network.io.sockets.emit('signature/change', signature);
+    library.network.wsServer.emit('signature/change', signature);
   }
 };
 
@@ -490,7 +490,7 @@ Transport.prototype.onSignature = function (signature, broadcast) {
  * Calls enqueue transactions and emits a 'transactions/change' socket message.
  * @implements {Broadcaster.maxRelays}
  * @implements {Broadcaster.enqueue}
- * @implements {library.network.io.sockets.emit}
+ * @implements {library.network.wsServer.emit}
  * @param {transaction} transaction
  * @param {Object} broadcast
  * @emits transactions/change
@@ -498,7 +498,7 @@ Transport.prototype.onSignature = function (signature, broadcast) {
 Transport.prototype.onUnconfirmedTransaction = function (transaction, broadcast) {
   if (broadcast && !__private.broadcaster.maxRelays(transaction)) {
     __private.broadcaster.enqueue({}, { api: '/transactions', data: { transaction: transaction }, method: 'POST' });
-    library.network.io.sockets.emit('transactions/change', transaction);
+    library.network.wsServer.emit('transactions/change', transaction);
   }
 };
 
@@ -507,7 +507,7 @@ Transport.prototype.onUnconfirmedTransaction = function (transaction, broadcast)
  * @implements {modules.system.getBroadhash}
  * @implements {Broadcaster.maxRelays}
  * @implements {Broadcaster.broadcast}
- * @implements {library.network.io.sockets.emit}
+ * @implements {library.network.wsServer.emit}
  * @param {block} block
  * @param {Object} broadcast
  * @emits blocks/change
@@ -520,7 +520,7 @@ Transport.prototype.onNewBlock = function (block, broadcast) {
       if (!__private.broadcaster.maxRelays(block)) {
         __private.broadcaster.broadcast({ limit: constants.maxPeers, broadhash: broadhash }, { api: '/blocks', data: { block: block }, method: 'POST', immediate: true });
       }
-      library.network.io.sockets.emit('blocks/change', block);
+      library.network.wsServer.emit('blocks/change', block);
     });
   }
 };

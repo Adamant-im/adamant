@@ -316,11 +316,28 @@ module.exports = {
         },
         required: ['portWS', 'enabled']
       },
+      wsNode: {
+        type: 'object',
+        properties: {
+          maxBroadcastConnections: {
+            type: 'integer',
+            minimum: 0,
+          },
+          maxReceiveConnections: {
+            type: 'integer',
+            minimum: 0,
+          },
+          enabled: {
+            type: 'boolean'
+          }
+        },
+        required: ['maxBroadcastConnections', 'maxReceiveConnections', 'enabled']
+      },
       nethash: {
         type: 'string',
         format: 'hex'
       }
     },
-    required: ['port', 'address', 'fileLogLevel', 'logFileName', 'consoleLogLevel', 'trustProxy', 'topAccounts', 'cacheEnabled', 'db', 'redis', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'dapp', 'wsClient', 'nethash']
+    required: ['port', 'address', 'fileLogLevel', 'logFileName', 'consoleLogLevel', 'trustProxy', 'topAccounts', 'cacheEnabled', 'db', 'redis', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'dapp', 'wsClient', 'wsNode', 'nethash']
   }
 };
