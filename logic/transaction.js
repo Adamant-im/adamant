@@ -9,8 +9,12 @@ var exceptions = require('../helpers/exceptions.js');
 var extend = require('extend');
 var slots = require('../helpers/slots.js');
 var sql = require('../sql/transactions.js');
+const Consensus = require('./consensus/consensus.js');
 // Private fields
 var self, modules, __private = {};
+
+const SIGN_INT_32_MAX = 2147483647;
+const SIGN_INT_32_MIN = -2147483648;
 
 /**
  * @typedef {Object} privateTypes
@@ -43,7 +47,7 @@ __private.types = {};
  * @return {setImmediateCallback} With `this` as data.
  */
 // Constructor
-function Transaction (db, ed, schema, genesisblock, account, logger, clientWs, cb) {
+function Transaction (db, ed, schema, genesisblock, account, logger, clientWs, consensus, cb) {
   this.scope = {
     db: db,
     ed: ed,
@@ -51,7 +55,8 @@ function Transaction (db, ed, schema, genesisblock, account, logger, clientWs, c
     genesisblock: genesisblock,
     account: account,
     logger: logger,
-    clientWs: clientWs
+    clientWs: clientWs,
+    consensus,
   };
   self = this;
   if (cb) {
@@ -85,12 +90,15 @@ Transaction.prototype.create = function (data) {
     throw 'Invalid keypair';
   }
 
+  const timestampMs = slots.getTimeMs();
+
   var trs = {
     type: data.type,
     amount: 0,
     senderPublicKey: data.sender.publicKey,
     requesterPublicKey: data.requester ? data.requester.publicKey.toString('hex') : null,
-    timestamp: slots.getTime(),
+    timestamp: Math.floor(timestampMs / 1000),
+    timestampMs,
     asset: {}
   };
 
@@ -107,6 +115,15 @@ Transaction.prototype.create = function (data) {
 
   return trs;
 };
+
+/**
+ * Modifies a transaction by adding the calculated fee and transaction ID,
+ * and validates that the timestamp is recent.
+ * This should be called for freshly created transactions received from the Public API
+ * @param {object} data - The transaction object
+ * @throws {Error} If an invalid transaction is passed
+ * @returns {object} The modified transaction object
+ */
 Transaction.prototype.publish = function (data) {
   if (!__private.types[data.type]) {
     throw 'Unknown transaction type ' + data.type;
@@ -118,6 +135,22 @@ Transaction.prototype.publish = function (data) {
 
   if (!data.signature) {
     throw 'Invalid signature';
+  }
+
+  const currentTime = slots.getTime();
+
+  const currentSlotNumber = slots.getSlotNumber(currentTime);
+  const transactionSlotNumber = slots.getSlotNumber(data.timestamp);
+
+  if (transactionSlotNumber > currentSlotNumber) {
+    throw 'Transaction timestamp is in the future';
+  }
+
+  const earliestValidTime = currentTime - constants.maxTransactionAgeSec;
+  const earliestValidSlotNumber = slots.getSlotNumber(earliestValidTime);
+
+  if (transactionSlotNumber < earliestValidSlotNumber) {
+    throw `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`;
   }
 
   var trs = data;
@@ -464,8 +497,6 @@ Transaction.prototype.process = function (trs, sender, requester, cb) {
 Transaction.prototype.verify = function (trs, sender, requester, cb) {
   var valid = false;
   var err = null;
-  const INT_32_MIN = -2147483648;
-  const INT_32_MAX = 2147483647;
 
   if (typeof requester === 'function') {
     cb = requester;
@@ -644,11 +675,19 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
   }
 
   // Check timestamp
-  if (trs.timestamp < INT_32_MIN || trs.timestamp > INT_32_MAX) {
-    return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is not in the int32 range');
+  const { timestamp, timestampMs } = trs;
+
+  if (timestamp > SIGN_INT_32_MAX || timestamp < SIGN_INT_32_MIN) {
+    return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is not within the signed int32 range');
   }
-  if (slots.getSlotNumber(trs.timestamp) > slots.getSlotNumber()) {
-    return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is in the future');
+
+  if (typeof timestampMs === 'number') {
+    const timestampMsDelta = Math.abs(timestampMs - timestamp * 1000);
+
+    const { maxTimestampMsDelta } = constants;
+    if (timestampMsDelta >= maxTimestampMsDelta) {
+      return setImmediate(cb, `Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than ${maxTimestampMsDelta}ms`);
+    }
   }
 
   // Call verify on transaction type
@@ -975,6 +1014,7 @@ Transaction.prototype.dbFields = [
   'blockId',
   'type',
   'timestamp',
+  'timestampMs',
   'senderPublicKey',
   'requesterPublicKey',
   'senderId',
@@ -1017,6 +1057,7 @@ Transaction.prototype.dbSave = function (trs) {
       blockId: trs.blockId,
       type: trs.type,
       timestamp: trs.timestamp,
+      timestampMs: trs.timestampMs,
       senderPublicKey: senderPublicKey,
       requesterPublicKey: requesterPublicKey,
       senderId: trs.senderId,
@@ -1066,6 +1107,7 @@ Transaction.prototype.afterSave = function (trs, cb) {
  * @property {string} blockId
  * @property {number} type
  * @property {number} timestamp
+ * @property {number} timestampMs
  * @property {publicKey} senderPublicKey
  * @property {publicKey} requesterPublicKey
  * @property {string} senderId
@@ -1107,6 +1149,9 @@ Transaction.prototype.schema = {
     },
     timestamp: {
       type: 'integer'
+    },
+    timestampMs: {
+      type: ['integer', 'null']
     },
     senderPublicKey: {
       type: 'string',
@@ -1172,6 +1217,10 @@ Transaction.prototype.objectNormalize = function (trs) {
     }
   }
 
+  if (!this.scope.consensus.isActivated('spaceship')) {
+    delete trs.timestampMs;
+  }
+
   var report = this.scope.schema.validate(trs, Transaction.prototype.schema);
 
   if (!report) {
@@ -1207,6 +1256,7 @@ Transaction.prototype.dbRead = function (raw) {
       type: parseInt(raw.t_type),
       block_timestamp: parseInt(raw.block_timestamp),
       timestamp: parseInt(raw.t_timestamp),
+      timestampMs: typeof raw.t_timestampMs === 'string' ? parseInt(raw.t_timestampMs) : null,
       senderPublicKey: raw.t_senderPublicKey,
       requesterPublicKey: raw.t_requesterPublicKey,
       senderId: raw.t_senderId,

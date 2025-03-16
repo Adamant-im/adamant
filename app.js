@@ -38,6 +38,7 @@ var httpApi = require('./helpers/httpApi.js');
 var Sequence = require('./helpers/sequence.js');
 var util = require('util');
 var z_schema = require('./helpers/z_schema.js');
+const Consensus = require('./logic/consensus/consensus.js');
 process.stdin.resume();
 
 var versionBuild = fs.readFileSync(path.join(__dirname, 'build'), 'utf8');
@@ -549,11 +550,14 @@ d.run(function () {
         clientWs: function (cb) {
           cb(null, scope.clientWs);
         },
+        consensus(cb) {
+          cb(null, new Consensus());
+        },
         account: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'logger', function (scope, cb) {
           new Account(scope.db, scope.schema, scope.logger, cb);
         }],
-        transaction: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'account', 'logger', 'clientWs', function (scope, cb) {
-          new Transaction(scope.db, scope.ed, scope.schema, scope.genesisblock, scope.account, scope.logger, scope.clientWs, cb);
+        transaction: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'account', 'logger', 'clientWs', 'consensus', function (scope, cb) {
+          new Transaction(scope.db, scope.ed, scope.schema, scope.genesisblock, scope.account, scope.logger, scope.clientWs, scope.consensus, cb);
         }],
         chat: ['db', 'bus', 'ed', 'schema', 'account', 'logger', function (scope, cb) {
           new Chat(scope.db, scope.ed, scope.schema, scope.account, scope.logger, cb);
@@ -633,6 +637,7 @@ d.run(function () {
 
     ready: ['modules', 'bus', 'logic', function (scope, cb) {
       scope.bus.message('bind', scope.modules);
+      scope.logic.consensus.bindModules(scope.modules);
       scope.logic.transaction.bindModules(scope.modules);
       scope.logic.peers.bindModules(scope.modules);
       cb();

@@ -22,8 +22,17 @@ var Account = require('../../logic/account.js');
 var accounts = require('../../helpers/accounts');
 var Sequence = require('../../helpers/sequence.js');
 const { removeQueuedJobs } = require('../common/globalAfter.js');
+const Consensus = require('../../logic/consensus/consensus.js');
 
 var modulesLoader = new function () {
+  const consensus = new Consensus();
+
+  consensus.bindModules({
+    loader: {
+      getHeight: () => 2_000_000,
+    },
+  });
+
   this.db = null;
   this.logger = new Logger({ echo: null, errorLevel: config.fileLogLevel, filename: config.logFileName });
   this.scope = {
@@ -32,6 +41,7 @@ var modulesLoader = new function () {
     genesisblock: { block: genesisblock },
     logger: this.logger,
     balancesSequence: new Sequence(),
+    consensus,
     network: {
       app: express()
     },
@@ -64,7 +74,7 @@ var modulesLoader = new function () {
           }
         }, function (err, result) {
           // null is for clientWs
-          new Logic(scope.db, scope.ed, scope.schema, scope.genesisblock, result.account, scope.logger, null, cb);
+          new Logic(scope.db, scope.ed, scope.schema, scope.genesisblock, result.account, scope.logger, null, scope.consensus, cb);
         });
         break;
       case 'Block':
@@ -74,7 +84,7 @@ var modulesLoader = new function () {
           },
           function (account, waterCb) {
             // null is for clientWs
-            return new Transaction(scope.db, scope.ed, scope.schema, scope.genesisblock, account, scope.logger, null, waterCb);
+            return new Transaction(scope.db, scope.ed, scope.schema, scope.genesisblock, account, scope.logger, null, scope.consensus, waterCb);
           }
         ], function (err, transaction) {
           new Logic(scope.ed, scope.schema, transaction, cb);
