@@ -26,9 +26,7 @@ function ChatsHttpApi (chatsModule, app) {
   var router = new Router();
 
   router.map(chatsModule.internal, {
-    'get /senders': 'senders',
     'get /get': 'getTransactions',
-    'get /messages': 'messages',
     'post /normalize': 'normalize',
     'post /process': 'process'
   });
