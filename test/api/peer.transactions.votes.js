@@ -2,6 +2,9 @@
 
 var node = require('./../node.js');
 var constants = require('../../helpers/constants.js');
+const {
+  sendADMAndWaitUntilNextBlock,
+} = require('../common/api.js');
 
 var account = node.randomAccount();
 
@@ -54,15 +57,6 @@ function postVote (transaction, done) {
   });
 }
 
-function sendADM (params, done) {
-  node.put('/api/transactions', params, function (err, res) {
-    node.expect(res.body).to.have.property('success').to.be.true;
-    node.onNewBlock(function (err) {
-      return done(err, res);
-    });
-  });
-}
-
 function registerDelegate (account, done) {
   account.username = node.randomDelegateName().toLowerCase();
   let transaction = node.createDelegateTransaction({
@@ -80,7 +74,7 @@ function registerDelegate (account, done) {
 
 describe('POST /peer/transactions', function () {
   before(function (done) {
-    sendADM({
+    sendADMAndWaitUntilNextBlock({
       secret: node.iAccount.password,
       amount: 2000000000000, // 20k ADM
       recipientId: account.address
@@ -378,7 +372,7 @@ describe('POST /peer/transactions after registering a new delegate', function ()
   });
 
   before(function (done) {
-    sendADM({
+    sendADMAndWaitUntilNextBlock({
       secret: node.iAccount.password,
       amount: 1500000000000, // 15k ADM
       recipientId: account.address

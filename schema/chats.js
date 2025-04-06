@@ -254,42 +254,6 @@ module.exports = {
     },
     required: ['id']
   },
-  addTransactions: {
-    id: 'dapps.addTransactions',
-    type: 'object',
-    properties: {
-      secret: {
-        type: 'string',
-        minLength: 1,
-        maxLength: 100
-      },
-      amount: {
-        type: 'integer',
-        minimum: 1,
-        maximum: constants.totalAmount
-      },
-      publicKey: {
-        type: 'string',
-        format: 'publicKey'
-      },
-      secondSecret: {
-        type: 'string',
-        minLength: 1,
-        maxLength: 100
-      },
-      dappId: {
-        type: 'string',
-        format: 'id',
-        minLength: 1,
-        maxLength: 20
-      },
-      multisigAccountPublicKey: {
-        type: 'string',
-        format: 'publicKey'
-      }
-    },
-    required: ['secret', 'amount', 'dappId']
-  },
   sendWithdrawal: {
     id: 'dapps.sendWithdrawal',
     type: 'object',

@@ -13,7 +13,6 @@ var schema = require('../../schema/dapps');
  *
  * - Sanitized
  *   - get  /
- *   - put  /
  *   - get  /get
  * @memberof module:chats
  * @requires helpers/Router

@@ -17,7 +17,6 @@ var httpApi = require('../../helpers/httpApi');
  *    - get    /multisignatures
  *    - get    /unconfirmed/get
  *    - get    /unconfirmed
- *    - put    /
  *    - post   /normalize
  *    - post   /process
  * @memberof module:transactions
@@ -47,7 +46,6 @@ function TransactionsHttpApi (transactionsModule, app, logger, cache) {
     'get /multisignatures': 'getMultisignatureTransactions',
     'get /unconfirmed/get': 'getUnconfirmedTransaction',
     'get /unconfirmed': 'getUnconfirmedTransactions',
-    'put /': 'addTransactions',
     'post /normalize': 'normalizeTransactions',
     'post /process': 'processTransactions'
   });

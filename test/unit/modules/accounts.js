@@ -524,49 +524,6 @@ describe('accounts', function () {
       });
     });
 
-    describe('generatePublicKey()', () => {
-      const responseKeys = ['publicKey'];
-
-      it('should generate public key for a new account', (done) => {
-        const passphrase = modulesLoader.scope.ed.generatePassphrase();
-        const body = { secret: passphrase };
-        accounts.shared.generatePublicKey({ body }, (err, response) => {
-          expect(err).not.to.exist;
-          expect(response).to.have.all.keys(responseKeys);
-          expect(isPublicKey(response.publicKey)).to.be.true;
-          done();
-        });
-      });
-
-      it('should return public key for existing account', (done) => {
-        const body = { secret: testAccount.secret };
-        accounts.shared.generatePublicKey({ body }, (err, response) => {
-          expect(err).not.to.exist;
-          expect(response).to.have.all.keys(responseKeys);
-          expect(response.publicKey).to.equal(testAccount.publicKey);
-          done();
-        });
-      });
-
-      it('should return null publicKey and the error when invalid mnemonic passphrase is provided', (done) => {
-        const body = { secret: notAMnemonicPassphrase };
-        accounts.shared.generatePublicKey({ body }, (err, response) => {
-          expect(err).to.include('Mnemonic string is invalid');
-          expect(response.publicKey).to.be.null;
-          done();
-        });
-      });
-
-      it('should return error when provided passphrase is of invalid type', (done) => {
-        const body = { secret: 404 };
-        accounts.shared.generatePublicKey({ body }, (err, response) => {
-          expect(err).to.include('Expected type string');
-          expect(response).not.to.exist;
-          done();
-        });
-      });
-    });
-
     describe('getDelegates()', () => {
       const responseKeys = ['delegates'];
 
