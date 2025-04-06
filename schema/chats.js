@@ -153,27 +153,6 @@ module.exports = {
     },
     required: ['id']
   },
-  normalize: {
-    id: 'chats.normalize',
-    type: 'object',
-    properties: {
-      message: {
-        type: 'string',
-        minLength: 1
-      },
-      recipientId: {
-        type: 'string',
-        format: 'address',
-        minLength: 1,
-        maxLength: 40
-      },
-      publicKey: {
-        type: 'string',
-        format: 'publicKey'
-      }
-    },
-    required: ['message', 'recipientId', 'publicKey']
-  },
   process: {
     id: 'chats.process',
     type: 'object',
