@@ -56,7 +56,7 @@ class TransportWsApi {
         return self.scheduleReconnect();
       }
 
-      this.reconnectionDelay = defaultReconnectionDelay;
+      this.reconnectionDelay = wsConstants.defaultReconnectionDelay;
 
       peers.forEach((peer) => self.connectToPeer(peer));
     });
