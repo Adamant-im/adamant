@@ -29,6 +29,13 @@ var httpApi = require('../../helpers/httpApi');
 function TransactionsHttpApi (transactionsModule, app, logger, cache) {
   var router = new Router();
 
+  router.use('/multisignatures', (req, res) => {
+    res.status(404).send({
+      success: false,
+      error: 'Resource not found',
+    });
+  });
+
   // attach a middleware to endpoints
   router.attachMiddlwareForUrls(httpApi.middleware.useCache.bind(null, logger, cache), [
     'get /'

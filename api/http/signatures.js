@@ -20,6 +20,13 @@ var httpApi = require('../../helpers/httpApi');
 function SignaturesHttpApi (signaturesModule, app) {
   var router = new Router();
 
+  router.all('*', (req, res) => {
+    res.status(404).send({
+      success: false,
+      error: 'Resource not found',
+    });
+  });
+
   router.map(signaturesModule.shared, {
     'get /fee': 'getFee',
     'put /': 'addSignature'
