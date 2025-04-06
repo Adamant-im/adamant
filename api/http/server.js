@@ -25,7 +25,7 @@ function ServerHttpApi (serverModule, app) {
 
   router.use(function (req, res, next) {
     if (req.url.indexOf('/api/') === -1 && req.url.indexOf('/peer/') === -1) {
-      return res.status(404).send({ success: false, error: "Resource not found" });
+      return res.status(404).send({ success: false, error: "API endpoint not found" });
     }
     next();
   });

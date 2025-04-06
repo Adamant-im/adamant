@@ -23,7 +23,7 @@ function SignaturesHttpApi (signaturesModule, app) {
   router.all('*', (req, res) => {
     res.status(404).send({
       success: false,
-      error: 'Resource not found',
+      error: 'API endpoint not found',
     });
   });
 
