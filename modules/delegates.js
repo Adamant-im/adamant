@@ -934,10 +934,6 @@ Delegates.prototype.shared = {
     });
   },
 
-  getFee: function (req, cb) {
-    return setImmediate(cb, null, { fee: constants.fees.delegate });
-  },
-
   getForgedByAccount: function (req, cb) {
     library.schema.validate(req.body, schema.getForgedByAccount, function (err) {
       if (err) {
