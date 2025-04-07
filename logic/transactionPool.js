@@ -236,8 +236,7 @@ TransactionPool.prototype.addUnconfirmedTransaction = function (transaction) {
   }
 
   if (self.unconfirmed.index[transaction.id] === undefined) {
-    self.unconfirmed.transactions.push(transaction);
-    var index = self.unconfirmed.transactions.indexOf(transaction);
+    const index = self.unconfirmed.transactions.push(transaction) - 1;
     self.unconfirmed.index[transaction.id] = index;
   }
 };
@@ -252,7 +251,7 @@ TransactionPool.prototype.removeUnconfirmedTransaction = function (id) {
   var index = self.unconfirmed.index[id];
 
   if (index !== undefined) {
-    self.unconfirmed.transactions[index] = false;
+    self.unconfirmed.transactions.splice(index, 1);
     delete self.unconfirmed.index[id];
   }
 
@@ -274,8 +273,7 @@ TransactionPool.prototype.countUnconfirmed = function () {
  */
 TransactionPool.prototype.addBundledTransaction = function (transaction) {
   if (self.bundled.index[transaction.id] === undefined) {
-    self.bundled.transactions.push(transaction);
-    var index = self.bundled.transactions.indexOf(transaction);
+    const index = self.bundled.transactions.push(transaction) - 1;
     self.bundled.index[transaction.id] = index;
   }
 };
@@ -288,7 +286,7 @@ TransactionPool.prototype.removeBundledTransaction = function (id) {
   var index = self.bundled.index[id];
 
   if (index !== undefined) {
-    self.bundled.transactions[index] = false;
+    self.bundled.transactions.splice(index, 1);
     delete self.bundled.index[id];
   }
 };
@@ -307,8 +305,7 @@ TransactionPool.prototype.countBundled = function () {
  */
 TransactionPool.prototype.addQueuedTransaction = function (transaction) {
   if (self.queued.index[transaction.id] === undefined) {
-    self.queued.transactions.push(transaction);
-    var index = self.queued.transactions.indexOf(transaction);
+    const index = self.queued.transactions.push(transaction) - 1;
     self.queued.index[transaction.id] = index;
   }
 };
@@ -321,7 +318,7 @@ TransactionPool.prototype.removeQueuedTransaction = function (id) {
   var index = self.queued.index[id];
 
   if (index !== undefined) {
-    self.queued.transactions[index] = false;
+    self.queued.transactions.splice(index, 1);
     delete self.queued.index[id];
   }
 };
@@ -340,8 +337,7 @@ TransactionPool.prototype.countQueued = function () {
  */
 TransactionPool.prototype.addMultisignatureTransaction = function (transaction) {
   if (self.multisignature.index[transaction.id] === undefined) {
-    self.multisignature.transactions.push(transaction);
-    var index = self.multisignature.transactions.indexOf(transaction);
+    const index = self.multisignature.transactions.push(transaction) - 1;
     self.multisignature.index[transaction.id] = index;
   }
 };
@@ -354,7 +350,7 @@ TransactionPool.prototype.removeMultisignatureTransaction = function (id) {
   var index = self.multisignature.index[id];
 
   if (index !== undefined) {
-    self.multisignature.transactions[index] = false;
+    self.multisignature.transactions.splice(index, 1);
     delete self.multisignature.index[id];
   }
 };
@@ -392,7 +388,7 @@ TransactionPool.prototype.reindexQueues = function () {
     self[queue].index = {};
     self[queue].transactions = self[queue].transactions.filter(Boolean);
     self[queue].transactions.forEach(function (transaction) {
-      var index = self[queue].transactions.indexOf(transaction);
+      const index = self[queue].transactions.findIndex((tx) => tx.id === transaction.id);
       self[queue].index[transaction.id] = index;
     });
   });
