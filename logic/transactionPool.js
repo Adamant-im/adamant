@@ -393,8 +393,6 @@ TransactionPool.prototype.processBundled = function (cb) {
 };
 
 /**
- * If transaction is not already processed and processed is greater than 1000,
- * calls reindex queues.
  * If transaction bundled, calls queue transaction.
  * Calls processVerifyTransaction.
  * @implements {transactionInPool}
