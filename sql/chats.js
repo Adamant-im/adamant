@@ -24,7 +24,7 @@ var ChatsSql = {
 
   countList: function (params) {
     return [
-      'SELECT COUNT(1) FROM full_blocks_list',
+      'SELECT COUNT(1) FROM full_trs_list',
       (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
       ((params.whereOr && params.whereOr.length) ? 'AND (' + params.whereOr.join(' OR ') + ')' : ''),
       (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : '')
@@ -44,7 +44,7 @@ var ChatsSql = {
       'first("t_timestamp") as "timestamp",',
       'first("t_type") as "t_type"',
       'FROM ( SELECT *, t_timestamp as timestamp, ENCODE("publicKey", \'hex\') as "m_recipientPublicKey"',
-      'FROM full_blocks_list',
+      'FROM full_trs_list',
       'LEFT OUTER JOIN mem_accounts ON address = "t_recipientId"',
 
       (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
@@ -70,7 +70,7 @@ var ChatsSql = {
   list: function (params) {
     return [
 
-      'SELECT *, t_timestamp as timestamp FROM full_blocks_list',
+      'SELECT *, t_timestamp as timestamp FROM full_trs_list',
       (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
       (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
       'LIMIT ${limit} OFFSET ${offset}'
@@ -78,7 +78,7 @@ var ChatsSql = {
   },
   listMessages: function (params) {
     let x = [
-      'SELECT *, t_timestamp as timestamp, ENCODE("publicKey", \'hex\') as "m_recipientPublicKey" FROM full_blocks_list',
+      'SELECT *, t_timestamp as timestamp, ENCODE("publicKey", \'hex\') as "m_recipientPublicKey" FROM full_trs_list',
       'LEFT OUTER JOIN mem_accounts ON address = "t_recipientId"',
       (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
       (params.whereOr.length ? 'AND (' + params.whereOr.join(' OR ') + ')' : ''),
@@ -109,7 +109,7 @@ var ChatsSql = {
       'first("confirmations" ORDER BY b_height DESC, t_timestamp DESC) as "confirmations",',
       'first("b_id" ORDER BY b_height DESC, t_timestamp DESC) as "b_id"',
       'FROM ( SELECT *, t_timestamp as timestamp, ENCODE("publicKey", \'hex\') as "m_recipientPublicKey"',
-      'FROM full_blocks_list',
+      'FROM full_trs_list',
       'LEFT OUTER JOIN mem_accounts ON address = "t_recipientId"',
 
       (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
