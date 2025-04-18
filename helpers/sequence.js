@@ -39,7 +39,7 @@ function Sequence (config) {
  * @param {function} cb
  * @return {setImmediateCallback} With cb or task.done
  */
-Sequence.prototype.__tick = function (cb) {
+Sequence.prototype.__tick = async function (cb) {
   var task = this.sequence.shift();
   if (!task) {
     return setImmediate(cb);
