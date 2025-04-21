@@ -1253,10 +1253,10 @@ Transaction.prototype.dbRead = function (raw) {
   } else {
     var tx = {
       id: raw.t_id,
-      height: raw.b_height || raw.t_height,
+      height: raw.b_height,
       blockId: raw.b_id || raw.t_blockId,
       type: parseInt(raw.t_type),
-      block_timestamp: parseInt(raw.blockTimestamp ?? raw.block_timestamp),
+      block_timestamp: parseInt(raw.block_timestamp),
       timestamp: parseInt(raw.t_timestamp),
       timestampMs: typeof raw.t_timestampMs === 'string' ? parseInt(raw.t_timestampMs) : null,
       senderPublicKey: raw.t_senderPublicKey,
