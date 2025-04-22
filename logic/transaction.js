@@ -1056,7 +1056,7 @@ Transaction.prototype.dbSave = function (trs) {
       id: trs.id,
       blockId: trs.blockId,
       height: trs.height,
-      blockTimestamp: trs.blockTimestamp,
+      blockTimestamp: trs.block_timestamp,
       type: trs.type,
       timestamp: trs.timestamp,
       timestampMs: trs.timestampMs,
