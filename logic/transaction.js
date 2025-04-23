@@ -1015,6 +1015,8 @@ Transaction.prototype.dbFields = [
   'type',
   'timestamp',
   'timestampMs',
+  'height',
+  'blockTimestamp',
   'senderPublicKey',
   'requesterPublicKey',
   'senderId',

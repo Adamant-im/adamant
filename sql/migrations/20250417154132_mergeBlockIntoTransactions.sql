@@ -5,8 +5,8 @@
 BEGIN;
 
 -- Create new columns and indexes
-ALTER TABLE "trs" ADD COLUMN "height" INT;
-ALTER TABLE "trs" ADD COLUMN "blockTimestamp" INT;
+ALTER TABLE "trs" ADD COLUMN "height" INT NOT NULL;
+ALTER TABLE "trs" ADD COLUMN "blockTimestamp" INT NOT NULL;
 
 CREATE INDEX IF NOT EXISTS "height" ON "trs"("height");
 
