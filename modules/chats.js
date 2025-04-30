@@ -219,7 +219,7 @@ __private.list = function (filter, cb) {
   library.db.query(sql.countList({
     where: where
   }), params).then(function (rows) {
-    const count = rows.length ? Number(rows[0].count) : 0;
+    const count = rows.length ? rows[0].count : 0;
     library.db.query(sql.list({
       where: where,
       sortField: orderBy.sortField,
@@ -246,7 +246,7 @@ __private.list = function (filter, cb) {
 
       var data = {
         transactions: transactions,
-        count: String(count + unconfirmedTransactions.length)
+        count: count + unconfirmedTransactions.length
       };
 
       return setImmediate(cb, null, data);
