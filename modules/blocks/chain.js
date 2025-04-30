@@ -149,6 +149,8 @@ __private.promiseTransactions = function (t, block, blockPromises) {
   var transactionIterator = function (transaction) {
     // Apply block ID to transaction
     transaction.blockId = block.id;
+    transaction.height = block.height;
+    transaction.block_timestamp = block.timestamp;
     // Create bytea fields (buffers), and returns pseudo-row promise-like object
     return library.logic.transaction.dbSave(transaction);
   };

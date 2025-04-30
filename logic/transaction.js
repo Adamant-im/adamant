@@ -1015,6 +1015,8 @@ Transaction.prototype.dbFields = [
   'type',
   'timestamp',
   'timestampMs',
+  'height',
+  'blockTimestamp',
   'senderPublicKey',
   'requesterPublicKey',
   'senderId',
@@ -1055,6 +1057,8 @@ Transaction.prototype.dbSave = function (trs) {
     values: {
       id: trs.id,
       blockId: trs.blockId,
+      height: trs.height,
+      blockTimestamp: trs.block_timestamp,
       type: trs.type,
       timestamp: trs.timestamp,
       timestampMs: trs.timestampMs,

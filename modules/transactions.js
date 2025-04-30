@@ -240,7 +240,7 @@ __private.list = function (filter, cb) {
     where: where,
     owner: owner
   }), params).then(function (rows) {
-    var count = rows.length ? rows[0].count : 0;
+    var count = rows.length ? Number(rows[0].count) : 0;
     var sql_method = 'list';
     if (filter.returnAsset) {
       sql_method = 'listFull';
