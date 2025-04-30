@@ -142,7 +142,7 @@ __private.listChats = function (filter, cb) {
     where: where,
     whereOr: whereOr
   }), params).then(function (rows) {
-    const count = rows.length ? Number(rows[0].count) : 0;
+    const count = rows.length ? rows[0].count : 0;
     library.db.query(sql.listChats({
       where: where,
       whereOr: whereOr,
@@ -180,7 +180,7 @@ __private.listChats = function (filter, cb) {
 
       const data = {
         chats: Object.values(chats),
-        count: String(count + unconfirmedTransactions.length)
+        count: count + unconfirmedTransactions.length
       };
       return setImmediate(cb, null, data);
     }).catch(function (err) {
