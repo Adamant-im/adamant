@@ -21,7 +21,7 @@ var StatesSql = {
   countList: function (params) {
     return [
 
-      'SELECT COUNT(1)  FROM full_blocks_list',
+      'SELECT COUNT(1)::INT FROM full_blocks_list',
       (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
       (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : '')
     ].filter(Boolean).join(' ');
