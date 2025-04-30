@@ -292,7 +292,7 @@ __private.listMessages = function (filter, cb) {
     where: where,
     whereOr: whereOr
   }), params).then(function (rows) {
-    const count = rows.length ? Number(rows[0].count) : 0;
+    const count = rows.length ? rows[0].count : 0;
     library.db.query(sql.listMessages({
       where: where,
       whereOr: whereOr,
@@ -324,7 +324,7 @@ __private.listMessages = function (filter, cb) {
           { address: transactions[0].senderId, publicKey: transactions[0].senderPublicKey },
           { address: transactions[0].recipientId, publicKey: transactions[0].recipientPublicKey }
         ] : [],
-        count: String(count + unconfirmedTransactions.length)
+        count: count + unconfirmedTransactions.length
       };
       return setImmediate(cb, null, data);
     }).catch(function (err) {
