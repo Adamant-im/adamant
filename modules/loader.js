@@ -51,7 +51,6 @@ function Loader (cb, scope) {
     },
     config: {
       loading: {
-        verifyOnLoading: scope.config.loading.verifyOnLoading,
         snapshot: scope.config.loading.snapshot
       }
     }
@@ -315,7 +314,7 @@ __private.loadTransactions = function (cb) {
  */
 __private.loadBlockChain = function () {
   var offset = 0, limit = Number(library.config.loading.loadPerIteration) || 1000;
-  var verify = Boolean(library.config.loading.verifyOnLoading);
+  var verify = false;
 
   function load (count) {
     verify = true;
