@@ -389,6 +389,8 @@ Process.prototype.onReceiveBlock = function (block) {
     } else {
       if (block.id === lastBlock.id) {
         library.logger.debug('Block already processed', block.id);
+      } else if (block.height < lastBlock.height) {
+        library.logger.debug('Received old block', block.id);
       } else {
         library.logger.warn([
           'Discarded the received block because it does not match the current chain.',
