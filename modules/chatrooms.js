@@ -68,7 +68,7 @@ __private.listChats = function (filter, cb) {
     params.type = filter.type;
   }
 
-  let includeDirectTransfers = false;
+  let includeDirectTransfers = true;
 
   if (typeof filter.includeDirectTransfers !== 'undefined') {
     includeDirectTransfers = Boolean(filter.includeDirectTransfers);
@@ -79,9 +79,9 @@ __private.listChats = function (filter, cb) {
   }
 
   if (includeDirectTransfers) {
-    where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
-  } else {
     where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
+  } else {
+    where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
   }
   where.push(`(NOT("c_type" = ${transactionTypes.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE}) OR c_type IS NULL) `);
   if (filter.senderId) {
@@ -203,7 +203,7 @@ __private.listMessages = function (filter, cb) {
     where.push(`(NOT("c_type" = ${transactionTypes.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE}) OR c_type IS NULL)`);
   }
 
-  let includeDirectTransfers = false;
+  let includeDirectTransfers = true;
 
   if (typeof filter.includeDirectTransfers !== 'undefined') {
     includeDirectTransfers = Boolean(filter.includeDirectTransfers);
