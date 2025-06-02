@@ -1284,7 +1284,7 @@ describe('GET /api/delegates/forging/getForgedByAccount', function () {
       node.expect(res.body).to.have.property('fees').that.is.a('string').and.eql('0');
       node.expect(res.body).to.have.property('rewards').that.is.a('string').and.eql('0');
       node.expect(res.body).to.have.property('forged').that.is.a('string').and.eql('0');
-      node.expect(res.body).to.have.property('count').that.is.a('string').and.eql('0');
+      node.expect(res.body).to.have.property('count').that.is.a('number').and.equal(0);
       done();
     });
   });
@@ -1329,7 +1329,7 @@ describe('GET /api/delegates/forging/getForgedByAccount', function () {
       node.expect(res.body).to.have.property('fees').that.is.a('string').and.eql('0');
       node.expect(res.body).to.have.property('rewards').that.is.a('string').and.eql('0');
       node.expect(res.body).to.have.property('forged').that.is.a('string').and.eql('0');
-      node.expect(res.body).to.have.property('count').that.is.a('string').and.eql('0');
+      node.expect(res.body).to.have.property('count').that.is.a('number').and.equal(0);
       done();
     });
   });
@@ -1342,7 +1342,7 @@ describe('GET /api/delegates/forging/getForgedByAccount', function () {
       node.expect(res.body).to.have.property('fees').that.is.a('string');
       node.expect(res.body).to.have.property('rewards').that.is.a('string');
       node.expect(res.body).to.have.property('forged').that.is.a('string');
-      node.expect(res.body).to.have.property('count').that.is.a('string');
+      node.expect(res.body).to.have.property('count').that.is.a('number');
       done();
     });
   });
