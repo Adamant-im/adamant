@@ -25,7 +25,8 @@ var ChatsSql = {
   countList: function (params) {
     return [
       'SELECT COUNT(1)::INT FROM full_trs_list',
-          (params.where.length ? 'WHERE ' + params.where.join(' AND ') : '')
+      (params.where.length   ? 'WHERE ' + params.where.join(' AND ') : ''),
+      (params.whereOr.length ? 'AND (' + params.whereOr.join(' OR ') + ')' : '')
     ].filter(Boolean).join(' ');
   },
 
