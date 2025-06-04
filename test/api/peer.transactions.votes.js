@@ -37,12 +37,9 @@ function postVotes (params, done) {
       votes: [params.action + delegate]
     });
 
-    // Don't sent requests too often — a node can miss some of them
-    node.waitMilliSeconds(4000, function () {
-      postVote(transaction, function (err, res) {
-        params.voteCb(err, res);
-        return eachCb();
-      });
+    postVote(transaction, function (err, res) {
+      params.voteCb(err, res);
+      return eachCb();
     });
   }, function (err) {
     node.waitForBlocks(blocksToWait, function (err) {

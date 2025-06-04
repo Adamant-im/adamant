@@ -69,17 +69,18 @@ describe('GET /api/states/get', () => {
 
   it('should return unconfirmed transaction with ?returnUnconfirmed=1 flag', (done) => {
     getStates(testAccount.address, { returnUnconfirmed: 1 }, (err, res) => {
-      expect(err).to.not.exist;
-      expect(res.body).to.have.property('transactions').that.is.an('array').that.is.not.empty
-      const includesUnconfirmedTransactions = res.body.transactions.some((transaction) => {
-        return !('confirmations' in transaction);
-      });
+      try {
+        expect(err).to.not.exist;
+        expect(res.body).to.have.property('transactions').that.is.an('array').that.is.not.empty
+        const includesUnconfirmedTransactions = res.body.transactions.some((transaction) => {
+          return !('confirmations' in transaction);
+        });
 
-      expect(includesUnconfirmedTransactions).to.be.true;
-
-      node.onNewBlock(() => {
-        done();
-      });
+        expect(includesUnconfirmedTransactions).to.be.true;
+        node.onNewBlock(() => done());
+      } catch (err) {
+        node.onNewBlock(() => done(err));
+      }
     });
   });
 

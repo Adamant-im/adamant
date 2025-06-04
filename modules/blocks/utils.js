@@ -370,7 +370,7 @@ Utils.prototype.aggregateBlocksReward = function (filter, cb) {
     if (data.delegate === null) {
       return setImmediate(cb, 'Account not found or is not a delegate');
     }
-    data = { fees: data.fees || '0', rewards: data.rewards || '0', count: data.count || '0' };
+    data = { fees: data.fees || '0', rewards: data.rewards || '0', count: data.count || 0 };
     return setImmediate(cb, null, data);
   }).catch(function (err) {
     library.logger.error(err.stack);

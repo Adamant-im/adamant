@@ -43,7 +43,10 @@ describe('GET /api/delegates (cache)', function () {
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
       var response = res.body;
       cache.getJsonForKey(url, function (err, res) {
-        node.expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         node.expect(res).to.eql(response);
         done(err, res);
       });
@@ -60,7 +63,10 @@ describe('GET /api/delegates (cache)', function () {
       node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Invalid sort field');
       cache.getJsonForKey(url + params, function (err, res) {
-        node.expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         node.expect(res).to.be.null;
         done(err, res);
       });
@@ -76,12 +82,18 @@ describe('GET /api/delegates (cache)', function () {
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
       var response = res.body;
       cache.getJsonForKey(url, function (err, beforeCachedResponse) {
-        node.expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         node.expect(beforeCachedResponse).to.eql(response);
         node.onNewRound(function (err) {
           node.expect(err).to.not.exist;
           cache.getJsonForKey(url, function (err, afterCachedResponse) {
-            node.expect(err).to.not.exist;
+            if (err) {
+              return done(err);
+            }
+
             node.expect(afterCachedResponse).to.not.eql(beforeCachedResponse);
             done();
           });
