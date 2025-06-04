@@ -57,6 +57,9 @@ describe('peers', function () {
     });
   });
 
+  // Remove stub functions
+  afterEach(() => sinon.restore());
+
   describe('sandboxApi', function (done) {
     it('should pass the call', function () {
       var sandboxHelper = require('../../../helpers/sandbox.js');
