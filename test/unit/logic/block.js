@@ -8,7 +8,6 @@ const Chat = require('../../../logic/chat.js');
 
 const { modulesLoader } = require('../../common/initModule.js');
 
-const ed = require('../../../helpers/ed.js');
 const transactionTypes = require('../../../helpers/transactionTypes.js');
 
 const {
@@ -28,11 +27,8 @@ describe('Block', () => {
     modulesLoader.initLogic(
       Block,
       {
+        ...modulesLoader.scope,
         db: {},
-        ed: ed,
-        logger: modulesLoader.scope.logger,
-        schema: modulesLoader.scope.schema,
-        genesisBlock: {},
       },
       (error, result) => {
         if (error) {

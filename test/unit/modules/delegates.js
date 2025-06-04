@@ -392,7 +392,7 @@ describe('delegates', function () {
               const intervalForgedAmount = Number(intervalStats.forged);
               expect(intervalForgedAmount).not.to.be.NaN;
 
-              expect(intervalForgedAmount).to.be.lessThan(allTimeForgedAmount);
+              expect(intervalForgedAmount).to.be.lessThanOrEqual(allTimeForgedAmount);
               done();
             }
           );

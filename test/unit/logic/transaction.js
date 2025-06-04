@@ -783,15 +783,16 @@ describe('transaction', () => {
     });
   });
 
-  describe('validateTimestampWindow()', () => {
+  describe('publish()', () => {
     it('should return error on future timestamp', () => {
       const trs = _.cloneDeep(validUnconfirmedTransaction);
       trs.timestamp = slots.getTime() + 100;
       trs.timestampMs = trs.timestamp * 1000;
       delete trs.signature;
       trs.signature = transaction.sign(testSenderKeypair, trs);
-      const error = transaction.validateTimestampWindow(trs);
-      expect(error).to.equal('Transaction timestamp is in the future');
+      expect(() => transaction.publish(trs)).to.throw(
+        'Transaction timestamp is in the future',
+      );
     });
 
     it('should return error on timestamp that is 16 seconds in the past', () => {
@@ -800,8 +801,9 @@ describe('transaction', () => {
       trs.timestampMs = trs.timestamp * 1000;
       delete trs.signature;
       trs.signature = transaction.sign(testSenderKeypair, trs);
-      const error = transaction.validateTimestampWindow(trs);
-      expect(error).to.equal('Transaction timestamp is more than 5 seconds in the past');
+      expect(() => transaction.publish(trs)).to.throw(
+        'Transaction timestamp is more than 5 seconds in the past',
+      );
     });
   });
 
@@ -1134,6 +1136,8 @@ describe('transaction', () => {
       const valuesKeys = [
         'id',
         'blockId',
+        'blockTimestamp',
+        'height',
         'type',
         'timestamp',
         'timestampMs',
