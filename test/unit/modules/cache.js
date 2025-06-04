@@ -80,10 +80,16 @@ describe('cache', function () {
       var value = { testObject: 'testValue' };
 
       cache.setJsonForKey(key, value, function (err, status) {
-        expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         expect(status).to.equal('OK');
         cache.getJsonForKey(key, function (err, res) {
-          expect(err).to.not.exist;
+          if (err) {
+            return done(err);
+          }
+
           expect(res).to.eql(value);
           done(err, value);
         });
@@ -96,7 +102,10 @@ describe('cache', function () {
       var key = 'test_key';
 
       cache.getJsonForKey(key, function (err, value) {
-        expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         expect(value).to.equal(null);
         done(err, value);
       });
@@ -107,10 +116,16 @@ describe('cache', function () {
       var value = { testObject: 'testValue' };
 
       cache.setJsonForKey(key, value, function (err, status) {
-        expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         expect(status).to.equal('OK');
         cache.getJsonForKey(key, function (err, res) {
-          expect(err).to.not.exist;
+          if (err) {
+            return done(err);
+          }
+
           expect(res).to.eql(value);
           done(err, value);
         });
@@ -170,12 +185,18 @@ describe('cache', function () {
       var pattern = '/api/transactions*';
 
       cache.setJsonForKey(key, value, function (err, status) {
-        expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         expect(status).to.equal('OK');
         cache.removeByPattern(pattern, function (err) {
           expect(err).to.not.exist;
           cache.getJsonForKey(key, function (err, res) {
-            expect(err).to.not.exist;
+            if (err) {
+              return done(err);
+            }
+
             expect(res).to.equal(null);
             done();
           });
@@ -189,12 +210,18 @@ describe('cache', function () {
       var pattern = '/api/delegate*';
 
       cache.setJsonForKey(key, value, function (err, status) {
-        expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         expect(status).to.equal('OK');
         cache.removeByPattern(pattern, function (err) {
           expect(err).to.not.exist;
           cache.getJsonForKey(key, function (err, res) {
-            expect(err).to.not.exist;
+            if (err) {
+              return done(err);
+            }
+
             expect(res).to.eql(value);
             done();
           });
@@ -208,12 +235,18 @@ describe('cache', function () {
       var key = '/api/transactions?123';
       var value = { testObject: 'testValue' };
       cache.setJsonForKey(key, value, function (err, status) {
-        expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         expect(status).to.equal('OK');
         cache.onNewBlock(null, null, function (err) {
           expect(err).to.not.exist;
           cache.getJsonForKey(key, function (err, res) {
-            expect(err).to.not.exist;
+            if (err) {
+              return done(err);
+            }
+
             expect(res).to.equal(null);
             done();
           });
@@ -226,13 +259,19 @@ describe('cache', function () {
       var value = { testObject: 'testValue' };
 
       cache.setJsonForKey(key, value, function (err, status) {
-        expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         expect(status).to.equal('OK');
 
         cache.onNewBlock(null, null, function (err) {
           expect(err).to.not.exist;
           cache.getJsonForKey(key, function (err, res) {
-            expect(err).to.not.exist;
+            if (err) {
+              return done(err);
+            }
+
             expect(res).to.equal(null);
             done();
           });
@@ -245,13 +284,19 @@ describe('cache', function () {
       var value = { testObject: 'testValue' };
 
       cache.setJsonForKey(key, value, function (err, status) {
-        expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         expect(status).to.equal('OK');
 
         cache.onNewBlock(null, null, function (err) {
           expect(err).to.not.exist;
           cache.getJsonForKey(key, function (err, res) {
-            expect(err).to.not.exist;
+            if (err) {
+              return done(err);
+            }
+
             expect(res).to.eql(value);
             done();
           });
@@ -264,7 +309,10 @@ describe('cache', function () {
       var value = { testObject: 'testValue' };
 
       cache.setJsonForKey(key, value, function (err, status) {
-        expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         expect(status).to.equal('OK');
 
         cache.onSyncStarted();
@@ -272,7 +320,10 @@ describe('cache', function () {
           expect(err).to.equal('Cache Unavailable');
           cache.onSyncFinished();
           cache.getJsonForKey(key, function (err, res) {
-            expect(err).to.not.exist;
+            if (err) {
+              return done(err);
+            }
+
             expect(res).to.eql(value);
             done();
           });
@@ -287,12 +338,18 @@ describe('cache', function () {
       var value = { testObject: 'testValue' };
 
       cache.setJsonForKey(key, value, function (err, status) {
-        expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         expect(status).to.equal('OK');
         cache.onFinishRound(null, function (err) {
           expect(err).to.not.exist;
           cache.getJsonForKey(key, function (err, res) {
-            expect(err).to.not.exist;
+            if (err) {
+              return done(err);
+            }
+
             expect(res).to.equal(null);
             done();
           });
@@ -305,13 +362,19 @@ describe('cache', function () {
       var value = { testObject: 'testValue' };
 
       cache.setJsonForKey(key, value, function (err, status) {
-        expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         expect(status).to.equal('OK');
 
         cache.onFinishRound(null, function (err) {
           expect(err).to.not.exist;
           cache.getJsonForKey(key, function (err, res) {
-            expect(err).to.not.exist;
+            if (err) {
+              return done(err);
+            }
+
             expect(res).to.eql(value);
             done();
           });
@@ -324,7 +387,10 @@ describe('cache', function () {
       var value = { testObject: 'testValue' };
 
       cache.setJsonForKey(key, value, function (err, status) {
-        expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         expect(status).to.equal('OK');
 
         cache.onSyncStarted();
@@ -332,7 +398,10 @@ describe('cache', function () {
           expect(err).to.equal('Cache Unavailable');
           cache.onSyncFinished();
           cache.getJsonForKey(key, function (err, res) {
-            expect(err).to.not.exist;
+            if (err) {
+              return done(err);
+            }
+
             expect(res).to.eql(value);
             done();
           });
@@ -347,11 +416,17 @@ describe('cache', function () {
       var value = { testObject: 'testValue' };
 
       cache.setJsonForKey(key, value, function (err, status) {
-        expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         expect(status).to.equal('OK');
         cache.onTransactionsSaved([rawValidTransaction], function (err) {
           cache.getJsonForKey(key, function (err, res) {
-            expect(err).to.not.exist;
+            if (err) {
+              return done(err);
+            }
+
             expect(res).to.eql(value);
             done();
           });
@@ -364,12 +439,18 @@ describe('cache', function () {
       var value = { testObject: 'testValue' };
 
       cache.setJsonForKey(key, value, function (err, status) {
-        expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         expect(status).to.equal('OK');
 
         cache.onTransactionsSaved([validTransaction], function (err) {
           cache.getJsonForKey(key, function (err, res) {
-            expect(err).to.not.exist;
+            if (err) {
+              return done(err);
+            }
+
             expect(res).to.equal(null);
             done();
           });
@@ -382,7 +463,10 @@ describe('cache', function () {
       var value = { testObject: 'testValue' };
 
       cache.setJsonForKey(key, value, function (err, status) {
-        expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         expect(status).to.equal('OK');
 
         cache.onSyncStarted();
@@ -390,7 +474,10 @@ describe('cache', function () {
           expect(err).to.equal('Cache Unavailable');
           cache.onSyncFinished();
           cache.getJsonForKey(key, function (err, res) {
-            expect(err).to.not.exist;
+            if (err) {
+              return done(err);
+            }
+
             expect(res).to.eql(value);
             done();
           });

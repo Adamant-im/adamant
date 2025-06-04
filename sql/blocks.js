@@ -30,7 +30,7 @@ var BlocksSql = {
       'WITH',
       'delegate AS (SELECT',
       '1 FROM mem_accounts m WHERE m."isDelegate" = 1 AND m."publicKey" = DECODE(${generatorPublicKey}, \'hex\') LIMIT 1),',
-      'rewards AS (SELECT COUNT(1) AS count, SUM(reward) AS rewards FROM blocks WHERE "generatorPublicKey" = DECODE(${generatorPublicKey}, \'hex\')',
+      'rewards AS (SELECT COUNT(1)::INT AS count, SUM(reward) AS rewards FROM blocks WHERE "generatorPublicKey" = DECODE(${generatorPublicKey}, \'hex\')',
       (params.start !== undefined ? ' AND timestamp >= ${start}' : ''),
       (params.end !== undefined ? ' AND timestamp <= ${end}' : ''),
       '),',
