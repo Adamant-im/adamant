@@ -315,13 +315,6 @@ d.run(function () {
       var cors = require('cors');
       var app = express();
 
-      if (appConfig.coverage) {
-        var im = require('nyc-middleware');
-        logger.debug('Hook loader for coverage - do not use in production environment!');
-        im.hookLoader(__dirname);
-        app.use('/coverage', im.createHandler());
-      }
-
       require('./helpers/request-limiter')(app, appConfig);
 
       app.use(compression({
