@@ -110,30 +110,26 @@ Cache.prototype.deleteJsonForKey = function (key, cb) {
  * @param {String} pattern
  * @param {Function} cb
  */
-Cache.prototype.removeByPattern = function (pattern, cb) {
+Cache.prototype.removeByPattern = async function (pattern, cb) {
   if (!self.isConnected()) {
     return cb(errorCacheDisabled);
   }
-  var keys, cursor = 0;
-  async.doWhilst(function iteratee (whilstCb) {
-    client.scan(cursor, { MATCH: pattern })
-        .then((res) => {
-          cursor = res.cursor;
-          keys = res.keys;
-          if (keys.length > 0) {
-            client.del(keys)
-                .then((res) => whilstCb(null, res))
-                .catch((err) => whilstCb(err));
-          } else {
-            return whilstCb();
-          }
-        })
-        .catch((err) => {
-          return whilstCb(err);
-        });
-  }, function test (...args) {
-    return args[args.length - 1](null, cursor > 0);
-  }, cb);
+
+  try {
+    const keysToDelete = [];
+
+    for await (const key of client.scanIterator({ MATCH: pattern })) {
+      keysToDelete.push(...key);
+    }
+
+    if (keysToDelete.length > 0) {
+      await client.del(keysToDelete);
+    }
+
+    cb(null);
+  } catch (err) {
+    cb(err);
+  }
 };
 
 /**
