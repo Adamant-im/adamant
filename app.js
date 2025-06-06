@@ -317,7 +317,7 @@ d.run(function () {
         level: 9
       }));
       app.use(cors(appConfig.cors));
-      app.options('*', cors(appConfig.cors));
+      app.options(/(.*)/, cors(appConfig.cors));
 
       var server = require('http').createServer(app);
 
