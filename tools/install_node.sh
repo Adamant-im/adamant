@@ -7,7 +7,7 @@ databasename="adamant_main"
 configfile="config.json"
 processname="adamant"
 port="36666"
-nodejs="hydrogen"
+nodejs="jod"
 
 while getopts 'b:n:j:' OPTION; do
   OPTARG=$(echo "$OPTARG" | xargs)
@@ -31,12 +31,12 @@ while getopts 'b:n:j:' OPTION; do
       fi
       ;;
     j)
-      if [ "$OPTARG" == "16" ] || [ "$OPTARG" == "gallium" ]
+      if [ "$OPTARG" == "20" ] || [ "$OPTARG" == "iron" ]
       then
-        nodejs="gallium"
-      elif [ "$OPTARG" != "18" ] && [ "$OPTARG" != "hydrogen" ]
+        nodejs="iron"
+      elif [ "$OPTARG" != "22" ] && [ "$OPTARG" != "jod" ]
       then
-        printf "\nNodejs should be 'gallium' = '16', or 'hydrogen' = '18'.\n\n"
+        printf "\nNodejs should be 'iron' = '20', or 'jod' = '22'.\n\n"
         exit 1
       fi
       ;;
@@ -144,7 +144,7 @@ su - "$username" <<EOSU
 
 #NodeJS
 printf "\n\nInstalling nvm & node.js…\n\n"
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 source ~/.nvm/nvm.sh
 source ~/.profile
 source ~/.bashrc
@@ -227,4 +227,3 @@ fi
 
 #Works only if run not in screen
 su - "$username"
-
