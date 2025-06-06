@@ -75,21 +75,6 @@ module.exports = function (grunt) {
       build: {
         command: 'cd ' + version_dir + '/ && touch build && echo "v' + today + '" > build'
       },
-
-      coverage: {
-        command: 'export NODE_ENV=TEST && npx nyc --reporter html --temp-dir test/.nyc_output --report-dir test/.coverage npm run test:all',
-        maxBuffer: maxBufferSize
-      },
-
-      coverageSingle: {
-        command: 'export NODE_ENV=TEST && npx nyc --reporter html --temp-dir test/.nyc_output --report-dir test/.coverage mocha $TEST',
-        maxBuffer: maxBufferSize
-      },
-
-      fetchCoverage: {
-        command: 'rm -rf ./test/.coverage-func.zip; curl -o ./test/.coverage-func.zip $HOST/coverage/download',
-        maxBuffer: maxBufferSize
-      }
     },
 
     compress: {
@@ -132,7 +117,5 @@ module.exports = function (grunt) {
 
   grunt.registerTask('default', ['release']);
   grunt.registerTask('release', ['exec:folder', 'obfuscator', 'exec:package', 'exec:build', 'compress']);
-  grunt.registerTask('test-single', ['exec:coverageSingle']);
   grunt.registerTask('eslint-nofix', ['eslint']);
-  grunt.registerTask('test', ['eslint', 'exec:coverage']);
 };

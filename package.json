@@ -16,7 +16,6 @@
     "eslint:file": "npx eslint -f visualstudio",
     "eslint:fix": "npx eslint -f visualstudio --fix",
     "eslint:fixrule": "npx eslint -f visualstudio --no-eslintrc --fix --env browser,node,es2021,commonjs --parser-options=ecmaVersion:12 --rule",
-    "fetchCoverage": "npx grunt exec:fetchCoverage --verbose",
     "jsdoc": "npx jsdoc -c docs/conf.json --verbose --pedantic",
     "server-docs": "npx jsdoc && npx http-server docs/jsdoc/"
   },
@@ -97,8 +96,6 @@
     "jsdoc": "^4.0.4",
     "mocha": "^11.5.0",
     "moment": "^2.30.1",
-    "nyc": "^17.1.0",
-    "nyc-middleware": "^1.0.4",
     "sinon": "^20.0.0",
     "supertest": "^7.1.1"
   },
