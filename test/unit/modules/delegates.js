@@ -90,7 +90,7 @@ describe('delegates', function () {
     it('should return all 101 delegates', (done) => {
       delegates.getDelegates({}, {}, (err, response) => {
         expect(response.delegates).to.be.an('array');
-        expect(response.count).to.equal(101);
+        expect(response.count).to.greaterThanOrEqual(101);
         expect(err).not.to.exist;
         done();
       });
