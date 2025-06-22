@@ -48,18 +48,19 @@ while getopts 'b:n:j:' OPTION; do
 done
 
 printf "\n"
-printf "Welcome to the ADAMANT node installer v2.2.0 for Ubuntu 20, 22. Make sure you got this file from adamant.im website or GitHub.\n"
-printf "This installer is the easiest way to run ADAMANT node. We still recommend to consult IT specialist if you are not familiar with Linux systems.\n"
-printf "You can see full installation instructions on https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc.\n"
-printf "The installer will ask you to set database and user passwords during the installation.\n"
-printf "Also, the system may ask to choose some parameters, like encoding, keyboard, and grub. Generally, you can leave them by default.\n\n"
+printf "Welcome to the ADAMANT Node Installer v2.2.0 for Ubuntu 20, 22, and 24.\n"
+printf "Make sure you obtained this file from the adamant.im website or GitHub.\n"
+printf "This installer is the easiest way to run an ADAMANT node. However, we still recommend consulting an IT specialist if you are not familiar with Linux systems.\n"
+printf "You can find full installation instructions at:\nhttps://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
+printf "The installer will prompt you to set database and user passwords during installation.\n"
+printf "The system may also ask you to choose parameters such as encoding, keyboard layout, or GRUB settings. In most cases, you can leave them at their default values.\n\n"
 
-printf "Note: You've chosen '%s' network.\n" "$network"
-printf "Note: You've chosen '%s' branch.\n" "$branch"
-printf "Note: You've chosen '%s' Nodejs version.\n" "$nodejs"
+printf "Note: You have selected the '%s' network.\n" "$network"
+printf "Note: You have selected the '%s' branch.\n" "$branch"
+printf "Note: You have selected Node.js version '%s'.\n" "$nodejs"
 printf "\n"
 
-read -r -p "WARNING! Running this script is recommended for new droplets. Existing data MAY BE DAMAGED. If you agree to continue, type \"yes\": " agreement
+read -r -p "WARNING! This script is intended for new droplets. Existing data MAY BE DAMAGED. If you agree to continue, type \"yes\": " agreement
 if [[ $agreement != "yes" ]]
 then
   printf "\nInstallation cancelled.\n\n"
@@ -69,16 +70,16 @@ fi
 IMAGE=false
 if [[ $network == "mainnet" ]]
 then
-  printf "\nBlockchain image saves time on node sync but you must completely trust the image.\n"
-  printf "If you skip this step, your node will check every single transaction, which takes time (up for several days).\n"
-  read -r -p "Do you want to use the ADAMANT blockchain image to bootstrap a node? [Y/n]: " useimage
+  printf "\nUsing a blockchain image can significantly reduce sync time, but you must fully trust its source.\n"
+  printf "If you skip this step, your node will verify every single transaction, which may take several days.\n"
+  read -r -p "Do you want to use the ADAMANT blockchain image to bootstrap the node? [Y/n]: " useimage
   case $useimage in
     [yY][eE][sS]|[yY]|[jJ]|'')
       IMAGE=true
-      printf "\nI'll download blockchain image and your node will be on the actual height in a few minutes.\n\n"
+      printf "\nThe blockchain image will be downloaded, and your node will reach the current height within a few minutes.\n\n"
     ;;
     *)
-      printf "\nI'll sync your node from the beginning. It may take several days to raise up to the actual blockchain height.\n\n"
+      printf "\nThe node will synchronize from scratch. This process may take several days to reach the current blockchain height.\n\n"
     ;;
   esac
 fi
@@ -211,10 +212,10 @@ adamant_startup_output=$(su - adamant -c "source ~/.nvm/nvm.sh; pm2 startup")
 adamant_startup=$(echo "$adamant_startup_output" | grep -oP 'sudo env PATH=.*')
 bash -c "$adamant_startup"
 
-printf "\n\nFinished ADAMANT '%s' node installation script. Executed in %s seconds.\n" "$network" "$SECONDS"
-printf "Check your node status with 'pm2 show %s' command.\n" "$processname"
-printf "Current node's height: 'curl http://localhost:%s/api/blocks/getHeight'\n" "$port"
-printf "Thank you for supporting true decentralized ADAMANT Messenger.\n\n"
+printf "\n\nADAMANT '%s' node installation completed. Total execution time: %s seconds.\n" "$network" "$SECONDS"
+printf "Check your node status with the command: 'pm2 show %s'\n" "$processname"
+printf "To check the current node height, run: 'curl http://localhost:%s/api/blocks/getHeight'\n" "$port"
+printf "Thank you for supporting the truly decentralized ADAMANT Messenger.\n\n"
 
 read -n1 -r -p "Press any key to continue…"
 
