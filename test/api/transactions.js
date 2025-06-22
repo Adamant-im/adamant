@@ -142,7 +142,10 @@ describe('GET /api/transactions (cache)', function () {
       node.expect(res.body).to.have.property('transactions').that.is.an('array');
       var response = res.body;
       cache.getJsonForKey(url + params.join('&'), function (err, res) {
-        node.expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         node.expect(res).to.eql(response);
         done(err, res);
       });
@@ -160,7 +163,10 @@ describe('GET /api/transactions (cache)', function () {
       node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       cache.getJsonForKey(url + params, function (err, res) {
-        node.expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         node.expect(res).to.be.null;
         done(err, res);
       });

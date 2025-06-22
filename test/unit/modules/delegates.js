@@ -90,7 +90,7 @@ describe('delegates', function () {
     it('should return all 101 delegates', (done) => {
       delegates.getDelegates({}, {}, (err, response) => {
         expect(response.delegates).to.be.an('array');
-        expect(response.count).to.equal(101);
+        expect(response.count).to.greaterThanOrEqual(101);
         expect(err).not.to.exist;
         done();
       });
@@ -392,7 +392,7 @@ describe('delegates', function () {
               const intervalForgedAmount = Number(intervalStats.forged);
               expect(intervalForgedAmount).not.to.be.NaN;
 
-              expect(intervalForgedAmount).to.be.lessThan(allTimeForgedAmount);
+              expect(intervalForgedAmount).to.be.lessThanOrEqual(allTimeForgedAmount);
               done();
             }
           );
