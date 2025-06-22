@@ -48,7 +48,7 @@ while getopts 'b:n:j:' OPTION; do
 done
 
 printf "\n"
-printf "Welcome to the ADAMANT node installer v2.1.3 for CentOS 8. Make sure you got this file from adamant.im website or GitHub.\n"
+printf "Welcome to the ADAMANT node installer v2.2.0 for CentOS 8. Make sure you got this file from adamant.im website or GitHub.\n"
 printf "This installer is the easiest way to run ADAMANT node. We still recommend to consult IT specialist if you are not familiar with Linux systems.\n"
 printf "You can see full installation instructions (though for Ubuntu) on https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc.\n"
 printf "The installer will ask you to set database and user passwords during the installation.\n"
