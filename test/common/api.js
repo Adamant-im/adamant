@@ -14,7 +14,7 @@ const apiUtils = {
   sendRandomAmountADM(address, done) {
     const randomAmount = node.randomADM();
 
-    this.sendADM({
+    apiUtils.sendADM({
       secret: node.iAccount.password,
       amount: randomAmount,
       recipientId: address
@@ -24,7 +24,7 @@ const apiUtils = {
     });
   },
   sendADMAndWaitUntilNextBlock(params, done) {
-    this.sendADM(params, (err, res) => {
+    apiUtils.sendADM(params, (err, res) => {
       node.expect(res.body).to.have.property('success').to.be.true;
       node.onNewBlock(function (err) {
         return done(err, res);

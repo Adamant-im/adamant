@@ -3,7 +3,7 @@
 var node = require('./../node.js');
 var modulesLoader = require('./../common/initModule.js').modulesLoader;
 var genesisDelegates = require('../genesisPasses.json');
-const { sendADM } = require('../common/api.js');
+const { sendADM, voteForDelegatesAndWaitUntilNextBlock } = require('../common/api.js');
 
 describe('GET /api/delegates (cache)', function () {
   var cache;

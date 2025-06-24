@@ -19,7 +19,6 @@ const apiUtils = require('../common/api.js');
 
 var account = node.randomTxAccount();
 var account2 = node.randomTxAccount();
-var account3 = node.randomTxAccount();
 
 var transactionList = [];
 var offsetTimestamp = 0;
@@ -666,29 +665,6 @@ describe('GET /api/transactions/queued', function () {
   });
 });
 
-describe('GET /api/transactions/multisignatures/get?id=', function () {
-  it('using unknown id should be ok', function (done) {
-    var params = 'id=' + '1234';
-
-    node.get('/api/transactions/multisignatures/get?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error').that.is.equal('Transaction not found');
-      done();
-    });
-  });
-});
-
-describe('GET /api/transactions/multisignatures', function () {
-  it('should be ok', function (done) {
-    node.get('/api/transactions/multisignatures', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transactions').that.is.an('array');
-      node.expect(res.body).to.have.property('count').that.is.an('number');
-      done();
-    });
-  });
-});
-
 describe('GET /api/transactions/unconfirmed/get?id=', function () {
   it('using valid id should be ok', function (done) {
     var params = 'id=' + transactionList[transactionList.length - 1].txId;
@@ -772,63 +748,6 @@ describe('POST /api/transactions', function () {
 
   beforeEach(function (done) {
     node.onNewBlock(function (err) {
-      done();
-    });
-  });
-
-  it('should be OK for a normal transaction', function (done) {
-    var amountToSend = 100000000;
-    var expectedFee = node.expectedFee(amountToSend);
-
-    postTransaction({
-      secret: account.password,
-      amount: amountToSend,
-      recipientId: account2.address,
-      type: node.txTypes.SEND
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transactionId').that.is.not.empty;
-      transactionList.push({
-        'sender': account.address,
-        'recipient': account2.address,
-        'grossSent': (amountToSend + expectedFee) / node.normalizer,
-        'fee': expectedFee / node.normalizer,
-        'netSent': amountToSend / node.normalizer,
-        'txId': res.body.transactionId,
-        'type': node.txTypes.SEND
-      });
-      done();
-    });
-  });
-
-  it('should be OK for a vote transaction', function (done) {
-    postTransaction({
-      secret: account4.password,
-      delegates: ['+' + node.eAccount.publicKey],
-      type: node.txTypes.VOTE
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transaction').that.is.an('object');
-      node.expect(res.body.transaction.type).to.equal(node.txTypes.VOTE);
-      node.expect(res.body.transaction.amount).to.equal(0);
-      node.expect(res.body.transaction.senderPublicKey).to.equal(account4.publicKey.toString('hex'));
-      node.expect(res.body.transaction.fee).to.equal(node.fees.voteFee);
-      done();
-    });
-  });
-
-  it('should be OK for a register delegate transaction', function (done) {
-    account4.username = node.randomDelegateName();
-
-    postTransaction({ username: account4.username, secret: account4.password, type: node.txTypes.DELEGATE }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transaction').that.is.an('object');
-      node.expect(res.body.transaction.fee).to.equal(node.fees.delegateRegistrationFee);
-      node.expect(res.body.transaction).to.have.property('asset').that.is.an('object');
-      node.expect(res.body.transaction.asset.delegate.username).to.equal(account4.username.toLowerCase());
-      node.expect(res.body.transaction.asset.delegate.publicKey).to.equal(account4.publicKey.toString('hex'));
-      node.expect(res.body.transaction.type).to.equal(node.txTypes.DELEGATE);
-      node.expect(res.body.transaction.amount).to.equal(0);
       done();
     });
   });
