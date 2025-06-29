@@ -170,9 +170,8 @@ __private.list = function (filter, cb) {
   let unconfirmedTransactions = [];
 
   if (filter.returnUnconfirmed) {
-    const unconfirmedFilters = { ...filter, type: transactionTypes.STATE };
     unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(
-      unconfirmedFilters,
+      filter,
       {
         allowedFilters: [
           'senderId',
@@ -187,10 +186,13 @@ __private.list = function (filter, cb) {
         aliases: {
           type: 'assetStateType',
         },
+        important: {
+          type: transactionTypes.STATE,
+        }
       },
     );
 
-    params.mergingOffset = unconfirmedTransactions.length;
+    params.mergingOffset = Math.min(params.offset, unconfirmedTransactions.length);
     params.mergingLimit = filter.limit;
 
     params.limit += Math.min(params.offset, unconfirmedTransactions.length);

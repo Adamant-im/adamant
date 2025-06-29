@@ -131,7 +131,7 @@ __private.listChats = function (filter, cb) {
       isIn: filter.userId,
     });
 
-    params.mergingOffset = unconfirmedTransactions.length;
+    params.mergingOffset = Math.min(params.offset, unconfirmedTransactions.length);
     params.mergingLimit = filter.limit;
 
     params.limit += Math.min(params.offset, unconfirmedTransactions.length);
@@ -263,25 +263,23 @@ __private.listMessages = function (filter, cb) {
   let unconfirmedTransactions = [];
 
   if (filter.returnUnconfirmed) {
-    const unconfirmedFilters = {
-      ...filter,
-      senderIds: [filter.companionId, filter.userId],
-      recipientIds: [filter.companionId, filter.userId],
-      type: transactionTypes.CHAT_MESSAGE,
-    };
-
-    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(unconfirmedFilters, {
+    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(filter, {
       allowedFilters: [
         'type',
       ],
       aliases: {
         type: 'assetChatType'
       },
+      important: {
+        senderIds: [filter.companionId, filter.userId],
+        recipientIds: [filter.companionId, filter.userId],
+        type: transactionTypes.CHAT_MESSAGE,
+      }
     });
 
     count += unconfirmedTransactions.length;
 
-    params.mergingOffset = unconfirmedTransactions.length;
+    params.mergingOffset = Math.min(params.offset, unconfirmedTransactions.length);
     params.mergingLimit = filter.limit;
 
     params.limit += Math.min(params.offset, unconfirmedTransactions.length);

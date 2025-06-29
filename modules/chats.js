@@ -189,12 +189,7 @@ __private.list = function (filter, cb) {
   let unconfirmedTransactions = [];
 
   if (filter.returnUnconfirmed) {
-    const unconfirmedFilters = {
-      ...filter,
-      type: transactionTypes.CHAT_MESSAGE,
-    };
-
-    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(unconfirmedFilters, {
+    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(filter, {
       allowedFilters: [
         'fromHeight',
         'toHeight',
@@ -207,9 +202,12 @@ __private.list = function (filter, cb) {
       aliases: {
         type: 'assetChatType',
       },
+      important: {
+        type: transactionTypes.CHAT_MESSAGE,
+      },
     });
 
-    params.mergingOffset = unconfirmedTransactions.length;
+    params.mergingOffset = Math.min(params.offset, unconfirmedTransactions.length);
     params.mergingLimit = filter.limit;
 
     params.limit += Math.min(params.offset, unconfirmedTransactions.length);

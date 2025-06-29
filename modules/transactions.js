@@ -229,7 +229,7 @@ __private.list = function (filter, cb) {
       defaultCondition: 'OR',
     });
 
-    params.mergingOffset = unconfirmedTransactions.length;
+    params.mergingOffset = Math.min(params.offset, unconfirmedTransactions.length);
     params.mergingLimit = filter.limit;
 
     params.limit += Math.min(params.offset, unconfirmedTransactions.length);
@@ -466,7 +466,7 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
     returnAsset = 1,
     offset = 0,
   } = options;
-  const { sortField, sortMethod } = orderBy;
+  const { unquotedField: sortField, sortMethod } = orderBy;
 
   const compare = (a, b) => {
     const aField = a[sortField] ?? Infinity;
@@ -538,7 +538,8 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
   const {
     allowedFilters = [],
     aliases = {},
-    defaultCondition = 'AND'
+    defaultCondition = 'AND',
+    important = {},
   } = options;
 
   let transactions = this.getUnconfirmedTransactionList();
@@ -581,6 +582,13 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
       key: (value) => transaction.asset?.state?.key === value,
       keyIds: (value) => value?.includes(transaction.asset?.state?.key),
     };
+
+    // Ignore boolean logic for endpoint related filters
+    for (const [key, value] of Object.entries(important)) {
+      if (!matches[key]?.(value)) {
+        return false;
+      }
+    }
 
     // Returns empty array if any of the filters are included in the filter
     const exclusiveKeys = ['blockId', 'toHeight'];
