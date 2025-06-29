@@ -368,7 +368,8 @@ Process.prototype.onReceiveBlock = function (block) {
   library.sequence.add(function (cb) {
     // When client is not loaded, is syncing or round is ticking
     // Do not receive new blocks as client is not ready
-    if (!__private.loaded || modules.loader.syncing() || modules.rounds.ticking()) {
+    const syncPending = !modules.loader.isReadyToSync() || modules.loader.syncing();
+    if (!__private.loaded || syncPending || modules.rounds.ticking()) {
       library.logger.debug('Client not ready to receive block', block.id);
       return;
     }
