@@ -12,6 +12,7 @@ var schema = require('../schema/chats.js');
 var sql = require('../sql/chats.js');
 var TransactionPool = require('../logic/transactionPool.js');
 var transactionTypes = require('../helpers/transactionTypes.js');
+const { preparePaging } = require('../helpers/pagination.js');
 var Transfer = require('../logic/transfer.js');
 
 // Private fields
@@ -207,11 +208,13 @@ __private.list = function (filter, cb) {
       },
     });
 
-    params.mergingOffset = Math.min(params.offset, unconfirmedTransactions.length);
-    params.mergingLimit = filter.limit;
+    const paging = preparePaging(params, unconfirmedTransactions.length);
 
-    params.limit += Math.min(params.offset, unconfirmedTransactions.length);
-    params.offset = Math.max(0, params.offset - unconfirmedTransactions.length);
+    params.offset = paging.db.offset;
+    params.limit  = paging.db.limit;
+
+    params.mergingOffset = paging.merge.offset;
+    params.mergingLimit  = paging.merge.limit;
   }
 
   library.db.query(sql.countList({
