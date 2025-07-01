@@ -158,7 +158,8 @@ __private.forge = function (cb) {
 
   // When client is not loaded, is syncing or round is ticking
   // Do not try to forge new blocks as client is not ready
-  if (!__private.loaded || modules.loader.syncing() || !modules.rounds.loaded() || modules.rounds.ticking()) {
+  const syncPending = !modules.loader.isReadyToSync() || modules.loader.syncing();
+  if (!__private.loaded || syncPending || !modules.rounds.loaded() || modules.rounds.ticking()) {
     library.logger.debug('Client not ready to forge');
     return setImmediate(cb);
   }

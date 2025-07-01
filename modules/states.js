@@ -12,6 +12,7 @@ var schema = require('../schema/states.js');
 var sql = require('../sql/states.js');
 var TransactionPool = require('../logic/transactionPool.js');
 var transactionTypes = require('../helpers/transactionTypes.js');
+const { preparePaging } = require('../helpers/pagination.js');
 
 // Private fields
 var modules, library, self, __private = {}, shared = {};
@@ -170,9 +171,8 @@ __private.list = function (filter, cb) {
   let unconfirmedTransactions = [];
 
   if (filter.returnUnconfirmed) {
-    const unconfirmedFilters = { ...filter, type: transactionTypes.STATE };
     unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(
-      unconfirmedFilters,
+      filter,
       {
         allowedFilters: [
           'senderId',
@@ -187,14 +187,19 @@ __private.list = function (filter, cb) {
         aliases: {
           type: 'assetStateType',
         },
+        important: {
+          type: transactionTypes.STATE,
+        }
       },
     );
 
-    params.mergingOffset = unconfirmedTransactions.length;
-    params.mergingLimit = filter.limit;
+    const paging = preparePaging(params, unconfirmedTransactions.length);
 
-    params.limit += Math.min(params.offset, unconfirmedTransactions.length);
-    params.offset = Math.max(0, params.offset - unconfirmedTransactions.length);
+    params.offset = paging.db.offset;
+    params.limit  = paging.db.limit;
+
+    params.mergingOffset = paging.merge.offset;
+    params.mergingLimit  = paging.merge.limit;
   }
 
   library.db.query(sql.countList({

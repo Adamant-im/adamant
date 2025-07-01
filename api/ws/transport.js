@@ -40,7 +40,7 @@ class TransportWsApi {
     );
 
     // Clear existing connections
-    self.connections.forEach((socket) => {
+    self.connections.forEach(({ socket }) => {
       socket.removeAllListeners();
       socket.disconnect();
     });

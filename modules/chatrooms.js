@@ -8,6 +8,7 @@ const transactionTypes = require('../helpers/transactionTypes.js');
 const schema = require('../schema/chatrooms.js');
 const Transfer = require('../logic/transfer.js');
 const OrderBy = require('../helpers/orderBy.js');
+const { preparePaging } = require('../helpers/pagination.js');
 
 // Private fields
 let modules, library, self, __private = {}, shared = {};
@@ -131,11 +132,19 @@ __private.listChats = function (filter, cb) {
       isIn: filter.userId,
     });
 
-    params.mergingOffset = unconfirmedTransactions.length;
-    params.mergingLimit = filter.limit;
 
-    params.limit += Math.min(params.offset, unconfirmedTransactions.length);
-    params.offset = Math.max(0, params.offset - unconfirmedTransactions.length);
+    const userOffset = params.offset;
+    const userLimit = params.limit;
+    const utxs = unconfirmedTransactions.length;
+
+    const confirmedOffset = Math.max(0, userOffset - utxs);
+    const confirmedLimit  = userLimit + Math.min(userOffset, utxs);
+
+    params.offset = confirmedOffset;
+    params.limit  = confirmedLimit;
+
+    params.mergingOffset = userOffset - confirmedOffset;
+    params.mergingLimit  = userLimit;
   }
 
   library.db.query(sql.countChats({
@@ -263,29 +272,27 @@ __private.listMessages = function (filter, cb) {
   let unconfirmedTransactions = [];
 
   if (filter.returnUnconfirmed) {
-    const unconfirmedFilters = {
-      ...filter,
-      senderIds: [filter.companionId, filter.userId],
-      recipientIds: [filter.companionId, filter.userId],
-      type: transactionTypes.CHAT_MESSAGE,
-    };
-
-    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(unconfirmedFilters, {
+    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(filter, {
       allowedFilters: [
         'type',
       ],
       aliases: {
         type: 'assetChatType'
       },
+      important: {
+        senderIds: [filter.companionId, filter.userId],
+        recipientIds: [filter.companionId, filter.userId],
+        type: transactionTypes.CHAT_MESSAGE,
+      }
     });
 
-    count += unconfirmedTransactions.length;
+    const paging = preparePaging(params, unconfirmedTransactions.length);
 
-    params.mergingOffset = unconfirmedTransactions.length;
-    params.mergingLimit = filter.limit;
+    params.offset = paging.db.offset;
+    params.limit  = paging.db.limit;
 
-    params.limit += Math.min(params.offset, unconfirmedTransactions.length);
-    params.offset = Math.max(0, params.offset - unconfirmedTransactions.length);
+    params.mergingOffset = paging.merge.offset;
+    params.mergingLimit  = paging.merge.limit;
   }
 
   library.db.query(sql.countList({
