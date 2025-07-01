@@ -12,6 +12,7 @@ var schema = require('../schema/transactions.js');
 var sql = require('../sql/transactions.js');
 var TransactionPool = require('../logic/transactionPool.js');
 var transactionTypes = require('../helpers/transactionTypes.js');
+const { preparePaging } = require('../helpers/pagination.js');
 var Transfer = require('../logic/transfer.js');
 
 // Private fields
@@ -229,11 +230,13 @@ __private.list = function (filter, cb) {
       defaultCondition: 'OR',
     });
 
-    params.mergingOffset = unconfirmedTransactions.length;
-    params.mergingLimit = filter.limit;
+    const paging = preparePaging(params, unconfirmedTransactions.length);
 
-    params.limit += Math.min(params.offset, unconfirmedTransactions.length);
-    params.offset = Math.max(0, params.offset - unconfirmedTransactions.length);
+    params.offset = paging.db.offset;
+    params.limit  = paging.db.limit;
+
+    params.mergingOffset = paging.merge.offset;
+    params.mergingLimit  = paging.merge.limit;
   }
 
   library.db.query(sql.countList({
@@ -466,7 +469,7 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
     returnAsset = 1,
     offset = 0,
   } = options;
-  const { sortField, sortMethod } = orderBy;
+  const { unquotedField: sortField, sortMethod } = orderBy;
 
   const compare = (a, b) => {
     const aField = a[sortField] ?? Infinity;
@@ -538,7 +541,8 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
   const {
     allowedFilters = [],
     aliases = {},
-    defaultCondition = 'AND'
+    defaultCondition = 'AND',
+    important = {},
   } = options;
 
   let transactions = this.getUnconfirmedTransactionList();
@@ -581,6 +585,13 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
       key: (value) => transaction.asset?.state?.key === value,
       keyIds: (value) => value?.includes(transaction.asset?.state?.key),
     };
+
+    // Ignore boolean logic for endpoint related filters
+    for (const [key, value] of Object.entries(important)) {
+      if (!matches[key]?.(value)) {
+        return false;
+      }
+    }
 
     // Returns empty array if any of the filters are included in the filter
     const exclusiveKeys = ['blockId', 'toHeight'];

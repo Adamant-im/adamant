@@ -72,6 +72,7 @@ function OrderBy (orderBy, options) {
   }
 
   return {
+    unquotedField: sortField,
     sortField: quoteField(sortField),
     sortMethod: sortMethod
   };
