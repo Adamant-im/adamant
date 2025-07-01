@@ -14,6 +14,7 @@ require('colors');
 var modules, library, self, __private = {}, shared = {};
 
 __private.loaded = false;
+__private.ready = false;
 __private.isActive = false;
 __private.lastBlock = null;
 __private.genesisBlock = null;
@@ -782,6 +783,14 @@ Loader.prototype.loaded = function () {
   return __private.loaded;
 }
 
+/**
+ * Returns whether the blockchain has checked if it needs to sync
+ *
+ * @returns {boolean}
+ */
+Loader.prototype.isReadyToSync = function () {
+  return __private.ready;
+}
 
 /**
  * Returns total synced blocks.
@@ -826,6 +835,8 @@ Loader.prototype.onPeersReady = function () {
   library.logger.trace('Peers ready', { module: 'loader' });
   // Enforce sync early
   __private.syncTimer();
+
+  __private.ready = true;
 
   setImmediate(function load () {
     async.series({
@@ -898,6 +909,7 @@ Loader.prototype.onBlockchainReady = function () {
  */
 Loader.prototype.cleanup = function (cb) {
   __private.loaded = false;
+  __private.ready = false;
   return setImmediate(cb);
 };
 
