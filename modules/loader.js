@@ -299,6 +299,15 @@ __private.loadTransactions = function (cb) {
  *  - Calls block to load block. When blockchain ready emits a bus message.
  * Detects orphaned blocks in `mem_accounts` and gets delegates.
  * Loads last block and emits a bus message blockchain is ready.
+ *
+ * Note: Originally, `verifyOnLoading` from config was intended to drop
+ * the “accounts” database and fully recalculate balances from genesis.
+ * Now, full verification only occurs when missing blocks are detected.
+ * The `loading.verifyOnLoading` config option is no longer used.
+ * Verification now relies on the `verifySnapshot(count, round)` function,
+ * which uses `library.config.loading.snapshot`. The snapshot feature
+ * allows partial verification of the blockchain up to a given round.
+ *
  * @private
  * @implements {library.db.task}
  * @implements {modules.rounds.calc}
