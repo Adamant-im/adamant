@@ -136,10 +136,8 @@ describe('GET /blocks (cache)', function () {
 
   before(function (done) {
     modulesLoader.initCache(function (err, __cache) {
-      if (err) {
-        done(err);
-      }
       cache = __cache;
+      node.expect(err).to.not.exist;
       node.expect(__cache).to.be.an('object');
       return done(err, __cache);
     });
@@ -151,9 +149,7 @@ describe('GET /blocks (cache)', function () {
 
   afterEach(function (done) {
     cache.flushDb(function (err, status) {
-      if (err) {
-        done(err);
-      }
+      node.expect(err).to.not.exist;
       node.expect(status).to.equal('OK');
       done(err, status);
     });
@@ -168,9 +164,7 @@ describe('GET /blocks (cache)', function () {
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
       var response = res.body;
       cache.getJsonForKey(url + params, function (err, res) {
-        if (err) {
-          done(err);
-        }
+        node.expect(err).to.not.exist;
         node.expect(res).to.eql(response);
         done();
       });
