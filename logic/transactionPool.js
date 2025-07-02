@@ -1,7 +1,6 @@
 'use strict';
 
 var async = require('async');
-var config = require('../config.json');
 var constants = require('../helpers/constants.js');
 var jobsQueue = require('../helpers/jobsQueue.js');
 var transactionTypes = require('../helpers/transactionTypes.js');
@@ -24,7 +23,7 @@ var modules, library, self, __private = {};
  * @param {Object} logger
  */
 // Constructor
-function TransactionPool (broadcastInterval, releaseLimit, transaction, bus, logger) {
+function TransactionPool (broadcastInterval, releaseLimit, maxTxsPerQueue, transaction, bus, logger) {
   library = {
     logger: logger,
     bus: bus,
@@ -35,7 +34,10 @@ function TransactionPool (broadcastInterval, releaseLimit, transaction, bus, log
       broadcasts: {
         broadcastInterval: broadcastInterval,
         releaseLimit: releaseLimit
-      }
+      },
+      transactions: {
+        maxTxsPerQueue: maxTxsPerQueue,
+      },
     }
   };
   self = this;
@@ -437,20 +439,22 @@ TransactionPool.prototype.processUnconfirmedTransaction = function (transaction,
 TransactionPool.prototype.queueTransaction = function (transaction, cb) {
   transaction.receivedAt = new Date();
 
+  const { maxTxsPerQueue } = library.config.transactions;
+
   if (transaction.bundled) {
-    if (self.countBundled() >= config.transactions.maxTxsPerQueue) {
+    if (self.countBundled() >= maxTxsPerQueue) {
       return setImmediate(cb, 'Transaction pool is full');
     } else {
       self.addBundledTransaction(transaction);
     }
   } else if (transaction.type === transactionTypes.MULTI || Array.isArray(transaction.signatures)) {
-    if (self.countMultisignature() >= config.transactions.maxTxsPerQueue) {
+    if (self.countMultisignature() >= maxTxsPerQueue) {
       return setImmediate(cb, 'Transaction pool is full');
     } else {
       self.addMultisignatureTransaction(transaction);
     }
   } else {
-    if (self.countQueued() >= config.transactions.maxTxsPerQueue) {
+    if (self.countQueued() >= maxTxsPerQueue) {
       return setImmediate(cb, 'Transaction pool is full');
     } else {
       self.addQueuedTransaction(transaction);
