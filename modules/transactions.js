@@ -388,6 +388,10 @@ __private.getPooledTransaction = function (method, req, cb) {
       return setImmediate(cb, 'Transaction not found');
     }
 
+    transaction.blockId = null;
+    transaction.height = null;
+    transaction.confirmations = 0;
+
     return setImmediate(cb, null, { transaction: transaction });
   });
 };
@@ -421,6 +425,13 @@ __private.getPooledTransactions = function (method, req, cb) {
         toSend.push(transactions[i]);
       }
     }
+
+    toSend = toSend.map((transaction) => ({
+      ...transaction,
+      blockId: null,
+      height: null,
+      confirmations: 0,
+    }));
 
     return setImmediate(cb, null, { transactions: toSend, count: transactions.length });
   });
@@ -629,7 +640,12 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
     return result;
   });
 
-  return transactions;
+  return transactions.map((transaction) => ({
+    ...transaction,
+    blockId: null,
+    height: null,
+    confirmations: 0,
+  }));
 }
 
 /**

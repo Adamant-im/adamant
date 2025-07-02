@@ -76,7 +76,7 @@ describe('GET /api/states/get', () => {
         expect(err).to.not.exist;
         expect(res.body).to.have.property('transactions').that.is.an('array').that.is.not.empty
         const includesUnconfirmedTransactions = res.body.transactions.some((transaction) => {
-          return !('confirmations' in transaction);
+          return transaction.confirmations === 0 && transaction.blockId === null && transaction.height === null;
         });
 
         expect(includesUnconfirmedTransactions).to.be.true;
