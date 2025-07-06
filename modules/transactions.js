@@ -184,7 +184,9 @@ __private.list = function (filter, cb) {
   }
 
   var orderBy = OrderBy(
-      filter.orderBy, {
+    filter.orderBy, {
+        sortField: 'timestamp',
+        sortMethod: 'DESC',
         sortFields: sql.sortFields,
         fieldPrefix: function (sortField) {
           if (['height'].indexOf(sortField) > -1) {
@@ -480,18 +482,18 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
     returnAsset = 1,
     offset = 0,
   } = options;
-  const { unquotedField: sortField, sortMethod } = orderBy;
+  const { originalField: sortField, sortMethod } = orderBy;
 
   const compare = (a, b) => {
-    const aField = a[sortField] ?? Infinity;
-    const bField = b[sortField] ?? Infinity;
-
-    if (aField < bField) {
-      return sortMethod === 'ASC' ? -1 : 1;
-    }
+    const aField = a[sortField] ? a[sortField] : Infinity;
+    const bField = b[sortField] ? b[sortField] : Infinity;
 
     if (aField > bField) {
-      return sortMethod === 'ASC' ? 1 : -1;
+      return sortMethod.toUpperCase() === 'DESC' ? -1 : 1;
+    }
+
+    if (aField < bField) {
+      return sortMethod.toUpperCase() === 'DESC' ? 1 : -1;
     }
 
     return 0;
@@ -499,22 +501,24 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
 
   const mergedArray = [];
 
+  const sortedUnconfirmedTransactions = unconfirmedTransactions.sort(compare);
+
   let i = 0;
   let j = 0;
 
-  while (i < targetArray.length && j < unconfirmedTransactions.length) {
-    if (compare(targetArray[i], unconfirmedTransactions[j]) <= 0) {
+  while (i < targetArray.length && j < sortedUnconfirmedTransactions.length) {
+    if (compare(targetArray[i], sortedUnconfirmedTransactions[j]) <= 0) {
       mergedArray.push(targetArray[i++]);
     } else {
-      mergedArray.push(unconfirmedTransactions[j++]);
+      mergedArray.push(sortedUnconfirmedTransactions[j++]);
     }
   }
 
   while (i < targetArray.length) {
     mergedArray.push(targetArray[i++]);
   }
-  while (j < unconfirmedTransactions.length) {
-    mergedArray.push(unconfirmedTransactions[j++]);
+  while (j < sortedUnconfirmedTransactions.length) {
+    mergedArray.push(sortedUnconfirmedTransactions[j++]);
   }
 
   let result = mergedArray;

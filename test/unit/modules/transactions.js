@@ -1099,7 +1099,7 @@ describe('transactions', function () {
       beforeEach(() => {
         options = {
           orderBy: {
-            sortField: undefined,
+            originalField: undefined,
             sortMethod: undefined,
           },
         };
@@ -1162,8 +1162,46 @@ describe('transactions', function () {
         expect(mergedTxs).to.eql([...txs, ...unconfirmedTxs]);
       });
 
+      it('should merge and sort unconfirmed transactions by fee in ASC order', () => {
+        options.orderBy = { originalField: 'fee', sortMethod: 'ASC' };
+
+        const tx1 = { ...unconfirmedTxs[0] };
+        const tx2 = { ...tx1, fee: tx1.fee - 1 }; // fee is lower
+
+        const sortedUnconfirmed = [tx2, tx1];
+        const reversedUnconfirmed = [...sortedUnconfirmed].reverse();
+
+        const merged = transactions.mergeUnconfirmedTransactions(
+          [txs[0]],
+          reversedUnconfirmed,
+          options
+        );
+
+        const expectedOrder = [txs[0], ...sortedUnconfirmed];
+        expect(merged).to.eql(expectedOrder);
+      });
+
+      it('should merge and sort unconfirmed transactions by fee in DESC order', () => {
+        options.orderBy = { originalField: 'fee', sortMethod: 'DESC' };
+
+        const tx1 = { ...unconfirmedTxs[0] };
+        const tx2 = { ...tx1, fee: tx1.fee + 1 }; // fee is greater
+
+        const sortedUnconfirmed = [tx2, tx1];
+        const reversedUnconfirmed = [...sortedUnconfirmed].reverse();
+
+        const merged = transactions.mergeUnconfirmedTransactions(
+          [txs[0]],
+          reversedUnconfirmed,
+          options
+        );
+
+        const expectedOrder = [...sortedUnconfirmed, txs[0]];
+        expect(merged).to.eql(expectedOrder);
+      });
+
       it('should merge and sort by timestamp in DESC order without limit', () => {
-        options.orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
+        options.orderBy = { originalField: 'timestamp', sortMethod: 'DESC' };
 
         const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
 
@@ -1171,7 +1209,7 @@ describe('transactions', function () {
       });
 
       it('should return only the latest transaction when sorted by timestamp and limited to 1', () => {
-        options.orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
+        options.orderBy = { originalField: 'timestamp', sortMethod: 'DESC' };
         options.limit = 1;
 
         const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
@@ -1180,7 +1218,7 @@ describe('transactions', function () {
       });
 
       it('should return only the second transaction when sorted by timestamp, limited to 1 and set offset to 1', () => {
-        options.orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
+        options.orderBy = { originalField: 'timestamp', sortMethod: 'DESC' };
         options.limit = 1;
         options.offset = 1;
 
@@ -1190,7 +1228,7 @@ describe('transactions', function () {
       });
 
       it('should return only the second transaction when sorted by timestamp and set offset to 1 when limit option is skipped', () => {
-        options.orderBy = { sortField: 'timestamp', sortMethod: 'DESC' };
+        options.orderBy = { originalField: 'timestamp', sortMethod: 'DESC' };
         options.limit = undefined;
         options.offset = 1;
 
@@ -1200,7 +1238,7 @@ describe('transactions', function () {
       });
 
       it('should merge and sort by fee in ASC order', () => {
-        options.orderBy = { sortField: 'fee', sortMethod: 'ASC' };
+        options.orderBy = { originalField: 'fee', sortMethod: 'ASC' };
 
         const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
 
