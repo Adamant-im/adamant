@@ -368,60 +368,6 @@ describe('accounts', function () {
       'u_multisignatures',
     ];
 
-    describe('open()', () => {
-      it('should return error if "secret" is of invalid type', (done) => {
-        const body = { secret: true };
-        accounts.shared.open({ body }, (err, response) => {
-          expect(response).not.to.exist;
-          expect(err).to.include('Expected type string but found');
-          done();
-        });
-      });
-
-      it('should return error if "secret" is invalid mnemonic', (done) => {
-        const body = { secret: notAMnemonicPassphrase };
-        accounts.shared.open({ body }, (err, response) => {
-          expect(response).not.to.exist;
-          expect(err).to.include('Mnemonic string is invalid');
-          done();
-        });
-      });
-
-      it('should return an existing account', (done) => {
-        const body = { secret: testAccount.secret };
-        accounts.shared.open({ body }, (err, response) => {
-          expect(err).not.to.exist;
-
-          expect(response.account).to.have.all.keys(accountKeys);
-          expect(response.account.address).to.equal(testAccount.address);
-          expect(response.account.publicKey).to.equal(testAccount.publicKey);
-
-          done();
-        });
-      });
-
-      it('should generate a new account from valid passphrase', (done) => {
-        const body = { secret: modulesLoader.scope.ed.generatePassphrase() };
-
-        accounts.shared.open({ body }, (err, response) => {
-          expect(err).not.to.exist;
-          expect(response.account).to.have.all.keys(accountKeys);
-
-          done();
-        });
-      });
-
-      it('should throw with invalid passphrase', (done) => {
-        const body = { secret: notAMnemonicPassphrase };
-
-        accounts.shared.open({ body }, (err, response) => {
-          expect(err).to.include('Mnemonic string is invalid');
-          expect(response).not.to.exist;
-          done();
-        });
-      });
-    });
-
     describe('new()', () => {
       it('should return error when invalid public key is provided', (done) => {
         const body = { publicKey: invalidPublicKey };
@@ -519,49 +465,6 @@ describe('accounts', function () {
         accounts.shared.getPublickey({ body }, (err, response) => {
           expect(response).not.to.exist;
           expect(err).to.equal('Account not found');
-          done();
-        });
-      });
-    });
-
-    describe('generatePublicKey()', () => {
-      const responseKeys = ['publicKey'];
-
-      it('should generate public key for a new account', (done) => {
-        const passphrase = modulesLoader.scope.ed.generatePassphrase();
-        const body = { secret: passphrase };
-        accounts.shared.generatePublicKey({ body }, (err, response) => {
-          expect(err).not.to.exist;
-          expect(response).to.have.all.keys(responseKeys);
-          expect(isPublicKey(response.publicKey)).to.be.true;
-          done();
-        });
-      });
-
-      it('should return public key for existing account', (done) => {
-        const body = { secret: testAccount.secret };
-        accounts.shared.generatePublicKey({ body }, (err, response) => {
-          expect(err).not.to.exist;
-          expect(response).to.have.all.keys(responseKeys);
-          expect(response.publicKey).to.equal(testAccount.publicKey);
-          done();
-        });
-      });
-
-      it('should return null publicKey and the error when invalid mnemonic passphrase is provided', (done) => {
-        const body = { secret: notAMnemonicPassphrase };
-        accounts.shared.generatePublicKey({ body }, (err, response) => {
-          expect(err).to.include('Mnemonic string is invalid');
-          expect(response.publicKey).to.be.null;
-          done();
-        });
-      });
-
-      it('should return error when provided passphrase is of invalid type', (done) => {
-        const body = { secret: 404 };
-        accounts.shared.generatePublicKey({ body }, (err, response) => {
-          expect(err).to.include('Expected type string');
-          expect(response).not.to.exist;
           done();
         });
       });

@@ -1,6 +1,9 @@
 'use strict';
 
 var node = require('./../node.js');
+const {
+  sendADMAndWaitUntilNextBlock,
+} = require('../common/api.js');
 
 function postTransaction (transaction, done) {
   node.post('/peer/transactions', {
@@ -14,16 +17,6 @@ function postTransactions (transactions, done) {
   }, done);
 }
 
-function sendADM (params, done) {
-  node.put('/api/transactions', params, function (err, res) {
-    node.expect(res.body).to.have.property('success').to.be.true;
-    node.onNewBlock(function (err) {
-      return done(err, res);
-    });
-  });
-}
-
-
 describe('POST /peer/transactions', function () {
   describe('sending 100 bundled transfers to random addresses', function () {
     var transactions = [];
@@ -32,7 +25,7 @@ describe('POST /peer/transactions', function () {
     const account = node.randomAccount();
 
     before(function (done) {
-      sendADM({
+      sendADMAndWaitUntilNextBlock({
         secret: node.iAccount.password,
         amount: 5000000000 * 2000,
         recipientId: account.address
@@ -89,7 +82,7 @@ describe('POST /peer/transactions', function () {
     const account = node.randomAccount();
 
     before(function (done) {
-      sendADM({
+      sendADMAndWaitUntilNextBlock({
         secret: node.iAccount.password,
         amount: 5000000000 * 2000,
         recipientId: account.address

@@ -12,9 +12,7 @@ var httpApi = require('../../helpers/httpApi');
   - get   /voters
   - get   /get
   - get   /
-  - get   /fee
   - get   /forging/getForgedByAccount
-  - put  /
     - post  /
   - get  /getNextForgers
  * - Private API:
@@ -44,9 +42,7 @@ function DelegatesHttpApi (delegatesModule, app, logger, cache) {
     'get /voters': 'getVoters',
     'get /get': 'getDelegate',
     'get /': 'getDelegates',
-    'get /fee': 'getFee',
     'get /forging/getForgedByAccount': 'getForgedByAccount',
-    'put /': 'addDelegate',
     'post /': 'registerDelegate',
     'get /getNextForgers': 'getNextForgers'
   });

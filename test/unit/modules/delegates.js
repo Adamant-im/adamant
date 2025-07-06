@@ -302,16 +302,6 @@ describe('delegates', function () {
       });
     });
 
-    describe('getFee', () => {
-      it('should return the delegate registration fee', () => {
-        delegates.shared.getFee({}, (err, response) => {
-          expect(err).not.to.exist;
-          expect(response).to.have.key('fee');
-          expect(response.fee).to.equal(constants.fees.delegate);
-        });
-      });
-    });
-
     describe('getForgedByAccount', () => {
       it('should return error when invalid generator public key is provided', (done) => {
         const body = { generatorPublicKey: invalidPublicKey };
