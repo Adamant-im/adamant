@@ -153,27 +153,6 @@ module.exports = {
     },
     required: ['id']
   },
-  normalize: {
-    id: 'chats.normalize',
-    type: 'object',
-    properties: {
-      message: {
-        type: 'string',
-        minLength: 1
-      },
-      recipientId: {
-        type: 'string',
-        format: 'address',
-        minLength: 1,
-        maxLength: 40
-      },
-      publicKey: {
-        type: 'string',
-        format: 'publicKey'
-      }
-    },
-    required: ['message', 'recipientId', 'publicKey']
-  },
   process: {
     id: 'chats.process',
     type: 'object',
@@ -253,42 +232,6 @@ module.exports = {
       }
     },
     required: ['id']
-  },
-  addTransactions: {
-    id: 'dapps.addTransactions',
-    type: 'object',
-    properties: {
-      secret: {
-        type: 'string',
-        minLength: 1,
-        maxLength: 100
-      },
-      amount: {
-        type: 'integer',
-        minimum: 1,
-        maximum: constants.totalAmount
-      },
-      publicKey: {
-        type: 'string',
-        format: 'publicKey'
-      },
-      secondSecret: {
-        type: 'string',
-        minLength: 1,
-        maxLength: 100
-      },
-      dappId: {
-        type: 'string',
-        format: 'id',
-        minLength: 1,
-        maxLength: 20
-      },
-      multisigAccountPublicKey: {
-        type: 'string',
-        format: 'publicKey'
-      }
-    },
-    required: ['secret', 'amount', 'dappId']
   },
   sendWithdrawal: {
     id: 'dapps.sendWithdrawal',

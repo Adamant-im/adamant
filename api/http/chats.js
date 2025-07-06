@@ -7,13 +7,9 @@ var schema = require('../../schema/dapps');
 /**
  * Binds api with modules and creates common url.
  * - End point: `/api/chats`
- * - Private API:
- *   - post  /normalize
- *   - post  /finalize
  *
  * - Sanitized
  *   - get  /
- *   - put  /
  *   - get  /get
  * @memberof module:chats
  * @requires helpers/Router
@@ -27,10 +23,7 @@ function ChatsHttpApi (chatsModule, app) {
   var router = new Router();
 
   router.map(chatsModule.internal, {
-    'get /senders': 'senders',
     'get /get': 'getTransactions',
-    'get /messages': 'messages',
-    'post /normalize': 'normalize',
     'post /process': 'process'
   });
 

@@ -1,17 +1,12 @@
 'use strict';
 
 var node = require('./../node.js');
+const { sendADM } = require('../common/api.js');
 
 function postTransaction (transaction, done) {
   node.post('/peer/transactions', {
     transaction: transaction
   }, function (err, res) {
-    done(err, res);
-  });
-}
-
-function sendADM (params, done) {
-  node.put('/api/transactions/', params, function (err, res) {
     done(err, res);
   });
 }

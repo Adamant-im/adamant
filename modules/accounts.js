@@ -85,49 +85,6 @@ __private.newAccount = function (publicKey, cb) {
     }
   });
 };
-/**
- * Gets account from publicKey obtained from secret parameter.
- * If not exist, generates new account data with public address
- * obtained from secret parameter.
- * @private
- * @param {function} secret
- * @param {function} cb - Callback function.
- * @return {setImmediateCallback} As per logic new|current account data object.
- */
-__private.openAccount = function (secret, cb) {
-  if (!library.ed.isValidPassphrase(secret)) {
-    return setImmediate(cb, `Mnemonic string is invalid: ${secret}`);
-  }
-
-  var hash = library.ed.createPassPhraseHash(secret);
-  var keypair = library.ed.makeKeypair(hash);
-  var publicKey = keypair.publicKey.toString('hex');
-
-  self.getAccount({ publicKey: publicKey }, function (err, account) {
-    if (err) {
-      return setImmediate(cb, err);
-    }
-
-    if (account) {
-      if (account.publicKey == null) {
-        account.publicKey = publicKey;
-      }
-      return setImmediate(cb, null, account);
-    } else {
-      return setImmediate(cb, null, {
-        address: self.generateAddressByPublicKey(publicKey),
-        u_balance: '0',
-        balance: '0',
-        publicKey: publicKey,
-        u_secondSignature: 0,
-        secondSignature: 0,
-        secondPublicKey: null,
-        multisignatures: null,
-        u_multisignatures: null
-      });
-    }
-  });
-};
 
 /**
  * Generates address based on public key.
@@ -307,33 +264,6 @@ Accounts.prototype.isLoaded = function () {
  * @see {@link http://apidocjs.com/}
  */
 Accounts.prototype.shared = {
-  open: function (req, cb) {
-    library.schema.validate(req.body, schema.open, function (err) {
-      if (err) {
-        return setImmediate(cb, err[0].message);
-      }
-
-      __private.openAccount(req.body.secret, function (err, account) {
-        if (!err) {
-          var accountData = {
-            address: account.address,
-            unconfirmedBalance: account.u_balance,
-            balance: account.balance,
-            publicKey: account.publicKey,
-            unconfirmedSignature: account.u_secondSignature,
-            secondSignature: account.secondSignature,
-            secondPublicKey: account.secondPublicKey,
-            multisignatures: account.multisignatures,
-            u_multisignatures: account.u_multisignatures
-          };
-
-          return setImmediate(cb, null, { account: accountData });
-        } else {
-          return setImmediate(cb, err);
-        }
-      });
-    });
-  },
   new: function (req, cb) {
     library.schema.validate(req.body, schema.new, function (err) {
       if (err) {
@@ -400,26 +330,6 @@ Accounts.prototype.shared = {
     });
   },
 
-  generatePublicKey: function (req, cb) {
-    library.schema.validate(req.body, schema.generatePublicKey, function (err) {
-      if (err) {
-        return setImmediate(cb, err[0].message);
-      }
-
-      __private.openAccount(req.body.secret, function (err, account) {
-        var publicKey = null;
-
-        if (!err && account) {
-          publicKey = account.publicKey;
-        }
-
-        return setImmediate(cb, err, {
-          publicKey: publicKey
-        });
-      });
-    });
-  },
-
   getDelegates: function (req, cb) {
     library.schema.validate(req.body, schema.getDelegates, function (err) {
       if (err) {
@@ -452,130 +362,6 @@ Accounts.prototype.shared = {
 
   getDelegatesFee: function (req, cb) {
     return setImmediate(cb, null, { fee: constants.fees.delegate });
-  },
-
-  addDelegates: function (req, cb) {
-    library.schema.validate(req.body, schema.addDelegates, function (err) {
-      if (err) {
-        return setImmediate(cb, err[0].message);
-      }
-
-      var hash = library.ed.createPassPhraseHash(req.body.secret);
-      var keypair = library.ed.makeKeypair(hash);
-
-      if (req.body.publicKey) {
-        if (keypair.publicKey.toString('hex') !== req.body.publicKey) {
-          return setImmediate(cb, 'Invalid passphrase');
-        }
-      }
-
-      library.balancesSequence.add(function (cb) {
-        if (req.body.multisigAccountPublicKey && req.body.multisigAccountPublicKey !== keypair.publicKey.toString('hex')) {
-          modules.accounts.getAccount({ publicKey: req.body.multisigAccountPublicKey }, function (err, account) {
-            if (err) {
-              return setImmediate(cb, err);
-            }
-
-            if (!account || !account.publicKey) {
-              return setImmediate(cb, 'Multisignature account not found');
-            }
-
-            if (!account.multisignatures || !account.multisignatures) {
-              return setImmediate(cb, 'Account does not have multisignatures enabled');
-            }
-
-            if (account.multisignatures.indexOf(keypair.publicKey.toString('hex')) < 0) {
-              return setImmediate(cb, 'Account does not belong to multisignature group');
-            }
-
-            modules.accounts.getAccount({ publicKey: keypair.publicKey }, function (err, requester) {
-              if (err) {
-                return setImmediate(cb, err);
-              }
-
-              if (!requester || !requester.publicKey) {
-                return setImmediate(cb, 'Requester not found');
-              }
-
-              if (requester.secondSignature && !req.body.secondSecret) {
-                return setImmediate(cb, 'Missing requester second passphrase');
-              }
-
-              if (requester.publicKey === account.publicKey) {
-                return setImmediate(cb, 'Invalid requester public key');
-              }
-
-              var secondKeypair = null;
-
-              if (requester.secondSignature) {
-                var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
-                secondKeypair = library.ed.makeKeypair(secondHash);
-              }
-
-              var transaction;
-
-              try {
-                transaction = library.logic.transaction.create({
-                  type: transactionTypes.VOTE,
-                  votes: req.body.delegates,
-                  sender: account,
-                  keypair: keypair,
-                  secondKeypair: secondKeypair,
-                  requester: keypair
-                });
-              } catch (e) {
-                return setImmediate(cb, e.toString());
-              }
-
-              modules.transactions.receiveTransactions([transaction], true, cb);
-            });
-          });
-        } else {
-          self.setAccountAndGet({ publicKey: keypair.publicKey.toString('hex') }, function (err, account) {
-            if (err) {
-              return setImmediate(cb, err);
-            }
-
-            if (!account || !account.publicKey) {
-              return setImmediate(cb, 'Account not found');
-            }
-
-            if (account.secondSignature && !req.body.secondSecret) {
-              return setImmediate(cb, 'Invalid second passphrase');
-            }
-
-            var secondKeypair = null;
-
-            if (account.secondSignature) {
-              var secondHash = library.ed.createPassPhraseHash(req.body.secondSecret);
-              secondKeypair = library.ed.makeKeypair(secondHash);
-            }
-
-            var transaction;
-
-            try {
-              transaction = library.logic.transaction.create({
-                type: transactionTypes.VOTE,
-                votes: req.body.delegates,
-                sender: account,
-                keypair: keypair,
-                secondKeypair: secondKeypair
-              });
-            } catch (e) {
-              return setImmediate(cb, e.toString());
-            }
-
-            modules.transactions.receiveTransactions([transaction], true, cb);
-          });
-        }
-      }, function (err, transaction) {
-        if (err) {
-          return setImmediate(cb, err);
-        }
-
-        return setImmediate(cb, null, { transaction: transaction[0] });
-      });
-    });
   },
   voteForDelegates: function (req, cb) {
     const reqBody = typeof req.body?.transaction === 'object' ?
