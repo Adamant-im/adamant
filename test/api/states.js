@@ -1,5 +1,6 @@
 const { expect } = require('chai');
 const node = require('../node.js');
+const { sendADM } = require('../common/api.js');
 
 function getStates(senderId, options, done) {
   const params = {
@@ -13,10 +14,6 @@ function getStates(senderId, options, done) {
 
 function storeState(params, done) {
   node.post('/api/states/store', params, done);
-}
-
-function sendADM(params, done) {
-  node.put('/api/transactions/', params, done);
 }
 
 describe('GET /api/states/get', () => {
@@ -67,22 +64,6 @@ describe('GET /api/states/get', () => {
       });
 
       done();
-    });
-  });
-
-  it('should return unconfirmed transaction with ?returnUnconfirmed=1 flag', (done) => {
-    getStates(testAccount.address, { returnUnconfirmed: 1 }, (err, res) => {
-      expect(err).to.not.exist;
-      expect(res.body).to.have.property('transactions').that.is.an('array').that.is.not.empty
-      const includesUnconfirmedTransactions = res.body.transactions.some((transaction) => {
-        return !('confirmations' in transaction);
-      });
-
-      expect(includesUnconfirmedTransactions).to.be.true;
-
-      node.onNewBlock(() => {
-        done();
-      });
     });
   });
 

@@ -7,7 +7,7 @@ databasename="adamant_main"
 configfile="config.json"
 processname="adamant"
 port="36666"
-nodejs="hydrogen"
+nodejs="jod"
 
 while getopts 'b:n:j:' OPTION; do
   OPTARG=$(echo "$OPTARG" | xargs)
@@ -31,12 +31,12 @@ while getopts 'b:n:j:' OPTION; do
       fi
       ;;
     j)
-      if [ "$OPTARG" == "16" ] || [ "$OPTARG" == "gallium" ]
+      if [ "$OPTARG" == "20" ] || [ "$OPTARG" == "iron" ]
       then
-        nodejs="gallium"
-      elif [ "$OPTARG" != "18" ] && [ "$OPTARG" != "hydrogen" ]
+        nodejs="iron"
+      elif [ "$OPTARG" != "22" ] && [ "$OPTARG" != "jod" ]
       then
-        printf "\nNodejs should be 'gallium' = '16', or 'hydrogen' = '18'.\n\n"
+        printf "\nNodejs should be 'iron' = '20', or 'jod' = '22'.\n\n"
         exit 1
       fi
       ;;
@@ -48,18 +48,19 @@ while getopts 'b:n:j:' OPTION; do
 done
 
 printf "\n"
-printf "Welcome to the ADAMANT node installer v2.1.3 for CentOS 8. Make sure you got this file from adamant.im website or GitHub.\n"
-printf "This installer is the easiest way to run ADAMANT node. We still recommend to consult IT specialist if you are not familiar with Linux systems.\n"
-printf "You can see full installation instructions (though for Ubuntu) on https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc.\n"
-printf "The installer will ask you to set database and user passwords during the installation.\n"
-printf "Also, the system may ask to choose some parameters, like encoding, keyboard, and grub. Generally, you can leave them by default.\n\n"
+printf "Welcome to the ADAMANT Node Installer v2.2.0 for CentOS 8.\n"
+printf "Please ensure you obtained this file from the adamant.im website or GitHub.\n"
+printf "This installer is the easiest way to run an ADAMANT node. However, we still recommend consulting an IT specialist if you are not familiar with Linux systems.\n"
+printf "You can find full installation instructions (for Ubuntu) at:\nhttps://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
+printf "During installation, you will be asked to set database and user passwords.\n"
+printf "The system may also prompt you to choose parameters such as encoding, keyboard layout, and GRUB settings. You can generally leave the defaults.\n\n"
 
-printf "Note: You've chosen '%s' network.\n" "$network"
-printf "Note: You've chosen '%s' branch.\n" "$branch"
-printf "Note: You've chosen '%s' Nodejs version.\n" "$nodejs"
+printf "Note: You have selected the '%s' network.\n" "$network"
+printf "Note: You have selected the '%s' branch.\n" "$branch"
+printf "Note: You have selected Node.js version '%s'.\n" "$nodejs"
 printf "\n"
 
-read -r -p "WARNING! Running this script is recommended for new droplets. Existing data MAY BE DAMAGED. If you agree to continue, type \"yes\": " agreement
+read -r -p "WARNING! This script is intended for new droplets. Existing data MAY BE DAMAGED. If you agree to continue, type \"yes\": " agreement
 if [[ $agreement != "yes" ]]
 then
   printf "\nInstallation cancelled.\n\n"
@@ -69,16 +70,16 @@ fi
 IMAGE=false
 if [[ $network == "mainnet" ]]
 then
-  printf "\nBlockchain image saves time on node sync but you must completely trust the image.\n"
-  printf "If you skip this step, your node will check every single transaction, which takes time (up for several days).\n"
-  read -r -p "Do you want to use the ADAMANT blockchain image to bootstrap a node? [Y/n]: " useimage
+  printf "\nUsing a blockchain image can significantly reduce sync time, but you must fully trust its source.\n"
+  printf "If you skip this step, your node will verify every single transaction, which can take several days.\n"
+  read -r -p "Do you want to use the ADAMANT blockchain image to bootstrap the node? [Y/n]: " useimage
   case $useimage in
     [yY][eE][sS]|[yY]|[jJ]|'')
       IMAGE=true
-      printf "\nI'll download blockchain image and your node will be on the actual height in a few minutes.\n\n"
+      printf "\nThe blockchain image will be downloaded, and your node will reach the current height in a few minutes.\n\n"
     ;;
     *)
-      printf "\nI'll sync your node from the beginning. It may take several days to raise up to the actual blockchain height.\n\n"
+      printf "\nYour node will sync from scratch. This process may take several days to reach the current blockchain height.\n\n"
     ;;
   esac
 fi
@@ -146,7 +147,7 @@ su - "$username" <<EOSU
 
 #NodeJS
 printf "\n\nInstalling nvm & node.js…\n\n"
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 source ~/.nvm/nvm.sh
 source ~/.profile
 source ~/.bashrc
@@ -214,8 +215,8 @@ fi
 
 EOSU
 
-printf "\n\nFinished ADAMANT '%s' node installation script. Executed in %s seconds.\n" "$network" "$SECONDS"
-printf "Check your node status with 'pm2 show %s' command.\n" "$processname"
-printf "Current node's height: 'curl http://localhost:%s/api/blocks/getHeight'\n" "$port"
-printf "Thank you for supporting true decentralized ADAMANT Messenger.\n\n"
+printf "\n\nADAMANT '%s' node installation script completed. Execution time: %s seconds.\n" "$network" "$SECONDS"
+printf "Check your node status with the command: 'pm2 show %s'\n" "$processname"
+printf "To check the current node height, run: 'curl http://localhost:%s/api/blocks/getHeight'\n" "$port"
+printf "Thank you for supporting the truly decentralized ADAMANT Messenger.\n\n"
 su - "$username"

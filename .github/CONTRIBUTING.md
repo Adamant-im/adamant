@@ -2,12 +2,71 @@
 
 To be merged, pull requests **MUST** include tests for any new features or bug fixes.
 
+## Config
+
+For testing all features, you need to meet some criteria in the config file located at `test/config.json`.
+
+### API tests
+
+If you are running **API tests** (in the `test/api/` directory), you need to enable the following features in the config:
+
+```json5
+{
+  "cacheEnabled": true,
+  // ...
+  "api": {
+    "enabled": true,
+    "access": {
+      "public": true,
+      // ...
+    },
+    // ...
+  },
+  "peers": {
+    "enabled": true,
+    // ...
+  }
+}
+```
+
+### Unit tests
+
+You need to specify at least some peers in `peers.list`, e.g.:
+
+```json5
+{
+  // ...
+  "peers": {
+    "enabled": true,
+    "list": [
+      {
+        "ip": "162.55.32.80",
+        "port": 36667
+      },
+      {
+        "ip": "81.0.247.181",
+        "port": 36667
+      },
+      {
+        "ip": "95.217.19.144",
+        "port": 36667
+      },
+      {
+        "ip": "157.90.229.236",
+        "port": 36667
+      }
+    ],
+    // ...
+  }
+}
+```
+
 ### Structure
 
 The tests are located in the `test/` directory. The structure of the directory is as follows:
 
-- `api/` - End-to-end tests that require running a local test node
-- `unit/` - Unit tests that DO NOT require running a test node
+- `api/` - End-to-end **API tests** that require running a local test node
+- `unit/` - **Unit tests** that DO NOT require running a test node
 - `common/` - Contains stub objects and utilities for the tests
 - `node.js` - Package for making requests to the local test node
 - `config.json` - Configuration file to run a local test node; copy `config.default.json`
@@ -19,8 +78,7 @@ All tests inside `api/` and `unit/` should mirror (as much as possible) the stru
 
 ### Commands
 
-> [!IMPORTANT]
-> **API tests** require the `testnet` local node to be running in parallel during their execution:
+> [!IMPORTANT] > **API tests** require the `testnet` local node to be running in parallel during their execution:
 
 ```sh
 npm run start:testnet
@@ -28,8 +86,7 @@ npm run start:testnet
 
 See [Test Environment](../README.md#Test-Environment) for reference.
 
-> [!CAUTION]
-> **Unit tests** should NOT be run in parallel to prevent disruption of the node's state, and the `testnet` should be run at least once before.
+> [!CAUTION] > **Unit tests** should NOT be run in parallel to prevent disruption of the node's state, and the `testnet` should be run at least once before.
 
 To run a single test file, use the following command:
 

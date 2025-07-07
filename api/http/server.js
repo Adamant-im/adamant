@@ -23,17 +23,9 @@ function ServerHttpApi (serverModule, app) {
     res.status(500).send({ success: false, error: 'Blockchain is loading' });
   });
 
-  router.get('/', function (req, res) {
-    if (serverModule.isLoaded()) {
-      res.render('wallet.html', { layout: false });
-    } else {
-      res.render('loading.html');
-    }
-  });
-
   router.use(function (req, res, next) {
     if (req.url.indexOf('/api/') === -1 && req.url.indexOf('/peer/') === -1) {
-      return res.redirect('/');
+      return res.status(404).send({ success: false, error: "API endpoint not found" });
     }
     next();
   });

@@ -14,6 +14,7 @@ require('colors');
 var modules, library, self, __private = {}, shared = {};
 
 __private.loaded = false;
+__private.ready = false;
 __private.isActive = false;
 __private.lastBlock = null;
 __private.genesisBlock = null;
@@ -51,7 +52,6 @@ function Loader (cb, scope) {
     },
     config: {
       loading: {
-        verifyOnLoading: scope.config.loading.verifyOnLoading,
         snapshot: scope.config.loading.snapshot
       }
     }
@@ -300,6 +300,15 @@ __private.loadTransactions = function (cb) {
  *  - Calls block to load block. When blockchain ready emits a bus message.
  * Detects orphaned blocks in `mem_accounts` and gets delegates.
  * Loads last block and emits a bus message blockchain is ready.
+ *
+ * Note: Originally, `verifyOnLoading` from config was intended to drop
+ * the “accounts” database and fully recalculate balances from genesis.
+ * Now, full verification only occurs when missing blocks are detected.
+ * The `loading.verifyOnLoading` config option is no longer used.
+ * Verification now relies on the `verifySnapshot(count, round)` function,
+ * which uses `library.config.loading.snapshot`. The snapshot feature
+ * allows partial verification of the blockchain up to a given round.
+ *
  * @private
  * @implements {library.db.task}
  * @implements {modules.rounds.calc}
@@ -315,7 +324,7 @@ __private.loadTransactions = function (cb) {
  */
 __private.loadBlockChain = function () {
   var offset = 0, limit = Number(library.config.loading.loadPerIteration) || 1000;
-  var verify = Boolean(library.config.loading.verifyOnLoading);
+  var verify = false;
 
   function load (count) {
     verify = true;
@@ -782,6 +791,14 @@ Loader.prototype.loaded = function () {
   return __private.loaded;
 }
 
+/**
+ * Returns whether the blockchain has checked if it needs to sync
+ *
+ * @returns {boolean}
+ */
+Loader.prototype.isReadyToSync = function () {
+  return __private.ready;
+}
 
 /**
  * Returns total synced blocks.
@@ -826,6 +843,8 @@ Loader.prototype.onPeersReady = function () {
   library.logger.trace('Peers ready', { module: 'loader' });
   // Enforce sync early
   __private.syncTimer();
+
+  __private.ready = true;
 
   setImmediate(function load () {
     async.series({
@@ -898,6 +917,7 @@ Loader.prototype.onBlockchainReady = function () {
  */
 Loader.prototype.cleanup = function (cb) {
   __private.loaded = false;
+  __private.ready = false;
   return setImmediate(cb);
 };
 

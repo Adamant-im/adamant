@@ -3,379 +3,7 @@
 var node = require('./../node.js');
 var modulesLoader = require('./../common/initModule.js').modulesLoader;
 var genesisDelegates = require('../genesisPasses.json');
-
-function openAccount (params, done) {
-  node.post('/api/accounts/open', params, function (err, res) {
-    done(err, res);
-  });
-}
-
-function sendADM (params, done) {
-  node.put('/api/transactions/', params, function (err, res) {
-    done(err, res);
-  });
-}
-
-function putAccountsDelegates (params, done) {
-  node.put('/api/accounts/delegates', params, function (err, res) {
-    done(err, res);
-  });
-}
-
-function putDelegates (params, done) {
-  node.put('/api/delegates', params, function (err, res) {
-    done(err, res);
-  });
-}
-
-describe('PUT /api/accounts/delegates without funds', function () {
-  var account;
-
-  beforeEach(function (done) {
-    account = node.randomAccount();
-    done();
-  });
-
-  it('when upvoting should fail', function (done) {
-    putAccountsDelegates({
-      secret: account.password,
-      delegates: ['+' + node.eAccount.publicKey]
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error').to.match(/Account does not have enough ADM/);
-      done();
-    });
-  });
-
-  it('when downvoting should fail', function (done) {
-    putAccountsDelegates({
-      secret: account.password,
-      delegates: ['-' + node.eAccount.publicKey]
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error').to.match(/Account does not have enough ADM/);
-      done();
-    });
-  });
-});
-
-describe('PUT /api/delegates without funds', function () {
-  var account;
-
-  beforeEach(function (done) {
-    account = node.randomAccount();
-    done();
-  });
-
-  it('using valid parameters should fail', function (done) {
-    putDelegates({
-      secret: account.password,
-      username: account.username
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error').to.match(/Account does not have enough ADM/);
-      done();
-    });
-  });
-});
-
-describe('PUT /api/accounts/delegates with funds', function () {
-  var account = node.randomAccount();
-
-  before(function (done) {
-    sendADM({
-      secret: node.iAccount.password,
-      amount: node.randomADM(),
-      recipientId: account.address
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transactionId');
-      node.expect(res.body.transactionId).not.to.be.empty;
-      done();
-    });
-  });
-
-  beforeEach(function (done) {
-    node.onNewBlock(function (err) {
-      done();
-    });
-  });
-
-  it('when upvoting same delegate multiple times should fail', function (done) {
-    var votedDelegate = Array.apply(null, Array(2)).map(function () { return '+' + node.eAccount.publicKey; });
-
-    putAccountsDelegates({
-      secret: account.password,
-      delegates: votedDelegate
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error').to.include('Failed to validate vote schema:');
-      done();
-    });
-  });
-
-  it('when downvoting same delegate multiple times should fail', function (done) {
-    var votedDelegate = Array.apply(null, Array(2)).map(function () { return '-' + node.eAccount.publicKey; });
-
-    putAccountsDelegates({
-      secret: account.password,
-      delegates: votedDelegate
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error').to.include('Failed to validate vote schema:');
-      done();
-    });
-  });
-
-  it('when upvoting and downvoting within same request should fail', function (done) {
-    var votedDelegate = ['-' + node.eAccount.publicKey, '+' + node.eAccount.publicKey];
-
-    putAccountsDelegates({
-      secret: account.password,
-      delegates: votedDelegate
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error');
-      node.expect(res.body).to.have.property('error').to.equal('Multiple votes for same delegate are not allowed');
-      done();
-    });
-  });
-
-  it('when upvoting should be ok', function (done) {
-    putAccountsDelegates({
-      secret: account.password,
-      delegates: ['+' + node.eAccount.publicKey]
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transaction').that.is.an('object');
-      node.expect(res.body.transaction.type).to.equal(node.txTypes.VOTE);
-      node.expect(res.body.transaction.amount).to.equal(0);
-      node.expect(res.body.transaction.senderPublicKey).to.equal(account.publicKey.toString('hex'));
-      node.expect(res.body.transaction.fee).to.equal(node.fees.voteFee);
-      done();
-    });
-  });
-
-  it('when upvoting again from same account should fail', function (done) {
-    putAccountsDelegates({
-      secret: account.password,
-      delegates: ['+' + node.eAccount.publicKey]
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error');
-      node.expect(res.body.error.toLowerCase()).to.contain('already voted');
-      done();
-    });
-  });
-
-  it('when downvoting should be ok', function (done) {
-    putAccountsDelegates({
-      secret: account.password,
-      delegates: ['-' + node.eAccount.publicKey]
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transaction').that.is.an('object');
-      node.expect(res.body.transaction.type).to.equal(node.txTypes.VOTE);
-      node.expect(res.body.transaction.amount).to.equal(0);
-      node.expect(res.body.transaction.senderPublicKey).to.equal(account.publicKey.toString('hex'));
-      node.expect(res.body.transaction.fee).to.equal(node.fees.voteFee);
-      done();
-    });
-  });
-
-  it('when downvoting again from same account should fail', function (done) {
-    putAccountsDelegates({
-      secret: account.password,
-      delegates: ['-' + node.eAccount.publicKey]
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error');
-      node.expect(res.body.error.toLowerCase()).to.contain('not voted');
-      done();
-    });
-  });
-
-  it('when upvoting using a blank passphrase should fail', function (done) {
-    putAccountsDelegates({
-      secret: '',
-      delegates: ['+' + node.eAccount.publicKey]
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error').to.include('String is too short ');
-      done();
-    });
-  });
-
-  it('when downvoting using a blank passphrase should fail', function (done) {
-    putAccountsDelegates({
-      secret: '',
-      delegates: ['-' + node.eAccount.publicKey]
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error').to.include('String is too short ');
-      done();
-    });
-  });
-
-  it('when upvoting without any delegates should fail', function (done) {
-    putAccountsDelegates({
-      secret: account.password,
-      delegates: ['+']
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error').to.include('Invalid vote format');
-      done();
-    });
-  });
-
-  it('when downvoting without any delegates should fail', function (done) {
-    putAccountsDelegates({
-      secret: account.password,
-      delegates: ['-']
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error').to.include('Invalid vote format');
-      done();
-    });
-  });
-
-  it('without any delegates should fail', function (done) {
-    putAccountsDelegates({
-      secret: account.password,
-      delegates: ''
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error').to.equal('Failed to validate vote schema: Expected type array but found type string');
-      done();
-    });
-  });
-});
-
-describe('PUT /api/delegates with funds', function () {
-  var account, validParams;
-
-  beforeEach(function (done) {
-    account = node.randomAccount();
-    account.username = node.randomDelegateName();
-    validParams = {
-      secret: account.password,
-      username: account.username
-    };
-    done();
-  });
-
-  beforeEach(function (done) {
-    sendADM({
-      secret: node.iAccount.password,
-      amount: node.randomADM(),
-      recipientId: account.address
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transactionId');
-      node.expect(res.body.transactionId).not.to.be.empty;
-      node.onNewBlock(function (err) {
-        done();
-      });
-    });
-  });
-
-  it('using blank passphrase should fail', function (done) {
-    validParams.secret = '';
-
-    putDelegates(validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error');
-      done();
-    });
-  });
-
-  it('using invalid passphrase should fail', function (done) {
-    validParams.secret = [];
-
-    putDelegates(validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error');
-      done();
-    });
-  });
-
-  it('using invalid username should fail', function (done) {
-    validParams.username = '~!@#$%^&*()_+.,?/';
-
-    putDelegates(validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error');
-      done();
-    });
-  });
-
-  it('using username longer than 20 characters should fail', function (done) {
-    validParams.username = 'ABCDEFGHIJKLMNOPQRSTU';
-
-    putDelegates(validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error');
-      done();
-    });
-  });
-
-  it('using blank username should fail', function (done) {
-    validParams.username = '';
-
-    putDelegates(validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error');
-      done();
-    });
-  });
-
-  it('using uppercase username should be registered in lowercase', function (done) {
-    validParams.username = account.username.toUpperCase();
-
-    putDelegates(validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transaction').that.is.an('object');
-      node.expect(res.body.transaction.fee).to.equal(node.fees.delegateRegistrationFee);
-      node.expect(res.body.transaction).to.have.property('asset').that.is.an('object');
-      node.expect(res.body.transaction.asset.delegate.username).to.equal(account.username.toLowerCase());
-      node.expect(res.body.transaction.asset.delegate.publicKey).to.equal(account.publicKey.toString('hex'));
-      node.expect(res.body.transaction.type).to.equal(node.txTypes.DELEGATE);
-      node.expect(res.body.transaction.amount).to.equal(0);
-      done();
-    });
-  });
-
-  it('using same account twice should fail', function (done) {
-    putDelegates(validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transaction').that.is.an('object');
-
-      node.onNewBlock(function (err) {
-        putDelegates(validParams, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.false;
-          node.expect(res.body).to.have.property('error');
-          done();
-        });
-      });
-    });
-  });
-
-  it('using existing username but different case should fail', function (done) {
-    putDelegates(validParams, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transaction').that.is.an('object');
-
-      node.onNewBlock(function (err) {
-        validParams.username = validParams.username.toUpperCase();
-        putDelegates(validParams, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.false;
-          node.expect(res.body).to.have.property('error');
-          done();
-        });
-      });
-    });
-  });
-});
+const { sendADM, voteForDelegatesAndWaitUntilNextBlock } = require('../common/api.js');
 
 describe('GET /api/delegates (cache)', function () {
   var cache;
@@ -415,7 +43,10 @@ describe('GET /api/delegates (cache)', function () {
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
       var response = res.body;
       cache.getJsonForKey(url, function (err, res) {
-        node.expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         node.expect(res).to.eql(response);
         done(err, res);
       });
@@ -432,7 +63,10 @@ describe('GET /api/delegates (cache)', function () {
       node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error').to.equal('Invalid sort field');
       cache.getJsonForKey(url + params, function (err, res) {
-        node.expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         node.expect(res).to.be.null;
         done(err, res);
       });
@@ -448,12 +82,18 @@ describe('GET /api/delegates (cache)', function () {
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
       var response = res.body;
       cache.getJsonForKey(url, function (err, beforeCachedResponse) {
-        node.expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         node.expect(beforeCachedResponse).to.eql(response);
         node.onNewRound(function (err) {
           node.expect(err).to.not.exist;
           cache.getJsonForKey(url, function (err, afterCachedResponse) {
-            node.expect(err).to.not.exist;
+            if (err) {
+              return done(err);
+            }
+
             node.expect(afterCachedResponse).to.not.eql(beforeCachedResponse);
             done();
           });
@@ -798,15 +438,10 @@ describe('GET /api/delegates/voters', function () {
   });
 
   before(function (done) {
-    node.put('/api/accounts/delegates', {
+    voteForDelegatesAndWaitUntilNextBlock({
       secret: account.password,
-      delegates: ['+' + node.eAccount.publicKey]
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.onNewBlock(function (err) {
-        done();
-      });
-    });
+      votes: [`+${node.eAccount.publicKey}`],
+    }, done);
   });
 
   it('using invalid publicKey should fail', function (done) {
@@ -1284,7 +919,7 @@ describe('GET /api/delegates/forging/getForgedByAccount', function () {
       node.expect(res.body).to.have.property('fees').that.is.a('string').and.eql('0');
       node.expect(res.body).to.have.property('rewards').that.is.a('string').and.eql('0');
       node.expect(res.body).to.have.property('forged').that.is.a('string').and.eql('0');
-      node.expect(res.body).to.have.property('count').that.is.a('string').and.eql('0');
+      node.expect(res.body).to.have.property('count').that.is.a('number').and.equal(0);
       done();
     });
   });
@@ -1329,7 +964,7 @@ describe('GET /api/delegates/forging/getForgedByAccount', function () {
       node.expect(res.body).to.have.property('fees').that.is.a('string').and.eql('0');
       node.expect(res.body).to.have.property('rewards').that.is.a('string').and.eql('0');
       node.expect(res.body).to.have.property('forged').that.is.a('string').and.eql('0');
-      node.expect(res.body).to.have.property('count').that.is.a('string').and.eql('0');
+      node.expect(res.body).to.have.property('count').that.is.a('number').and.equal(0);
       done();
     });
   });
@@ -1342,7 +977,7 @@ describe('GET /api/delegates/forging/getForgedByAccount', function () {
       node.expect(res.body).to.have.property('fees').that.is.a('string');
       node.expect(res.body).to.have.property('rewards').that.is.a('string');
       node.expect(res.body).to.have.property('forged').that.is.a('string');
-      node.expect(res.body).to.have.property('count').that.is.a('string');
+      node.expect(res.body).to.have.property('count').that.is.a('number');
       done();
     });
   });

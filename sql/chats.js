@@ -24,10 +24,9 @@ var ChatsSql = {
 
   countList: function (params) {
     return [
-      'SELECT COUNT(1) FROM full_trs_list',
-      (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
-      ((params.whereOr && params.whereOr.length) ? 'AND (' + params.whereOr.join(' OR ') + ')' : ''),
-      (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : '')
+      'SELECT COUNT(1)::INT FROM full_trs_list',
+      (params.where?.length   ? 'WHERE ' + params.where.join(' AND ') : ''),
+      (params.whereOr?.length ? 'AND (' + params.whereOr.join(' OR ') + ')' : '')
     ].filter(Boolean).join(' ');
   },
 
@@ -39,28 +38,27 @@ var ChatsSql = {
       '           GREATEST("t_senderId", "t_recipientId")) AS srt',
       '  FROM full_trs_list',
       '  LEFT OUTER JOIN mem_accounts ON address = "t_recipientId"',
-           (params.where.length   ? 'WHERE ' + params.where.join(' AND ') : ''),
-           (params.whereOr.length ? 'AND (' + params.whereOr.join(' OR ') + ')' : ''),
+           (params.where?.length   ? 'WHERE ' + params.where.join(' AND ') : ''),
+           (params.whereOr?.length ? 'AND (' + params.whereOr.join(' OR ') + ')' : ''),
       ')',
-      'SELECT COUNT(DISTINCT srt) FROM filtered'
+      'SELECT COUNT(DISTINCT srt)::INT FROM filtered'
     ].filter(Boolean).join(' ');
     return y;
   },
   list: function (params) {
     return [
-      'SELECT COUNT(1) FROM full_trs_list',
-          (params.where.length ? 'WHERE ' + params.where.join(' AND ') : '')
-    ].filter(Boolean).join(' ')[
-      'SELECT COUNT(1) FROM full_trs_list',
-          (params.where.length ? 'WHERE ' + params.where.join(' AND ') : '')
+      'SELECT *, t_timestamp as timestamp FROM full_blocks_list',
+        (params.where?.length ? 'WHERE ' + params.where.join(' AND ') : ''),
+        (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
+      'LIMIT ${limit} OFFSET ${offset}'
     ].filter(Boolean).join(' ');
   },
   listMessages: function (params) {
     let x = [
       'WITH filtered AS (',
       '  SELECT *, "t_timestamp" AS timestamp',
-           (params.where.length   ? '  FROM full_trs_list WHERE ' + params.where.join(' AND ') : '  FROM full_trs_list'),
-           (params.whereOr.length ? '  AND (' + params.whereOr.join(' OR ') + ')' : ''),
+           (params.where?.length   ? '  FROM full_trs_list WHERE ' + params.where.join(' AND ') : '  FROM full_trs_list'),
+           (params.whereOr?.length ? '  AND (' + params.whereOr.join(' OR ') + ')' : ''),
       ')',
       'SELECT filtered.*, ENCODE("publicKey", \'hex\') AS "m_recipientPublicKey"',
       'FROM filtered',
@@ -77,8 +75,8 @@ var ChatsSql = {
       '  SELECT *, ENCODE("publicKey", \'hex\') AS "m_recipientPublicKey"',
       '  FROM full_trs_list',
       '  LEFT OUTER JOIN mem_accounts ON address = "t_recipientId"',
-          (params.where.length   ? 'WHERE ' + params.where.join(' AND ') : ''),
-          (params.whereOr.length ? 'AND (' + params.whereOr.join(' OR ') + ')' : ''),
+          (params.where?.length   ? 'WHERE ' + params.where.join(' AND ') : ''),
+          (params.whereOr?.length ? 'AND (' + params.whereOr.join(' OR ') + ')' : ''),
       '),',
 
       'ranked AS (',

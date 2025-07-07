@@ -192,6 +192,8 @@ describe('peer', () => {
         ip: validPeer.ip,
         port: validPeer.port,
         string: validPeer.ip + ':' + validPeer.port,
+        isBroadcastingViaSocket: false,
+        syncProtocol: 'http',
       };
 
       expect(_.isEqual(_.keys(updateImmutableData), peer.immutable)).to.be.true;

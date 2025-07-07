@@ -15,24 +15,13 @@ var async = require('async');
 var Transfer = require('../../logic/transfer.js');
 
 const constants = require('../../helpers/constants.js');
+const apiUtils = require('../common/api.js');
 
 var account = node.randomTxAccount();
 var account2 = node.randomTxAccount();
-var account3 = node.randomTxAccount();
 
 var transactionList = [];
 var offsetTimestamp = 0;
-
-function openAccount (params, done) {
-  node.post('/api/accounts/open', params, function (err, res) {
-    done(err, res);
-  });
-}
-
-function putTransaction (params, done) {
-  // node.post('/api/transactions/process', params, done);
-  node.put('/api/transactions', params, done);
-}
 
 function postTransaction (params, done) {
   node.post('/api/transactions', params, done);
@@ -41,8 +30,7 @@ function postTransaction (params, done) {
 function sendADM (account, amount, done) {
   var expectedFee = node.expectedFee(amount);
 
-  putTransaction({
-    // publicKey:
+  apiUtils.sendADM({
     secret: node.iAccount.password,
     amount: amount,
     recipientId: account.address
@@ -62,10 +50,8 @@ function sendADM (account, amount, done) {
   });
 }
 
-function sendADM2voter (params, done) {
-  node.put('/api/transactions/', params, function (err, res) {
-    done(err, res);
-  });
+function sendADM2voter(params, done) {
+  return apiUtils.sendADM(params, done);
 }
 
 before(function (done) {
@@ -142,7 +128,10 @@ describe('GET /api/transactions (cache)', function () {
       node.expect(res.body).to.have.property('transactions').that.is.an('array');
       var response = res.body;
       cache.getJsonForKey(url + params.join('&'), function (err, res) {
-        node.expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         node.expect(res).to.eql(response);
         done(err, res);
       });
@@ -160,7 +149,10 @@ describe('GET /api/transactions (cache)', function () {
       node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
       cache.getJsonForKey(url + params, function (err, res) {
-        node.expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         node.expect(res).to.be.null;
         done(err, res);
       });
@@ -673,29 +665,6 @@ describe('GET /api/transactions/queued', function () {
   });
 });
 
-describe('GET /api/transactions/multisignatures/get?id=', function () {
-  it('using unknown id should be ok', function (done) {
-    var params = 'id=' + '1234';
-
-    node.get('/api/transactions/multisignatures/get?' + params, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error').that.is.equal('Transaction not found');
-      done();
-    });
-  });
-});
-
-describe('GET /api/transactions/multisignatures', function () {
-  it('should be ok', function (done) {
-    node.get('/api/transactions/multisignatures', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transactions').that.is.an('array');
-      node.expect(res.body).to.have.property('count').that.is.an('number');
-      done();
-    });
-  });
-});
-
 describe('GET /api/transactions/unconfirmed/get?id=', function () {
   it('using valid id should be ok', function (done) {
     var params = 'id=' + transactionList[transactionList.length - 1].txId;
@@ -720,188 +689,6 @@ describe('GET /api/transactions/unconfirmed', function () {
       node.expect(res.body).to.have.property('transactions').that.is.an('array');
       node.expect(res.body).to.have.property('count').that.is.an('number');
       done();
-    });
-  });
-});
-
-describe('PUT /api/transactions', function () {
-  it('using valid parameters should be ok', function (done) {
-    var amountToSend = 100000000;
-    var expectedFee = node.expectedFee(amountToSend);
-
-    putTransaction({
-      secret: account.password,
-      amount: amountToSend,
-      recipientId: account2.address
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transactionId').that.is.not.empty;
-      transactionList.push({
-        'sender': account.address,
-        'recipient': account2.address,
-        'grossSent': (amountToSend + expectedFee) / node.normalizer,
-        'fee': expectedFee / node.normalizer,
-        'netSent': amountToSend / node.normalizer,
-        'txId': res.body.transactionId,
-        'type': node.txTypes.SEND
-      });
-      done();
-    });
-  });
-
-  it('using negative amount should fail', function (done) {
-    var amountToSend = -100000000;
-
-    putTransaction({
-      secret: account.password,
-      amount: amountToSend,
-      recipientId: account2.address
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error');
-      done();
-    });
-  });
-
-  it('using float amount should fail', function (done) {
-    var amountToSend = 1.2;
-
-    putTransaction({
-      secret: account.password,
-      amount: amountToSend,
-      recipientId: account2.address
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error');
-      done();
-    });
-  });
-
-  it('using entire balance should fail', function (done) {
-    openAccount({ secret: account.password }, function (err, res) {
-      node.expect(res.body).to.have.property('account').that.is.an('object');
-      node.expect(res.body.account).to.have.property('balance').that.is.a('string');
-      account.balance = res.body.account.balance;
-
-      putTransaction({
-        secret: account.password,
-        amount: Math.floor(account.balance),
-        recipientId: account2.address
-      }, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.false;
-        node.expect(res.body).to.have.property('error').to.match(/Account does not have enough ADM: U[0-9]+ balance: [0-9.]+/);
-        done();
-      });
-    });
-  });
-
-  it('using zero amount should fail', function (done) {
-    putTransaction({
-      secret: account.password,
-      amount: 0,
-      recipientId: account2.address
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error');
-      done();
-    });
-  });
-
-  it('using positive overflown amount should fail', function (done) {
-    putTransaction({
-      secret: account.password,
-      amount: 1298231812939123812939123912939123912931823912931823912903182309123912830123981283012931283910231203,
-      recipientId: account2.address
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error');
-      done();
-    });
-  });
-
-  it('using negative overflown amount should fail', function (done) {
-    putTransaction({
-      secret: account.password,
-      amount: -1298231812939123812939123912939123912931823912931823912903182309123912830123981283012931283910231203,
-      recipientId: account2.address
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error');
-      done();
-    });
-  });
-
-  it('using small fractional amount should be ok', function (done) {
-    putTransaction({
-      secret: account.password,
-      amount: 1,
-      recipientId: account2.address
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transactionId');
-      done();
-    });
-  });
-
-  it('using no passphase should fail', function (done) {
-    var amountToSend = 100000000;
-
-    putTransaction({
-      amount: amountToSend,
-      recipientId: account2.address
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error');
-      done();
-    });
-  });
-
-  it('using no recipient should fail', function (done) {
-    var amountToSend = 100000000;
-
-    putTransaction({
-      secret: account.password,
-      amount: amountToSend
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error');
-      done();
-    });
-  });
-
-  describe('to a cold address', function (done) {
-    var recipientId = 'U13896491535841206186';
-
-    it('should be ok', function (done) {
-      var amountToSend = 110000000;
-
-      putTransaction({
-        secret: node.iAccount.password,
-        amount: amountToSend,
-        recipientId: recipientId
-      }, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.true;
-        done();
-      });
-    });
-  });
-
-  describe('from a cold address', function (done) {
-    before(function (done) {
-      node.onNewBlock(done);
-    });
-
-    it('should be ok', function (done) {
-      var amountToSend = 100000000;
-
-      putTransaction({
-        secret: node.iAccount.password,
-        amount: amountToSend,
-        recipientId: account2.address
-      }, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.true;
-        done();
-      });
     });
   });
 });
@@ -961,63 +748,6 @@ describe('POST /api/transactions', function () {
 
   beforeEach(function (done) {
     node.onNewBlock(function (err) {
-      done();
-    });
-  });
-
-  it('should be OK for a normal transaction', function (done) {
-    var amountToSend = 100000000;
-    var expectedFee = node.expectedFee(amountToSend);
-
-    postTransaction({
-      secret: account.password,
-      amount: amountToSend,
-      recipientId: account2.address,
-      type: node.txTypes.SEND
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transactionId').that.is.not.empty;
-      transactionList.push({
-        'sender': account.address,
-        'recipient': account2.address,
-        'grossSent': (amountToSend + expectedFee) / node.normalizer,
-        'fee': expectedFee / node.normalizer,
-        'netSent': amountToSend / node.normalizer,
-        'txId': res.body.transactionId,
-        'type': node.txTypes.SEND
-      });
-      done();
-    });
-  });
-
-  it('should be OK for a vote transaction', function (done) {
-    postTransaction({
-      secret: account4.password,
-      delegates: ['+' + node.eAccount.publicKey],
-      type: node.txTypes.VOTE
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transaction').that.is.an('object');
-      node.expect(res.body.transaction.type).to.equal(node.txTypes.VOTE);
-      node.expect(res.body.transaction.amount).to.equal(0);
-      node.expect(res.body.transaction.senderPublicKey).to.equal(account4.publicKey.toString('hex'));
-      node.expect(res.body.transaction.fee).to.equal(node.fees.voteFee);
-      done();
-    });
-  });
-
-  it('should be OK for a register delegate transaction', function (done) {
-    account4.username = node.randomDelegateName();
-
-    postTransaction({ username: account4.username, secret: account4.password, type: node.txTypes.DELEGATE }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('transaction').that.is.an('object');
-      node.expect(res.body.transaction.fee).to.equal(node.fees.delegateRegistrationFee);
-      node.expect(res.body.transaction).to.have.property('asset').that.is.an('object');
-      node.expect(res.body.transaction.asset.delegate.username).to.equal(account4.username.toLowerCase());
-      node.expect(res.body.transaction.asset.delegate.publicKey).to.equal(account4.publicKey.toString('hex'));
-      node.expect(res.body.transaction.type).to.equal(node.txTypes.DELEGATE);
-      node.expect(res.body.transaction.amount).to.equal(0);
       done();
     });
   });

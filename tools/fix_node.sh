@@ -2,13 +2,14 @@
 
 printf "\n"
 printf "Greetings!\n"
-printf "Ensure you got this file from the adamant.im website or GitHub.\n"
-printf "Use this node repair tool v1.0 if your ADM node lost the current blockchain height and restarted, rising from the beginning.\n"
-printf "Though validating blocks from 0 height is a decent option, catching up with the current height may take time.\n"
-printf "If your node is a forging delegate, you probably prefer using an up-to-date blockchain image and enabling it back in ten minutes.\n"
-printf "This script deletes the ADM blockchain database, downloads its fresh image, and restarts the node.\n"
-printf "We still recommend consulting an IT specialist if you are unfamiliar with Linux systems.\n"
-printf "Alternatively, follow these steps manually. Also, see full node installation instructions at https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc.\n\n"
+printf "Please make sure you obtained this file from the adamant.im website or GitHub.\n"
+printf "Use this Node Repair Tool v1.0.1 if your ADM node has lost sync and restarted from the beginning of the blockchain.\n"
+printf "While validating blocks from height 0 is a valid option, catching up to the current height can take a long time.\n"
+printf "If your node is a forging delegate, you’ll likely prefer using an up-to-date blockchain image to restore it within ten minutes.\n"
+printf "This script will delete the ADM blockchain database, download a fresh image, and restart your node.\n"
+printf "We still recommend consulting an IT specialist if you are not familiar with Linux systems.\n"
+printf "Alternatively, you can perform these steps manually. Full node installation instructions are available at:\n"
+printf "https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n\n"
 
 read -r -p "WARNING! Use the script only if you initially set up the node using the ADAMANT node installer, as it expects a specific server environment. Run it under the root user. If you agree to continue, type \"yes\": " agreement
 if [[ $agreement != "yes" ]]
@@ -74,10 +75,10 @@ pm2 restart adamant
 
 EOSU
 
-printf "\n\nFinished the ADAMANT '%s' node repair script. Executed in %s seconds.\n" "$network" "$SECONDS"
-printf "Check your node status with 'pm2 show adamant' command.\n"
-printf "Current node's height: 'curl http://localhost:%s/api/blocks/getHeight'\n" "$port"
-printf "Thank you for supporting true decentralized ADAMANT Messenger.\n\n"
+printf "\n\nADAMANT '%s' node repair script completed. Total execution time: %s seconds.\n" "$network" "$SECONDS"
+printf "Check your node status with the command: 'pm2 show adamant'\n"
+printf "To check the current node height, run: 'curl http://localhost:%s/api/blocks/getHeight'\n" "$port"
+printf "Thank you for supporting the truly decentralized ADAMANT Messenger.\n\n"
 
 read -n1 -r -p "Press any key to continue…"
 

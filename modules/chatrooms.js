@@ -8,6 +8,7 @@ const transactionTypes = require('../helpers/transactionTypes.js');
 const schema = require('../schema/chatrooms.js');
 const Transfer = require('../logic/transfer.js');
 const OrderBy = require('../helpers/orderBy.js');
+const { preparePaging } = require('../helpers/pagination.js');
 
 // Private fields
 let modules, library, self, __private = {}, shared = {};
@@ -68,7 +69,7 @@ __private.listChats = function (filter, cb) {
     params.type = filter.type;
   }
 
-  let includeDirectTransfers = false;
+  let includeDirectTransfers = true;
 
   if (typeof filter.includeDirectTransfers !== 'undefined') {
     includeDirectTransfers = Boolean(filter.includeDirectTransfers);
@@ -79,9 +80,9 @@ __private.listChats = function (filter, cb) {
   }
 
   if (includeDirectTransfers) {
-    where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
-  } else {
     where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
+  } else {
+    where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
   }
   where.push(`(NOT("c_type" = ${transactionTypes.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE}) OR c_type IS NULL) `);
   if (filter.senderId) {
@@ -131,18 +132,26 @@ __private.listChats = function (filter, cb) {
       isIn: filter.userId,
     });
 
-    params.mergingOffset = unconfirmedTransactions.length;
-    params.mergingLimit = filter.limit;
 
-    params.limit += Math.min(params.offset, unconfirmedTransactions.length);
-    params.offset = Math.max(0, params.offset - unconfirmedTransactions.length);
+    const userOffset = params.offset;
+    const userLimit = params.limit;
+    const utxs = unconfirmedTransactions.length;
+
+    const confirmedOffset = Math.max(0, userOffset - utxs);
+    const confirmedLimit  = userLimit + Math.min(userOffset, utxs);
+
+    params.offset = confirmedOffset;
+    params.limit  = confirmedLimit;
+
+    params.mergingOffset = userOffset - confirmedOffset;
+    params.mergingLimit  = userLimit;
   }
 
   library.db.query(sql.countChats({
     where: where,
     whereOr: whereOr
   }), params).then(function (rows) {
-    const count = rows.length ? Number(rows[0].count) : 0;
+    const count = rows.length ? rows[0].count : 0;
     library.db.query(sql.listChats({
       where: where,
       whereOr: whereOr,
@@ -180,7 +189,7 @@ __private.listChats = function (filter, cb) {
 
       const data = {
         chats: Object.values(chats),
-        count: String(count + unconfirmedTransactions.length)
+        count: count + unconfirmedTransactions.length
       };
       return setImmediate(cb, null, data);
     }).catch(function (err) {
@@ -203,7 +212,7 @@ __private.listMessages = function (filter, cb) {
     where.push(`(NOT("c_type" = ${transactionTypes.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE}) OR c_type IS NULL)`);
   }
 
-  let includeDirectTransfers = false;
+  let includeDirectTransfers = true;
 
   if (typeof filter.includeDirectTransfers !== 'undefined') {
     includeDirectTransfers = Boolean(filter.includeDirectTransfers);
@@ -263,36 +272,34 @@ __private.listMessages = function (filter, cb) {
   let unconfirmedTransactions = [];
 
   if (filter.returnUnconfirmed) {
-    const unconfirmedFilters = {
-      ...filter,
-      senderIds: [filter.companionId, filter.userId],
-      recipientIds: [filter.companionId, filter.userId],
-      type: transactionTypes.CHAT_MESSAGE,
-    };
-
-    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(unconfirmedFilters, {
+    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(filter, {
       allowedFilters: [
         'type',
       ],
       aliases: {
         type: 'assetChatType'
       },
+      important: {
+        senderIds: [filter.companionId, filter.userId],
+        recipientIds: [filter.companionId, filter.userId],
+        type: transactionTypes.CHAT_MESSAGE,
+      }
     });
 
-    count += unconfirmedTransactions.length;
+    const paging = preparePaging(params, unconfirmedTransactions.length);
 
-    params.mergingOffset = unconfirmedTransactions.length;
-    params.mergingLimit = filter.limit;
+    params.offset = paging.db.offset;
+    params.limit  = paging.db.limit;
 
-    params.limit += Math.min(params.offset, unconfirmedTransactions.length);
-    params.offset = Math.max(0, params.offset - unconfirmedTransactions.length);
+    params.mergingOffset = paging.merge.offset;
+    params.mergingLimit  = paging.merge.limit;
   }
 
   library.db.query(sql.countList({
     where: where,
     whereOr: whereOr
   }), params).then(function (rows) {
-    const count = rows.length ? Number(rows[0].count) : 0;
+    const count = rows.length ? rows[0].count : 0;
     library.db.query(sql.listMessages({
       where: where,
       whereOr: whereOr,
@@ -324,7 +331,7 @@ __private.listMessages = function (filter, cb) {
           { address: transactions[0].senderId, publicKey: transactions[0].senderPublicKey },
           { address: transactions[0].recipientId, publicKey: transactions[0].recipientPublicKey }
         ] : [],
-        count: String(count + unconfirmedTransactions.length)
+        count: count + unconfirmedTransactions.length
       };
       return setImmediate(cb, null, data);
     }).catch(function (err) {

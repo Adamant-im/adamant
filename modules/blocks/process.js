@@ -368,7 +368,8 @@ Process.prototype.onReceiveBlock = function (block) {
   library.sequence.add(function (cb) {
     // When client is not loaded, is syncing or round is ticking
     // Do not receive new blocks as client is not ready
-    if (!__private.loaded || modules.loader.syncing() || modules.rounds.ticking()) {
+    const syncPending = !modules.loader.isReadyToSync() || modules.loader.syncing();
+    if (!__private.loaded || syncPending || modules.rounds.ticking()) {
       library.logger.debug('Client not ready to receive block', block.id);
       return;
     }
@@ -389,6 +390,8 @@ Process.prototype.onReceiveBlock = function (block) {
     } else {
       if (block.id === lastBlock.id) {
         library.logger.debug('Block already processed', block.id);
+      } else if (block.height < lastBlock.height) {
+        library.logger.debug('Received old block', block.id);
       } else {
         library.logger.warn([
           'Discarded the received block because it does not match the current chain.',
