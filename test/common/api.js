@@ -45,14 +45,21 @@ const apiUtils = {
       });
     });
   },
-  sendADMasync(params) {
+  sendADMasync({ secret, amount, recipientId }) {
     return new Promise((resolve, reject) => {
-      node.put('/api/transactions/', params, (err, data) => {
+      const keyPair = node.createKeypairFromPassphrase(secret);
+      const transaction = node.createSendTransaction({
+        keyPair,
+        recipientId,
+        amount,
+      });
+
+      node.post('/api/transactions/process', { transaction }, (err, res) => {
         if (err) {
           return reject(err);
         }
 
-        resolve(data);
+        resolve(res);
       });
     });
   },
