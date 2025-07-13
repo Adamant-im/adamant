@@ -1,10 +1,12 @@
 'use strict';
 
+const { formatSQLSorting } = require('../helpers/orderBy.js');
+
 var ChatsSql = {
   sortFields: ['type', 'timestamp'],
   chatroomsSortDefaults: {
     sortField: 'timestamp',
-    sortMethod: 'desc'
+    sortMethod: 'DESC'
   },
   countByTransactionId: 'SELECT COUNT(*)::int AS "count" FROM chats WHERE "transactionId" = ${id}',
 
@@ -49,7 +51,7 @@ var ChatsSql = {
     return [
       'SELECT *, t_timestamp as timestamp FROM full_blocks_list',
         (params.where?.length ? 'WHERE ' + params.where.join(' AND ') : ''),
-        (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
+        (params.sortField ? 'ORDER BY ' + formatSQLSorting(params) : ''),
       'LIMIT ${limit} OFFSET ${offset}'
     ].filter(Boolean).join(' ');
   },
@@ -64,7 +66,7 @@ var ChatsSql = {
       'FROM filtered',
       'LEFT OUTER JOIN mem_accounts ON address = filtered."t_recipientId"',
 
-      (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
+      (params.sortField ? 'ORDER BY ' + formatSQLSorting(params) : ''),
       'LIMIT ${limit} OFFSET ${offset}'
     ].filter(Boolean).join(' ');
     return x;
@@ -129,7 +131,7 @@ var ChatsSql = {
       '  "b_id"',
       'FROM ranked',
       'WHERE rn = 1',
-          (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
+          (params.sortField ? 'ORDER BY ' + formatSQLSorting(params) : ''),
       'LIMIT ${limit} OFFSET ${offset}'
     ].filter(Boolean).join(' ');
     return y;

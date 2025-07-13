@@ -159,7 +159,9 @@ __private.list = function (filter, cb) {
 
   var orderBy = OrderBy(
       filter.orderBy, {
-        sortFields: sql.sortFields
+        sortFields: sql.sortFields,
+        sortField: 'timestamp',
+        sortMethod: 'DESC',
       }
   );
 

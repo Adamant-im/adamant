@@ -186,6 +186,8 @@ __private.list = function (filter, cb) {
   var orderBy = OrderBy(
       filter.orderBy, {
         sortFields: sql.sortFields,
+        sortField: 'timestamp',
+        sortMethod: 'DESC',
         fieldPrefix: function (sortField) {
           if (['height'].indexOf(sortField) > -1) {
             return 'b_' + sortField;
