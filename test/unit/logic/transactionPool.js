@@ -41,6 +41,7 @@ describe('TransactionPool', () => {
       1000,
       10,
       {},
+      1000,
       { message: () => {} },
       console
     );

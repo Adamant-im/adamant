@@ -54,6 +54,7 @@ function Transactions (cb, scope) {
   __private.transactionPool = new TransactionPool(
       scope.config.broadcasts.broadcastInterval,
       scope.config.broadcasts.releaseLimit,
+      scope.config.transactions.maxTxsPerQueue,
       scope.logic.transaction,
       scope.bus,
       scope.logger
