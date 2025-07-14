@@ -69,7 +69,7 @@ Sequence.prototype.add = function (worker, args, done) {
   }
   if (worker && typeof(worker) === 'function') {
     var task = { worker: worker, done: done };
-    if (util.isArray(args)) {
+    if (Array.isArray(args)) {
       task.args = args;
     }
     this.sequence.push(task);

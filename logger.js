@@ -62,7 +62,7 @@ module.exports = function (config) {
         log.message = message;
       }
 
-      if (data && util.isObject(data)) {
+      if (data && typeof data === 'object') {
         log.data = JSON.stringify(snipsecret(data));
       } else {
         log.data = data;

@@ -114,10 +114,6 @@ if (programOpts.snapshot) {
   );
 }
 
-if (process.env.NODE_ENV === 'test') {
-  appConfig.coverage = true;
-}
-
 // Define top endpoint availability
 process.env.TOP = appConfig.topAccounts;
 
@@ -315,20 +311,13 @@ d.run(function () {
       var cors = require('cors');
       var app = express();
 
-      if (appConfig.coverage) {
-        var im = require('nyc-middleware');
-        logger.debug('Hook loader for coverage - do not use in production environment!');
-        im.hookLoader(__dirname);
-        app.use('/coverage', im.createHandler());
-      }
-
       require('./helpers/request-limiter')(app, appConfig);
 
       app.use(compression({
         level: 9
       }));
       app.use(cors(appConfig.cors));
-      app.options('*', cors(appConfig.cors));
+      app.options(/(.*)/, cors(appConfig.cors));
 
       var server = require('http').createServer(app);
 

@@ -20,7 +20,7 @@ var httpApi = require('../../helpers/httpApi');
 function SignaturesHttpApi (signaturesModule, app) {
   var router = new Router();
 
-  router.all('*', (req, res) => {
+  router.all(/(.*)/, (req, res) => {
     res.status(404).send({
       success: false,
       error: 'API endpoint not found',
