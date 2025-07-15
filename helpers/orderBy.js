@@ -31,6 +31,8 @@ function OrderBy (orderBy, options) {
     }
   }
 
+  const originalField = sortField || options.sortField;
+
   function prefixField (sortField) {
     if (!sortField) {
       return sortField;
@@ -72,7 +74,7 @@ function OrderBy (orderBy, options) {
   }
 
   return {
-    unquotedField: sortField,
+    originalField,
     sortField: quoteField(sortField),
     sortMethod: sortMethod
   };

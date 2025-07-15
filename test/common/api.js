@@ -45,6 +45,24 @@ const apiUtils = {
       });
     });
   },
+  sendADMasync({ secret, amount, recipientId }) {
+    return new Promise((resolve, reject) => {
+      const keyPair = node.createKeypairFromPassphrase(secret);
+      const transaction = node.createSendTransaction({
+        keyPair,
+        recipientId,
+        amount,
+      });
+
+      node.post('/api/transactions/process', { transaction }, (err, res) => {
+        if (err) {
+          return reject(err);
+        }
+
+        resolve(res);
+      });
+    });
+  },
   postMessage (transaction, done) {
     node.post('/api/transactions', { transaction: transaction }, done);
   },
