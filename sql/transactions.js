@@ -1,5 +1,7 @@
 'use strict';
 
+const { formatSQLSorting } = require('../helpers/orderBy.js');
+
 var TransactionsSql = {
   sortFields: [
     'id',
@@ -39,7 +41,7 @@ var TransactionsSql = {
       (params.where.length ? '(' + params.where.join(' ') + ')' : ''),
       // FIXME: Backward compatibility, should be removed after transitional period
       (params.where.length && params.owner ? ' AND ' + params.owner : params.owner),
-      (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
+      (params.sortField ? 'ORDER BY ' + formatSQLSorting(params) : ''),
       'LIMIT ${limit} OFFSET ${offset}'
     ].filter(Boolean).join(' ');
   },
@@ -54,7 +56,7 @@ var TransactionsSql = {
       (params.where.length ? '(' + params.where.join(' ') + ')' : ''),
       // FIXME: Backward compatibility, should be removed after transitional period
       (params.where.length && params.owner ? ' AND ' + params.owner : params.owner),
-      (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
+      (params.sortField ? 'ORDER BY ' + formatSQLSorting(params) : ''),
       'LIMIT ${limit} OFFSET ${offset}'
     ].filter(Boolean).join(' ');
   },

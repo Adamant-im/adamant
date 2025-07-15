@@ -78,4 +78,15 @@ function OrderBy (orderBy, options) {
   };
 }
 
+OrderBy.formatSQLSorting = (params) => {
+  const { sortField, sortMethod } = params;
+
+  if (sortField === 'timestamp') {
+    // prefer timestampMs then fallback to timestamp
+    return `"timestampMs" ${sortMethod}, "timestamp" ${sortMethod}`;
+  }
+
+  return `${sortField} ${sortMethod}`;
+}
+
 module.exports = OrderBy;
