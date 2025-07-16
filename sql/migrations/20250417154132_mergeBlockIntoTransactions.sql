@@ -5,10 +5,8 @@
 BEGIN;
 
 -- Create new columns and indexes
-ALTER TABLE "trs" ADD COLUMN "height" INT NOT NULL;
-ALTER TABLE "trs" ADD COLUMN "blockTimestamp" INT NOT NULL;
-
-CREATE INDEX IF NOT EXISTS "height" ON "trs"("height");
+ALTER TABLE "trs" ADD COLUMN "height" INT;
+ALTER TABLE "trs" ADD COLUMN "blockTimestamp" INT;
 
 -- Update existing transactions
 UPDATE trs
@@ -16,6 +14,13 @@ SET height = blocks.height,
     "blockTimestamp" = blocks.timestamp
 FROM blocks
 WHERE trs."blockId" = blocks.id;
+
+-- Enforce NOT NULL after data is valid
+ALTER TABLE "trs" ALTER COLUMN "height" SET NOT NULL;
+ALTER TABLE "trs" ALTER COLUMN "blockTimestamp" SET NOT NULL;
+
+-- Create index
+CREATE INDEX IF NOT EXISTS "height" ON "trs"("height");
 
 -- Update existing views to use transaction's height and block timestamp
 
