@@ -47,7 +47,7 @@
     "change-case": "^5.4.4",
     "colors": "=1.4.0",
     "commander": "=14.0.0",
-    "compression": "=1.8.0",
+    "compression": "=1.8.1",
     "cors": "=2.8.5",
     "ejs": "=3.1.10",
     "execa": "^9.6.0",
