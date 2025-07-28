@@ -390,7 +390,7 @@ d.run(function () {
       var path = require('path');
       var bodyParser = require('body-parser');
       var methodOverride = require('method-override');
-      var queryParser = require('express-query-int');
+      var queryParser = require('./helpers/express-query-int.js');
       var randomString = require('randomstring');
 
       scope.nonce = randomString.generate(16);
