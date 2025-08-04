@@ -433,6 +433,13 @@ d.run(function () {
           return parseInt(value);
         }
       }));
+      scope.network.app.use((req, res, next) => {
+        // The req.body property returns undefined when the body has not been parsed.
+        // In Express 4, it returns {} by default.
+        // https://expressjs.com/en/guide/migrating-5.html#req.body
+        req.body ??= {};
+        next();
+      });
 
       scope.network.app.use(require('./helpers/z_schema-express.js')(scope.schema));
 
