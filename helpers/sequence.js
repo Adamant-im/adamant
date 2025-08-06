@@ -53,7 +53,15 @@ Sequence.prototype.__tick = function (cb) {
   if (task.args) {
     args = args.concat(task.args);
   }
-  task.worker.apply(task.worker, args);
+
+  try {
+    task.worker.apply(task.worker, args);
+  } catch (err) {
+    if (task.done) {
+      setImmediate(task.done, err);
+    }
+    setImmediate(cb);
+  }
 };
 
 /**

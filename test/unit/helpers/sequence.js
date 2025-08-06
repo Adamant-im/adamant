@@ -63,6 +63,26 @@ describe('Sequence', () => {
       expect(sequence.isTicking).to.be.true;
     });
 
+    it('should keep processing next tasks if one of the previous failed', (done) => {
+      const spy = sinon.spy();
+      const sabotagingWorker = () => {
+        throw `I don't want to work!`
+      };
+
+      const goodWorder = (cb) => {
+        spy();
+        cb();
+      }
+
+      sequence.add(sabotagingWorker, [], (err) => {
+        expect(err).to.include(`I don't want to work!`);
+      });
+      sequence.add(goodWorder, [], () => {
+        expect(spy.calledOnce).to.be.true;
+        done();
+      });
+    });
+
     it('should start ticking on the next tick after last task callback', (done) => {
       const worker = (callback) => callback();
 
