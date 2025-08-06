@@ -30,7 +30,7 @@ module.exports = function(options) {
   };
 
   return function (req, res, next) {
-    req.query = parseNums(req.query, options);
+    req.parsedQuery = parseNums(req.query, options);
     next();
   };
 };

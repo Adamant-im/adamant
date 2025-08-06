@@ -27,7 +27,7 @@ var Router = function () {
           method: req.method,
           path: req.path
         };
-        root[config[params]](extend({}, reqRelevantInfo, { 'body': route[0] === 'get' ? req.query : req.body }), httpApi.respond.bind(null, res));
+        root[config[params]](extend({}, reqRelevantInfo, { 'body': route[0] === 'get' ? req.parsedQuery : req.body }), httpApi.respond.bind(null, res));
       });
     });
   };
