@@ -14,6 +14,7 @@ var util = require('util');
 var modules, library, self, __private = {}, shared = {};
 
 __private.blockReward = new BlockReward();
+__private.loaded = false;
 
 /**
  * Initializes library with scope content.
@@ -65,13 +66,8 @@ Node.prototype.onBind = function (scope) {
   };
 };
 
-/**
- * Triggers onPeersReady after:
- * - Ping to every member of peers list.
- * - Load peers from database and checks every peer state and updated time.
- * - Discover peers by getting list and validates them.
- */
 Node.prototype.onBlockchainReady = function () {
+  __private.loaded = true;
 };
 
 
@@ -110,6 +106,10 @@ Node.prototype.shared = {
    * @return {String}   cb.obj.version.version ADAMANT version from package.json
    */
   getStatus: function (req, cb) {
+    if (!__private.loaded) {
+      return setImmediate(cb, 'Blockchain is loading');
+    }
+
     var lastBlock = modules.blocks.lastBlock.get();
     var wsClientOptions = {
       enabled: false
