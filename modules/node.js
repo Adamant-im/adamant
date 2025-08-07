@@ -14,7 +14,6 @@ var util = require('util');
 var modules, library, self, __private = {}, shared = {};
 
 __private.blockReward = new BlockReward();
-__private.loaded = false;
 
 /**
  * Initializes library with scope content.
@@ -67,7 +66,6 @@ Node.prototype.onBind = function (scope) {
 };
 
 Node.prototype.onBlockchainReady = function () {
-  __private.loaded = true;
 };
 
 
@@ -106,10 +104,6 @@ Node.prototype.shared = {
    * @return {String}   cb.obj.version.version ADAMANT version from package.json
    */
   getStatus: function (req, cb) {
-    if (!__private.loaded) {
-      return setImmediate(cb, 'Blockchain is loading');
-    }
-
     var lastBlock = modules.blocks.lastBlock.get();
     var wsClientOptions = {
       enabled: false
@@ -135,10 +129,10 @@ Node.prototype.shared = {
             epoch: constants.epochTime,
             height: lastBlock.height,
             fee: library.logic.block.calculateFee(),
-            milestone: __private.blockReward.calcMilestone(lastBlock.height),
+            milestone: lastBlock.height ?? __private.blockReward.calcMilestone(lastBlock.height),
             nethash: modules.system.getNethash(),
-            reward: __private.blockReward.calcReward(lastBlock.height),
-            supply: __private.blockReward.calcSupply(lastBlock.height)
+            reward: lastBlock.height ? __private.blockReward.calcReward(lastBlock.height) : undefined,
+            supply: lastBlock.height ? __private.blockReward.calcSupply(lastBlock.height) : undefined
           },
           version: {
             build: library.build,
