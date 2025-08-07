@@ -321,7 +321,7 @@ d.run(function () {
 
       var server = require('http').createServer(app);
 
-      const wsServer = new WebSocketServer(server, appConfig);
+      const wsServer = new WebSocketServer(server, appConfig, scope.logic);
 
       var privateKey, certificate, https, https_io;
 
