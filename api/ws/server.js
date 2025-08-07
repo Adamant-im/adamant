@@ -73,6 +73,8 @@ class WebSocketServer {
 
       existingPeer.isBroadcastingViaSocket = true;
 
+      self.logger.info(`[WsNodeServer] WebSocket peer ${peerIp} is connected to the node`);
+
       socket.on('disconnect', () => {
         const disconnectedPeer = logic.peers.getByNonce(nonce);
 
