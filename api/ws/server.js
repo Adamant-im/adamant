@@ -5,7 +5,7 @@ const Peer = require('../../logic/peer');
  * Creates a WebSocket server to broadcast transactions/blocks/signature changes
  */
 class WebSocketServer {
-  constructor(server, appConfig, library) {
+  constructor(server, appConfig, logger) {
     this.io = new Server(server, {
       allowEIO3: true,
       cors: appConfig.cors,
@@ -14,8 +14,7 @@ class WebSocketServer {
     this.enabled = appConfig.wsNode.enabled;
     this.max = appConfig.wsNode.maxBroadcastConnections;
 
-    this.library = library;
-    this.logger = library.logger;
+    this.logger = logger;
 
     const self = this;
     self.logger.info(`[WsNodeServer] Created WebSocketServer`);
