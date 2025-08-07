@@ -13,6 +13,9 @@ class WebSocketServer {
 
     this.enabled = appConfig.wsNode.enabled;
     this.max = appConfig.wsNode.maxBroadcastConnections;
+
+    const self = this;
+    self.logger.info(`[WsNodeServer] Created WebSocketServer`);
   }
 
   /**
@@ -20,15 +23,22 @@ class WebSocketServer {
    * @param {{ peers: Peers }} logic logic modules
    */
   initialize(logic) {
+    const self = this;
+
     if (!this.enabled) {
       return;
     }
 
     this.io.on('connection', (socket) => {
       const peerIp = socket.handshake.address || socket.request.socket.remoteAddress;
+
+      self.logger.debug(`[WsNodeServer] WebSocket peer ${peerIp} is connecting…`);
+
       const { nonce } = socket.handshake.auth;
 
       if (!nonce) {
+        self.logger.trace(`[WsNodeServer] WebSocket peer ${peerIp} is not allowed to connect`, 'Wrong peer nonce');
+
         socket.disconnect(true);
         return;
       }
@@ -43,12 +53,17 @@ class WebSocketServer {
         normalizeIp(peerIp) !== normalizeIp(existingPeer.ip) ||
         existingPeer.state === Peer.STATE.BANNED
       ) {
+        self.logger.trace(`[WsNodeServer] WebSocket peer ${peerIp} is not allowed to connect`, 'Unknown or banned peer');
+
         socket.disconnect(true);
         return;
       }
 
       if (logic.peers.getSocketCount() >= this.max) {
         const reason = 'Server connection limit exceeded';
+
+        self.logger.trace(`[WsNodeServer] WebSocket peer ${peerIp} is not allowed to connect`, reason);
+
         socket.emit('disconnect_reason', reason);
         socket.disconnect(true);
         return;
@@ -58,6 +73,8 @@ class WebSocketServer {
 
       socket.on('disconnect', () => {
         const disconnectedPeer = logic.peers.getByNonce(nonce);
+
+        self.logger.debug(`[WsNodeServer] WebSocket peer ${disconnectedPeer.ip} is disconnecting…`);
 
         if (disconnectedPeer) {
           disconnectedPeer.isBroadcastingViaSocket = false;
