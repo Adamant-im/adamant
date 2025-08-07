@@ -66,13 +66,13 @@ describe('Sequence', () => {
     it('should keep processing next tasks if one of the previous failed', (done) => {
       const spy = sinon.spy();
       const sabotagingWorker = () => {
-        throw `I don't want to work!`
+        throw `I don't want to work!`;
       };
 
       const goodWorder = (cb) => {
         spy();
         cb();
-      }
+      };
 
       sequence.add(sabotagingWorker, [], (err) => {
         expect(err).to.include(`I don't want to work!`);
