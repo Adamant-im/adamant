@@ -129,7 +129,7 @@ Node.prototype.shared = {
             epoch: constants.epochTime,
             height: lastBlock.height,
             fee: library.logic.block.calculateFee(),
-            milestone: lastBlock.height ?? __private.blockReward.calcMilestone(lastBlock.height),
+            milestone: lastBlock.height ? __private.blockReward.calcMilestone(lastBlock.height) : undefined,
             nethash: modules.system.getNethash(),
             reward: lastBlock.height ? __private.blockReward.calcReward(lastBlock.height) : undefined,
             supply: lastBlock.height ? __private.blockReward.calcSupply(lastBlock.height) : undefined
