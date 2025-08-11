@@ -5,8 +5,8 @@
 BEGIN;
 
 -- Create new columns and indexes
-ALTER TABLE "trs" ADD COLUMN "height" INT;
-ALTER TABLE "trs" ADD COLUMN "blockTimestamp" INT;
+ALTER TABLE "trs" ADD COLUMN "height" INT DEFAULT 0;
+ALTER TABLE "trs" ADD COLUMN "blockTimestamp" INT DEFAULT 0;
 
 -- Update existing transactions
 UPDATE trs
