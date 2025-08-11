@@ -5,7 +5,7 @@
 BEGIN;
 
 -- Add timestampMs column to Transactions
-ALTER TABLE "trs" ADD COLUMN "timestampMs" BIGINT;
+ALTER TABLE "trs" ADD COLUMN IF NOT EXISTS "timestampMs" BIGINT;
 
 -- Add timestampMs index
 CREATE INDEX IF NOT EXISTS "timestamp_ms" ON "trs"("timestampMs");
