@@ -56,7 +56,7 @@ Sequence.prototype.__tick = function (cb) {
     task.worker.apply(task.worker, args);
   } catch (err) {
     if (task.done) {
-      setImmediate(task.done, err, res);
+      setImmediate(task.done, err);
     }
     setImmediate(cb);
   }

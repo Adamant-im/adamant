@@ -65,12 +65,6 @@ Node.prototype.onBind = function (scope) {
   };
 };
 
-/**
- * Triggers onPeersReady after:
- * - Ping to every member of peers list.
- * - Load peers from database and checks every peer state and updated time.
- * - Discover peers by getting list and validates them.
- */
 Node.prototype.onBlockchainReady = function () {
 };
 
@@ -135,10 +129,10 @@ Node.prototype.shared = {
             epoch: constants.epochTime,
             height: lastBlock.height,
             fee: library.logic.block.calculateFee(),
-            milestone: __private.blockReward.calcMilestone(lastBlock.height),
+            milestone: lastBlock.height ? __private.blockReward.calcMilestone(lastBlock.height) : undefined,
             nethash: modules.system.getNethash(),
-            reward: __private.blockReward.calcReward(lastBlock.height),
-            supply: __private.blockReward.calcSupply(lastBlock.height)
+            reward: lastBlock.height ? __private.blockReward.calcReward(lastBlock.height) : undefined,
+            supply: lastBlock.height ? __private.blockReward.calcSupply(lastBlock.height) : undefined
           },
           version: {
             build: library.build,
