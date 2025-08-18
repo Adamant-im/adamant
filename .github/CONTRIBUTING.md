@@ -50,10 +50,6 @@ You need to specify at least some peers in `peers.list`, e.g.:
       {
         "ip": "95.217.19.144",
         "port": 36667
-      },
-      {
-        "ip": "157.90.229.236",
-        "port": 36667
       }
     ],
     // ...
