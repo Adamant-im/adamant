@@ -21,11 +21,6 @@ function Sequence (config) {
   this.isTicking = false;
 
   this.nextSequenceTick = function () {
-    if (!self.sequence.length) {
-      self.isTicking = false;
-      return;
-    }
-
     if (_default.onWarning && self.sequence.length >= _default.warningLimit) {
       _default.onWarning(self.sequence.length, _default.warningLimit);
     }
@@ -42,7 +37,10 @@ function Sequence (config) {
 Sequence.prototype.__tick = function (cb) {
   var task = this.sequence.shift();
   if (!task) {
-    return setImmediate(cb);
+    this.isTicking = false;
+
+    // don't continue ticking
+    return;
   }
   var args = [function (err, res) {
     if (task.done) {
