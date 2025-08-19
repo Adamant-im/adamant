@@ -5,6 +5,17 @@ var fs = require('fs');
 var util = require('util');
 require('colors');
 
+const logColors = {
+  none: 'bgGray',
+  trace: 'bgWhite',
+  debug: 'bgCyan',
+  log: 'bgBlue',
+  info: 'bgBlue',
+  warn: 'bgYellow',
+  error: 'bgRed',
+  fatal: 'bgMagenta'
+};
+
 module.exports = function (config) {
   config = config || {};
   var exports = {};
@@ -79,10 +90,12 @@ module.exports = function (config) {
       }
 
       if (config.echo && config.levels[config.echo] <= config.levels[log.level]) {
+        const messageColor = logColors[log.level] ?? 'bgGray';
+
         if (log.data) {
-          console.log('[' + log.symbol.bgYellow.black + ']', log.timestamp.grey, '|', log.message, '-', log.data);
+          console.log('[' + log.symbol[messageColor].black + ']', log.timestamp.grey, '|', log.message, '-', log.data);
         } else {
-          console.log('[' + log.symbol.bgYellow.black + ']', log.timestamp.grey, '|', log.message);
+          console.log('[' + log.symbol[messageColor].black + ']', log.timestamp.grey, '|', log.message);
         }
       }
     }
