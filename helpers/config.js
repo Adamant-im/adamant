@@ -14,24 +14,36 @@ var constants = require('../helpers/constants.js');
  * @return {Object} configData
  */
 function Config (configPath) {
-  var configData = fs.readFileSync(path.resolve(process.cwd(), (configPath || 'config.json')), 'utf8');
+  try {
+    const configJson = fs.readFileSync(path.resolve(process.cwd(), (configPath || 'config.json')), 'utf8');
+    const defaultConfigJson = fs.readFileSync(path.join(__dirname, '../config.json'), 'utf8');
 
-  if (!configData.length) {
-    console.log('Failed to read config file');
-    process.exit(1);
-  } else {
-    configData = JSON.parse(configData);
-  }
+    if (!configJson.length) {
+      throw 'Failed to read config file';
+    }
 
-  var validator = new z_schema();
-  var valid = validator.validate(configData, configSchema.config);
+    if (!defaultConfigJson.length) {
+      throw 'Default config is missing';
+    }
 
-  if (!valid) {
-    console.log('Failed to validate config data', validator.getLastErrors());
-    process.exit(1);
-  } else {
+    const configData = JSON.parse(configJson);
+    const defatultConfigData = JSON.parse(defaultConfigJson);
+
+    deepMergeMissing(configData, defatultConfigData);
+
+    var validator = new z_schema();
+    var valid = validator.validate(configData, configSchema.config);
+
+    if (!valid) {
+      throw `Failed to validate config data ${JSON.stringify(validator.getLastErrors(), null, 2)}`;
+    }
+
     validateForce(configData);
+
     return configData;
+  } catch (error) {
+    console.error('Error occurred while processing config file:', error);
+    process.exit(1);
   }
 }
 
@@ -49,6 +61,25 @@ function validateForce (configData) {
       configData.forging.force = false;
     }
   }
+}
+
+function deepMergeMissing(target, source) {
+  for (const key in source) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) {
+      if (!(key in target)) {
+        target[key] = source[key];
+      } else if (
+        typeof source[key] === 'object' &&
+        source[key] !== null &&
+        typeof target[key] === 'object' &&
+        target[key] !== null
+      ) {
+        deepMergeMissing(target[key], source[key]);
+      }
+    }
+  }
+
+  return target;
 }
 
 // Exports
