@@ -16,14 +16,14 @@ var constants = require('../helpers/constants.js');
 function Config (configPath) {
   try {
     const configJson = fs.readFileSync(path.resolve(process.cwd(), (configPath || 'config.json')), 'utf8');
-    const defaultConfigJson = fs.readFileSync(path.join(__dirname, '../config.json'), 'utf8');
+
+    const defaultConfigPath = path.join(__dirname, '../config.default.json');
+    const defaultConfigJson = fs.existsSync(defaultConfigPath)
+      ? fs.readFileSync(defaultConfigPath, 'utf8')
+      : '{}';
 
     if (!configJson.length) {
       throw 'Failed to read config file';
-    }
-
-    if (!defaultConfigJson.length) {
-      throw 'Default config is missing';
     }
 
     const configData = JSON.parse(configJson);
