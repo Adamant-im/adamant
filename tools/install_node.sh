@@ -46,6 +46,18 @@ done
 image_filename="$(basename "$image_url")"       # db_backup.sql.gz
 image_unzipped_filename="${image_filename%.gz}" # db_backup.sql
 
+# Everything sent to stdout/stderr → goes both to the log and to the screen
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOGFILE="${SCRIPT_DIR}/adamant_${network}_install.log"
+exec > >(tee -a "$LOGFILE") 2>&1
+if [ -s "$LOGFILE" ]; then
+  printf "\n\n\n===========================\n" >> "$LOGFILE"
+fi
+{
+  printf "%s Installing ADAMANT %s node…\n\n" \
+    "$(date -u '+%Y-%m-%d %H:%M UTC+0')" "$network"
+} | tee -a "$LOGFILE"
+
 printf "\n"
 printf "Welcome to the ADAMANT Node Installer v2.3.0 for Ubuntu 20, 22, and 24.\n"
 printf "Make sure you obtained this file from the adamant.im website or GitHub.\n"
