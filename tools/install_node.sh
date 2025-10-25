@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-trap 'echo -e "\n[ERROR] Line $LINENO failed. Aborting." >&2' ERR
+trap 'echo -e "\n[ERROR] Line $LINENO failed. Aborting.\n\n" >&2' ERR
 
 branch="master"
 network="mainnet"
@@ -13,10 +13,11 @@ nodejs="jod" # LTS=22 by default
 image_url="https://explorer.adamant.im/db_backup.sql.gz"
 
 # Parse options
-while getopts 'b:n:j:' OPTION; do
-  OPTARG="$(echo "$OPTARG" | xargs)"
+while getopts ":b:n:j:" OPTION; do
   case "$OPTION" in
-    b) branch="$OPTARG" ;;
+    b)
+      branch="$OPTARG"
+      ;;
     n)
       if [[ "$OPTARG" == "testnet" ]]; then
         network="testnet"
@@ -26,19 +27,30 @@ while getopts 'b:n:j:' OPTION; do
         processname="adamanttest"
         port="36667"
         image_url="https://testnet.adamant.im/db_test_backup.sql.gz"
-      elif [[ "$OPTARG" != "mainnet" ]]; then
-        printf "\nNetwork should be 'mainnet' or 'testnet'.\n\n"; exit 1
+      elif [[ "$OPTARG" == "mainnet" ]]; then
+        network="mainnet"
+      else
+        printf "\nNetwork should be 'mainnet' or 'testnet'.\n\n"
+        trap - ERR; exit 2
       fi
       ;;
     j)
       if [[ "$OPTARG" == "20" || "$OPTARG" == "iron" ]]; then
         nodejs="iron"
-      elif [[ "$OPTARG" != "22" && "$OPTARG" != "jod" ]]; then
-        printf "\nNodejs should be 'iron' = '20', or 'jod' = '22'.\n\n"; exit 1
+      elif [[ "$OPTARG" == "22" || "$OPTARG" == "jod" ]]; then
+        nodejs="jod"
+      else
+        printf "\nNodejs should be 'iron' = '20', or 'jod' = '22'.\n\n"
+        trap - ERR; exit 2
       fi
       ;;
-    *)
-      printf "\nWrong parameters. Use '-b' for branch, '-n' for network, '-j' for Nodejs version.\n\n"; exit 1
+    :)
+      printf "\nOption '-%s' requires an argument.\n\n" "$OPTARG"
+      trap - ERR; exit 2
+      ;;
+    \?)
+      printf "\nWrong parameters. Use '-b' for branch, '-n' for network, '-j' for Nodejs version.\n\n"
+      trap - ERR; exit 2
       ;;
   esac
 done
@@ -53,22 +65,19 @@ exec > >(tee -a "$LOGFILE") 2>&1
 if [ -s "$LOGFILE" ]; then
   printf "\n\n\n===========================\n" >> "$LOGFILE"
 fi
-{
-  printf "%s Installing ADAMANT %s node…\n\n" \
-    "$(date -u '+%Y-%m-%d %H:%M UTC+0')" "$network"
-} | tee -a "$LOGFILE"
+printf "%s Installing ADAMANT %s node…\n" \
+  "$(date -u '+%Y-%m-%d %H:%M UTC+0')" "$network" >> "$LOGFILE"
 
-printf "\n"
-printf "Welcome to the ADAMANT Node Installer v2.3.0 for Ubuntu 20, 22, and 24.\n"
+printf "\nWelcome to the ADAMANT Node Installer v2.3.0 for Ubuntu 20, 22, and 24.\n"
 printf "Make sure you obtained this file from the adamant.im website or GitHub.\n"
-printf "This installer is the easiest way to run an ADAMANT node. However, if you're not familiar with Linux, consult an IT specialist.\n"
-printf "Full guide:\nhttps://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
+printf "This installer is the easiest way to run an ADAMANT node. However, if you're not familiar with Linux, consult an IT specialist.\n\n"
+printf "Full guide: https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n\n"
 printf "The installer will prompt you to set database and user passwords.\n"
 printf "The system may also ask for locale/keyboard/GRUB options — defaults are usually fine.\n\n"
 
 printf "Selected network: '%s'\n" "$network"
 printf "Selected branch:  '%s'\n" "$branch"
-printf "Selected Node.js:  LTS '%s'\n\n" "$nodejs"
+printf "Selected Node.js: '%s' LTS\n\n" "$nodejs"
 
 read -r -p "WARNING! Intended for NEW droplets. Existing data MAY BE DAMAGED. Type \"yes\" to continue: " agreement
 if [[ $agreement != "yes" ]]; then
@@ -96,20 +105,23 @@ fi
 
 # Ask for DB password
 get_database_password () {
-  read -r -sp $'Set the database password:\n> ' postgrespwd; echo
-  read -r -sp $'\nConfirm password:\n> ' postgrespwdconfirmation; echo
+  printf 'Set the database password:\n> ' >&2
+  read -r -s postgrespwd; printf '\n' >&2
+
+  printf 'Confirm password:\n> ' >&2
+  read -r -s postgrespwdconfirmation; printf '\n' >&2
+
   if [[ $postgrespwd == "$postgrespwdconfirmation" ]]; then
     echo "$postgrespwd"
   else
-    printf "\nPassword mismatch. Try again.\n\n"
+    printf '\nPassword mismatch. Try again.\n\n' >&2
     get_database_password
   fi
 }
 DB_PASSWORD="$(get_database_password)"
-
-# Escape for SQL (single quotes) and for sed replacement (&)
-esc_pwd_sql=${DB_PASSWORD//\'/\'\'}
-esc_pwd_sed=${DB_PASSWORD//&/\\&}
+# Escape single quotes for SQL, then encode the password in Base64 to safely pass into an unquoted heredoc (su - "$username" <<EOSU)
+DB_PASSWORD_SQL=${DB_PASSWORD//\'/\'\'}
+DB_PASSWORD_BASE64="$(printf '%s' "$DB_PASSWORD" | base64 -w0 2>/dev/null || printf '%s' "$DB_PASSWORD" | base64)"
 
 # Create system user if needed
 printf "\n\nChecking if user '%s' exists…\n\n" "$username"
@@ -121,7 +133,7 @@ fi
 
 # Don't disturb with dialogs about restarting services
 # needrestart: temporary override (removed later)
-printf "\nConfiguring needrestart to skip dialogs during installation…\n"
+printf "Configuring needrestart to skip dialogs during installation…\n"
 mkdir -p /etc/needrestart/conf.d
 cat >/etc/needrestart/conf.d/99-adamant-temp.conf <<'NREOF'
 $nrconf{restart} = 'a';
@@ -150,7 +162,7 @@ systemctl is-active --quiet postgresql || service postgresql start
 # PostgreSQL: DB & role
 printf "\n\nCreating database '%s' and role '%s'…\n\n" "$databasename" "$username"
 cd /tmp || exit 1
-sudo -u postgres psql -c "CREATE ROLE ${username} LOGIN PASSWORD '${esc_pwd_sql}';" || true
+sudo -u postgres psql -c "CREATE ROLE ${username} LOGIN PASSWORD '${DB_PASSWORD_SQL}';" || true
 sudo -u postgres psql -c "CREATE DATABASE ${databasename} OWNER ${username};" || true
 sudo -u postgres psql -c "ALTER DATABASE ${databasename} OWNER TO ${username};" || true
 
@@ -175,26 +187,29 @@ pm2 set pm2-logrotate:compress true
 pm2 set pm2-logrotate:rotateInterval '0 0 0 1 *'
 
 # ADAMANT
-printf "\n\nInstalling ADAMANT '$network' node. Cloning GitHub ('$branch' branch)…\n\n"
+printf "\n\nInstalling ADAMANT '$network' node. Cloning the '$branch' branch from GitHub…\n\n"
 git clone --branch $branch https://github.com/Adamant-im/adamant
 cd adamant || { printf "\n\nCannot enter 'adamant' blockchain directory. Aborting.\n\n"; exit 1; }
 npm i
 
 # ADAMANT node configuration
-printf "\n\nSetting up the ADM node configuration…\n\n"
+printf "\n\nSetting up the ADM node configuration…\n"
 if [[ "$configfile" == "config.json" ]]; then
   cp config.default.json config.json
 else
   cp test/config.default.json test/config.json
 fi
 
-# Inject DB password into $configfile. Sed delimiter '|' to avoid escaping slashes.
-sed -i -E "s|\"password\": \"password\",|\"password\": \"$esc_pwd_sed\",|" "$configfile"
+# Inject DB password into $configfile. Decode Base64 **inside** the child shell (parent never sees the raw password).
+# Using env.DB_PASSWORD_DECODED avoids any '$' in the jq filter, so the parent shell won't expand it.
+DB_PASSWORD_DECODED=\$(printf '%s' "$DB_PASSWORD_BASE64" | base64 -d)
+export DB_PASSWORD_DECODED
+jq '.db.password = env.DB_PASSWORD_DECODED' $configfile > "$configfile.tmp" && mv "$configfile.tmp" $configfile
 
 # Download actual blockchain image for mainnet/testnet network, bootstrapping the ADM node
 if [[ "$IMAGE" == "true" ]]; then
   printf "\n\nDownloading '$network' blockchain image…\n\n"
-  wget -O "$image_filename" "$image_url"
+  wget --progress=bar:force:noscroll "$image_url" -O "$image_filename" 2>/dev/tty
   printf "\nUnzipping the blockchain image (may take a few minutes)…\n\n"
   gunzip -f "$image_filename"
   printf "\nLoading the image into '$databasename' database…\n\n"
@@ -215,7 +230,14 @@ EOSU
 # ------- End of run-as-user block -------
 
 printf "\n\nEnabling ADAMANT '%s' node auto-restart on system reboot…\n\n" "$network"
-startup_cmd="$(su - "$username" -c "export NVM_DIR=/home/$username/.nvm; source /home/$username/.nvm/nvm.sh; pm2 startup" | grep -oP 'sudo env PATH=.*')"
+# shellcheck disable=SC2016
+startup_cmd="$(
+  su - "$username" -c '
+    export NVM_DIR="$HOME/.nvm"
+    source "$NVM_DIR/nvm.sh"
+    pm2 startup
+  ' | grep -oP "sudo env PATH=.*"
+)"
 bash -c "$startup_cmd"
 
 # Remove temporary needrestart override
@@ -224,10 +246,16 @@ rm -f /etc/needrestart/conf.d/99-adamant-temp.conf
 # Done
 minutes=$(( (SECONDS + 59) / 60 ))
 printf "\n\nADAMANT '%s' node installation completed successfully.\n" "$network"
-printf "Total installation time: %d minutes.\n\n" "$minutes"
+printf "Total installation time: %d minutes.\n" "$minutes"
+printf "See installation logs in: %s\n\n" "$LOGFILE"
 printf "To check your node status:\n   pm2 show %s\n\n" "$processname"
 printf "To check current blockchain height:\n   curl http://localhost:%s/api/blocks/getHeight\n\n" "$port"
 printf "Thank you for supporting the truly decentralized ADAMANT Messenger! 🚀\n\n"
+if [[ "$network" == "mainnet" ]]; then
+  printf "Tip: You can also install the ADAMANT testnet node on the same server using this script.\n"
+  printf "Mainnet and testnet run under different users, ports, and databases, so they do not conflict.\n"
+  printf "Example:\n   sudo bash ./install_node.sh -b dev -n testnet -j jod\n\n"
+fi
 read -n1 -r -p "Press any key to continue…"
 printf "\n\n"
 
