@@ -1,129 +1,195 @@
 #!/usr/bin/env bash
+set -Eeuo pipefail
+trap 'echo -e "\n[ERROR] Line $LINENO failed. Aborting.\n\n" >&2' ERR
 
+# Defaults for mainnet
 network="mainnet"
 username="adamant"
 databasename="adamant_main"
 configfile="config.json"
 processname="adamant"
-port=36666 #Default mainnet REST port, re-assign later after reading user config
+port="36666" # Default mainnet REST port; later re-read from config
 image_url="https://explorer.adamant.im/db_backup.sql.gz"
 
-# Read script options
-while getopts 'n:' OPTION; do
-  OPTARG=$(echo "$OPTARG" | xargs)
+# Options
+while getopts ":n:" OPTION; do
   case "$OPTION" in
     n)
-      if [ "$OPTARG" == "testnet" ]
-      then
-        network="$OPTARG"
-        username="adamanttest"
-        databasename="adamant_test"
-        configfile="test/config.json"
-        processname="adamanttest"
-        port="36667" #Default testnet REST port, re-assign later after reading user config
-        image_url="https://testnet.adamant.im/db_test_backup.sql.gz"
-      elif [ "$OPTARG" != "mainnet" ]
-      then
-        printf "\nNetwork should be 'mainnet' or 'testnet'.\n\n"
-        exit 1
-      fi
+      case "$OPTARG" in
+        testnet)
+          network="testnet"
+          username="adamanttest"
+          databasename="adamant_test"
+          configfile="test/config.json"
+          processname="adamanttest"
+          port="36667" # Default testnet REST port; later re-read from config
+          image_url="https://testnet.adamant.im/db_test_backup.sql.gz"
+          ;;
+        mainnet) : ;; # keep defaults
+        *)
+          printf "\nNetwork should be 'mainnet' or 'testnet'.\n\n"
+          trap - ERR; exit 2
+          ;;
+      esac
       ;;
-    *)
-      printf "\nWrong parameters. Use '-n' to choose 'mainnet' or 'testnet' network.\n\n"
-      exit 1
-    ;;
+    \?)
+      printf "\nWrong parameters. Use '-n' to choose 'mainnet' or 'testnet'.\n\n"
+      trap - ERR; exit 2
+      ;;
   esac
 done
 
-image_filename=$(basename "$image_url") # db_backup.sql.gz
-image_unzipped_filename="${image_filename%.gz}" # db_backup.sql
+image_filename="$(basename "$image_url")"        # db_backup.sql.gz
+image_unzipped_filename="${image_filename%.gz}"  # db_backup.sql
 
-printf "\n"
-printf "Greetings!\n"
-printf "Please make sure you obtained this file from the adamant.im website or GitHub.\n"
-printf "Use this Node Repair/Bootstrap Tool v1.1.0 if your ADM mainnet or testnet node has lost sync and restarted from the beginning of the blockchain.\n"
-printf "While validating blocks from height 0 is a valid option, catching up to the current height can take a long time.\n"
-printf "If your node is a forging delegate or a developer, you’ll likely prefer using an up-to-date blockchain image to restore it within ten minutes.\n"
-printf "This script will delete the ADM blockchain database, download a fresh image, and restart your node.\n"
-printf "We still recommend consulting an IT specialist if you are not familiar with Linux systems.\n"
-printf "Alternatively, you can perform these steps manually. Full node installation instructions are available at:\n"
-printf "https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n\n"
+# Logging: Everything goes both to screen and logfile
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOGFILE="${SCRIPT_DIR}/adamant_${network}_fix.log"
+exec > >(tee -a "$LOGFILE") 2>&1
+if [ -s "$LOGFILE" ]; then
+  printf "\n\n\n===========================\n" >> "$LOGFILE"
+fi
+printf "%s ADAMANT %s Node Repair/Bootstrap started…\n" \
+  "$(date -u '+%Y-%m-%d %H:%M UTC+0')" "$network" >> "$LOGFILE"
 
-printf "Note: You have selected the '%s' network.\n" "$network"
-printf "\n"
+SECONDS=0
 
-read -r -p "WARNING! Use the script only if you initially set up the node using the ADAMANT node installer, as it expects a specific server environment. Run it under the root user. If you agree to continue, type \"yes\": " agreement
-if [[ $agreement != "yes" ]]
-then
-  printf "\nExecution cancelled.\n\n"
-  exit 1
+printf "\nADAMANT mainnet/testnet Node Repair/bootstrap Tool v1.3.0 for Ubuntu 20–24.\n"
+printf "Make sure you obtained this file from the adamant.im website or GitHub.\n"
+printf "This tool resets the ADM mainnet/testnet blockchain DB, loads a fresh image, and restarts your node.\n"
+printf "Alternatively, follow the step-by-step manual guide: https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
+printf "If you prefer full validation from height 0, syncing may take days.\n\n"
+
+printf "Selected network: '%s'\n" "$network"
+printf "ADM Node user:    '%s'\n" "$username"
+printf "Database:         '%s'\n" "$databasename"
+printf "Process name:     '%s'\n\n" "$processname"
+
+read -r -p "WARNING! Intended for ADM nodes installed via the ADAMANT installer or with default setup. Type \"yes\" to proceed: " agreement
+if [[ $agreement != "yes" ]]; then
+  printf "\nExecution cancelled.\n\n"; exit 1
 fi
 
-printf "\n\n"
-
-# Users
+# Pre-flight
 if [ "$(id -u)" -ne 0 ]; then
-  printf "Run the script as a user with sudo privileges as it modifies the ADM Postgres database."
+  printf "\n\nRun the script as a user with sudo privileges as it modifies PostgreSQL and installs missing packages."
   printf "\nExecution cancelled.\n\n"
-  exit 1
+  trap - ERR; exit 1
 fi
 
-if ! id "$username" &>/dev/null; then
-  printf "System user named '%s' is not found. Use the script only if you initially set up the node using the ADAMANT node installer, as it expects a specific server environment." "$username"
+if ! id -u "$username" >/dev/null 2>&1; then
+  printf "\n\nSystem user '%s' not found. This tool expects the environment created by the ADAMANT installer or with default setup." "$username"
   printf "\nExecution cancelled.\n\n"
-  exit 1
+  trap - ERR; exit 1
 fi
 
-#Stop adamant node
-su - adamant -c "source ~/.nvm/nvm.sh; pm2 stop adamant"
+# Ensure tools are present (jq/wget/gzip/psql)
+printf "\n\nChecking required packages (jq, wget, gzip, psql)…\n"
+if ! command -v jq >/dev/null 2>&1 || ! command -v wget >/dev/null 2>&1 || ! command -v gunzip >/dev/null 2>&1 || ! command -v psql >/dev/null 2>&1; then
+  printf "Installing missing packages…\n"
+  apt update
+  DEBIAN_FRONTEND=noninteractive apt install -y jq wget gzip postgresql-client || true
+fi
 
-#Postgres
-printf "\n\nDeleting and recreating database '%s'…\n\n" "$databasename"
-sudo -u postgres psql -c "DROP DATABASE ${databasename};"
-sudo -u postgres psql -c "CREATE DATABASE ${databasename};"
-sudo -u postgres psql -c "ALTER DATABASE ${databasename} OWNER TO ${username};"
+# Stop node process under the ADM node user
+printf "\n\nStopping ADAMANT '%s' node process '%s' via pm2…\n\n" "$network" "$processname"
+su - "$username" -c "source ~/.nvm/nvm.sh >/dev/null 2>&1 || true; pm2 stop '$processname' || true"
+su - "$username" -c "source ~/.nvm/nvm.sh >/dev/null 2>&1 || true; pm2 save || true"
 
-#Run next commands as user
+# PostgreSQL: Terminate sessions, drop & recreate DB
+printf "\n\nResetting '%s' database. Terminating active '%s' DB connections…\n\n" "$network" "$databasename"
+systemctl is-active --quiet postgresql || service postgresql start || true
+sudo -u postgres psql -v ON_ERROR_STOP=1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${databasename}' AND pid <> pg_backend_pid();" || true
+
+printf "\nDropping '%s' database…\n\n" "$databasename"
+sudo -u postgres psql -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS ${databasename} WITH (FORCE);" || \
+sudo -u postgres psql -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS ${databasename};"
+
+printf "\n\nRecreating '%s' database owned by '%s'…\n\n" "$databasename" "$username"
+sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE ${databasename} OWNER ${username};"
+sudo -u postgres psql -v ON_ERROR_STOP=1 -c "ALTER DATABASE ${databasename} OWNER TO ${username};"
+
+# Heavy lifting under node user
+NODE_HOME="$(eval echo "~$username")"
+REPO_DIR="${NODE_HOME}/adamant"
+
 su - "$username" <<EOSU
+set -Eeuo pipefail
 
-#ADAMANT
-source ~/.nvm/nvm.sh
-source ~/.profile
-source ~/.bashrc
-cd adamant || { printf "\n\nUnable to enter the node's directory 'adamant'. Something is wrong, halting.\n\n"; exit 1; }
+echo
+echo
+echo "Entering ADM node directory…"
+cd "$REPO_DIR" || { printf "\nCannot enter ='%s'. Aborting.\n\n" "$REPO_DIR"; exit 1; }
 
-# Download actual blockchain image for 'mainnet' network
-printf "\n\nDownloading actual blockchain image…\n\n"
-[ -f db_backup.sql ] && rm db_backup.sql
-wget https://explorer.adamant.im/db_backup.sql.gz
-printf "\nUnzipping the blockchain image, it can take a few minutes…\n\n"
-gunzip db_backup.sql.gz
-printf "\nLoading the blockchain image, it takes up to 20 minutes…\n\n"
-psql adamant_main < db_backup.sql
-printf "\nDeleting temporary blockchain image file…\n"
-rm db_backup.sql
+# Load nodejs environment (ignore errors if not present)
+source ~/.nvm/nvm.sh >/dev/null 2>&1 || true
+source ~/.profile  >/dev/null 2>&1 || true
+source ~/.bashrc   >/dev/null 2>&1 || true
 
-# Extract the port number using jq
-port=$(jq '.port' "config.json")
+echo
+echo "Downloading '$network' blockchain image…"
+rm -f "$image_unzipped_filename" "$image_filename" || true
+wget --progress=bar:force:noscroll "$image_url" -O "$image_filename" 2>/dev/tty
 
-printf "\n\nRestarting ADAMANT '%s' node…\n\n" "$network"
-pm2 restart adamant
+echo
+echo "Unzipping blockchain image (may take minutes)…"
+gunzip -f "$image_filename"
 
+echo
+echo "Loading image into database '$databasename'…"
+echo
+psql "$databasename" < "$image_unzipped_filename"
+
+echo
+echo
+echo "Cleaning up temp files…"
+rm -f "$image_unzipped_filename"
+
+# Restart if exists, otherwise start new process
+echo
+if pm2 show "$processname" >/dev/null 2>&1; then
+  echo "Restarting existing pm2 process '$processname'…"
+  echo
+  pm2 restart "$processname"
+else
+  echo "Starting new pm2 process '$processname'…"
+  echo
+  if [[ "$network" == "mainnet" ]]; then
+    pm2 start --name "$processname" app.js
+  else
+    pm2 start --name "$processname" app.js -- --config "test/config.json" --genesis "test/genesisBlock.json"
+  fi
+fi
+pm2 save || true
 EOSU
 
-printf "\n\nADAMANT '%s' node repair script completed. Total execution time: %s seconds.\n" "$network" "$SECONDS"
-printf "Check your node status with the command: 'pm2 show adamant'\n"
-printf "To check the current node height, run: 'curl http://localhost:%s/api/blocks/getHeight'\n" "$port"
-printf "Thank you for supporting the truly decentralized ADAMANT Messenger.\n\n"
-
-read -n1 -r -p "Press any key to continue…"
-
-printf "\n\n"
-
-#Terminate screen session, if we are running it
-if [ -n "$STY" ]; then
-    screen -S "$STY" -X quit
+# Read port from config file for curl hint
+CFG_PATH="${REPO_DIR}/${configfile}"
+if [ -f "$CFG_PATH" ]; then
+  port_read="$(jq -r '.port // empty' "$CFG_PATH" 2>/dev/null || true)"
+  if [[ -n "${port_read:-}" ]]; then
+    port="$port_read"
+  fi
 fi
 
-#Works only if run not in screen
-su - "$username"
+# Done
+minutes=$(( (SECONDS + 59) / 60 ))
+printf "\n\nADAMANT '%s' node repair/bootstrap completed successfully.\n" "$network"
+printf "Total execution time: %d minutes.\n" "$minutes"
+printf "See repair logs in: %s\n\n" "$LOGFILE"
+
+printf "To check your node status:\n"
+printf "    su - %s    # Use pm2 while logged in as '%s'\n" "$username" "$username"
+printf "    pm2 list\n"
+printf "    pm2 show %s\n" "$processname"
+printf "    pm2 logs %s\n\n" "$processname"
+printf "To query current blockchain height:\n    curl http://localhost:%s/api/blocks/getHeight\n\n" "$port"
+
+printf "Thank you for supporting the truly decentralized ADAMANT Messenger! 🚀\n\n"
+
+# Remind the user that a 'screen' session is currently running
+if [[ -n ${STY:-} ]]; then
+  printf "You are running inside a 'screen' session (%s). To finish cleanly,\n" "$STY"
+  printf "    Detach:    Press Ctrl-A D (screen keeps running in background)\n"
+  printf "    Exit:      Type 'exit' or press Ctrl-D (screen will terminate)\n\n\n"
+fi
