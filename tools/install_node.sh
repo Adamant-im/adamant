@@ -242,21 +242,25 @@ minutes=$(( (SECONDS + 59) / 60 ))
 printf "\n\nADAMANT '%s' node installation completed successfully.\n" "$network"
 printf "Total installation time: %d minutes.\n" "$minutes"
 printf "See installation logs in: %s\n\n" "$LOGFILE"
-printf "To check your node status:\n   pm2 show %s\n\n" "$processname"
-printf "To check current blockchain height:\n   curl http://localhost:%s/api/blocks/getHeight\n\n" "$port"
+printf "To check your node status:\n"
+printf "    su - %s    # Use pm2 while logged in as '%s'\n" "$username" "$username"
+printf "    pm2 list\n"
+printf "    pm2 show %s\n" "$processname"
+printf "    pm2 logs %s\n\n" "$processname"
+printf "To query current blockchain height:\n    curl http://localhost:%s/api/blocks/getHeight\n\n" "$port"
 printf "Thank you for supporting the truly decentralized ADAMANT Messenger! 🚀\n\n"
 if [[ "$network" == "mainnet" ]]; then
   printf "Tip: You can also install the ADAMANT testnet node on the same server using this script.\n"
   printf "Mainnet and testnet run under different users, ports, and databases, so they do not conflict.\n"
-  printf "Example:\n   sudo bash ./install_node.sh -b dev -n testnet -j jod\n\n"
+  printf "Example:\n    sudo bash -c \"\$(wget -O - https://adamant.im/install_node.sh)\" -O -b dev -n testnet -j jod\n\n"
 fi
+
 read -n1 -r -p "Press any key to continue…"
 printf "\n\n"
 
-# Terminate the 'screen' session if currently running
-if [[ -n "${STY:-}" ]]; then
-  screen -S "$STY" -X quit || true
+# Remind the user that a 'screen' session is currently running
+if [[ -n ${STY:-} ]]; then
+  printf "You are running inside a 'screen' session (%s). To finish cleanly,\n" "$STY"
+  printf "    Detach:    Press Ctrl-A D (screen keeps running in background)\n"
+  printf "    Exit:      Type 'exit' or press Ctrl-D (screen will terminate)\n\n\n"
 fi
-
-# This works only when run outside of 'screen'
-su - "$username"
