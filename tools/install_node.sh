@@ -230,8 +230,8 @@ EOSU
 # ------- End of run-as-user block -------
 
 printf "\n\nEnabling ADAMANT '%s' node auto-restart on system reboot…\n\n" "$network"
-adamant_startup_output=$(su - "$username" -c "source ~/.nvm/nvm.sh; pm2 startup")
-adamant_startup=$(echo "$adamant_startup_output" | grep -oP 'sudo env PATH=.*')
+adamant_startup_output=$(su - "$username" -c "source ~/.nvm/nvm.sh; pm2 startup" || true)
+adamant_startup=$(echo "$adamant_startup_output" | grep -oP 'sudo env PATH=.*' || true)
 bash -c "$adamant_startup"
 
 # Remove temporary needrestart override
