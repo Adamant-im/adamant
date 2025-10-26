@@ -68,9 +68,9 @@ fi
 printf "%s Installing ADAMANT %s node…\n" \
   "$(date -u '+%Y-%m-%d %H:%M UTC+0')" "$network" >> "$LOGFILE"
 
-printf "\nWelcome to the ADAMANT Node Installer v2.3.0 for Ubuntu 20, 22, and 24.\n"
+printf "\nWelcome to the ADAMANT mainnet/testnet Node Installer v2.3.0 for Ubuntu 20, 22, and 24.\n"
 printf "Make sure you obtained this file from the adamant.im website or GitHub.\n"
-printf "This installer is the easiest way to run an ADAMANT node. However, if you're not familiar with Linux, consult an IT specialist.\n\n"
+printf "This installer is the easiest way to run an ADAMANT mainnet/testnet node. However, if you're not familiar with Linux, consult an IT specialist.\n\n"
 printf "Full guide: https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n\n"
 printf "The installer will prompt you to set database and user passwords.\n"
 printf "The system may also ask for locale/keyboard/GRUB options — defaults are usually fine.\n\n"
@@ -84,9 +84,14 @@ if [[ $agreement != "yes" ]]; then
   printf "\nInstallation cancelled.\n\n"; exit 1
 fi
 
+if [ "$(id -u)" -ne 0 ]; then
+  printf "\n\nRun the script as a user with sudo privileges as it installs packages and configures system services."
+  printf "\nInstallation cancelled.\n\n"; exit 1
+fi
+
 # Choosing whether to use blockchain image for bootstrapping
 IMAGE=false
-printf "\nUsing a blockchain image can significantly reduce sync time, but you must fully trust its source.\n"
+printf "\n\nUsing a blockchain image can significantly reduce sync time, but you must fully trust its source.\n"
 printf "If you skip it, your '%s' node will verify every transaction (may take several days).\n" "$network"
 read -r -p "Use the ADAMANT blockchain image to bootstrap? [Y/n]: " useimage
 case ${useimage:-Y} in
@@ -242,6 +247,7 @@ minutes=$(( (SECONDS + 59) / 60 ))
 printf "\n\nADAMANT '%s' node installation completed successfully.\n" "$network"
 printf "Total installation time: %d minutes.\n" "$minutes"
 printf "See installation logs in: %s\n\n" "$LOGFILE"
+
 printf "To check your node status:\n"
 printf "    su - %s    # Use pm2 while logged in as '%s'\n" "$username" "$username"
 printf "    pm2 list\n"
@@ -249,6 +255,7 @@ printf "    pm2 show %s\n" "$processname"
 printf "    pm2 logs %s\n\n" "$processname"
 printf "To query current blockchain height:\n    curl http://localhost:%s/api/blocks/getHeight\n\n" "$port"
 printf "Thank you for supporting the truly decentralized ADAMANT Messenger! 🚀\n\n"
+
 if [[ "$network" == "mainnet" ]]; then
   printf "Tip: You can also install the ADAMANT testnet node on the same server using this script.\n"
   printf "Mainnet and testnet run under different users, ports, and databases, so they do not conflict.\n"
