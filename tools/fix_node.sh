@@ -1,15 +1,56 @@
 #!/usr/bin/env bash
 
+network="mainnet"
+username="adamant"
+databasename="adamant_main"
+configfile="config.json"
+processname="adamant"
+port=36666 #Default mainnet REST port, re-assign later after reading user config
+image_url="https://explorer.adamant.im/db_backup.sql.gz"
+
+# Read script options
+while getopts 'n:' OPTION; do
+  OPTARG=$(echo "$OPTARG" | xargs)
+  case "$OPTION" in
+    n)
+      if [ "$OPTARG" == "testnet" ]
+      then
+        network="$OPTARG"
+        username="adamanttest"
+        databasename="adamant_test"
+        configfile="test/config.json"
+        processname="adamanttest"
+        port="36667" #Default testnet REST port, re-assign later after reading user config
+        image_url="https://testnet.adamant.im/db_test_backup.sql.gz"
+      elif [ "$OPTARG" != "mainnet" ]
+      then
+        printf "\nNetwork should be 'mainnet' or 'testnet'.\n\n"
+        exit 1
+      fi
+      ;;
+    *)
+      printf "\nWrong parameters. Use '-n' to choose 'mainnet' or 'testnet' network.\n\n"
+      exit 1
+    ;;
+  esac
+done
+
+image_filename=$(basename "$image_url") # db_backup.sql.gz
+image_unzipped_filename="${image_filename%.gz}" # db_backup.sql
+
 printf "\n"
 printf "Greetings!\n"
 printf "Please make sure you obtained this file from the adamant.im website or GitHub.\n"
-printf "Use this Node Repair Tool v1.0.1 if your ADM node has lost sync and restarted from the beginning of the blockchain.\n"
+printf "Use this Node Repair/Bootstrap Tool v1.1.0 if your ADM mainnet or testnet node has lost sync and restarted from the beginning of the blockchain.\n"
 printf "While validating blocks from height 0 is a valid option, catching up to the current height can take a long time.\n"
-printf "If your node is a forging delegate, you’ll likely prefer using an up-to-date blockchain image to restore it within ten minutes.\n"
+printf "If your node is a forging delegate or a developer, you’ll likely prefer using an up-to-date blockchain image to restore it within ten minutes.\n"
 printf "This script will delete the ADM blockchain database, download a fresh image, and restart your node.\n"
 printf "We still recommend consulting an IT specialist if you are not familiar with Linux systems.\n"
 printf "Alternatively, you can perform these steps manually. Full node installation instructions are available at:\n"
 printf "https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n\n"
+
+printf "Note: You have selected the '%s' network.\n" "$network"
+printf "\n"
 
 read -r -p "WARNING! Use the script only if you initially set up the node using the ADAMANT node installer, as it expects a specific server environment. Run it under the root user. If you agree to continue, type \"yes\": " agreement
 if [[ $agreement != "yes" ]]
@@ -20,14 +61,9 @@ fi
 
 printf "\n\n"
 
-network="mainnet"
-port=36666 #Default, re-assign later
-username="adamant"
-databasename="adamant_main"
-
-#Users
+# Users
 if [ "$(id -u)" -ne 0 ]; then
-  printf "Run the script under a user with sudo permission as it modifies the ADM Postgres database."
+  printf "Run the script as a user with sudo privileges as it modifies the ADM Postgres database."
   printf "\nExecution cancelled.\n\n"
   exit 1
 fi
