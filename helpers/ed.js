@@ -1,6 +1,6 @@
 'use strict';
 
-var sodium = require('sodium').api;
+var sodium = require('sodium-native');
 
 var mnemonic = require('bitcore-mnemonic');
 
@@ -51,11 +51,13 @@ ed.createPassPhraseHash = function (passPhrase) {
  * @return {Object} publicKey, privateKey
  */
 ed.makeKeypair = function (hash) {
-  var keypair = sodium.crypto_sign_seed_keypair(hash);
+  const publicKey = Buffer.alloc(sodium.crypto_sign_PUBLICKEYBYTES);
+  const privateKey = Buffer.alloc(sodium.crypto_sign_SECRETKEYBYTES);
+  sodium.crypto_sign_seed_keypair(publicKey, privateKey, hash);
 
   return {
-    publicKey: keypair.publicKey,
-    privateKey: keypair.secretKey
+    publicKey,
+    privateKey
   };
 };
 
@@ -67,7 +69,9 @@ ed.makeKeypair = function (hash) {
  * @return {signature} signature
  */
 ed.sign = function (hash, keypair) {
-  return sodium.crypto_sign_detached(hash, Buffer.from(keypair.privateKey, 'hex'));
+  const signature = Buffer.alloc(sodium.crypto_sign_BYTES);
+  sodium.crypto_sign_detached(signature, hash, keypair.privateKey);
+  return signature;
 };
 
 /**
@@ -78,7 +82,7 @@ ed.sign = function (hash, keypair) {
  * @return {Boolean} true id verified
  */
 ed.verify = function (hash, signatureBuffer, publicKeyBuffer) {
-  return sodium.crypto_sign_verify_detached(signatureBuffer, hash, publicKeyBuffer);
+  return sodium.crypto_sign_verify_detached(signatureBuffer, hash, publicKeyBuffer)
 };
 
 module.exports = ed;
