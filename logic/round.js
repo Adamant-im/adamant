@@ -158,7 +158,7 @@ Round.prototype.truncateBlocks = function () {
  * @return {function} Promise
  */
 Round.prototype.restoreRoundSnapshot = function () {
-  this.scope.library.logger.debug('Restoring mem_round snapshot...');
+  this.scope.library.logger.debug('rounds', 'Restoring mem_round snapshot...');
   return this.t.none(sql.restoreRoundSnapshot);
 };
 
@@ -168,7 +168,7 @@ Round.prototype.restoreRoundSnapshot = function () {
  * @return {function} Promise
  */
 Round.prototype.restoreVotesSnapshot = function () {
-  this.scope.library.logger.debug('Restoring mem_accounts.vote snapshot...');
+  this.scope.library.logger.debug('rounds', 'Restoring mem_accounts.vote snapshot...');
   return this.t.none(sql.restoreVotesSnapshot);
 };
 
@@ -190,7 +190,7 @@ Round.prototype.applyRound = function () {
     var delegate = this.scope.roundDelegates[i];
     var changes = roundChanges.at(i);
 
-    this.scope.library.logger.trace('Delegate changes', { delegate: delegate, changes: changes });
+    this.scope.library.logger.trace('rounds', 'Delegate changes', { delegate: delegate, changes: changes });
 
     queries.push(this.scope.modules.accounts.mergeAccountAndGet({
       publicKey: delegate,
@@ -214,7 +214,7 @@ Round.prototype.applyRound = function () {
   if (changes.feesRemaining > 0) {
     var feesRemaining = (this.scope.backwards ? -changes.feesRemaining : changes.feesRemaining);
 
-    this.scope.library.logger.trace('Fees remaining', { index: remainderIndex, delegate: remainderDelegate, fees: feesRemaining });
+    this.scope.library.logger.trace('rounds', 'Fees remaining', { index: remainderIndex, delegate: remainderDelegate, fees: feesRemaining });
 
     queries.push(this.scope.modules.accounts.mergeAccountAndGet({
       publicKey: remainderDelegate,
@@ -226,7 +226,7 @@ Round.prototype.applyRound = function () {
     }));
   }
 
-  this.scope.library.logger.trace('Applying round', queries);
+  this.scope.library.logger.trace('rounds', 'Applying round', queries);
 
   if (queries.length > 0) {
     return this.t.none(queries.join(''));

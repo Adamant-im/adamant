@@ -191,7 +191,7 @@ Blocks.prototype.cleanup = function (cb) {
     // Module is not ready, repeat
     setImmediate(function nextWatch () {
       if (__private.isActive) {
-        library.logger.info('Waiting for block processing to finish...');
+        library.logger.info('cleanup', 'Waiting for block processing to finish...');
         setTimeout(nextWatch, 10000); // 10 sec
       } else {
         return setImmediate(cb);

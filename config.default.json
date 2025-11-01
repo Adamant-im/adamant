@@ -2,6 +2,7 @@
   "port": 36666,
   "address": "0.0.0.0",
   "fileLogLevel": "warn",
+  "debugFileName": "logs/adamant_debug.log",
   "logFileName": "logs/adamant.log",
   "consoleLogLevel": "info",
   "trustProxy": false,

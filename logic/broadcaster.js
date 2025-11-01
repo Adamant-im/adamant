@@ -67,7 +67,7 @@ function Broadcaster (broadcasts, force, peers, transaction, logger) {
   function nextRelease (cb) {
     __private.releaseQueue(function (err) {
       if (err) {
-        library.logger.log('Broadcaster timer', err);
+        library.logger.log('broadcaster', 'Broadcaster timer error:', err);
       }
       return setImmediate(cb);
     });
@@ -110,7 +110,7 @@ Broadcaster.prototype.getPeers = function (params, cb) {
     }
 
     if (self.consensus !== undefined && originalLimit === constants.maxPeers) {
-      library.logger.info(['Broadhash consensus now', consensus, '%'].join(' '));
+      library.logger.info('peers', ['Broadhash consensus now', consensus, '%'].join(' '));
       self.consensus = consensus;
     }
 
@@ -151,7 +151,7 @@ Broadcaster.prototype.broadcast = function (params, options, cb) {
       }
     },
     function getFromPeer (peers, waterCb) {
-      library.logger.debug('Begin broadcast', options);
+      library.logger.debug('broadcaster', 'Begin broadcast', options);
 
       if (params.limit === self.config.peerLimit) {
         peers = peers.slice(0, self.config.broadcastLimit);
@@ -162,12 +162,12 @@ Broadcaster.prototype.broadcast = function (params, options, cb) {
 
         modules.transport.getFromPeer(peer, options, function (err) {
           if (err) {
-            library.logger.debug('Failed to broadcast to peer: ' + peer.string, err);
+            library.logger.debug('broadcaster', 'Failed to broadcast to peer: ' + peer.string, err);
           }
           return setImmediate(eachLimitCb);
         });
       }, function (err) {
-        library.logger.debug('End broadcast');
+        library.logger.debug('broadcaster', 'End broadcast');
         return setImmediate(waterCb, err, peers);
       });
     }
@@ -189,7 +189,7 @@ Broadcaster.prototype.maxRelays = function (object) {
   }
 
   if (Math.abs(object.relays) >= self.config.relayLimit) {
-    library.logger.debug('Broadcast relays exhausted', object);
+    library.logger.debug('broadcaster', 'Broadcast relays exhausted', object);
     return true;
   } else {
     object.relays++; // Next broadcast
@@ -206,7 +206,7 @@ Broadcaster.prototype.maxRelays = function (object) {
  * @return {setImmediateCallback} cb
  */
 __private.filterQueue = function (cb) {
-  library.logger.debug('Broadcasts before filtering: ' + self.queue.length);
+  library.logger.debug('broadcaster', 'Broadcasts queue size before filtering: ' + self.queue.length);
 
   async.filter(self.queue, function (broadcast, filterCb) {
     if (broadcast.options.immediate) {
@@ -220,7 +220,7 @@ __private.filterQueue = function (cb) {
   }, function (err, broadcasts) {
     self.queue = broadcasts;
 
-    library.logger.debug('Broadcasts after filtering: ' + self.queue.length);
+    library.logger.debug('broadcaster', 'Broadcasts queue size after filtering: ' + self.queue.length);
     return setImmediate(cb);
   });
 };
@@ -293,10 +293,10 @@ __private.squashQueue = function (broadcasts) {
  * @return {setImmediateCallback} cb
  */
 __private.releaseQueue = function (cb) {
-  library.logger.debug('Releasing enqueued broadcasts');
+  library.logger.debug('broadcaster', 'Releasing enqueued broadcasts');
 
   if (!self.queue.length) {
-    library.logger.debug('Queue empty');
+    library.logger.debug('broadcaster', 'Queue empty');
     return setImmediate(cb);
   }
 
@@ -322,9 +322,9 @@ __private.releaseQueue = function (cb) {
     }
   ], function (err, broadcasts) {
     if (err) {
-      library.logger.debug('Failed to release broadcast queue', err);
+      library.logger.debug('broadcaster', 'Failed to release broadcast queue', err);
     } else {
-      library.logger.debug('Broadcasts released: ' + broadcasts.length);
+      library.logger.debug('broadcaster', 'Broadcasts released: ' + broadcasts.length);
     }
     return setImmediate(cb);
   });

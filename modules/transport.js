@@ -94,7 +94,7 @@ __private.hashsum = function (obj) {
  * @param {string} extraMessage
  */
 __private.removePeer = function (options, extraMessage) {
-  library.logger.debug([options.code, 'Removing peer', options.peer.string, extraMessage].join(' '));
+  library.logger.debug('peers', [options.code, 'Removing peer', options.peer.string, extraMessage].join(' '));
   modules.peers.remove(options.peer.ip, options.peer.port);
 };
 
@@ -141,7 +141,7 @@ __private.receiveSignatures = function (query, cb) {
       async.eachSeries(signatures, function (signature, eachSeriesCb) {
         __private.receiveSignature(signature, function (err) {
           if (err) {
-            library.logger.debug(err, signature);
+            library.logger.debug('transport', `Failed to verify signature ${signature}: ${err?.message || err}`, err.stack);
           }
 
           return setImmediate(eachSeriesCb);
@@ -210,7 +210,7 @@ __private.receiveTransactions = function (query, peer, extraLogMessage, cb) {
 
         __private.receiveTransaction(transaction, peer, extraLogMessage, function (err) {
           if (err) {
-            library.logger.debug(err, transaction);
+            library.logger.debug('transactions', err, transaction);
           }
 
           return setImmediate(eachSeriesCb);
@@ -243,7 +243,7 @@ __private.receiveTransaction = function (transaction, peer, extraLogMessage, cb)
   try {
     transaction = library.logic.transaction.objectNormalize(transaction);
   } catch (e) {
-    library.logger.debug('Transaction normalization failed', { id: id, err: e.toString(), module: 'transport', tx: transaction });
+    library.logger.debug('transport', 'Transaction normalization failed', { id: id, err: e.toString(), module: 'transport', tx: transaction });
 
     __private.removePeer({ peer: peer, code: 'ETRANSACTION' }, extraLogMessage);
 
@@ -251,11 +251,11 @@ __private.receiveTransaction = function (transaction, peer, extraLogMessage, cb)
   }
 
   library.balancesSequence.add(function (cb) {
-    library.logger.debug('Received transaction ' + transaction.id + ' from peer ' + peer.string);
+    library.logger.debug('transactions', 'Received transaction ' + transaction.id + ' from peer ' + peer.string);
     modules.transactions.processUnconfirmedTransaction(transaction, true, function (err) {
       if (err) {
-        library.logger.debug(['Transaction', id].join(' '), err.toString());
-        if (transaction) { library.logger.debug('Transaction', transaction); }
+        library.logger.debug('transactions', ['Transaction', id].join(' '), err.toString());
+        if (transaction) { library.logger.debug('transport', 'Transaction', transaction); }
 
         return setImmediate(cb, err.toString());
       } else {
@@ -574,7 +574,7 @@ Transport.prototype.internal = {
         });
 
     if (!escapedIds.length) {
-      library.logger.debug('Common block request validation failed', { err: 'ESCAPE', req: ids });
+      library.logger.debug('transport', 'Common block request validation failed', { err: 'ESCAPE', req: ids });
 
       __private.removePeer({ peer: peer, code: 'ECOMMON' }, extraLogMessage);
 
@@ -584,7 +584,7 @@ Transport.prototype.internal = {
     library.db.query(sql.getCommonBlock, escapedIds).then(function (rows) {
       return setImmediate(cb, null, { success: true, common: rows[0] || null });
     }).catch(function (err) {
-      library.logger.error(err.stack);
+      library.logger.error('api-transport', `Failed to get common block: ${err?.message || err}`, err.stack);
       return setImmediate(cb, 'Failed to get common block');
     });
   },
@@ -610,7 +610,7 @@ Transport.prototype.internal = {
     try {
       block = library.logic.block.objectNormalize(block);
     } catch (e) {
-      library.logger.debug('Block normalization failed', { err: e.toString(), module: 'transport', block: block });
+      library.logger.debug('api-transport', 'Block normalization failed', { err: e.toString(), module: 'transport', block: block });
 
       __private.removePeer({ peer: peer, code: 'EBLOCK' }, extraLogMessage);
 
@@ -714,7 +714,7 @@ Transport.prototype.internal = {
         return setImmediate(cb, null, { success: false, message: 'Invalid hash sum' });
       }
     } catch (e) {
-      library.logger.error(e.stack);
+      library.logger.error('api-transport', e.stack);
       return setImmediate(cb, null, { success: false, message: e.toString() });
     }
 
@@ -752,7 +752,7 @@ Transport.prototype.internal = {
         return setImmediate(cb, null, { success: false, message: 'Invalid hash sum' });
       }
     } catch (e) {
-      library.logger.error(e.stack);
+      library.logger.error('api-transport', e.stack);
       return setImmediate(cb, null, { success: false, message: e.toString() });
     }
 

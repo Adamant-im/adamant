@@ -49,7 +49,7 @@ class ClientWs {
           delete this.describes[socket.id];
         });
       } catch (e) {
-        logger.debug('Error Connection socket: ' + e);
+        logger.debug('ws-client-server', `Error Connection socket: ${e?.message || e}`, e.stack);
       }
     });
 
@@ -69,7 +69,7 @@ class ClientWs {
         s.socket.emit('newTrans', t);
       });
     } catch (e) {
-      this.logger.debug('Socket error emit ' + e);
+      logger.debug('ws-client-server', `Socker error emit: ${e?.message || e}`, e.stack);
     }
   }
 }

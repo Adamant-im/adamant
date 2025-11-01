@@ -88,14 +88,14 @@ __private.initialize = function () {
  */
 __private.syncTrigger = function (turnOn) {
   if (turnOn === false && __private.syncIntervalId) {
-    library.logger.trace('Clearing sync interval');
+    library.logger.trace('loader', 'Clearing sync interval');
     clearTimeout(__private.syncIntervalId);
     __private.syncIntervalId = null;
   }
   if (turnOn === true && !__private.syncIntervalId) {
-    library.logger.trace('Setting sync interval');
+    library.logger.trace('loader', 'Setting sync interval');
     setImmediate(function nextSyncTrigger () {
-      library.logger.trace('Sync trigger');
+      library.logger.trace('loader', 'Sync trigger');
       library.network.wsServer.emit('loader/sync', {
         blocks: __private.blocksToSync,
         height: modules.blocks.lastBlock.get().height
@@ -116,17 +116,17 @@ __private.syncTrigger = function (turnOn) {
  * @implements {__private.initialize}
  */
 __private.syncTimer = function () {
-  library.logger.trace('Setting sync timer');
+  library.logger.trace('loader', 'Setting sync timer');
 
   function nextSync (cb) {
-    library.logger.trace('Sync timer trigger', { loaded: __private.loaded, syncing: self.syncing(), last_receipt: modules.blocks.lastReceipt.get() });
+    library.logger.trace('loader', 'Sync timer trigger', { loaded: __private.loaded, syncing: self.syncing(), last_receipt: modules.blocks.lastReceipt.get() });
 
     if (__private.loaded && !self.syncing() && modules.blocks.lastReceipt.isStale()) {
       library.sequence.add(function (sequenceCb) {
         async.retry(__private.retries, __private.sync, sequenceCb);
       }, function (err) {
         if (err) {
-          library.logger.error('Sync timer', err);
+          library.logger.error('loader', 'Sync timer error:', err);
           __private.initialize();
         }
         return setImmediate(cb);
@@ -165,7 +165,7 @@ __private.loadSignatures = function (cb) {
       });
     },
     function (peer, waterCb) {
-      library.logger.log('Loading signatures from: ' + peer.string);
+      library.logger.log('loader', 'Loading signatures from: ' + peer.string);
 
       modules.transport.getFromPeer(peer, {
         api: '/signatures',
@@ -229,7 +229,7 @@ __private.loadTransactions = function (cb) {
       });
     },
     function (peer, waterCb) {
-      library.logger.log('Loading transactions from: ' + peer.string);
+      library.logger.log('loader', 'Loading transactions from: ' + peer.string);
 
       modules.transport.getFromPeer(peer, {
         api: '/transactions',
@@ -255,9 +255,9 @@ __private.loadTransactions = function (cb) {
         try {
           transaction = library.logic.transaction.objectNormalize(transaction);
         } catch (e) {
-          library.logger.debug('Transaction normalization failed', { id: id, err: e.toString(), module: 'loader', tx: transaction });
+          library.logger.debug('loader', 'Transaction normalization failed', { id: id, err: e.toString(), module: 'loader', tx: transaction });
 
-          library.logger.warn(['Transaction', id, 'is not valid, peer removed'].join(' '), peer.string);
+          library.logger.warn('peers', ['Transaction', id, 'is not valid, peer removed'].join(' '), peer.string);
           modules.peers.remove(peer.ip, peer.port);
 
           return setImmediate(eachSeriesCb, e);
@@ -276,7 +276,7 @@ __private.loadTransactions = function (cb) {
         }, function (err) {
           if (err) {
             // TODO: Validate if must include error propagation.
-            library.logger.debug(err);
+            library.logger.debug('loader', `Failed to process transaction ${transaction.id}. Error: ${err?.message || err}`);
           }
           return setImmediate(eachSeriesCb);
         });
@@ -355,7 +355,7 @@ __private.loadBlockChain = function () {
               return testCb(null, count < offset);
             }, function (cb) {
               if (count > 1) {
-                library.logger.info('Rebuilding blockchain, current block height: ' + (offset + 1));
+                library.logger.info('loader', 'Rebuilding blockchain, current block height: ' + (offset + 1));
               }
               modules.blocks.process.loadBlocksOffset(limit, offset, verify, function (err, lastBlock) {
                 if (err) {
@@ -374,16 +374,16 @@ __private.loadBlockChain = function () {
       }
     }, function (err) {
       if (err) {
-        library.logger.error(err);
+        library.logger.error('loader', err);
         if (err.block) {
-          library.logger.error('Blockchain failed at: ' + err.block.height);
+          library.logger.error('loader', 'Blockchain failed at: ' + err.block.height);
           modules.blocks.chain.deleteAfterBlock(err.block.id, function (err, res) {
-            library.logger.error('Blockchain clipped');
+            library.logger.error('loader', 'Blockchain clipped');
             library.bus.message('blockchainReady');
           });
         }
       } else {
-        library.logger.info('Blockchain ready');
+        library.logger.info('loader', 'Blockchain ready');
         library.bus.message('blockchainReady');
       }
     });
@@ -391,8 +391,8 @@ __private.loadBlockChain = function () {
 
   function reload (count, message) {
     if (message) {
-      library.logger.warn(message);
-      library.logger.warn('Recreating memory tables');
+      library.logger.warn('loader', message);
+      library.logger.warn('loader', 'Recreating memory tables');
     }
 
     return load(count);
@@ -418,7 +418,7 @@ __private.loadBlockChain = function () {
         row.blockSignature.toString('hex') === __private.genesisBlock.block.blockSignature
       );
       if (matched) {
-        library.logger.info('Genesis block matched with database');
+        library.logger.info('loader', 'Genesis block matched with database');
       } else {
         throw 'Failed to match genesis block with database';
       }
@@ -427,7 +427,7 @@ __private.loadBlockChain = function () {
 
   function verifySnapshot (count, round) {
     if (library.config.loading.snapshot !== undefined || library.config.loading.snapshot > 0) {
-      library.logger.info('Snapshot mode enabled');
+      library.logger.info('loader', 'Snapshot mode enabled');
 
       if (isNaN(library.config.loading.snapshot) || library.config.loading.snapshot >= round) {
         library.config.loading.snapshot = round;
@@ -439,7 +439,7 @@ __private.loadBlockChain = function () {
         modules.rounds.setSnapshotRounds(library.config.loading.snapshot);
       }
 
-      library.logger.info('Snapshotting to end of round: ' + library.config.loading.snapshot);
+      library.logger.info('loader', 'Snapshotting to end of round: ' + library.config.loading.snapshot);
       return true;
     } else {
       return false;
@@ -449,7 +449,7 @@ __private.loadBlockChain = function () {
   library.db.task(checkMemTables).then(function (results) {
     var count = results[0].count;
 
-    library.logger.info('Blocks ' + count);
+    library.logger.info('loader', 'Blocks count in database: ' + count);
 
     var round = modules.rounds.calc(count);
 
@@ -482,7 +482,7 @@ __private.loadBlockChain = function () {
     var duplicatedDelegates = +results[4][0].count;
 
     if (duplicatedDelegates > 0) {
-      library.logger.error('Delegates table corrupted with duplicated entries');
+      library.logger.error('loader', 'Delegates table corrupted with duplicated entries');
       return process.emit('exit');
     }
 
@@ -510,13 +510,13 @@ __private.loadBlockChain = function () {
           return reload(count, err || 'Failed to load last block');
         } else {
           __private.lastBlock = block;
-          library.logger.info('Blockchain ready');
+          library.logger.info('loader', 'Blockchain ready');
           library.bus.message('blockchainReady');
         }
       });
     });
   }).catch(function (err) {
-    library.logger.error(err.stack || err);
+    library.logger.error('loader', `Failed to load blockchain: ${err?.message || err}`, err.stack);
     return process.emit('exit');
   });
 };
@@ -553,8 +553,7 @@ __private.loadBlocksFromNetwork = function (cb) {
 
               modules.blocks.process.loadBlocksFromPeer(peer, function (err, lastValidBlock) {
                 if (err) {
-                  library.logger.error(err.toString());
-                  library.logger.error('Failed to load blocks from: ' + peer.string);
+                  library.logger.error('loader', `Failed to load blocks from ${peer.string}: ${err?.message || err}`, err.stack);
                   errorCount += 1;
                 }
                 loaded = lastValidBlock.id === lastBlock.id;
@@ -564,15 +563,15 @@ __private.loadBlocksFromNetwork = function (cb) {
             }
 
             function getCommonBlock (cb) {
-              library.logger.info('Looking for common block with: ' + peer.string);
+              library.logger.info('loader', 'Looking for common block with: ' + peer.string);
               modules.blocks.process.getCommonBlock(peer, lastBlock.height, function (err, commonBlock) {
                 if (!commonBlock) {
-                  if (err) { library.logger.error(err.toString()); }
-                  library.logger.error('Failed to find common block with: ' + peer.string);
+                  if (err) { library.logger.error('loader', err.toString()); }
+                  library.logger.error('loader', 'Failed to find common block with: ' + peer.string);
                   errorCount += 1;
                   return next();
                 } else {
-                  library.logger.info(['Found common block:', commonBlock.id, 'with:', peer.string].join(' '));
+                  library.logger.info('loader', ['Found common block:', commonBlock.id, 'with:', peer.string].join(' '));
                   return setImmediate(cb);
                 }
               });
@@ -586,7 +585,7 @@ __private.loadBlocksFromNetwork = function (cb) {
           },
           function (err) {
             if (err) {
-              library.logger.error('Failed to load blocks from network', err);
+              library.logger.error('loader', 'Failed to load blocks from network', err);
               return setImmediate(cb, err);
             } else {
               return setImmediate(cb);
@@ -614,7 +613,7 @@ __private.loadBlocksFromNetwork = function (cb) {
  * @todo check err actions
  */
 __private.sync = function (cb) {
-  library.logger.info('Starting sync');
+  library.logger.info('loader', 'Starting sync');
   library.bus.message('syncStarted');
 
   __private.isActive = true;
@@ -622,11 +621,11 @@ __private.sync = function (cb) {
 
   async.series({
     undoUnconfirmedList: function (seriesCb) {
-      library.logger.debug('Undoing unconfirmed transactions before sync');
+      library.logger.debug('loader', 'Undoing unconfirmed transactions before sync');
       return modules.transactions.undoUnconfirmedList(seriesCb);
     },
     getPeersBefore: function (seriesCb) {
-      library.logger.debug('Establishing broadhash consensus before sync');
+      library.logger.debug('loader', 'Establishing broadhash consensus before sync');
       return modules.transport.getPeers({ limit: constants.maxPeers }, seriesCb);
     },
     loadBlocksFromNetwork: function (seriesCb) {
@@ -636,11 +635,11 @@ __private.sync = function (cb) {
       return modules.system.update(seriesCb);
     },
     getPeersAfter: function (seriesCb) {
-      library.logger.debug('Establishing broadhash consensus after sync');
+      library.logger.debug('loader', 'Establishing broadhash consensus after sync');
       return modules.transport.getPeers({ limit: constants.maxPeers }, seriesCb);
     },
     applyUnconfirmedList: function (seriesCb) {
-      library.logger.debug('Applying unconfirmed transactions after sync');
+      library.logger.debug('loader', 'Applying unconfirmed transactions after sync');
       return modules.transactions.applyUnconfirmedList(seriesCb);
     }
   }, function (err) {
@@ -648,7 +647,7 @@ __private.sync = function (cb) {
     __private.syncTrigger(false);
     __private.blocksToSync = 0;
 
-    library.logger.info('Finished sync');
+    library.logger.info('loader', 'Finished sync');
     library.bus.message('syncFinished');
     return setImmediate(cb, err);
   });
@@ -671,14 +670,14 @@ __private.sync = function (cb) {
  */
 __private.findGoodPeers = function (heights) {
   var lastBlockHeight = modules.blocks.lastBlock.get().height;
-  library.logger.trace('Good peers - received', { count: heights.length });
+  library.logger.trace('loader', 'Good peers - received', { count: heights.length });
 
   heights = heights.filter(function (item) {
     // Removing unreachable peers or heights below last block height
     return item != null && item.height >= lastBlockHeight;
   });
 
-  library.logger.trace('Good peers - filtered', { count: heights.length });
+  library.logger.trace('loader', 'Good peers - filtered', { count: heights.length });
 
   // No peers found
   if (heights.length === 0) {
@@ -714,8 +713,8 @@ __private.findGoodPeers = function (heights) {
       return library.logic.peers.create(item);
     });
 
-    library.logger.trace('Good peers - accepted', { count: peers.length });
-    library.logger.debug('Good peers', peers);
+    library.logger.trace('loader', 'Good peers - accepted', { count: peers.length });
+    library.logger.debug('loader', 'Good peers', peers);
 
     return { height: height, peers: peers };
   }
@@ -840,7 +839,7 @@ Loader.prototype.isLoaded = function () {
  * @return {function} calls to __private.syncTimer()
  */
 Loader.prototype.onPeersReady = function () {
-  library.logger.trace('Peers ready', { module: 'loader' });
+  library.logger.trace('loader', 'Peers ready');
   // Enforce sync early
   __private.syncTimer();
 
@@ -852,7 +851,7 @@ Loader.prototype.onPeersReady = function () {
         if (__private.loaded) {
           async.retry(__private.retries, __private.loadTransactions, function (err) {
             if (err) {
-              library.logger.log('Unconfirmed transactions loader', err);
+              library.logger.log('loader', 'Unconfirmed transactions loader', err);
             }
 
             return setImmediate(seriesCb);
@@ -865,7 +864,7 @@ Loader.prototype.onPeersReady = function () {
         if (__private.loaded) {
           async.retry(__private.retries, __private.loadSignatures, function (err) {
             if (err) {
-              library.logger.log('Signatures loader', err);
+              library.logger.error('loader', 'Failed to load signatures:', err);
             }
 
             return setImmediate(seriesCb);
@@ -875,7 +874,7 @@ Loader.prototype.onPeersReady = function () {
         }
       }
     }, function (err) {
-      library.logger.trace('Transactions and signatures pulled');
+      library.logger.trace('loader', 'Transactions and signatures pulled');
 
       if (err) {
         __private.initialize();

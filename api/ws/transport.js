@@ -29,7 +29,7 @@ class TransportWsApi {
     this.startRotation();
 
     const self = this;
-    self.logger.info(`[WsNodeClient] Created TransportWsApi`);
+    self.logger.info('ws-node-client', `Created TransportWsApi`);
   }
 
   /**
@@ -38,7 +38,7 @@ class TransportWsApi {
   initialize() {
     const self = this;
 
-    self.logger.info(`[WsNodeClient] Connecting to random peers via WebSocket…`);
+    self.logger.info('ws-node-client', `Connecting to random peers via WebSocket…`);
 
     // Clear existing connections
     self.connections.forEach(({ socket }) => {
@@ -52,7 +52,7 @@ class TransportWsApi {
       if (err || !peers.length) {
         const reason = err ?? 'No suitable peers found';
         self.logger.info(
-          `[WsNodeClient] Unable to initialize peers: ${reason}. Scheduling reconnection…`,
+          'ws-node-client', `Unable to initialize peers: ${reason}. Scheduling reconnection…`,
         );
         return self.scheduleReconnect();
       }
@@ -75,7 +75,7 @@ class TransportWsApi {
       return;
     }
 
-    self.logger.debug(`[WsNodeClient] Connecting to WebSocket peer ${peerUrl}…`);
+    self.logger.debug('ws-node-client', `Connecting to WebSocket peer ${peerUrl}…`);
 
     const socket = io(peerUrl, {
       reconnection: false,
@@ -89,7 +89,7 @@ class TransportWsApi {
     socket.on('connect_error', (err) => self.handleConnectError(peer, err));
     socket.on('disconnect', (reason) => self.handleDisconnect(peer, reason));
     socket.on('disconnect_reason', (reason) => {
-      this.logger.debug(`[WsNodeClient] ${peer.ip}:${peer.port} rejected connection`, reason);
+      this.logger.debug('ws-node-client', `${peer.ip}:${peer.port} rejected connection`, reason);
     });
 
     self.connections.set(peerUrl, { socket, peer });
@@ -101,7 +101,7 @@ class TransportWsApi {
    * @param {Peer} peer target peer
    */
   handleConnect(socket, peer) {
-    this.logger.info(`[WsNodeClient] Connected to peer WebSocket at ${peer.ip}:${peer.port}`);
+    this.logger.info('ws-node-client', `Connected to peer WebSocket at ${peer.ip}:${peer.port}`);
 
     this.peers.switchToWs(peer);
     this.peers.recordRequest(peer.ip, peer.port, null);
@@ -115,7 +115,7 @@ class TransportWsApi {
    * @param {string} err error message
    */
   handleConnectError(peer, err) {
-    this.logger.debug(`[WsNodeClient] Connection error with ${peer.ip}:${peer.port}`, err.message);
+    this.logger.debug('ws-node-client', `Connection error with ${peer.ip}:${peer.port}`, err.message);
 
     this.peers.switchToHttp(peer);
     this.peers.recordRequest(peer.ip, peer.port, err);
@@ -129,7 +129,7 @@ class TransportWsApi {
    * @param {string} reason disconnection reason
    */
   handleDisconnect(peer, reason) {
-    this.logger.info(`[WsNodeClient] Disconnected from ${peer.ip}:${peer.port}`, reason);
+    this.logger.info('ws-node-client', `Disconnected from ${peer.ip}:${peer.port}`, reason);
     this.peers.switchToHttp(peer);
     this.replacePeer(peer);
   }
@@ -149,7 +149,7 @@ class TransportWsApi {
     self.getRandomPeer((err, newPeer) => {
       if (err || !newPeer) {
         const reason = err ?? 'No suitable peers found';
-        self.logger.debug(`[WsNodeClient] Failed to find replacement peer for ${disconnectedPeer}. ${reason}`);
+        self.logger.debug('ws-node-client', `Failed to find replacement peer for ${disconnectedPeer}. ${reason}`);
         return;
       }
 
@@ -245,11 +245,11 @@ class TransportWsApi {
   updatePeers() {
     const self = this;
 
-    self.logger.info('[WsNodeClient] Updating peers…');
+    self.logger.info('ws-node-client', 'Updating peers…');
 
     this.connections.forEach(({ peer }) => {
       if (self.peers.isBanned(peer)) {
-        self.logger.info(`[WsNodeClient] Disconnecting from banned peer ws://${peer.ip}:${peer.port}…`);
+        self.logger.info('ws-node-client', `Disconnecting from banned peer ws://${peer.ip}:${peer.port}…`);
         self.cleanupConnection(peer);
       }
     });
@@ -257,14 +257,14 @@ class TransportWsApi {
     const availableSlots = this.maxConnections - this.connections.size;
 
     if (availableSlots <= 0) {
-      self.logger.info('[WsNodeClient] Max connections reached. No peers updated.');
+      self.logger.info('ws-node-client', 'Max connections reached. No peers updated.');
       return;
     }
 
     this.getRandomPeers(availableSlots, (err, candidates) => {
       if (err || !candidates.length) {
         const reason = err ?? 'Every peer is already connected via WebSocket';
-        self.logger.info(`[WsNodeClient] ${reason}. No peers updated.`);
+        self.logger.info('ws-node-client', `${reason}. No peers updated.`);
         return;
       }
 
@@ -295,7 +295,7 @@ class TransportWsApi {
   rotatePeers() {
     const self = this;
 
-    self.logger.info('[WsNodeClient] Rotating peers…');
+    self.logger.info('ws-node-client', 'Rotating peers…');
 
     const totalConnections = self.connections.size;
 
@@ -311,16 +311,16 @@ class TransportWsApi {
     self.getRandomPeers(countToRotate, (err, newPeers) => {
       if (err || !newPeers.length) {
         const reason = err ?? 'No suitable peers found';
-        self.logger.info(`[WsNodeClient] Could not rotate peers: ${reason}`);
+        self.logger.info('ws-node-client', `Could not rotate peers: ${reason}`);
         return;
       }
 
-      self.logger.info(`[WsNodeClient] Rotating ${newPeers.length} out of ${totalConnections} peers.`);
+      self.logger.info('ws-node-client', `Rotating ${newPeers.length} out of ${totalConnections} peers.`);
 
       const peersToRotate = shuffled.slice(0, newPeers.length).map((connection) => connection.peer);
 
       peersToRotate.forEach(peer => {
-        self.logger.debug(`[WsNodeClient] Rotating peer ${peer.ip}:${peer.port}`);
+        self.logger.debug('ws-node-client', `Rotating peer ${peer.ip}:${peer.port}`);
         self.cleanupConnection(peer);
       });
 

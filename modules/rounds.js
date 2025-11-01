@@ -77,7 +77,7 @@ Rounds.prototype.flush = function (round, cb) {
   library.db.none(sql.flush, { round: round }).then(function () {
     return setImmediate(cb);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('rounds', `Failed to flush mem_round: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Rounds#flush error');
   });
 };
@@ -116,8 +116,7 @@ Rounds.prototype.backwardTick = function (block, previousBlock, done) {
   function BackwardTick (t) {
     var promised = new Round(scope, t);
 
-    library.logger.debug('Performing backward tick');
-    library.logger.trace(scope);
+    library.logger.debug('rounds', 'Performing backward tick');
 
     return promised.mergeBlockGenerator().then(function () {
       if (scope.finishRound) {
@@ -155,7 +154,7 @@ Rounds.prototype.backwardTick = function (block, previousBlock, done) {
       library.db.tx(BackwardTick).then(function () {
         return setImmediate(cb);
       }).catch(function (err) {
-        library.logger.error(err.stack);
+        library.logger.error('rounds', `Failed to perform a backward tick: ${err?.message || err}`, err.stack);
         return setImmediate(cb, err);
       });
     }
@@ -211,8 +210,7 @@ Rounds.prototype.tick = function (block, done) {
   function Tick (t) {
     var promised = new Round(scope, t);
 
-    library.logger.debug('Performing forward tick');
-    library.logger.trace(scope);
+    library.logger.debug('rounds', 'Performing forward tick');
 
     return promised.mergeBlockGenerator().then(function () {
       if (scope.finishRound) {
@@ -253,14 +251,14 @@ Rounds.prototype.tick = function (block, done) {
       library.db.tx(Tick).then(function () {
         return setImmediate(cb);
       }).catch(function (err) {
-        library.logger.error(err.stack);
+        library.logger.error('rounds', err.stack);
         return setImmediate(cb, err);
       });
     },
     function (cb) {
       // Check if we are one block before last block of round, if yes - perform round snapshot
       if ((block.height + 1) % slots.delegates === 0) {
-        library.logger.debug('Performing round snapshot...');
+        library.logger.debug('rounds', 'Performing round snapshot...');
 
         library.db.tx(function (t) {
           return t.batch([
@@ -270,10 +268,10 @@ Rounds.prototype.tick = function (block, done) {
             t.none(sql.performVotesSnapshot)
           ]);
         }).then(function () {
-          library.logger.trace('Round snapshot done');
+          library.logger.trace('rounds', 'Round snapshot done');
           return setImmediate(cb);
         }).catch(function (err) {
-          library.logger.error('Round snapshot failed', err);
+          library.logger.error('rounds', 'Round snapshot failed', err);
           return setImmediate(cb, err);
         });
       } else {
@@ -375,7 +373,7 @@ __private.getOutsiders = function (scope, cb) {
       }
       return setImmediate(eachCb);
     }, function (err) {
-      library.logger.trace('Got outsiders', scope.roundOutsiders);
+      library.logger.trace('rounds', 'Got outsiders', scope.roundOutsiders);
       return setImmediate(cb, err);
     });
   });
@@ -391,7 +389,7 @@ __private.getOutsiders = function (scope, cb) {
  * @return {setImmediateCallback} err When failed to sum round | cb
  */
 __private.sumRound = function (scope, cb) {
-  library.logger.debug('Summing round', scope.round);
+  library.logger.debug('rounds', 'Summing round', scope.round);
 
   library.db.query(sql.summedRound, { round: scope.round, activeDelegates: constants.activeDelegates }).then(function (rows) {
     var rewards = [];
@@ -404,14 +402,14 @@ __private.sumRound = function (scope, cb) {
     scope.roundRewards = rewards;
     scope.roundDelegates = rows[0].delegates;
 
-    library.logger.trace('roundFees', scope.roundFees);
-    library.logger.trace('roundRewards', scope.roundRewards);
-    library.logger.trace('roundDelegates', scope.roundDelegates);
+    library.logger.trace('rounds', 'roundFees', scope.roundFees);
+    library.logger.trace('rounds', 'roundRewards', scope.roundRewards);
+    library.logger.trace('rounds', 'roundDelegates', scope.roundDelegates);
 
     return setImmediate(cb);
   }).catch(function (err) {
-    library.logger.error('Failed to sum round', scope.round);
-    library.logger.error(err.stack);
+    library.logger.error('rounds', 'Failed to sum round', scope.round);
+    library.logger.error('rounds', err.stack);
     return setImmediate(cb, err);
   });
 };

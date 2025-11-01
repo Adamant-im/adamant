@@ -55,7 +55,7 @@ function TransactionPool (broadcastInterval, releaseLimit, maxTxsPerQueue, trans
   function nextBundle (cb) {
     self.processBundled(function (err) {
       if (err) {
-        library.logger.log('Bundled transaction timer', err);
+        library.logger.log('transaction-pool', 'Bundled transaction timer', err);
       }
       return setImmediate(cb);
     });
@@ -67,7 +67,7 @@ function TransactionPool (broadcastInterval, releaseLimit, maxTxsPerQueue, trans
   function nextExpiry (cb) {
     self.expireTransactions(function (err) {
       if (err) {
-        library.logger.log('Transaction expiry timer', err);
+        library.logger.log('transaction-pool', 'Transaction expiry timer', err);
       }
       return setImmediate(cb);
     });
@@ -377,13 +377,13 @@ TransactionPool.prototype.processBundled = function (cb) {
 
     __private.processVerifyTransaction(transaction, true, function (err, sender) {
       if (err) {
-        library.logger.debug('Failed to process / verify bundled transaction: ' + transaction.id, err);
+        library.logger.debug('transaction-pool', 'Failed to process / verify bundled transaction: ' + transaction.id, err);
         self.removeUnconfirmedTransaction(transaction);
         return setImmediate(eachSeriesCb);
       } else {
         self.queueTransaction(transaction, function (err) {
           if (err) {
-            library.logger.debug('Failed to queue bundled transaction: ' + transaction.id, err);
+            library.logger.debug('transaction-pool', 'Failed to queue bundled transaction: ' + transaction.id, err);
           }
           return setImmediate(eachSeriesCb);
         });
@@ -500,7 +500,7 @@ TransactionPool.prototype.undoUnconfirmedList = function (cb) {
       ids.push(transaction.id);
       modules.transactions.undoUnconfirmed(transaction, function (err) {
         if (err) {
-          library.logger.error('Failed to undo unconfirmed transaction: ' + transaction.id, err);
+          library.logger.error('transaction-pool', 'Failed to undo unconfirmed transaction: ' + transaction.id, err);
           self.removeUnconfirmedTransaction(transaction.id);
         }
         return setImmediate(eachSeriesCb);
@@ -556,7 +556,7 @@ TransactionPool.prototype.fillPool = function (cb) {
   if (modules.loader.syncing()) { return setImmediate(cb); }
 
   var unconfirmedCount = self.countUnconfirmed();
-  library.logger.debug('Transaction pool size: ' + unconfirmedCount);
+  library.logger.debug('transaction-pool', 'Transaction pool size: ' + unconfirmedCount);
 
   if (unconfirmedCount >= constants.maxTxsPerBlock) {
     return setImmediate(cb);
@@ -700,13 +700,13 @@ __private.applyUnconfirmedList = function (transactions, cb) {
     }
     __private.processVerifyTransaction(transaction, false, function (err, sender) {
       if (err) {
-        library.logger.error('Failed to process / verify unconfirmed transaction: ' + transaction.id, err);
+        library.logger.error('transaction-pool', 'Failed to process / verify unconfirmed transaction: ' + transaction.id, err);
         self.removeUnconfirmedTransaction(transaction.id);
         return setImmediate(eachSeriesCb);
       }
       modules.transactions.applyUnconfirmed(transaction, sender, function (err) {
         if (err) {
-          library.logger.error('Failed to apply unconfirmed transaction: ' + transaction.id, err);
+          library.logger.error('transaction-pool', 'Failed to apply unconfirmed transaction: ' + transaction.id, err);
           self.removeUnconfirmedTransaction(transaction.id);
         }
         return setImmediate(eachSeriesCb);
@@ -757,7 +757,7 @@ __private.expireTransactions = function (transactions, parentIds, cb) {
     if (seconds > timeOut) {
       ids.push(transaction.id);
       self.removeUnconfirmedTransaction(transaction.id);
-      library.logger.info('Expired transaction: ' + transaction.id + ' received at: ' + transaction.receivedAt.toUTCString());
+      library.logger.info('transaction-pool', 'Expired transaction: ' + transaction.id + ' received at: ' + transaction.receivedAt.toUTCString());
       return setImmediate(eachSeriesCb);
     } else {
       return setImmediate(eachSeriesCb);

@@ -152,7 +152,7 @@ __private.getBlockSlotData = function (slot, height, cb) {
  */
 __private.forge = function (cb) {
   if (!Object.keys(__private.keypairs).length) {
-    library.logger.debug('No delegates enabled');
+    library.logger.debug('delegates', 'No delegates enabled');
     return __private.loadDelegates(cb);
   }
 
@@ -160,7 +160,7 @@ __private.forge = function (cb) {
   // Do not try to forge new blocks as client is not ready
   const syncPending = !modules.loader.isReadyToSync() || modules.loader.syncing();
   if (!__private.loaded || syncPending || !modules.rounds.loaded() || modules.rounds.ticking()) {
-    library.logger.debug('Client not ready to forge');
+    library.logger.debug('delegates', 'Client not ready to forge');
     return setImmediate(cb);
   }
 
@@ -168,18 +168,18 @@ __private.forge = function (cb) {
   var lastBlock = modules.blocks.lastBlock.get();
 
   if (currentSlot === slots.getSlotNumber(lastBlock.timestamp)) {
-    library.logger.debug('Waiting for next delegate slot');
+    library.logger.debug('delegates', 'Waiting for next delegate slot');
     return setImmediate(cb);
   }
 
   __private.getBlockSlotData(currentSlot, lastBlock.height + 1, function (err, currentBlockData) {
     if (err || currentBlockData === null) {
-      library.logger.warn('Skipping delegate slot', err);
+      library.logger.warn('delegates', 'Skipping delegate slot', err);
       return setImmediate(cb);
     }
 
     if (slots.getSlotNumber(currentBlockData.time) !== slots.getSlotNumber()) {
-      library.logger.debug('Delegate slot', slots.getSlotNumber());
+      library.logger.debug('delegates', 'Delegate slot', slots.getSlotNumber());
       return setImmediate(cb);
     }
 
@@ -197,7 +197,7 @@ __private.forge = function (cb) {
         }
       }, function (err) {
         if (err) {
-          library.logger.warn(err);
+          library.logger.warn('delegates', err);
           return setImmediate(cb, err);
         } else {
           return modules.blocks.process.generateBlock(currentBlockData.keypair, currentBlockData.time, cb);
@@ -205,12 +205,12 @@ __private.forge = function (cb) {
       });
     }, function (err) {
       if (err) {
-        library.logger.error('Failed to generate block within delegate slot', err);
+        library.logger.error('delegates', 'Failed to generate block within delegate slot', err);
       } else {
         var forgedBlock = modules.blocks.lastBlock.get();
         modules.blocks.lastReceipt.update();
 
-        library.logger.info([
+        library.logger.info('delegates', [
           'Forged new block id:', forgedBlock.id,
           'height:', forgedBlock.height,
           'round:', modules.rounds.calc(forgedBlock.height),
@@ -269,7 +269,7 @@ __private.checkDelegates = function (publicKey, votes, state, cb) {
       try {
         Buffer.from(publicKey, 'hex');
       } catch (e) {
-        library.logger.error(e.stack);
+        library.logger.error('delegates', `Invalid public key: ${publicKey}`, e.stack);
         return setImmediate(cb, 'Invalid public key');
       }
 
@@ -330,7 +330,7 @@ __private.loadDelegates = function (cb) {
   if (!secrets || !secrets.length) {
     return setImmediate(cb);
   } else {
-    library.logger.info(['Loading', secrets.length, 'delegates from config'].join(' '));
+    library.logger.info('delegates', ['Loading', secrets.length, 'delegates from config'].join(' '));
   }
 
   async.eachSeries(secrets, function (secret, cb) {
@@ -350,9 +350,9 @@ __private.loadDelegates = function (cb) {
 
       if (account.isDelegate) {
         __private.keypairs[keypair.publicKey.toString('hex')] = keypair;
-        library.logger.info(['Forging enabled on account:', account.address].join(' '));
+        library.logger.info('delegates', ['Forging enabled on account:', account.address].join(' '));
       } else {
-        library.logger.warn(['Account with public key:', keypair.publicKey.toString('hex'), 'is not a delegate'].join(' '));
+        library.logger.warn('delegates', ['Account with public key:', keypair.publicKey.toString('hex'), 'is not a delegate'].join(' '));
       }
 
       return setImmediate(cb);
@@ -516,7 +516,7 @@ Delegates.prototype.checkUnconfirmedDelegates = function (publicKey, votes, cb) 
  * @param {string} cause
  */
 Delegates.prototype.fork = function (block, cause) {
-  library.logger.info('Fork', {
+  library.logger.info('delegates', 'Fork', {
     delegate: block.generatorPublicKey,
     block: { id: block.id, timestamp: block.timestamp, height: block.height, previousBlock: block.previousBlock },
     cause: cause
@@ -555,7 +555,7 @@ Delegates.prototype.validateBlockSlot = function (block, cb) {
     if (delegate_id && block.generatorPublicKey === delegate_id) {
       return setImmediate(cb);
     } else {
-      library.logger.error('Expected generator: ' + delegate_id + ' Received generator: ' + block.generatorPublicKey);
+      library.logger.error('delegates', 'Expected generator: ' + delegate_id + ' Received generator: ' + block.generatorPublicKey);
       return setImmediate(cb, 'Failed to verify slot: ' + currentSlot);
     }
   });
@@ -604,7 +604,7 @@ Delegates.prototype.onBlockchainReady = function () {
   __private.loadDelegates(function (err) {
     function nextForge (cb) {
       if (err) {
-        library.logger.error('Failed to load delegates', err);
+        library.logger.error('delegates', 'Failed to load delegates', err);
       }
 
       async.series([
@@ -672,7 +672,7 @@ Delegates.prototype.internal = {
         }
         if (account && account.isDelegate) {
           __private.keypairs[keypair.publicKey.toString('hex')] = keypair;
-          library.logger.info('Forging enabled on account: ' + account.address);
+          library.logger.info('delegates', 'Forging enabled on account: ' + account.address);
           return setImmediate(cb, null, { address: account.address });
         } else {
           return setImmediate(cb, 'Delegate not found');
@@ -710,7 +710,7 @@ Delegates.prototype.internal = {
         }
         if (account && account.isDelegate) {
           delete __private.keypairs[keypair.publicKey.toString('hex')];
-          library.logger.info('Forging disabled on account: ' + account.address);
+          library.logger.info('delegates', 'Forging disabled on account: ' + account.address);
           return setImmediate(cb, null, { address: account.address });
         } else {
           return setImmediate(cb, 'Delegate not found');
@@ -853,7 +853,7 @@ Delegates.prototype.shared = {
       })).then(function (rows) {
         return setImmediate(cb, null, { delegates: rows });
       }).catch(function (err) {
-        library.logger.error(err.stack);
+        library.logger.error('api-delegates', `An error occurred while trying to find a delegate "${req.body.q}": ${err?.message || err}`, err.stack);
         return setImmediate(cb, 'Database search failed');
       });
     });
@@ -863,7 +863,7 @@ Delegates.prototype.shared = {
     library.db.one(sql.count).then(function (row) {
       return setImmediate(cb, null, { count: row.count });
     }).catch(function (err) {
-      library.logger.error(err.stack);
+      library.logger.error('api-delegates', `An error occurred while trying to count delegates: ${err?.message || err}`, err.stack);
       return setImmediate(cb, 'Failed to count delegates');
     });
   },
@@ -888,7 +888,7 @@ Delegates.prototype.shared = {
           }
         });
       }).catch(function (err) {
-        library.logger.error(err.stack);
+        library.logger.error('api-delegates', `An error occurred while trying to get a delegate's voters ${req.body.publicKey}: ${err?.message || err}`, err.stack);
         return setImmediate(cb, 'Failed to get voters for delegate: ' + req.body.publicKey);
       });
     });

@@ -85,9 +85,9 @@ Peers.prototype.upsert = function (peer, insertOnly) {
     if (!_.isEmpty(modules.peers.acceptable([peer]))) {
       peer.updated = Date.now();
       __private.peers[peer.string] = peer;
-      library.logger.info('Added new peer', peer.string);
+      library.logger.info('peers', 'Added new peer', peer.string);
     } else {
-      library.logger.debug('Rejecting unacceptable peer', peer.string);
+      library.logger.debug('peers', 'Rejecting unacceptable peer', peer.string);
     }
   };
 
@@ -108,16 +108,16 @@ Peers.prototype.upsert = function (peer, insertOnly) {
     __private.peers[peer.string].update(peer);
 
     if (Object.keys(diff).length) {
-      library.logger.debug('Updated peer ' + peer.string, diff);
+      library.logger.debug('peers', 'Updated peer ' + peer.string, diff);
     } else {
-      library.logger.trace('Peer not changed', peer.string);
+      library.logger.trace('peers', 'Peer not changed', peer.string);
     }
   };
 
   peer = self.create(peer);
 
   if (!peer.string) {
-    library.logger.warn('Upsert invalid peer rejected', { peer: peer });
+    library.logger.warn('peers', 'Upsert invalid peer rejected', { peer: peer });
     return false;
   }
 
@@ -152,7 +152,7 @@ Peers.prototype.upsert = function (peer, insertOnly) {
     }
   });
 
-  library.logger.trace('Peer stats', { total: cnt_total, alive: cnt_active, empty_height: cnt_empty_height, empty_broadhash: cnt_empty_broadhash });
+  library.logger.trace('peers', 'Peer stats', { total: cnt_total, alive: cnt_active, empty_height: cnt_empty_height, empty_broadhash: cnt_empty_broadhash });
 
   return true;
 };
@@ -166,13 +166,13 @@ Peers.prototype.remove = function (peer) {
   peer = self.create(peer);
   // Remove peer if exists
   if (self.exists(peer)) {
-    library.logger.info('Removed peer', peer.string);
-    library.logger.debug('Removed peer', { peer: __private.peers[peer.string] });
+    library.logger.info('peers', 'Removed peer', peer.string);
+    library.logger.debug('peers', 'Removed peer', { peer: __private.peers[peer.string] });
     __private.peers[peer.string] = null; // Possible memory leak prevention
     delete __private.peers[peer.string];
     return true;
   } else {
-    library.logger.debug('Failed to remove peer', { err: 'AREMOVED', peer: peer });
+    library.logger.debug('peers', 'Failed to remove peer', { err: 'AREMOVED', peer: peer });
     return false;
   }
 };
@@ -185,7 +185,7 @@ Peers.prototype.remove = function (peer) {
  */
 Peers.prototype.recordRequest = function (data, error) {
   if (!self.exists(data)) {
-    library.logger.debug('Failed to update request success rate for peer', {
+    library.logger.debug('peers', 'Failed to update request success rate for peer', {
       peer: data,
       err: error,
     });

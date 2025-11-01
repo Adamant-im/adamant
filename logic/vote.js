@@ -173,8 +173,7 @@ Vote.prototype.verifyVote = function (vote, cb) {
 Vote.prototype.checkConfirmedDelegates = function (trs, cb) {
   modules.delegates.checkConfirmedDelegates(trs.senderPublicKey, trs.asset.votes, function (err) {
     if (err && exceptions.votes.indexOf(trs.id) > -1) {
-      library.logger.debug(err);
-      library.logger.debug(JSON.stringify(trs));
+      library.logger.debug('votes', `Ignored known vote exception for transaction ${trs.id}: ${err}`, trs);
       err = null;
     }
 
@@ -193,8 +192,7 @@ Vote.prototype.checkConfirmedDelegates = function (trs, cb) {
 Vote.prototype.checkUnconfirmedDelegates = function (trs, cb) {
   modules.delegates.checkUnconfirmedDelegates(trs.senderPublicKey, trs.asset.votes, function (err) {
     if (err && exceptions.votes.indexOf(trs.id) > -1) {
-      library.logger.debug(err);
-      library.logger.debug(JSON.stringify(trs));
+      library.logger.debug('votes', `Ignored known vote exception for unconfirmed transaction ${trs.id}: ${err}`, trs);
       err = null;
     }
 

@@ -37,7 +37,7 @@ var middleware = {
    */
   errorLogger: function (logger, err, req, res, next) {
     if (!err) { return next(); }
-    logger.error('API error ' + req.url, err.message);
+    logger.error('http', 'API error ' + req.url, err.message);
     res.status(500).send({ success: false, error: 'API error: ' + err.message });
   },
 
@@ -50,7 +50,7 @@ var middleware = {
    */
   logClientConnections: function (logger, req, res, next) {
     // Log client connections
-    logger.log(req.method + ' ' + req.url + ' from ' + req.ip);
+    logger.log('http', req.method + ' ' + req.url + ' from ' + req.ip);
 
     return next();
   },
@@ -163,14 +163,14 @@ var middleware = {
         var expressSendJson = res.json;
         res.json = function (response) {
           if (response.success) {
-            logger.debug('cached response for key: ', req.url);
+            logger.debug('cache', 'cached response for key: ', req.url);
             cache.setJsonForKey(key, response);
           }
           expressSendJson.call(res, response);
         };
         next();
       } else {
-        logger.debug(['serving response for url:', req.url, 'from cache'].join(' '));
+        logger.debug('cache', ['serving response for url:', req.url, 'from cache'].join(' '));
         res.json(cachedValue);
       }
     });

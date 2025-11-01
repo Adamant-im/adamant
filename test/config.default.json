@@ -3,6 +3,7 @@
   "address": "0.0.0.0",
   "fileLogLevel": "info",
   "logFileName": "logs/adamant_testnet.log",
+  "debugFileName": "logs/adamant_testnet_debug.log",
   "consoleLogLevel": "info",
   "trustProxy": false,
   "topAccounts": true,

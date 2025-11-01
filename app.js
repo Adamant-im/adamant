@@ -177,16 +177,17 @@ var config = {
  * @property {object} - Logger instance.
  */
 var logger = new Logger({
-  echo: appConfig.consoleLogLevel,
+  consoleLogLevel: appConfig.consoleLogLevel,
   errorLevel: appConfig.fileLogLevel,
-  filename: appConfig.logFileName
+  filename: appConfig.logFileName,
+  debugFilename: appConfig.debugFileName
 });
 
 // Trying to get last git commit
 try {
   lastCommit = git.getLastCommit();
 } catch (err) {
-  logger.debug('Cannot get last git commit', err.message);
+  logger.debug('system', 'Cannot get last git commit', err.message);
 }
 
 /**
@@ -196,7 +197,7 @@ try {
 var d = require('domain').create();
 
 d.on('error', function (err) {
-  logger.fatal('Domain master', {
+  logger.fatal('runtime', 'Domain master', {
     message: err.message,
     stack: err.stack
   });
@@ -218,7 +219,7 @@ d.run(function () {
       try {
         appConfig.nethash = Buffer.from(genesisblock.payloadHash, 'hex').toString('hex');
       } catch (e) {
-        logger.error('Failed to assign nethash from genesis block');
+        logger.error('genesis', 'Failed to assign nethash from genesis block');
         throw Error(e);
       }
 
@@ -354,7 +355,7 @@ d.run(function () {
     dbSequence: ['logger', function (scope, cb) {
       var sequence = new Sequence({
         onWarning: function (current, limit) {
-          scope.logger.warn('DB queue', current);
+          scope.logger.warn('queue', 'Database queue size is too big. Tasks that queued database changes:', current);
         }
       });
       cb(null, sequence);
@@ -363,7 +364,7 @@ d.run(function () {
     sequence: ['logger', function (scope, cb) {
       var sequence = new Sequence({
         onWarning: function (current, limit) {
-          scope.logger.warn('Main queue', current);
+          scope.logger.warn('queue', 'Main queue size is too big. Jobs in the queue:', current);
         }
       });
       cb(null, sequence);
@@ -372,7 +373,7 @@ d.run(function () {
     balancesSequence: ['logger', function (scope, cb) {
       var sequence = new Sequence({
         onWarning: function (current, limit) {
-          scope.logger.warn('Balance queue', current);
+          scope.logger.warn('queue', 'Balance queue is overloaded. Tasks that require changing balance in the queue:', current);
         }
       });
       cb(null, sequence);
@@ -587,14 +588,14 @@ d.run(function () {
           var d = require('domain').create();
 
           d.on('error', function (err) {
-            scope.logger.fatal('Domain ' + name, {
+            scope.logger.fatal('runtime', 'Domain ' + name, {
               message: err.message,
               stack: err.stack
             });
           });
 
           d.run(function () {
-            logger.debug('Loading module', name);
+            logger.debug('startup', 'Loading module', name);
             var Klass = require(config.modules[name]);
             var obj = new Klass(cb, scope);
             modules.push(obj);
@@ -638,7 +639,7 @@ d.run(function () {
             var ApiEndpoint = require(apiEndpointPath);
             new ApiEndpoint(scope.modules[moduleName], scope.network.app, scope.logger, scope.modules.cache);
           } catch (e) {
-            scope.logger.error('Unable to load API endpoint for ' + moduleName + ' of ' + protocol, e);
+            scope.logger.error('startup', 'Unable to load API endpoint for ' + moduleName + ' of ' + protocol, e);
           }
         });
       });
@@ -665,12 +666,12 @@ d.run(function () {
      */
     listen: ['ready', function (scope, cb) {
       scope.network.server.listen(scope.config.port, scope.config.address, function (err) {
-        scope.logger.info('ADAMANT started: ' + scope.config.address + ':' + scope.config.port);
+        scope.logger.info('startup', 'ADAMANT started: ' + scope.config.address + ':' + scope.config.port);
 
         if (!err) {
           if (scope.config.ssl.enabled) {
             scope.network.https.listen(scope.config.ssl.options.port, scope.config.ssl.options.address, function (err) {
-              scope.logger.info('ADAMANT https started: ' + scope.config.ssl.options.address + ':' + scope.config.ssl.options.port);
+              scope.logger.info('startup', 'ADAMANT https started: ' + scope.config.ssl.options.address + ':' + scope.config.ssl.options.port);
 
               cb(err, scope.network);
             });
@@ -684,7 +685,7 @@ d.run(function () {
     }]
   }, function (err, scope) {
     if (err) {
-      logger.fatal(err);
+      logger.fatal('startup', err);
     } else {
       /**
        * Handles app instance (acts as global variable, passed as parameter).
@@ -714,7 +715,7 @@ d.run(function () {
        * @todo logic repeats: bus, ed, genesisblock, logger, schema.
        * @todo description for nonce and ready
        */
-      scope.logger.info('Modules ready and launched');
+      scope.logger.info('startup', 'Modules ready and launched');
       /**
        * Event reporting a cleanup.
        * @event cleanup
@@ -724,7 +725,7 @@ d.run(function () {
        * @listens cleanup
        */
       process.once('cleanup', function () {
-        scope.logger.info('Cleaning up...');
+        scope.logger.info('exit', 'Cleaning up...');
         async.eachSeries(modules, function (module, cb) {
           if (typeof (module.cleanup) === 'function') {
             module.cleanup(cb);
@@ -733,9 +734,9 @@ d.run(function () {
           }
         }, function (err) {
           if (err) {
-            scope.logger.error(err);
+            scope.logger.error('exit', 'An error occurred while cleaning up modules:', err);
           } else {
-            scope.logger.info('Cleaned up successfully');
+            scope.logger.info('exit', 'Cleaned up successfully');
           }
           process.exit(1);
         });
@@ -802,7 +803,7 @@ d.run(function () {
  */
 process.on('uncaughtException', function (err) {
   // Handle error safely
-  logger.fatal('System error', {
+  logger.fatal('runtime', 'System error', {
     message: err.message,
     stack: err.stack
   });

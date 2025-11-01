@@ -287,11 +287,11 @@ __private.list = function (filter, cb) {
 
       return setImmediate(cb, null, data);
     }).catch(function (err) {
-      library.logger.error(err.stack);
+      library.logger.error('api-transactions', `An error occurred while trying to get list of transactions: ${err?.message || err}`, err.stack);
       return setImmediate(cb, 'Transactions#list error');
     });
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-transactions', `An error occurred while trying to get transactions count: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Transactions#list error');
   });
 };
@@ -313,7 +313,7 @@ __private.getById = function (id, cb) {
 
     return setImmediate(cb, null, transacton);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-transactions', `An error occurred while trying to get transaction ${id}: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Transactions#getById error');
   });
 };
@@ -335,7 +335,7 @@ __private.getByIdFullAsset = function (id, cb) {
 
     return setImmediate(cb, null, transacton);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-transactions', `An error occurred while trying to get transaction ${id} from 'trs_list_full' table: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Transactions#getById error');
   });
 };
@@ -368,7 +368,7 @@ __private.getVotesById = function (transaction, cb) {
 
     return setImmediate(cb, null, transaction);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-transactions', `An error occurred while trying to get votes for a transaction ${transaction.id}: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Transactions#getVotesById error');
   });
 };
@@ -769,7 +769,7 @@ Transactions.prototype.undoUnconfirmedList = function (cb) {
  * @param {function} cb - Callback function
  */
 Transactions.prototype.apply = function (transaction, block, sender, cb) {
-  library.logger.debug('Applying confirmed transaction', transaction.id);
+  library.logger.debug('transactions', 'Applying confirmed transaction', transaction.id);
   library.logic.transaction.apply(transaction, block, sender, cb);
 };
 
@@ -782,7 +782,7 @@ Transactions.prototype.apply = function (transaction, block, sender, cb) {
  * @param {function} cb - Callback function
  */
 Transactions.prototype.undo = function (transaction, block, sender, cb) {
-  library.logger.debug('Undoing confirmed transaction', transaction.id);
+  library.logger.debug('transactions', 'Undoing confirmed transaction', transaction.id);
   library.logic.transaction.undo(transaction, block, sender, cb);
 };
 
@@ -796,7 +796,7 @@ Transactions.prototype.undo = function (transaction, block, sender, cb) {
  * @return {setImmediateCallback} for errors
  */
 Transactions.prototype.applyUnconfirmed = function (transaction, sender, cb) {
-  library.logger.debug('Applying unconfirmed transaction', transaction.id);
+  library.logger.debug('transactions', 'Applying unconfirmed transaction', transaction.id);
 
   if (!sender && transaction.blockId !== library.genesisblock.block.id) {
     return setImmediate(cb, 'Invalid block id');
@@ -828,7 +828,7 @@ Transactions.prototype.applyUnconfirmed = function (transaction, sender, cb) {
  * @return {setImmediateCallback} For error
  */
 Transactions.prototype.undoUnconfirmed = function (transaction, cb) {
-  library.logger.debug('Undoing unconfirmed transaction', transaction.id);
+  library.logger.debug('transactions', 'Undoing unconfirmed transaction', transaction.id);
 
   modules.accounts.getAccount({ publicKey: transaction.senderPublicKey }, function (err, sender) {
     if (err) {

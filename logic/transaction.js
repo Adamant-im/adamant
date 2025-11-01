@@ -378,7 +378,11 @@ Transaction.prototype.countById = function (trs, cb) {
   }).then(function (row) {
     return setImmediate(cb, null, row.count);
   }).catch(function (err) {
-    this.scope.logger.error(err.stack);
+    this.scope.logger.error(
+      'transactions',
+      `An error occurred while fetching transactions count by ID: ${err?.message || err}`,
+      err.stack,
+    );
     return setImmediate(cb, 'Transaction#countById error');
   });
 };
@@ -459,7 +463,11 @@ Transaction.prototype.process = function (trs, sender, requester, cb) {
   try {
     txId = this.getId(trs);
   } catch (e) {
-    this.scope.logger.error(e.stack);
+    this.scope.logger.error(
+      'transactions',
+      `Failed to get transaction ID: ${err?.message || err}`,
+      { trs, stack: err.stack },
+    );
     return setImmediate(cb, 'Failed to get transaction id');
   }
 
@@ -537,8 +545,7 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
     err = ['Invalid sender public key:', trs.senderPublicKey, 'expected:', sender.publicKey].join(' ');
 
     if (exceptions.senderPublicKey.indexOf(trs.id) > -1) {
-      this.scope.logger.debug(err);
-      this.scope.logger.debug(JSON.stringify(trs));
+      this.scope.logger.debug('transactions', err, trs);
     } else {
       return setImmediate(cb, err);
     }
@@ -584,7 +591,11 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
     valid = false;
     valid = this.verifySignature(trs, (trs.requesterPublicKey || trs.senderPublicKey), trs.signature);
   } catch (e) {
-    this.scope.logger.error(e.stack);
+    this.scope.logger.error(
+      'transactions',
+      'An error occurred while trying to verify signature for a transaction.',
+      { trs, stack: e.stack },
+    );
     return setImmediate(cb, e.toString());
   }
 
@@ -592,8 +603,7 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
     err = 'Failed to verify signature';
 
     if (exceptions.signatures.indexOf(trs.id) > -1) {
-      this.scope.logger.debug(err);
-      this.scope.logger.debug(JSON.stringify(trs));
+      this.scope.logger.debug('transactions', err, trs);
       valid = true;
       err = null;
     } else {
@@ -654,8 +664,7 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
   var fee = __private.types[trs.type].calculateFee.call(this, trs, sender) || false;
   if (!fee || trs.fee !== fee) {
     if (exceptions.fee.indexOf(trs.id) > -1) {
-      this.scope.logger.debug('Invalid transaction fee');
-      this.scope.logger.debug(JSON.stringify(trs));
+      this.scope.logger.debug('transactions', 'Invalid transaction fee', trs);
     } else {
       return setImmediate(cb, 'Invalid transaction fee');
     }
@@ -822,17 +831,15 @@ Transaction.prototype.apply = function (trs, block, sender, cb) {
 
   amount = amount.toNumber();
 
-  this.scope.logger.trace('Logic/Transaction->apply', {
-    sender: sender.address,
+  const diff = {
     balance: -amount,
     blockId: block.id,
     round: modules.rounds.calc(block.height)
-  });
-  this.scope.account.merge(sender.address, {
-    balance: -amount,
-    blockId: block.id,
-    round: modules.rounds.calc(block.height)
-  }, function (err, sender) {
+  };
+
+  this.scope.logger.trace('transactions', 'Logic/Transaction->apply', diff);
+
+  this.scope.account.merge(sender.address, diff, function (err, sender) {
     if (err) {
       return setImmediate(cb, err);
     }
@@ -872,17 +879,15 @@ Transaction.prototype.undo = function (trs, block, sender, cb) {
   var amount = new bignum(trs.amount.toString());
   amount = amount.plus(trs.fee.toString()).toNumber();
 
-  this.scope.logger.trace('Logic/Transaction->undo', {
-    sender: sender.address,
+  const diff = {
     balance: amount,
     blockId: block.id,
     round: modules.rounds.calc(block.height)
-  });
-  this.scope.account.merge(sender.address, {
-    balance: amount,
-    blockId: block.id,
-    round: modules.rounds.calc(block.height)
-  }, function (err, sender) {
+  };
+
+  this.scope.logger.trace('transactions', 'Logic/Transaction->undo', diff);
+
+  this.scope.account.merge(sender.address, diff, function (err, sender) {
     if (err) {
       return setImmediate(cb, err);
     }
@@ -943,7 +948,11 @@ Transaction.prototype.applyUnconfirmed = function (trs, sender, requester, cb) {
         }
         this.scope.clientWs.emit(new_trs);
       }).catch((err) => {
-        this.scope.logger.error(err.stack);
+        this.scope.logger.error(
+          'ws-client-server',
+          'An error occurred while trying to retrieve publicKey for a recipient',
+          { new_trs, stack: err.stack }
+        );
       });
     } else {
       this.scope.clientWs.emit(new_trs);
@@ -1297,7 +1306,7 @@ Transaction.prototype.dbRead = function (raw) {
  * @param {Object} __modules
  */
 Transaction.prototype.bindModules = function (__modules) {
-  this.scope.logger.trace('Logic/Transaction->bindModules');
+  this.scope.logger.trace('transactions', 'Logic/Transaction->bindModules');
   modules = {
     rounds: __modules.rounds
   };
