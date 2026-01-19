@@ -73,7 +73,7 @@ printf "%s ADAMANT %s Node Repair/Bootstrap started…\n" \
 
 SECONDS=0
 
-printf "\nADAMANT mainnet/testnet Node Repair/bootstrap Tool v1.3.6 for Ubuntu 20–24.\n"
+printf "\nADAMANT mainnet/testnet Node Repair/bootstrap Tool v1.3.7 for Ubuntu 20–24.\n"
 printf "Make sure you obtained this file from the adamant.im website or GitHub.\n"
 printf "This tool resets the ADM mainnet/testnet blockchain DB, loads a fresh image, and restarts your node.\n"
 printf "Alternatively, follow the step-by-step manual guide: https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
@@ -135,7 +135,6 @@ REPO_DIR="${NODE_HOME}/adamant"
 su - "$username" -s /bin/bash <<EOSU
 set -Eeuo pipefail
 trap 'echo -e "\n[ERROR] (user:\$USER) failed at line \$LINENO: \$BASH_COMMAND\n" >&2' ERR
-set -x
 
 # Inject values from parent (root) shell
 REPO_DIR="${REPO_DIR}"
