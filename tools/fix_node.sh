@@ -73,7 +73,7 @@ printf "%s ADAMANT %s Node Repair/Bootstrap started…\n" \
 
 SECONDS=0
 
-printf "\nADAMANT mainnet/testnet Node Repair/bootstrap Tool v1.3.5 for Ubuntu 20–24.\n"
+printf "\nADAMANT mainnet/testnet Node Repair/bootstrap Tool v1.3.6 for Ubuntu 20–24.\n"
 printf "Make sure you obtained this file from the adamant.im website or GitHub.\n"
 printf "This tool resets the ADM mainnet/testnet blockchain DB, loads a fresh image, and restarts your node.\n"
 printf "Alternatively, follow the step-by-step manual guide: https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
@@ -152,18 +152,12 @@ echo "Entering ADM node directory…"
 cd "\$REPO_DIR" || { printf "\nCannot enter '%s'. Aborting.\n\n" "\$REPO_DIR"; exit 1; }
 
 source ~/.nvm/nvm.sh >/dev/null 2>&1 || true
-source ~/.profile  >/dev/null 2>&1 || true
-source ~/.bashrc   >/dev/null 2>&1 || true
 
 echo
 echo "Downloading '\$network' blockchain image…"
 rm -f "\$image_unzipped_filename" "\$image_filename" || true
 
-if [ -t 1 ] && [ -e /dev/tty ]; then
-  wget --progress=bar:force:noscroll "\$image_url" -O "\$image_filename" 2>/dev/tty
-else
-  wget "\$image_url" -O "\$image_filename"
-fi
+wget --progress=bar:force:noscroll "\$image_url" -O "\$image_filename" 2>/dev/tty
 
 echo
 echo "Unzipping blockchain image (may take minutes)…"
