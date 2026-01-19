@@ -43,27 +43,8 @@ image_filename="$(basename "$image_url")"        # db_backup.sql.gz
 image_unzipped_filename="${image_filename%.gz}"  # db_backup.sql
 
 # Logging: Everything goes both to screen and logfile
-# This must work even if the script is executed via `bash -c` or from stdin (no BASH_SOURCE path)
-script_path=""
-if [[ -n "${BASH_SOURCE[0]:-}" && "${BASH_SOURCE[0]}" != "bash" && "${BASH_SOURCE[0]}" != "-bash" ]]; then
-  script_path="${BASH_SOURCE[0]}"
-elif [[ -n "${0:-}" && "${0}" != "bash" && "${0}" != "-bash" ]]; then
-  script_path="${0}"
-fi
-
-if [[ -n "$script_path" && -e "$script_path" ]]; then
-  SCRIPT_DIR="$(cd "$(dirname "$script_path")" && pwd)"
-else
-  SCRIPT_DIR="/tmp"
-fi
-
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOGFILE="${SCRIPT_DIR}/adamant_${network}_fix.log"
-
-# If /var/log is writable, prefer it (more expected for root-run repair scripts)
-if [[ "$SCRIPT_DIR" == "/tmp" && -w /var/log ]]; then
-  LOGFILE="/var/log/adamant_${network}_fix.log"
-fi
-
 exec > >(tee -a "$LOGFILE") 2>&1
 if [ -s "$LOGFILE" ]; then
   printf "\n\n\n===========================\n" >> "$LOGFILE"
@@ -73,7 +54,7 @@ printf "%s ADAMANT %s Node Repair/Bootstrap started…\n" \
 
 SECONDS=0
 
-printf "\nADAMANT mainnet/testnet Node Repair/bootstrap Tool v1.3.1 for Ubuntu 20–24.\n"
+printf "\nADAMANT mainnet/testnet Node Repair/bootstrap Tool v1.3.2 for Ubuntu 20–24.\n"
 printf "Make sure you obtained this file from the adamant.im website or GitHub.\n"
 printf "This tool resets the ADM mainnet/testnet blockchain DB, loads a fresh image, and restarts your node.\n"
 printf "Alternatively, follow the step-by-step manual guide: https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
@@ -132,13 +113,23 @@ sudo -u postgres psql -v ON_ERROR_STOP=1 -c "ALTER DATABASE ${databasename} OWNE
 NODE_HOME="$(eval echo "~$username")"
 REPO_DIR="${NODE_HOME}/adamant"
 
-su - "$username" <<EOSU
+su - "$username" -s /bin/bash <<EOSU
 set -Eeuo pipefail
+trap 'echo -e "\n[ERROR] (user:\$USER) heredoc failed near line \$LINENO: \$BASH_COMMAND\n" >&2' ERR
+
+# Bring required values into this shell explicitly (do not rely on outer heredoc expansion)
+network='${network}'
+databasename='${databasename}'
+processname='${processname}'
+image_url='${image_url}'
+image_filename='${image_filename}'
+image_unzipped_filename='${image_unzipped_filename}'
+REPO_DIR='${REPO_DIR}'
 
 echo
 echo
 echo "Entering ADM node directory…"
-cd "$REPO_DIR" || { printf "\nCannot enter ='%s'. Aborting.\n\n" "$REPO_DIR"; exit 1; }
+cd "\$REPO_DIR" || { printf "\nCannot enter '%s'. Aborting.\n\n" "\$REPO_DIR"; exit 1; }
 
 # Load nodejs environment (ignore errors if not present)
 source ~/.nvm/nvm.sh >/dev/null 2>&1 || true
@@ -146,37 +137,43 @@ source ~/.profile  >/dev/null 2>&1 || true
 source ~/.bashrc   >/dev/null 2>&1 || true
 
 echo
-echo "Downloading '$network' blockchain image…"
-rm -f "$image_unzipped_filename" "$image_filename" || true
-wget --progress=bar:force:noscroll "$image_url" -O "$image_filename" 2>/dev/tty
+echo "Downloading '\$network' blockchain image…"
+rm -f "\$image_unzipped_filename" "\$image_filename" || true
+
+# Avoid /dev/tty failures when running without an attached TTY
+if [ -t 1 ] && [ -e /dev/tty ]; then
+  wget --progress=bar:force:noscroll "\$image_url" -O "\$image_filename" 2>/dev/tty
+else
+  wget "\$image_url" -O "\$image_filename"
+fi
 
 echo
 echo "Unzipping blockchain image (may take minutes)…"
-gunzip -f "$image_filename"
+gunzip -f "\$image_filename"
 
 echo
-echo "Loading image into database '$databasename'…"
+echo "Loading image into database '\$databasename'…"
 echo
-psql "$databasename" < "$image_unzipped_filename"
+psql "\$databasename" < "\$image_unzipped_filename"
 
 echo
 echo
 echo "Cleaning up temp files…"
-rm -f "$image_unzipped_filename"
+rm -f "\$image_unzipped_filename"
 
 # Restart if exists, otherwise start new process
 echo
-if pm2 show "$processname" >/dev/null 2>&1; then
-  echo "Restarting existing pm2 process '$processname'…"
+if pm2 show "\$processname" >/dev/null 2>&1; then
+  echo "Restarting existing pm2 process '\$processname'…"
   echo
-  pm2 restart "$processname"
+  pm2 restart "\$processname"
 else
-  echo "Starting new pm2 process '$processname'…"
+  echo "Starting new pm2 process '\$processname'…"
   echo
-  if [[ "$network" == "mainnet" ]]; then
-    pm2 start --name "$processname" app.js
+  if [[ "\$network" == "mainnet" ]]; then
+    pm2 start --name "\$processname" app.js
   else
-    pm2 start --name "$processname" app.js -- --config "test/config.json" --genesis "test/genesisBlock.json"
+    pm2 start --name "\$processname" app.js -- --config "test/config.json" --genesis "test/genesisBlock.json"
   fi
 fi
 pm2 save || true
