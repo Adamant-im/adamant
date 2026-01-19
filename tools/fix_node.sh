@@ -43,8 +43,27 @@ image_filename="$(basename "$image_url")"        # db_backup.sql.gz
 image_unzipped_filename="${image_filename%.gz}"  # db_backup.sql
 
 # Logging: Everything goes both to screen and logfile
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# This must work even if the script is executed via `bash -c` or from stdin (no BASH_SOURCE path)
+script_path=""
+if [[ -n "${BASH_SOURCE[0]:-}" && "${BASH_SOURCE[0]}" != "bash" && "${BASH_SOURCE[0]}" != "-bash" ]]; then
+  script_path="${BASH_SOURCE[0]}"
+elif [[ -n "${0:-}" && "${0}" != "bash" && "${0}" != "-bash" ]]; then
+  script_path="${0}"
+fi
+
+if [[ -n "$script_path" && -e "$script_path" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "$script_path")" && pwd)"
+else
+  SCRIPT_DIR="/tmp"
+fi
+
 LOGFILE="${SCRIPT_DIR}/adamant_${network}_fix.log"
+
+# If /var/log is writable, prefer it (more expected for root-run repair scripts)
+if [[ "$SCRIPT_DIR" == "/tmp" && -w /var/log ]]; then
+  LOGFILE="/var/log/adamant_${network}_fix.log"
+fi
+
 exec > >(tee -a "$LOGFILE") 2>&1
 if [ -s "$LOGFILE" ]; then
   printf "\n\n\n===========================\n" >> "$LOGFILE"
