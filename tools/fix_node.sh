@@ -73,7 +73,7 @@ printf "%s ADAMANT %s Node Repair/Bootstrap started…\n" \
 
 SECONDS=0
 
-printf "\nADAMANT mainnet/testnet Node Repair/bootstrap Tool v1.3.0 for Ubuntu 20–24.\n"
+printf "\nADAMANT mainnet/testnet Node Repair/bootstrap Tool v1.3.1 for Ubuntu 20–24.\n"
 printf "Make sure you obtained this file from the adamant.im website or GitHub.\n"
 printf "This tool resets the ADM mainnet/testnet blockchain DB, loads a fresh image, and restarts your node.\n"
 printf "Alternatively, follow the step-by-step manual guide: https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
