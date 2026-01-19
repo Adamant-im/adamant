@@ -73,7 +73,7 @@ printf "%s ADAMANT %s Node Repair/Bootstrap started…\n" \
 
 SECONDS=0
 
-printf "\nADAMANT mainnet/testnet Node Repair/bootstrap Tool v1.3.4 for Ubuntu 20–24.\n"
+printf "\nADAMANT mainnet/testnet Node Repair/bootstrap Tool v1.3.5 for Ubuntu 20–24.\n"
 printf "Make sure you obtained this file from the adamant.im website or GitHub.\n"
 printf "This tool resets the ADM mainnet/testnet blockchain DB, loads a fresh image, and restarts your node.\n"
 printf "Alternatively, follow the step-by-step manual guide: https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
@@ -132,61 +132,65 @@ sudo -u postgres psql -v ON_ERROR_STOP=1 -c "ALTER DATABASE ${databasename} OWNE
 NODE_HOME="$(eval echo "~$username")"
 REPO_DIR="${NODE_HOME}/adamant"
 
-# Export variables so they are available inside `su` session
-export network databasename processname image_url image_filename image_unzipped_filename REPO_DIR
-
-su - "$username" -s /bin/bash <<'EOSU'
+su - "$username" -s /bin/bash <<EOSU
 set -Eeuo pipefail
-trap 'echo -e "\n[ERROR] (user:$USER) failed at line $LINENO: $BASH_COMMAND\n" >&2' ERR
+trap 'echo -e "\n[ERROR] (user:\$USER) failed at line \$LINENO: \$BASH_COMMAND\n" >&2' ERR
 set -x
+
+# Inject values from parent (root) shell
+REPO_DIR="${REPO_DIR}"
+network="${network}"
+databasename="${databasename}"
+processname="${processname}"
+image_url="${image_url}"
+image_filename="${image_filename}"
+image_unzipped_filename="${image_unzipped_filename}"
 
 echo
 echo
 echo "Entering ADM node directory…"
-cd "$REPO_DIR" || { printf "\nCannot enter '%s'. Aborting.\n\n" "$REPO_DIR"; exit 1; }
+cd "\$REPO_DIR" || { printf "\nCannot enter '%s'. Aborting.\n\n" "\$REPO_DIR"; exit 1; }
 
-# Load nodejs environment (ignore errors if not present)
 source ~/.nvm/nvm.sh >/dev/null 2>&1 || true
 source ~/.profile  >/dev/null 2>&1 || true
 source ~/.bashrc   >/dev/null 2>&1 || true
 
 echo
-echo "Downloading '$network' blockchain image…"
-rm -f "$image_unzipped_filename" "$image_filename" || true
+echo "Downloading '\$network' blockchain image…"
+rm -f "\$image_unzipped_filename" "\$image_filename" || true
 
-# Avoid /dev/tty failures when running without an attached TTY
 if [ -t 1 ] && [ -e /dev/tty ]; then
-  wget --progress=bar:force:noscroll "$image_url" -O "$image_filename" 2>/dev/tty
+  wget --progress=bar:force:noscroll "\$image_url" -O "\$image_filename" 2>/dev/tty
 else
-  wget "$image_url" -O "$image_filename"
+  wget "\$image_url" -O "\$image_filename"
 fi
 
 echo
 echo "Unzipping blockchain image (may take minutes)…"
-gunzip -f "$image_filename"
+gunzip -f "\$image_filename"
 
 echo
-echo "Loading image into database '$databasename'…"
+echo "Loading image into database '\$databasename'…"
 echo
-psql "$databasename" < "$image_unzipped_filename"
+psql "\$databasename" < "\$image_unzipped_filename"
 
 echo
 echo
 echo "Cleaning up temp files…"
-rm -f "$image_unzipped_filename"
+rm -f "\$image_unzipped_filename"
 
 echo
-if pm2 show "$processname" >/dev/null 2>&1; then
-  echo "Restarting existing pm2 process '$processname'…"
+if pm2 show "\$processname" >/dev/null 2>&1; then
+  echo "Restarting existing pm2 process '\$processname'…"
   echo
-  pm2 restart "$processname"
+  pm2 restart "\$processname"
 else
-  echo "Starting new pm2 process '$processname'…"
+  echo "Starting new pm2 process '\$processname'…"
   echo
-  if [[ "$network" == "mainnet" ]]; then
-    pm2 start --name "$processname" app.js
+  if [[ "\$network" == "mainnet" ]]; then
+    pm2 start --name "\$processname" app.js
   else
-    pm2 start --name "$processname" app.js -- --config "test/config.json" --genesis "test/genesisBlock.json"
+    pm2 start --name "\$processname" app.js -- --config "test/config.json" --genesis "test/genesisBlock.json"
   fi
 fi
 pm2 save || true
