@@ -2,6 +2,8 @@
 
 This document defines how AI agents must work in this repository.
 
+For practical, non-binding implementation notes, see `AI_AGENT_NOTES.md`.
+
 ## Mission
 
 ADAMANT is a blockchain node for a privacy-focused messaging network. Agent output must optimize for:

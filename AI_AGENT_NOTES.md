@@ -1,0 +1,190 @@
+# ADAMANT Node: AI Agent Working Notes (Pragmatic, Non-Binding)
+
+These notes are recommendations for faster and safer work in this repository.
+They are intentionally pragmatic, not strict policy.
+
+Primary product priorities remain:
+
+1. Feature delivery and bug fixes.
+2. Node reliability, consensus safety, and fault tolerance.
+3. Opportunistic refactoring only when low-risk and clearly justified.
+
+## 1) What This Codebase Is In Practice
+
+- Legacy Node.js architecture with callback-first flows (`setImmediate`, `async`, custom `Sequence` queues).
+- Consensus-critical logic is spread across:
+  - block pipeline (`modules/blocks/*`, `logic/block.js`)
+  - transaction pipeline (`modules/transactions.js`, `logic/transaction.js`, `logic/transactionPool.js`)
+  - rounds/delegates/slots (`modules/rounds.js`, `modules/delegates.js`, `logic/round.js`, `helpers/slots.js`)
+- State is mirrored in `mem_*` tables and round snapshots; replay/rollback behavior matters.
+- There is known technical debt (`TODO`/`FIXME`) in critical paths; treat it as context, not a license for broad rewrites.
+
+## 2) Golden Rule for AI Changes
+
+If a change can impact block acceptance, transaction validity, delegate order, round accounting, replay, or peer compatibility, optimize for deterministic safety over elegance.
+
+Prefer small targeted fixes over architecture cleanup.
+
+## 3) High-Risk Areas (Read Before Editing)
+
+- `modules/blocks/chain.js`
+  - apply/undo flows, unconfirmed rewind/apply, fatal `process.exit` branches.
+- `modules/blocks/process.js`, `modules/blocks/verify.js`, `modules/blocks/utils.js`
+  - sync/rebuild/common-block logic and validation paths.
+- `logic/transaction.js`
+  - bytes/signature/id semantics, timestamp checks, consensus-gated fields.
+- `logic/round.js`, `modules/rounds.js`
+  - fee/reward distribution and snapshot restore logic.
+- `modules/delegates.js`
+  - delegate list generation and activation-based ranking differences.
+- `modules/transport.js`, `modules/peers.js`, `logic/peer.js`
+  - handshake security, peer filtering, network compatibility checks.
+- `logic/account.js` + `sql/*`
+  - mem-table integrity and SQL coupling.
+
+## 4) Consensus Activation Patterns You Must Preserve
+
+Current major gates in code:
+
+- `helpers/constants.js` -> `fairSystemActivateBlock`
+  - delegate ranking/approval behavior changes around this height.
+- `logic/consensus/activationHeights.js` -> `spaceship`
+  - `timestampMs` behavior and normalization are consensus-gated.
+
+Practical rule:
+
+- If you change behavior around these gates, test both sides of the height boundary.
+
+## 5) Sequencing and Race Control (Critical)
+
+The project intentionally serializes state mutations using:
+
+- `sequence` (main ordered work)
+- `dbSequence` (ordered DB-heavy operations)
+- `balancesSequence` (ordered balance/account mutation flows)
+
+Recommendations:
+
+- Do not move account/balance/block mutation code out of these queues casually.
+- For new mutation paths, follow existing queue semantics in neighboring code.
+- When debugging strange state bugs, first check queue ordering and reentrancy assumptions.
+
+## 6) Legacy Patterns to Respect While Shipping
+
+You will see:
+
+- callback + `setImmediate` style everywhere
+- string-based thrown errors in many logic modules
+- mixed old/new coding styles
+- transitional backward-compatibility filters in transactions and SQL
+- comments marking deprecated fields (e.g., delegate `rate`)
+
+Recommendations:
+
+- Match local style inside touched files unless there is a compelling reason not to.
+- Avoid wide async/await rewrites in consensus-critical paths.
+- Prefer local cleanup only in the exact area needed for a feature/bugfix.
+
+## 7) SQL/Schema/Model Coupling Reality
+
+Data shape is tightly coupled across:
+
+- JS model readers/writers (`dbRead`, `dbSave`, `objectNormalize`)
+- SQL tables/views/migrations (`sql/*`, `sql/migrations/*`)
+- API response contracts and external schema repo.
+
+Recommendations:
+
+- Treat SQL and JS shape edits as one change-set.
+- If you alter fields used in `trs_list`/`trs_list_full`/`full_trs_list`, verify all callers.
+- For protocol/API-visible changes, align this repo + `adamant-schema` + `docs`.
+
+## 8) Refactoring Strategy That Fits This Repo
+
+Allowed and useful:
+
+- tiny, local refactors that reduce bug risk in touched code
+- dead-code cleanup when clearly isolated
+- extracting small pure helpers without changing execution order
+
+Avoid unless explicitly requested and fully tested:
+
+- broad module rewrites
+- changing callback flow shape in hot paths
+- “cleanup-only” edits across many consensus files
+
+Rule of thumb:
+
+- if refactor increases blast radius more than it reduces current bug risk, defer it.
+
+## 9) Fast Path for Feature/Bugfix Work
+
+Recommended execution order:
+
+1. Locate exact path: endpoint/module -> logic -> SQL/schema side effects.
+2. Write down invariants that must not change (ordering, signatures, IDs, balances).
+3. Implement minimal change.
+4. Add regression test near existing suite location.
+5. Run targeted tests first, then broaden only as needed.
+6. Document residual risks if full verification is expensive.
+
+## 10) Testing Recommendations (Pragmatic)
+
+For transaction/block/consensus changes:
+
+- Start with nearest unit tests in:
+  - `test/unit/logic/*`
+  - `test/unit/modules/*`
+- Then run relevant API tests in `test/api/*` for affected endpoints/flows.
+
+For risky state changes:
+
+- Add at least one regression test for replay/rollback-sensitive behavior.
+- Validate both normal processing and sync/rebuild code paths if touched.
+
+Always report exactly what was run vs not run.
+
+## 11) Networking and Security Notes
+
+- Keep nethash/version compatibility checks intact in peer transport/handshake.
+- Do not weaken request validation or peer filtering.
+- WebSocket peer flows (`api/ws/*`, `modules/clientWs.js`) are secondary transport surfaces; preserve auth/nonce and connection caps.
+- Avoid logging sensitive data (passphrases, seeds, private keys).
+
+## 12) Known Technical Debt Hotspots (Use With Care)
+
+There are many inline `FIXME/TODO` notes in:
+
+- `modules/blocks/*`
+- `modules/loader.js`
+- `modules/transactions.js`
+- `modules/peers.js`
+- `logic/transaction.js`
+
+Recommendation:
+
+- For each touched `FIXME`, decide explicitly:
+  - fix now (if low-risk and directly related), or
+  - leave in place and reference in PR/issue notes.
+
+## 13) Suggested “AI Output Style” for This Repo
+
+When proposing changes, communicate:
+
+- what behavior changes
+- what behavior is intentionally unchanged
+- why consensus/replay/network safety is preserved
+- what tests prove it
+- what follow-up refactor is deferred
+
+This style helps maintainers review quickly in a legacy-heavy codebase.
+
+## 14) Definition of a Good AI Change Here
+
+A good change in this repository:
+
+- fixes a real user/developer problem,
+- keeps node behavior deterministic and replay-safe,
+- does not expand risk surface unnecessarily,
+- leaves the codebase slightly clearer than before,
+- and postpones heavy refactoring unless it is required for correctness.
