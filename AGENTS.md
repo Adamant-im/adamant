@@ -221,14 +221,51 @@ This node relies on explicit sequencing to avoid state races.
 
 ## Required Testing Policy
 
-For every behavioral change, run targeted tests first, then broaden if needed.
+For every behavioral change, use a two-level validation strategy and report exactly what was run.
 
-- Unit tests: `npm run test:unit`
-- Fast unit tests: `npm run test:unit:fast`
-- API tests (requires local testnet in parallel):
+### Fast validation (default for most changes)
+
+Use this for typical feature and bugfix work when changes are local and non-consensus-critical:
+
+- Run targeted tests first:
+  - `npm run test:single -- test/path/to/test.js`
+- Run broader quick unit coverage when touching shared logic:
+  - `npm run test:unit:fast`
+- Run lint for touched files:
+  - `ESLINT_USE_FLAT_CONFIG=false npx eslint file1.js file2.js`
+
+### Full validation (required for critical or requested changes)
+
+Use full validation when change risk is high or maintainers explicitly ask for it:
+
+- Any consensus, serialization, replay, peer/network, security, SQL/migration, or activation-height change.
+- Release preparation or explicit maintainer request.
+
+Commands and prerequisites:
+
+- Ensure local test services are available (PostgreSQL and Redis) and test config is prepared.
+- Quick environment health check before tests:
+  - `pg_isready -h localhost -p 5432`
+  - `redis-cli -h 127.0.0.1 -p 6379 ping`
+- If services are installed but not running (macOS/Homebrew):
+  - `brew services start postgresql@14`
+  - `brew services start redis`
+- If services are missing (macOS/Homebrew):
+  - `brew install postgresql@14 redis`
+- Test DB/bootstrap defaults used by this repository (`test/config.json`):
+  - PostgreSQL database: `adamant_test`
+  - PostgreSQL user: `adamanttest`
+  - PostgreSQL password: `password`
+  - Redis URL: `redis://127.0.0.1:6379/1`
+- API tests require local testnet in parallel:
   - Start testnet: `npm run start:testnet`
   - Run API tests: `npm run test:api`
-- Lint: `npm run eslint`
+- Unit tests (not in parallel):
+  - `npm run test:unit`
+- Lint (full repository):
+  - `npm run eslint`
+
+Practical note: this repository currently has no Prettier workflow. Style/format checks are driven by ESLint only.
 
 Minimum expectations:
 

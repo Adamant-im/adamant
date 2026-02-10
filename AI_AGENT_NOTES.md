@@ -130,19 +130,66 @@ Recommended execution order:
 
 ## 10) Testing Recommendations (Pragmatic)
 
-For transaction/block/consensus changes:
+Use a two-level strategy:
 
-- Start with nearest unit tests in:
-  - `test/unit/logic/*`
-  - `test/unit/modules/*`
-- Then run relevant API tests in `test/api/*` for affected endpoints/flows.
+- `fast` by default for day-to-day feature/bugfix iteration
+- `full` for high-risk or explicitly requested validation
 
-For risky state changes:
+Fast validation:
 
-- Add at least one regression test for replay/rollback-sensitive behavior.
-- Validate both normal processing and sync/rebuild code paths if touched.
+- Run focused tests around touched behavior:
+  - `npm run test:single -- test/path/to/test.js`
+- If multiple shared modules are touched, add:
+  - `npm run test:unit:fast`
+- Run lint on touched files:
+  - `ESLINT_USE_FLAT_CONFIG=false npx eslint file1.js file2.js`
 
-Always report exactly what was run vs not run.
+Full validation (mandatory for risky changes):
+
+- Use when touching consensus/serialization/replay/network/security/SQL/activation logic.
+- Ensure local services are available (PostgreSQL and Redis).
+- Run testnet at least once before broader suites:
+  - `npm run start:testnet`
+- Run non-parallel unit coverage:
+  - `npm run test:unit`
+- Run API tests with testnet running in parallel:
+  - `npm run test:api`
+- Run repository-wide lint:
+  - `npm run eslint`
+
+Environment bootstrap checklist (from real run experience):
+
+1. Confirm test config exists:
+   - `test/config.json` (copy from `test/config.default.json` if missing)
+2. Check PostgreSQL and Redis health:
+   - `pg_isready -h localhost -p 5432`
+   - `redis-cli -h 127.0.0.1 -p 6379 ping`
+3. If services are installed but stopped (macOS/Homebrew):
+   - `brew services start postgresql@14`
+   - `brew services start redis`
+4. If binaries are missing (macOS/Homebrew):
+   - `brew install postgresql@14 redis`
+5. Ensure local DB credentials expected by tests are available:
+   - DB: `adamant_test`
+   - User: `adamanttest`
+   - Password: `password`
+6. Run testnet at least once and confirm startup logs before broader tests:
+   - `npm run start:testnet`
+   - Look for: `ADAMANT started` and `Blockchain ready`
+7. Stop testnet cleanly before running non-API unit suites.
+
+Observed environment pitfalls (important):
+
+- `npm run test:unit:fast` can fail early if local PostgreSQL is unavailable.
+- `npm run eslint` can fail if `config.json` is missing (copy from `config.default.json` for local runs).
+- ESLint tooling may fail because of legacy `.eslintrc.json` + ESLint v9 ecosystem drift; when this happens, lint touched files via `ESLINT_USE_FLAT_CONFIG=false npx eslint ...` and report the tooling issue explicitly.
+- This repository does not use Prettier; ESLint is the active style gate.
+
+Always report:
+
+- exact commands executed
+- pass/fail result of each command
+- what was intentionally not run and why
 
 ## 11) Networking and Security Notes
 
