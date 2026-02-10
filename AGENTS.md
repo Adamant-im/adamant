@@ -18,6 +18,122 @@ If a tradeoff is needed, preserve consensus safety first.
 - All repository artifacts must be in English only.
 - Write all code, comments, commit messages, docs, ADRs, and PR text in English.
 
+## Project Positioning and Values
+
+ADAMANT is not optimized for TPS marketing races. It prioritizes decentralization, privacy, and long-term protocol stability.
+
+- Keep node operation cheap, lightweight, and accessible for independent operators.
+- Prefer reliability and deterministic behavior over throughput-focused shortcuts.
+- Treat the network as community-owned infrastructure without centralized control.
+- Design for communication trust-layer use cases (messengers, social products, communication forks) rather than speculative "Web3 app" trends.
+
+Reference reading:
+
+- https://news.adamant.im/dissolving-adamant-foundation-transitioning-to-a-true-decentralized-community-70a39747e70b
+- https://news.adamant.im/adamant-is-a-decentralized-trust-layer-for-communication-not-a-web3-whatsapp-ef43de435f26
+- https://news.adamant.im/the-tps-illusion-why-high-speed-blockchains-lie-about-decentralization-17baee0826f3
+- https://news.adamant.im/bitcoin-promised-us-freedom-d0a7c460d9ca
+- https://news.adamant.im/building-a-utility-token-for-your-software-product-why-how-and-what-blockchain-platform-to-790473709274
+
+## Documentation and Spec Sources of Truth
+
+Use these sources when implementing or reviewing changes:
+
+- Node repository overview: `README.md` and `.github/CONTRIBUTING.md` in this repo.
+- Node documentation site: https://docs.adamant.im
+- Node documentation source: https://github.com/Adamant-im/docs (branch `dev`)
+- API schema site: https://schema.adamant.im
+- API schema source: https://github.com/Adamant-im/adamant-schema (branch `dev`)
+- AIP index and rendered pages: https://aips.adamant.im
+- AIP source and process: https://github.com/Adamant-im/AIPs (`AIPS/aip-1.md`)
+- Org-wide issue/label governance: https://github.com/Adamant-im/.github
+- Recommended issue title prefixes: https://github.com/orgs/Adamant-im/discussions/5
+- Recommended labels for issues/discussions: https://github.com/orgs/Adamant-im/discussions/1
+- Current node issues: https://github.com/Adamant-im/adamant/issues
+
+If sources disagree:
+
+1. Treat current node code and passing tests as implementation truth for current behavior.
+2. Treat `adamant-schema` and `docs` as required companion artifacts that must be aligned.
+3. Do not silently ignore mismatch; raise it and propose a synchronized fix.
+
+## Issue, Label, and PR Conventions
+
+### Issue creation workflow
+
+When creating an issue in this repository:
+
+1. Check existing open issues first: https://github.com/Adamant-im/adamant/issues
+2. Use org templates from `Adamant-im/.github/.github/ISSUE_TEMPLATE/*`.
+3. Start title with one concise prefix.
+4. Apply labels from org label catalog (`Adamant-im/.github/labels.json`).
+5. Add the issue to project `Blockchain Node` when applicable.
+6. Link related PRs and issues explicitly.
+
+### Recommended title prefixes
+
+Use one or two prefixes maximum:
+
+- `[Bug]` bug, crash, wrong behavior
+- `[Feat]` new functionality
+- `[Enhancement]` improvement of existing functionality
+- `[Refactor]` internal refactoring without behavior change
+- `[Docs]` documentation updates
+- `[Test]` testing work
+- `[Chore]` maintenance and routine technical tasks
+- `[Task]` general task (including operations/release/admin work)
+- `[Composite]` multi-part task with sub-tasks
+- `[UX/UI]` user experience or interface work
+- `[Proposal]`, `[Idea]`, `[Discussion]` mostly for forum-level ideation
+
+### Label policy
+
+- `labels.json` in `Adamant-im/.github` is the source of truth for names/colors/descriptions.
+- Use a minimal but informative set:
+  - one type/status label (for example: `bug`, `enhancement`, `Task`, `Composite task`)
+  - one or more domain labels (for example: `Nodes`, `Blockchain`, `APIs`, `Security`, `Protocol & AIPs`)
+  - optional priority labels (for example: `High priority`)
+- Keep repository-specific label casing as configured in target repo.
+
+### PR linking policy
+
+- Link issue in PR body using closing keywords where applicable (`Closes #<issue>`).
+- In the issue body, link back to the PR URL.
+- Keep PR and issue titles consistent with prefix taxonomy for release automation and searchability.
+
+## Documentation Drift Policy
+
+AI agents are allowed and expected to propose documentation updates when mismatches are found.
+
+When behavior/spec/docs drift is detected:
+
+1. Document the mismatch with exact file/endpoint references.
+2. Propose synchronized updates across:
+   - node code in this repo
+   - API schema in `Adamant-im/adamant-schema`
+   - docs in `Adamant-im/docs`
+   - AIP text when change is protocol-level
+3. If cross-repo changes cannot be done immediately, create linked issues with clear scope and dependency order.
+
+## AIP Usage Rules for Protocol Changes
+
+For protocol, consensus, serialization, or interoperability changes:
+
+- Review `AIPS/aip-1.md` first.
+- Ensure rationale, backward compatibility, and test strategy are explicit.
+- Require an AIP (or update to an existing AIP) before finalizing consensus-impacting behavior.
+- Track implementation status from draft to accepted/final states through the AIP process.
+
+## Current Issue Landscape (Snapshot: 2026-02-10)
+
+Open issues in `Adamant-im/adamant` are currently concentrated in:
+
+- Node/blockchain reliability bugs (`bug`, `Nodes`, `Blockchain`, `NodeJS`)
+- Logging and observability improvements
+- Infrastructure/documentation/protocol coordination tasks
+
+Before opening a new issue, verify that your problem is not already covered by this active set.
+
 ## System Map (What You Are Editing)
 
 - Startup and wiring: `app.js`
