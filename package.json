@@ -39,7 +39,7 @@
   "license": "GPL-3.0",
   "dependencies": {
     "async": "=3.2.6",
-    "axios": "^1.10.0",
+    "axios": "^1.13.5",
     "bignumber.js": "=9.3.1",
     "bitcore-mnemonic": "=10.10.7",
     "body-parser": "=2.2.0",
