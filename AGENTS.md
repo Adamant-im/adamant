@@ -1,8 +1,6 @@
 # ADAMANT Node: AI Agent Operating Manual
 
-This document defines how AI agents must work in this repository.
-
-For practical, non-binding implementation notes, see `AI_AGENT_NOTES.md`.
+This document defines how AI agents must work in this repository. For practical, non-binding implementation notes, see `AI_AGENT_NOTES.md`.
 
 ## Mission
 
@@ -22,7 +20,7 @@ If a tradeoff is needed, preserve consensus safety first.
 
 ## Project Positioning and Values
 
-ADAMANT is not optimized for TPS marketing races. It prioritizes decentralization, privacy, and long-term protocol stability.
+ADAMANT prioritizes decentralization, privacy, and long-term protocol stability over TPS marketing narratives.
 
 - Keep node operation cheap, lightweight, and accessible for independent operators.
 - Prefer reliability and deterministic behavior over throughput-focused shortcuts.
@@ -128,13 +126,13 @@ For protocol, consensus, serialization, or interoperability changes:
 
 ## Current Issue Landscape (Snapshot: 2026-02-10)
 
-Open issues in `Adamant-im/adamant` are currently concentrated in:
+Open issues in `Adamant-im/adamant` currently cluster around:
 
 - Node/blockchain reliability bugs (`bug`, `Nodes`, `Blockchain`, `NodeJS`)
 - Logging and observability improvements
 - Infrastructure/documentation/protocol coordination tasks
 
-Before opening a new issue, verify that your problem is not already covered by this active set.
+Before opening a new issue, confirm it is not already covered.
 
 ## System Map (What You Are Editing)
 
@@ -150,7 +148,7 @@ Before opening a new issue, verify that your problem is not already covered by t
 
 ## Current Activation Switches
 
-At the time of writing, consensus behavior is gated at least by:
+Consensus behavior is currently gated at least by:
 
 - `helpers/constants.js` -> `fairSystemActivateBlock` (delegate ranking and voting-weight behavior).
 - `logic/consensus/activationHeights.js` -> `spaceship` (transaction `timestampMs` activation path).
@@ -274,6 +272,14 @@ Minimum expectations:
 - SQL/migration changes: add or update SQL/unit coverage and replay-sensitive checks.
 
 Never claim success without listing exactly what was executed and what was not executed.
+
+## Working with Command-Line Tools
+
+When a CLI tool accepts multi-line input, always use a temporary file in `.ai-ignored/` instead of inline multi-line shell strings.
+
+- Prefer file-based flags such as `gh pr create --body-file`, `gh issue create --body-file`, and `git commit -F`.
+- Use descriptive dated filenames such as `.ai-ignored/temp.YYYY-MM-DD.pr-description.md`.
+- Cleanup is optional because `.ai-ignored/` is git-ignored, but do not accidentally reuse stale content.
 
 ## AI Change Workflow
 
