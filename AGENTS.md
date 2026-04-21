@@ -70,7 +70,7 @@ When creating an issue in this repository:
 5. Add the issue to project `Blockchain Node` when applicable.
 6. Link related PRs and issues explicitly.
 
-### Recommended title prefixes
+### Recommended title prefixes for Issues
 
 Use one or two prefixes maximum:
 
@@ -101,6 +101,16 @@ Use one or two prefixes maximum:
 - In the issue body, link back to the PR URL.
 - Keep PR and issue titles consistent with prefix taxonomy for release automation and searchability.
 
+## PR conventions
+
+- Use org PR template sections (`Description`, `Related issue`, `How to test`, `Checklist`, etc.)
+- Reference issues with closing keywords where appropriate (`Closes #<id>`)
+- Use Conventional Commits style for PR titles: `Type: Short summary` (for example: `Docs: Update AGENTS.md`)
+- Do not use issue-style square-bracket prefixes in PR titles (`[Docs]`, `[Bug]`, etc. are for Issues)
+- Keep PR title type aligned with issue intent (`Docs:`, `Fix:`, `Feat:`, `Refactor:`, `Test:`, `Chore:`)
+- Follow <https://www.conventionalcommits.org>
+- Include testing/verification steps and mention risk areas (security, privacy, protocol, storage)
+
 ## Documentation Drift Policy
 
 AI agents are allowed and expected to propose documentation updates when mismatches are found.
@@ -123,16 +133,6 @@ For protocol, consensus, serialization, or interoperability changes:
 - Ensure rationale, backward compatibility, and test strategy are explicit.
 - Require an AIP (or update to an existing AIP) before finalizing consensus-impacting behavior.
 - Track implementation status from draft to accepted/final states through the AIP process.
-
-## Current Issue Landscape (Snapshot: 2026-02-10)
-
-Open issues in `Adamant-im/adamant` currently cluster around:
-
-- Node/blockchain reliability bugs (`bug`, `Nodes`, `Blockchain`, `NodeJS`)
-- Logging and observability improvements
-- Infrastructure/documentation/protocol coordination tasks
-
-Before opening a new issue, confirm it is not already covered.
 
 ## System Map (What You Are Editing)
 
