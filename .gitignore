@@ -34,3 +34,6 @@ tmp
 node_modules
 npm-debug.log
 nodejs
+
+# ai
+.ai-ignored/

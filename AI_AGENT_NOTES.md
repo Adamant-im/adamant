@@ -1,7 +1,6 @@
 # ADAMANT Node: AI Agent Working Notes (Pragmatic, Non-Binding)
 
-These notes are recommendations for faster and safer work in this repository.
-They are intentionally pragmatic, not strict policy.
+These notes are pragmatic recommendations for faster and safer work in this repository. They are not strict policy.
 
 Primary product priorities remain:
 
@@ -44,16 +43,14 @@ Prefer small targeted fixes over architecture cleanup.
 
 ## 4) Consensus Activation Patterns You Must Preserve
 
-Current major gates in code:
+Current major gates:
 
 - `helpers/constants.js` -> `fairSystemActivateBlock`
   - delegate ranking/approval behavior changes around this height.
 - `logic/consensus/activationHeights.js` -> `spaceship`
   - `timestampMs` behavior and normalization are consensus-gated.
 
-Practical rule:
-
-- If you change behavior around these gates, test both sides of the height boundary.
+Rule of thumb: if you change behavior around these gates, test both sides of the height boundary.
 
 ## 5) Sequencing and Race Control (Critical)
 
@@ -65,9 +62,9 @@ The project intentionally serializes state mutations using:
 
 Recommendations:
 
-- Do not move account/balance/block mutation code out of these queues casually.
-- For new mutation paths, follow existing queue semantics in neighboring code.
-- When debugging strange state bugs, first check queue ordering and reentrancy assumptions.
+- Do not move account, balance, or block mutation code out of these queues casually.
+- For new mutation paths, follow neighboring queue semantics.
+- When debugging state bugs, check queue ordering and reentrancy first.
 
 ## 6) Legacy Patterns to Respect While Shipping
 
@@ -81,9 +78,9 @@ You will see:
 
 Recommendations:
 
-- Match local style inside touched files unless there is a compelling reason not to.
+- Match local style inside touched files unless there is a strong reason not to.
 - Avoid wide async/await rewrites in consensus-critical paths.
-- Prefer local cleanup only in the exact area needed for a feature/bugfix.
+- Keep cleanup local to the feature or bugfix you are shipping.
 
 ## 7) SQL/Schema/Model Coupling Reality
 
@@ -113,9 +110,7 @@ Avoid unless explicitly requested and fully tested:
 - changing callback flow shape in hot paths
 - “cleanup-only” edits across many consensus files
 
-Rule of thumb:
-
-- if refactor increases blast radius more than it reduces current bug risk, defer it.
+Rule of thumb: if a refactor increases blast radius more than it reduces current bug risk, defer it.
 
 ## 9) Fast Path for Feature/Bugfix Work
 
@@ -128,11 +123,50 @@ Recommended execution order:
 5. Run targeted tests first, then broaden only as needed.
 6. Document residual risks if full verification is expensive.
 
-## 10) Testing Recommendations (Pragmatic)
+## 10) Working with Command-Line Tools
+
+When a CLI tool accepts multi-line input, use a temporary file in `.ai-ignored/` instead of inline multi-line shell strings. This avoids quoting bugs and behaves consistently across shells.
+
+Avoid:
+
+```bash
+gh pr create --body "Line 1
+Line 2
+Line 3"
+```
+
+Recommended:
+
+```bash
+cat > .ai-ignored/temp.2026-04-04.pr-description.md <<'EOF'
+Line 1
+Line 2
+Line 3
+EOF
+
+gh pr create --body-file .ai-ignored/temp.2026-04-04.pr-description.md
+rm .ai-ignored/temp.2026-04-04.pr-description.md
+```
+
+Benefits:
+
+- avoids shell escaping issues with quotes, newlines, and special characters
+- is easier to debug and review
+- works predictably across `bash`, `zsh`, and `fish`
+- keeps scratch files under `.ai-ignored/`, which is already git-ignored
+
+Common use cases:
+
+- PR descriptions: `gh pr create --body-file .ai-ignored/temp.YYYY-MM-DD.pr-description.md --label "label1,label2"`
+- Commit messages: `git commit -F .ai-ignored/temp.YYYY-MM-DD.commit-message.md`
+- Issue creation: `gh issue create --body-file .ai-ignored/temp.YYYY-MM-DD.issue-body.md --label "label1,label2"`
+- Any other CLI that accepts file-based input for multi-line content
+
+## 11) Testing Recommendations (Pragmatic)
 
 Use a two-level strategy:
 
-- `fast` by default for day-to-day feature/bugfix iteration
+- `fast` by default for day-to-day feature and bugfix iteration
 - `full` for high-risk or explicitly requested validation
 
 Fast validation:
@@ -157,7 +191,7 @@ Full validation (mandatory for risky changes):
 - Run repository-wide lint:
   - `npm run eslint`
 
-Environment bootstrap checklist (from real run experience):
+Environment bootstrap checklist:
 
 1. Confirm test config exists:
    - `test/config.json` (copy from `test/config.default.json` if missing)
@@ -178,7 +212,7 @@ Environment bootstrap checklist (from real run experience):
    - Look for: `ADAMANT started` and `Blockchain ready`
 7. Stop testnet cleanly before running non-API unit suites.
 
-Observed environment pitfalls (important):
+Observed environment pitfalls:
 
 - `npm run test:unit:fast` can fail early if local PostgreSQL is unavailable.
 - `npm run eslint` can fail if `config.json` is missing (copy from `config.default.json` for local runs).
@@ -191,14 +225,14 @@ Always report:
 - pass/fail result of each command
 - what was intentionally not run and why
 
-## 11) Networking and Security Notes
+## 12) Networking and Security Notes
 
 - Keep nethash/version compatibility checks intact in peer transport/handshake.
 - Do not weaken request validation or peer filtering.
 - WebSocket peer flows (`api/ws/*`, `modules/clientWs.js`) are secondary transport surfaces; preserve auth/nonce and connection caps.
 - Avoid logging sensitive data (passphrases, seeds, private keys).
 
-## 12) Known Technical Debt Hotspots (Use With Care)
+## 13) Known Technical Debt Hotspots (Use With Care)
 
 There are many inline `FIXME/TODO` notes in:
 
@@ -210,11 +244,9 @@ There are many inline `FIXME/TODO` notes in:
 
 Recommendation:
 
-- For each touched `FIXME`, decide explicitly:
-  - fix now (if low-risk and directly related), or
-  - leave in place and reference in PR/issue notes.
+- For each touched `FIXME`, decide explicitly whether to fix it now or leave it in place and reference it in PR or issue notes.
 
-## 13) Suggested “AI Output Style” for This Repo
+## 14) Suggested “AI Output Style” for This Repo
 
 When proposing changes, communicate:
 
@@ -224,9 +256,9 @@ When proposing changes, communicate:
 - what tests prove it
 - what follow-up refactor is deferred
 
-This style helps maintainers review quickly in a legacy-heavy codebase.
+This helps maintainers review quickly in a legacy-heavy codebase.
 
-## 14) Definition of a Good AI Change Here
+## 15) Definition of a Good AI Change Here
 
 A good change in this repository:
 

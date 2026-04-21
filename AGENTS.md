@@ -1,8 +1,6 @@
 # ADAMANT Node: AI Agent Operating Manual
 
-This document defines how AI agents must work in this repository.
-
-For practical, non-binding implementation notes, see `AI_AGENT_NOTES.md`.
+This document defines how AI agents must work in this repository. For practical, non-binding implementation notes, see `AI_AGENT_NOTES.md`.
 
 ## Mission
 
@@ -22,7 +20,7 @@ If a tradeoff is needed, preserve consensus safety first.
 
 ## Project Positioning and Values
 
-ADAMANT is not optimized for TPS marketing races. It prioritizes decentralization, privacy, and long-term protocol stability.
+ADAMANT prioritizes decentralization, privacy, and long-term protocol stability over TPS marketing narratives.
 
 - Keep node operation cheap, lightweight, and accessible for independent operators.
 - Prefer reliability and deterministic behavior over throughput-focused shortcuts.
@@ -72,7 +70,7 @@ When creating an issue in this repository:
 5. Add the issue to project `Blockchain Node` when applicable.
 6. Link related PRs and issues explicitly.
 
-### Recommended title prefixes
+### Recommended title prefixes for Issues
 
 Use one or two prefixes maximum:
 
@@ -103,6 +101,16 @@ Use one or two prefixes maximum:
 - In the issue body, link back to the PR URL.
 - Keep PR and issue titles consistent with prefix taxonomy for release automation and searchability.
 
+## PR conventions
+
+- Use org PR template sections (`Description`, `Related issue`, `How to test`, `Checklist`, etc.)
+- Reference issues with closing keywords where appropriate (`Closes #<id>`)
+- Use this repository's PR title taxonomy: `Type: Short summary` (for example: `Docs: Update AGENTS.md`)
+- Do not use issue-style square-bracket prefixes in PR titles (`[Docs]`, `[Bug]`, etc. are for Issues)
+- Keep the PR title type aligned with issue intent (`Docs:`, `Fix:`, `Feat:`, `Refactor:`, `Test:`, `Chore:`)
+- This PR-title convention is repository-specific and only inspired by Conventional Commits concepts
+- Include testing/verification steps and mention risk areas (security, privacy, protocol, storage)
+
 ## Documentation Drift Policy
 
 AI agents are allowed and expected to propose documentation updates when mismatches are found.
@@ -126,16 +134,6 @@ For protocol, consensus, serialization, or interoperability changes:
 - Require an AIP (or update to an existing AIP) before finalizing consensus-impacting behavior.
 - Track implementation status from draft to accepted/final states through the AIP process.
 
-## Current Issue Landscape (Snapshot: 2026-02-10)
-
-Open issues in `Adamant-im/adamant` are currently concentrated in:
-
-- Node/blockchain reliability bugs (`bug`, `Nodes`, `Blockchain`, `NodeJS`)
-- Logging and observability improvements
-- Infrastructure/documentation/protocol coordination tasks
-
-Before opening a new issue, verify that your problem is not already covered by this active set.
-
 ## System Map (What You Are Editing)
 
 - Startup and wiring: `app.js`
@@ -150,7 +148,7 @@ Before opening a new issue, verify that your problem is not already covered by t
 
 ## Current Activation Switches
 
-At the time of writing, consensus behavior is gated at least by:
+Consensus behavior is currently gated at least by:
 
 - `helpers/constants.js` -> `fairSystemActivateBlock` (delegate ranking and voting-weight behavior).
 - `logic/consensus/activationHeights.js` -> `spaceship` (transaction `timestampMs` activation path).
@@ -274,6 +272,14 @@ Minimum expectations:
 - SQL/migration changes: add or update SQL/unit coverage and replay-sensitive checks.
 
 Never claim success without listing exactly what was executed and what was not executed.
+
+## Working with Command-Line Tools
+
+When a CLI tool accepts multi-line input, always use a temporary file in `.ai-ignored/` instead of inline multi-line shell strings.
+
+- Prefer file-based flags such as `gh pr create --body-file`, `gh issue create --body-file`, and `git commit -F`.
+- Use descriptive dated filenames such as `.ai-ignored/temp.YYYY-MM-DD.pr-description.md`.
+- Cleanup is optional because `.ai-ignored/` is git-ignored, but do not accidentally reuse stale content.
 
 ## AI Change Workflow
 
