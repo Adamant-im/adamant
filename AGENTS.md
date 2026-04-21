@@ -105,10 +105,10 @@ Use one or two prefixes maximum:
 
 - Use org PR template sections (`Description`, `Related issue`, `How to test`, `Checklist`, etc.)
 - Reference issues with closing keywords where appropriate (`Closes #<id>`)
-- Use Conventional Commits style for PR titles: `Type: Short summary` (for example: `Docs: Update AGENTS.md`)
+- Use this repository's PR title taxonomy: `Type: Short summary` (for example: `Docs: Update AGENTS.md`)
 - Do not use issue-style square-bracket prefixes in PR titles (`[Docs]`, `[Bug]`, etc. are for Issues)
-- Keep PR title type aligned with issue intent (`Docs:`, `Fix:`, `Feat:`, `Refactor:`, `Test:`, `Chore:`)
-- Follow <https://www.conventionalcommits.org>
+- Keep the PR title type aligned with issue intent (`Docs:`, `Fix:`, `Feat:`, `Refactor:`, `Test:`, `Chore:`)
+- This PR-title convention is repository-specific and only inspired by Conventional Commits concepts
 - Include testing/verification steps and mention risk areas (security, privacy, protocol, storage)
 
 ## Documentation Drift Policy
