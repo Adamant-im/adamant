@@ -256,6 +256,7 @@ __private.list = function (filter, cb) {
     library.db.query(sql[sql_method]({
       where: where,
       owner: owner,
+      originalField: orderBy.originalField,
       sortField: orderBy.sortField,
       sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {
@@ -487,9 +488,17 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
   } = options;
   const { originalField: sortField, sortMethod } = orderBy;
 
+  const getSortValue = (transaction) => {
+    if (sortField === 'timestamp') {
+      return transaction.timestampMs ?? transaction.timestamp * 1000;
+    }
+
+    return transaction[sortField];
+  };
+
   const compare = (a, b) => {
-    const aField = a[sortField] ? a[sortField] : Infinity;
-    const bField = b[sortField] ? b[sortField] : Infinity;
+    const aField = getSortValue(a) ?? Infinity;
+    const bField = getSortValue(b) ?? Infinity;
 
     if (aField > bField) {
       return sortMethod.toUpperCase() === 'DESC' ? -1 : 1;

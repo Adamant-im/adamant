@@ -1193,6 +1193,13 @@ describe('transaction', () => {
       expect(_.keys(transaction.objectNormalize(trs))).to.include('timestampMs');
     });
 
+    it('should use explicit block height for timestampMs activation', () => {
+      dummyHeight = consensusActivationHeights.spaceship;
+
+      const trs = _.cloneDeep(validTransaction);
+      expect(_.keys(transaction.objectNormalize(trs, consensusActivationHeights.spaceship - 1))).to.not.include('timestampMs');
+    });
+
     it('should not remove any keys with valid entries', () => {
       expect(
         _.keys(transaction.objectNormalize(validTransaction))
@@ -1246,6 +1253,17 @@ describe('transaction', () => {
       ];
       expect(trs).to.be.an('object');
       expect(trs).to.have.keys(expectedKeys);
+    });
+
+    it('should parse timestampMs from string and number values', () => {
+      const rawStringTimestampMs = _.cloneDeep(rawValidTransaction);
+      rawStringTimestampMs.t_timestampMs = '33363661001';
+
+      const rawNumberTimestampMs = _.cloneDeep(rawValidTransaction);
+      rawNumberTimestampMs.t_timestampMs = 33363661002;
+
+      expect(transaction.dbRead(rawStringTimestampMs).timestampMs).to.equal(33363661001);
+      expect(transaction.dbRead(rawNumberTimestampMs).timestampMs).to.equal(33363661002);
     });
   });
 });

@@ -81,14 +81,20 @@ function OrderBy (orderBy, options) {
 }
 
 OrderBy.formatSQLSorting = (params) => {
-  const { sortField, sortMethod } = params;
+  const {
+    originalField,
+    sortField,
+    sortMethod,
+    timestampField = '"timestamp"',
+    timestampMsField = '"timestampMs"'
+  } = params;
 
-  if (sortField === 'timestamp') {
+  if (originalField === 'timestamp') {
     // prefer timestampMs then fallback to timestamp
-    return `"timestampMs" ${sortMethod}, "timestamp" ${sortMethod}`;
+    return `COALESCE(${timestampMsField}, (${timestampField})::bigint * 1000) ${sortMethod}, ${timestampField} ${sortMethod}`;
   }
 
   return `${sortField} ${sortMethod}`;
-}
+};
 
 module.exports = OrderBy;

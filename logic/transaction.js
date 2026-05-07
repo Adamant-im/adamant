@@ -1210,7 +1210,7 @@ Transaction.prototype.schema = {
  * @return {error|transaction} error string | trs normalized
  * @throws {string} error message
  */
-Transaction.prototype.objectNormalize = function (trs) {
+Transaction.prototype.objectNormalize = function (trs, height) {
   if (!__private.types[trs.type]) {
     throw 'Unknown transaction type ' + trs.type;
   }
@@ -1221,7 +1221,7 @@ Transaction.prototype.objectNormalize = function (trs) {
     }
   }
 
-  if (!this.scope.consensus.isActivated('spaceship')) {
+  if (!this.scope.consensus.isActivated('spaceship', height)) {
     delete trs.timestampMs;
   }
 
@@ -1260,7 +1260,7 @@ Transaction.prototype.dbRead = function (raw) {
       type: parseInt(raw.t_type),
       block_timestamp: parseInt(raw.block_timestamp),
       timestamp: parseInt(raw.t_timestamp),
-      timestampMs: typeof raw.t_timestampMs === 'string' ? parseInt(raw.t_timestampMs) : null,
+      timestampMs: raw.t_timestampMs != null ? parseInt(raw.t_timestampMs) : null,
       senderPublicKey: raw.t_senderPublicKey,
       requesterPublicKey: raw.t_requesterPublicKey,
       senderId: raw.t_senderId,

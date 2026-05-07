@@ -19,14 +19,20 @@ class Consensus {
   }
 
   /**
-   * Checks if a given consensus upgrade is activated based on the current blockchain height
+   * Checks if a given consensus upgrade is activated based on a block height.
+   * Uses the current blockchain height when `height` is omitted.
    * @param {string} codeName - The name of the consensus upgrade
+   * @param {number} [height] - Block height to check
    * @throws {Error} If `codeName` is not a string
    * @return {boolean} `true` if the upgrade is activated, otherwise `false`
    */
-  isActivated(codeName) {
+  isActivated(codeName, height) {
     if (typeof codeName !== 'string') {
       throw new Error(`Expected code name to be a string but got ${typeof codeName}`);
+    }
+
+    if (height !== undefined && typeof height !== 'number') {
+      throw new Error(`Expected height to be a number but got ${typeof height}`);
     }
 
     const activationHeight = consensusActivationHeights[codeName];
@@ -35,7 +41,7 @@ class Consensus {
       return false;
     }
 
-    const currentHeight = this.loader.getHeight();
+    const currentHeight = height === undefined ? this.loader.getHeight() : height;
 
     return currentHeight >= activationHeight;
   }
