@@ -7,7 +7,6 @@ ssl/
 config.json
 test/config.json
 sftp-config.json
-test/config.forging.json
 
 # Logs
 logs/*.log
