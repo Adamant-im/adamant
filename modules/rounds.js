@@ -117,7 +117,12 @@ Rounds.prototype.backwardTick = function (block, previousBlock, done) {
     var promised = new Round(scope, t);
 
     library.logger.debug('Performing backward tick');
-    library.logger.trace(scope);
+    library.logger.trace('Backward tick context', {
+      blockId: block.id,
+      height: block.height,
+      round: round,
+      finishRound: scope.finishRound
+    });
 
     return promised.mergeBlockGenerator().then(function () {
       if (scope.finishRound) {
@@ -212,7 +217,13 @@ Rounds.prototype.tick = function (block, done) {
     var promised = new Round(scope, t);
 
     library.logger.debug('Performing forward tick');
-    library.logger.trace(scope);
+    library.logger.trace('Forward tick context', {
+      blockId: block.id,
+      height: block.height,
+      round: round,
+      finishRound: scope.finishRound,
+      snapshotRound: scope.snapshotRound
+    });
 
     return promised.mergeBlockGenerator().then(function () {
       if (scope.finishRound) {

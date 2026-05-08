@@ -47,7 +47,8 @@ function Delegates (cb, scope) {
     schema: scope.schema,
     balancesSequence: scope.balancesSequence,
     logic: {
-      transaction: scope.logic.transaction
+      transaction: scope.logic.transaction,
+      consensus: scope.logic.consensus
     },
     config: {
       forging: {
@@ -71,6 +72,10 @@ function Delegates (cb, scope) {
 }
 
 // Private methods
+__private.isFairSystemActivated = function (height) {
+  return library.logic.consensus.isActivated('fairSystem', height);
+};
+
 /**
  * Gets delegate public keys sorted by vote descending.
  * @private
@@ -369,7 +374,7 @@ __private.loadDelegates = function (cb) {
  * @todo explain seed.
  */
 Delegates.prototype.generateDelegateList = function (height, cb) {
-  if (height > constants.fairSystemActivateBlock) {
+  if (__private.isFairSystemActivated(height)) {
     __private.getKeysSortByVotesWeight(function (err, truncDelegateList) {
       if (err) {
         return setImmediate(cb, err);
@@ -429,7 +434,7 @@ Delegates.prototype.getDelegates = function (query, filter, cb) {
   }
 
   var sortFilter = { 'vote': -1, 'publicKey': 1 };
-  if (modules.blocks.lastBlock.get().height > constants.fairSystemActivateBlock) {
+  if (__private.isFairSystemActivated(modules.blocks.lastBlock.get().height)) {
     sortFilter = { 'votesWeight': -1, 'publicKey': 1 };
   }
   modules.accounts.getAccounts({
@@ -458,7 +463,7 @@ Delegates.prototype.getDelegates = function (query, filter, cb) {
       // TODO: 'rate' property is deprecated and need to be removed after transitional period
       delegates[i].rate = i + 1;
       delegates[i].rank = i + 1;
-      if (modules.blocks.lastBlock.get().height > constants.fairSystemActivateBlock) {
+      if (__private.isFairSystemActivated(modules.blocks.lastBlock.get().height)) {
         delegates[i].approval = (delegates[i].votesWeight / totalSupply) * 100;
       } else {
         delegates[i].approval = (delegates[i].vote / totalSupply) * 100;
