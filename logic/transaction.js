@@ -56,7 +56,7 @@ function Transaction (db, ed, schema, genesisblock, account, logger, clientWs, c
     account: account,
     logger: logger,
     clientWs: clientWs,
-    consensus,
+    consensus: consensus
   };
   self = this;
   if (cb) {
@@ -137,12 +137,15 @@ Transaction.prototype.publish = function (data) {
     throw 'Invalid signature';
   }
 
-  const currentTime = slots.getTime();
+  const currentTimeMs = slots.getTimeMs();
+  const currentTime = Math.floor(currentTimeMs / 1000);
 
   const currentSlotNumber = slots.getSlotNumber(currentTime);
   const transactionSlotNumber = slots.getSlotNumber(data.timestamp);
+  const transactionTimeMs = typeof data.timestampMs === 'number' ? data.timestampMs : data.timestamp * 1000;
+  const transactionFutureMs = transactionTimeMs - currentTimeMs;
 
-  if (transactionSlotNumber > currentSlotNumber) {
+  if (transactionSlotNumber > currentSlotNumber && transactionFutureMs > constants.maxTransactionFutureMs) {
     throw 'Transaction timestamp is in the future';
   }
 
@@ -682,11 +685,11 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
   }
 
   if (typeof timestampMs === 'number') {
-    const timestampMsDelta = Math.abs(timestampMs - timestamp * 1000);
+    const timestampMsDelta = timestampMs - timestamp * 1000;
 
     const { maxTimestampMsDelta } = constants;
-    if (timestampMsDelta >= maxTimestampMsDelta) {
-      return setImmediate(cb, `Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than ${maxTimestampMsDelta}ms`);
+    if (timestampMsDelta < 0 || timestampMsDelta >= maxTimestampMsDelta) {
+      return setImmediate(cb, `Invalid transaction timestamp. timestampMs must be within the same second as timestamp, from 0 to ${maxTimestampMsDelta - 1}ms`);
     }
   }
 
