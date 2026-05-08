@@ -45,9 +45,9 @@ Prefer small targeted fixes over architecture cleanup.
 
 Current major gates:
 
-- `helpers/constants.js` -> `fairSystemActivateBlock`
+- `config.default.json` -> `consensusActivationHeights.fairSystem`
   - delegate ranking/approval behavior changes around this height.
-- `logic/consensus/activationHeights.js` -> `spaceship`
+- `config.default.json` -> `consensusActivationHeights.spaceship`
   - `timestampMs` behavior and normalization are consensus-gated.
 
 Rule of thumb: if you change behavior around these gates, test both sides of the height boundary.

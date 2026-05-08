@@ -150,8 +150,8 @@ For protocol, consensus, serialization, or interoperability changes:
 
 Consensus behavior is currently gated at least by:
 
-- `helpers/constants.js` -> `fairSystemActivateBlock` (delegate ranking and voting-weight behavior).
-- `logic/consensus/activationHeights.js` -> `spaceship` (transaction `timestampMs` activation path).
+- `config.default.json` -> `consensusActivationHeights.fairSystem` (delegate ranking and voting-weight behavior).
+- `config.default.json` -> `consensusActivationHeights.spaceship` (transaction `timestampMs` activation path).
 
 If you change these or add new switches:
 
@@ -169,7 +169,7 @@ Do not merge changes that violate any rule below.
 - Preserve transaction and block byte serialization compatibility unless a protocol upgrade is explicitly planned.
 - Preserve block and transaction ID/hash/signature semantics unless a coordinated upgrade is defined.
 - Keep slot-time validation semantics stable (`helpers/slots.js`, delegate slot checks, block timestamp checks).
-- Keep activation-gated behavior backward-compatible (`logic/consensus/activationHeights.js`).
+- Keep activation-gated behavior backward-compatible (`config.default.json` and `logic/consensus/consensus.js`).
 - Never silently change reward, fees, delegate ranking, round accounting, or signature validation rules.
 
 ## Protocol Upgrade Rules
