@@ -52,6 +52,14 @@ Current major gates:
 
 Rule of thumb: if you change behavior around these gates, test both sides of the height boundary.
 
+For `timestampMs` work, keep the protocol contract precise:
+
+- `timestamp` is ADAMANT epoch seconds.
+- `timestampMs` is ADAMANT epoch milliseconds, not Unix milliseconds.
+- `timestamp` must be derived as `Math.floor(timestampMs / 1000)` when both values come from the same client clock sample.
+- After `spaceship`, a present `timestampMs` must satisfy `0 <= timestampMs - timestamp * 1000 < maxTimestampMsDelta`.
+- `maxTransactionFutureMs` belongs to public API admission in `publish()` only. Do not move wall-clock tolerance checks into replay, sync, or block verification.
+
 ## 5) Sequencing and Race Control (Critical)
 
 The project intentionally serializes state mutations using:

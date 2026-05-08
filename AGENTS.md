@@ -151,13 +151,21 @@ For protocol, consensus, serialization, or interoperability changes:
 Consensus behavior is currently gated at least by:
 
 - `config.default.json` -> `consensusActivationHeights.fairSystem` (delegate ranking and voting-weight behavior).
-- `config.default.json` -> `consensusActivationHeights.spaceship` (transaction `timestampMs` activation path).
+- `config.default.json` -> `consensusActivationHeights.spaceship` (transaction `timestampMs` preservation and validation in consensus-sensitive paths).
 
 If you change these or add new switches:
 
 - Keep pre-activation and post-activation paths deterministic.
 - Update tests for both sides of the activation boundary.
 - Verify schema, DB fields/views, and transport compatibility together.
+
+For `timestampMs` protocol work:
+
+- `timestamp` is ADAMANT epoch time in seconds.
+- `timestampMs` is ADAMANT epoch time in milliseconds, not Unix milliseconds.
+- Clients and node helpers must derive `timestamp` from the same millisecond source with `Math.floor(timestampMs / 1000)`. Do not use `round` or `ceil`.
+- A valid `timestampMs` must stay in the same ADAMANT second as `timestamp`: `0 <= timestampMs - timestamp * 1000 < maxTimestampMsDelta`.
+- `maxTransactionFutureMs` is a public API admission grace for fresh transactions. It is not consensus behavior, is not replay-stable, and must stay out of historical replay/sync validation.
 
 ## Non-Negotiable Consensus Rules
 
