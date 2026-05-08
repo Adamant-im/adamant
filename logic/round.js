@@ -226,7 +226,12 @@ Round.prototype.applyRound = function () {
     }));
   }
 
-  this.scope.library.logger.trace('Applying round', queries);
+  this.scope.library.logger.trace('Applying round', {
+    blockId: this.scope.block.id,
+    round: this.scope.round,
+    backwards: this.scope.backwards,
+    queryCount: queries.length
+  });
 
   if (queries.length > 0) {
     return this.t.none(queries.join(''));
