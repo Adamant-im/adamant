@@ -129,6 +129,7 @@ CREATE VIEW full_trs_list AS
     LEFT OUTER JOIN chats AS c ON c."transactionId" = t."id"
     LEFT OUTER JOIN states AS st ON st."transactionId" = t."id";
 
+  -- `trs_list` already exposes `t_timestampMs` via earlier migrations.
 DROP VIEW IF EXISTS trs_list_full;
 
 CREATE VIEW trs_list_full AS

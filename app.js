@@ -735,18 +735,17 @@ d.run(function () {
         cleanupStarted = true;
         scope.logger.info('Cleaning up...');
 
-        var moduleNames = Object.keys(modules).sort(function (left, right) {
-          if (left === 'loader') {
-            return -1;
-          }
-          if (right === 'loader') {
-            return 1;
-          }
-          return 0;
-        });
+        var moduleMap = scope.modules || {};
+        var moduleNames = Object.keys(moduleMap);
+
+        if (moduleNames.indexOf('loader') !== -1) {
+          moduleNames = ['loader'].concat(moduleNames.filter(function (moduleName) {
+            return moduleName !== 'loader';
+          }));
+        }
 
         async.eachSeries(moduleNames, function (moduleName, cb) {
-          var module = modules[moduleName];
+          var module = moduleMap[moduleName];
           if (typeof (module.cleanup) === 'function') {
             module.cleanup(cb);
           } else {
