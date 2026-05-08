@@ -48,7 +48,7 @@ function Delegates (cb, scope) {
     balancesSequence: scope.balancesSequence,
     logic: {
       transaction: scope.logic.transaction,
-      consensus: scope.logic.consensus
+      consensus: scope.logic.consensus || scope.consensus
     },
     config: {
       forging: {
@@ -776,11 +776,11 @@ Delegates.prototype.shared = {
         return setImmediate(cb, err[0].message);
       }
 
-      const filter = {}
+      const filter = {};
 
       if (req.body.publicKey) {
         filter.address = modules.accounts.generateAddressByPublicKey(
-          req.body.publicKey,
+            req.body.publicKey
         );
       } else if (req.body.username) {
         filter.username = req.body.username;
@@ -1080,7 +1080,7 @@ Delegates.prototype.shared = {
         }
       });
     });
-  },
+  }
 };
 
 // Export

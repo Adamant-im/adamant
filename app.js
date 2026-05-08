@@ -716,12 +716,11 @@ d.run(function () {
        */
       scope.logger.info('Modules ready and launched');
       var cleanupStarted = false;
-      var cleanupStartedAt = 0;
 
       /**
        * Cleans all modules before shutdown.
        *
-       * Loader cleanup runs first so an active rebuild/sync can finish before
+       * Loader cleanup runs first so an active rebuild/sync can stop before
        * blocks cleanup starts rejecting additional block processing.
        *
        * @param {string} signal
@@ -729,17 +728,11 @@ d.run(function () {
        */
       function requestShutdown (signal, exitCode) {
         if (cleanupStarted) {
-          if (Date.now() - cleanupStartedAt < 2000) {
-            scope.logger.warn(signal + ' received while cleanup is already starting. Ignoring duplicate signal.');
-            return;
-          }
-
-          scope.logger.warn(signal + ' received while cleanup is still running. Forcing shutdown.');
-          return process.exit(1);
+          scope.logger.warn(signal + ' received while cleanup is in progress. Waiting for safe shutdown.');
+          return;
         }
 
         cleanupStarted = true;
-        cleanupStartedAt = Date.now();
         scope.logger.info('Cleaning up...');
 
         var moduleNames = Object.keys(modules).sort(function (left, right) {
