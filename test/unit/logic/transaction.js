@@ -3,6 +3,7 @@
 const async = require('async');
 const { expect } = require('chai');
 const _ = require('lodash');
+const sinon = require('sinon');
 
 const constants = require('../../../helpers/constants.js');
 const bignum = require('../../../helpers/bignum.js');
@@ -41,7 +42,9 @@ const {
   delegateAccountKeypair,
   genesisKeypair,
 } = require('../../common/stubs/account.js');
-const { consensusActivationHeights } = require('../../../logic/consensus/activationHeights.js');
+const defaultConfig = require('../../../config.default.json');
+
+const consensusActivationHeights = defaultConfig.consensusActivationHeights;
 
 const validKeypair = testAccountKeypair;
 
@@ -219,6 +222,14 @@ describe('transaction', () => {
         .to.be.a('string')
         .which.is.equal(validTransaction.signature);
     });
+
+    it('should not include timestampMs in signature bytes', () => {
+      const notSignedTx = _.cloneDeep(validTransaction);
+      delete notSignedTx.signature;
+      const signature = transaction.sign(genesisKeypair, notSignedTx);
+      notSignedTx.timestampMs += 999;
+      expect(transaction.sign(genesisKeypair, notSignedTx)).to.equal(signature);
+    });
   });
 
   // Multisignatures tests are disabled currently
@@ -253,6 +264,13 @@ describe('transaction', () => {
       trs.amount = 4000;
       expect(transaction.getId(trs)).to.not.equal(id);
     });
+
+    it('should not include timestampMs in transaction id', () => {
+      const trs = _.cloneDeep(validTransaction);
+      const id = transaction.getId(trs);
+      trs.timestampMs += 999;
+      expect(transaction.getId(trs)).to.equal(id);
+    });
   });
 
   describe('getHash()', () => {
@@ -277,6 +295,13 @@ describe('transaction', () => {
       expect(transaction.getHash(trs).toString('hex')).to.not.equal(
         originalTrsHash
       );
+    });
+
+    it('should not include timestampMs in transaction hash', () => {
+      const trs = _.cloneDeep(validTransaction);
+      const hash = transaction.getHash(trs).toString('hex');
+      trs.timestampMs += 999;
+      expect(transaction.getHash(trs).toString('hex')).to.equal(hash);
     });
   });
 
@@ -733,23 +758,23 @@ describe('transaction', () => {
       });
     });
 
-    it('should return error when timestampMs is less than timestamp by a second', (done) => {
+    it('should return error when timestampMs is before timestamp second', (done) => {
       const trs = _.cloneDeep(validUnconfirmedTransaction);
 
       trs.timestamp = slots.getTime();
       const timestampMs = trs.timestamp * 1000;
-      trs.timestampMs = timestampMs - 1000;
+      trs.timestampMs = timestampMs - 1;
 
       delete trs.signature;
       trs.signature = transaction.sign(testSenderKeypair, trs);
 
       transaction.verify(trs, testSender, {}, (err) => {
-        expect(err).to.equal('Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than 1000ms');
+        expect(err).to.equal('Invalid transaction timestamp. timestampMs must be within the same second as timestamp, from 0 to 999ms');
         done();
       });
     });
 
-    it('should return error when timestampMs is greater than timestamp by a second', (done) => {
+    it('should return error when timestampMs reaches the next timestamp second', (done) => {
       const trs = _.cloneDeep(validUnconfirmedTransaction);
 
       trs.timestamp = slots.getTime();
@@ -760,7 +785,37 @@ describe('transaction', () => {
       trs.signature = transaction.sign(testSenderKeypair, trs);
 
       transaction.verify(trs, testSender, {}, (err) => {
-        expect(err).to.equal('Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than 1000ms');
+        expect(err).to.equal('Invalid transaction timestamp. timestampMs must be within the same second as timestamp, from 0 to 999ms');
+        done();
+      });
+    });
+
+    it('should verify timestampMs at the first millisecond of timestamp second', (done) => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+
+      trs.timestamp = slots.getTime();
+      trs.timestampMs = trs.timestamp * 1000;
+
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+
+      transaction.verify(trs, testSender, {}, (err) => {
+        expect(err).to.not.be.ok;
+        done();
+      });
+    });
+
+    it('should verify timestampMs at the last millisecond of timestamp second', (done) => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+
+      trs.timestamp = slots.getTime();
+      trs.timestampMs = trs.timestamp * 1000 + 999;
+
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+
+      transaction.verify(trs, testSender, {}, (err) => {
+        expect(err).to.not.be.ok;
         done();
       });
     });
@@ -784,6 +839,10 @@ describe('transaction', () => {
   });
 
   describe('publish()', () => {
+    afterEach(() => {
+      sinon.restore();
+    });
+
     it('should return error on future timestamp', () => {
       const trs = _.cloneDeep(validUnconfirmedTransaction);
       trs.timestamp = slots.getTime() + 100;
@@ -791,7 +850,33 @@ describe('transaction', () => {
       delete trs.signature;
       trs.signature = transaction.sign(testSenderKeypair, trs);
       expect(() => transaction.publish(trs)).to.throw(
-        'Transaction timestamp is in the future',
+        'Transaction timestamp is in the future'
+      );
+    });
+
+    it('should accept next-slot transaction within future timestamp grace', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestampMs = slots.getTimeMs() + constants.maxTransactionFutureMs;
+      trs.timestamp = Math.floor(trs.timestampMs / 1000);
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+
+      expect(() => transaction.publish(trs)).to.not.throw();
+    });
+
+    it('should reject next-slot transaction beyond future timestamp grace', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestampMs = slots.getTimeMs() + constants.maxTransactionFutureMs + 1;
+      trs.timestamp = Math.floor(trs.timestampMs / 1000);
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+
+      expect(() => transaction.publish(trs)).to.throw(
+        'Transaction timestamp is in the future'
       );
     });
 
@@ -1193,7 +1278,34 @@ describe('transaction', () => {
       expect(_.keys(transaction.objectNormalize(trs))).to.include('timestampMs');
     });
 
+    it('should use explicit block height for timestampMs activation', () => {
+      dummyHeight = consensusActivationHeights.spaceship;
+
+      const trs = _.cloneDeep(validTransaction);
+      expect(_.keys(transaction.objectNormalize(trs, consensusActivationHeights.spaceship - 1))).to.not.include('timestampMs');
+    });
+
+    it('should remove invalid timestampMs before activation so old history remains valid', (done) => {
+      dummyHeight = consensusActivationHeights.spaceship - 1;
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestamp = slots.getTime();
+      trs.timestampMs = trs.timestamp * 1000 - 1;
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+
+      const normalized = transaction.objectNormalize(trs);
+
+      expect(normalized).to.not.have.property('timestampMs');
+      transaction.verify(normalized, testSender, {}, (err) => {
+        expect(err).to.not.be.ok;
+        done();
+      });
+    });
+
     it('should not remove any keys with valid entries', () => {
+      dummyHeight = consensusActivationHeights.spaceship;
+
       expect(
         _.keys(transaction.objectNormalize(validTransaction))
       ).to.have.length(12);
@@ -1246,6 +1358,17 @@ describe('transaction', () => {
       ];
       expect(trs).to.be.an('object');
       expect(trs).to.have.keys(expectedKeys);
+    });
+
+    it('should parse timestampMs from string and number values', () => {
+      const rawStringTimestampMs = _.cloneDeep(rawValidTransaction);
+      rawStringTimestampMs.t_timestampMs = '33363661001';
+
+      const rawNumberTimestampMs = _.cloneDeep(rawValidTransaction);
+      rawNumberTimestampMs.t_timestampMs = 33363661002;
+
+      expect(transaction.dbRead(rawStringTimestampMs).timestampMs).to.equal(33363661001);
+      expect(transaction.dbRead(rawNumberTimestampMs).timestampMs).to.equal(33363661002);
     });
   });
 });

@@ -56,7 +56,7 @@ function Transaction (db, ed, schema, genesisblock, account, logger, clientWs, c
     account: account,
     logger: logger,
     clientWs: clientWs,
-    consensus,
+    consensus: consensus
   };
   self = this;
   if (cb) {
@@ -137,12 +137,15 @@ Transaction.prototype.publish = function (data) {
     throw 'Invalid signature';
   }
 
-  const currentTime = slots.getTime();
+  const currentTimeMs = slots.getTimeMs();
+  const currentTime = Math.floor(currentTimeMs / 1000);
 
   const currentSlotNumber = slots.getSlotNumber(currentTime);
   const transactionSlotNumber = slots.getSlotNumber(data.timestamp);
+  const transactionTimeMs = typeof data.timestampMs === 'number' ? data.timestampMs : data.timestamp * 1000;
+  const transactionFutureMs = transactionTimeMs - currentTimeMs;
 
-  if (transactionSlotNumber > currentSlotNumber) {
+  if (transactionSlotNumber > currentSlotNumber && transactionFutureMs > constants.maxTransactionFutureMs) {
     throw 'Transaction timestamp is in the future';
   }
 
@@ -682,11 +685,11 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
   }
 
   if (typeof timestampMs === 'number') {
-    const timestampMsDelta = Math.abs(timestampMs - timestamp * 1000);
+    const timestampMsDelta = timestampMs - timestamp * 1000;
 
     const { maxTimestampMsDelta } = constants;
-    if (timestampMsDelta >= maxTimestampMsDelta) {
-      return setImmediate(cb, `Invalid transaction timestamp. The difference between timestamp and timestampMs is greater than ${maxTimestampMsDelta}ms`);
+    if (timestampMsDelta < 0 || timestampMsDelta >= maxTimestampMsDelta) {
+      return setImmediate(cb, `Invalid transaction timestamp. timestampMs must be within the same second as timestamp, from 0 to ${maxTimestampMsDelta - 1}ms`);
     }
   }
 
@@ -1210,7 +1213,7 @@ Transaction.prototype.schema = {
  * @return {error|transaction} error string | trs normalized
  * @throws {string} error message
  */
-Transaction.prototype.objectNormalize = function (trs) {
+Transaction.prototype.objectNormalize = function (trs, height) {
   if (!__private.types[trs.type]) {
     throw 'Unknown transaction type ' + trs.type;
   }
@@ -1221,7 +1224,7 @@ Transaction.prototype.objectNormalize = function (trs) {
     }
   }
 
-  if (!this.scope.consensus.isActivated('spaceship')) {
+  if (!this.scope.consensus.isActivated('spaceship', height)) {
     delete trs.timestampMs;
   }
 
@@ -1260,7 +1263,7 @@ Transaction.prototype.dbRead = function (raw) {
       type: parseInt(raw.t_type),
       block_timestamp: parseInt(raw.block_timestamp),
       timestamp: parseInt(raw.t_timestamp),
-      timestampMs: typeof raw.t_timestampMs === 'string' ? parseInt(raw.t_timestampMs) : null,
+      timestampMs: raw.t_timestampMs != null ? parseInt(raw.t_timestampMs) : null,
       senderPublicKey: raw.t_senderPublicKey,
       requesterPublicKey: raw.t_requesterPublicKey,
       senderId: raw.t_senderId,

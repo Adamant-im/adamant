@@ -2,6 +2,12 @@
 
 const { formatSQLSorting } = require('../helpers/orderBy.js');
 
+const formatTransactionSorting = (params) => formatSQLSorting({
+  ...params,
+  timestampField: '"t_timestamp"',
+  timestampMsField: '"t_timestampMs"'
+});
+
 var StatesSql = {
   sortFields: ['type', 'timestamp'],
 
@@ -25,7 +31,7 @@ var StatesSql = {
 
       'SELECT COUNT(1)::INT FROM full_blocks_list',
       (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
-      (params.sortField ? 'ORDER BY ' + formatSQLSorting(params) : '')
+      (params.sortField ? 'ORDER BY ' + formatTransactionSorting(params) : '')
     ].filter(Boolean).join(' ');
   },
 
@@ -35,7 +41,7 @@ var StatesSql = {
 
       'SELECT *, t_timestamp as timestamp, b_timestamp as block_timestamp FROM full_blocks_list',
       (params.where.length ? 'WHERE ' + params.where.join(' AND ') : ''),
-      (params.sortField ? 'ORDER BY ' + formatSQLSorting(params) : ''),
+      (params.sortField ? 'ORDER BY ' + formatTransactionSorting(params) : ''),
       'LIMIT ${limit} OFFSET ${offset}'
     ].filter(Boolean).join(' ');
   },

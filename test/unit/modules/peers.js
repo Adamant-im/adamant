@@ -36,7 +36,7 @@ describe('peers', function () {
     modulesLoader.initModules([
       { system: require('../../../modules/system.js') },
       { peers: require('../../../modules/peers.js') },
-      { transport: require('../../../modules/transport.js') },
+      { transport: require('../../../modules/transport.js') }
     ], [
       { 'peers': require('../../../logic/peers.js') }
     ], { nonce: NONCE }, (err, __modules) => {
@@ -157,6 +157,27 @@ describe('peers', function () {
       });
     });
 
+    it('should export peer with a high valid port to database', function (done) {
+      const highPortPeer = {
+        ...validPeer,
+        ip: '40.41.40.42',
+        port: 36667
+      };
+
+      peers.update(highPortPeer);
+      peers.cleanup(function () {
+        modulesLoader.db.oneOrNone(
+            'SELECT host(ip) AS ip, port FROM peers WHERE ip = ${ip} AND port = ${port}',
+            highPortPeer
+        ).then(function (peer) {
+          expect(peer).to.be.an('object');
+          expect(peer.ip).to.equal(highPortPeer.ip);
+          expect(peer.port).to.equal(highPortPeer.port);
+          done();
+        }).catch(done);
+      });
+    });
+
     it('should update peer with only one property defined', function (done) {
       peers.update(ipAndPortPeer);
 
@@ -205,7 +226,7 @@ describe('peers', function () {
         { ip: '192.0.2.1', port: '7000' },
         { ip: '192.168.100.10', port: '8000' },
         { ip: '10.10.10.10', port: '9000' },
-        { ip: '203.0.113.6', port: '10000' },
+        { ip: '203.0.113.6', port: '10000' }
       ];
 
       otherPeers.forEach((peer) => {
@@ -216,7 +237,7 @@ describe('peers', function () {
   });
 
   describe('recordRequest()', () => {
-    function expectState(peer, state, done) {
+    function expectState (peer, state, done) {
       peers.shared.getPeer({
         body: { ip: peer.ip, port: peer.port }
       }, (error, response) => {
@@ -224,10 +245,10 @@ describe('peers', function () {
 
         expect(response.success).to.be.true;
         expect(response.peer).to.be.an('object')
-          .that.has.property('state')
-          .that.equals(state);
+            .that.has.property('state')
+            .that.equals(state);
 
-        done()
+        done();
       });
     }
 
@@ -353,6 +374,7 @@ describe('peers', function () {
     });
 
     it('should update peers during onBlockchainReady', function (done) {
+      sinon.stub(peers, 'ping').callsArgWith(1, null, { success: true, height: validPeer.height });
       sinon.stub(peers, 'discover').callsArgWith(0, null);
 
       peers.onBlockchainReady();

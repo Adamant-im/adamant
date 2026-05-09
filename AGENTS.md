@@ -150,14 +150,22 @@ For protocol, consensus, serialization, or interoperability changes:
 
 Consensus behavior is currently gated at least by:
 
-- `helpers/constants.js` -> `fairSystemActivateBlock` (delegate ranking and voting-weight behavior).
-- `logic/consensus/activationHeights.js` -> `spaceship` (transaction `timestampMs` activation path).
+- `config.default.json` -> `consensusActivationHeights.fairSystem` (delegate ranking and voting-weight behavior).
+- `config.default.json` -> `consensusActivationHeights.spaceship` (transaction `timestampMs` preservation and validation in consensus-sensitive paths).
 
 If you change these or add new switches:
 
 - Keep pre-activation and post-activation paths deterministic.
 - Update tests for both sides of the activation boundary.
 - Verify schema, DB fields/views, and transport compatibility together.
+
+For `timestampMs` protocol work:
+
+- `timestamp` is ADAMANT epoch time in seconds.
+- `timestampMs` is ADAMANT epoch time in milliseconds, not Unix milliseconds.
+- Clients and node helpers must derive `timestamp` from the same millisecond source with `Math.floor(timestampMs / 1000)`. Do not use `round` or `ceil`.
+- A valid `timestampMs` must stay in the same ADAMANT second as `timestamp`: `0 <= timestampMs - timestamp * 1000 < maxTimestampMsDelta`.
+- `maxTransactionFutureMs` is a public API admission grace for fresh transactions. It is not consensus behavior, is not replay-stable, and must stay out of historical replay/sync validation.
 
 ## Non-Negotiable Consensus Rules
 
@@ -169,7 +177,7 @@ Do not merge changes that violate any rule below.
 - Preserve transaction and block byte serialization compatibility unless a protocol upgrade is explicitly planned.
 - Preserve block and transaction ID/hash/signature semantics unless a coordinated upgrade is defined.
 - Keep slot-time validation semantics stable (`helpers/slots.js`, delegate slot checks, block timestamp checks).
-- Keep activation-gated behavior backward-compatible (`logic/consensus/activationHeights.js`).
+- Keep activation-gated behavior backward-compatible (`config.default.json` and `logic/consensus/consensus.js`).
 - Never silently change reward, fees, delegate ranking, round accounting, or signature validation rules.
 
 ## Protocol Upgrade Rules

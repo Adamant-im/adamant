@@ -25,7 +25,7 @@ const { removeQueuedJobs } = require('../common/globalAfter.js');
 const Consensus = require('../../logic/consensus/consensus.js');
 
 var modulesLoader = new function () {
-  const consensus = new Consensus();
+  const consensus = new Consensus(config.consensusActivationHeights);
 
   consensus.bindModules({
     loader: {

@@ -291,8 +291,8 @@ d.run(function () {
       const ClientWs = require('./modules/clientWs');
 
       const clientWs = new ClientWs(
-        Object.assign(scope.config.wsClient, { cors: appConfig.cors }),
-        logger
+          Object.assign(scope.config.wsClient, { cors: appConfig.cors }),
+          logger
       );
 
       cb(null, clientWs);
@@ -547,8 +547,8 @@ d.run(function () {
         clientWs: function (cb) {
           cb(null, scope.clientWs);
         },
-        consensus(cb) {
-          cb(null, new Consensus());
+        consensus: function (cb) {
+          cb(null, new Consensus(config.consensusActivationHeights));
         },
         account: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'logger', function (scope, cb) {
           new Account(scope.db, scope.schema, scope.logger, cb);
@@ -617,7 +617,7 @@ d.run(function () {
         transportWs.initialize();
       }
 
-      scope.network.wsServer.initialize(scope.logic)
+      scope.network.wsServer.initialize(scope.logic);
 
       cb();
     }],
@@ -715,17 +715,37 @@ d.run(function () {
        * @todo description for nonce and ready
        */
       scope.logger.info('Modules ready and launched');
+      var cleanupStarted = false;
+
       /**
-       * Event reporting a cleanup.
-       * @event cleanup
+       * Cleans all modules before shutdown.
+       *
+       * Loader cleanup runs first so an active rebuild/sync can stop before
+       * blocks cleanup starts rejecting additional block processing.
+       *
+       * @param {string} signal
+       * @param {number} exitCode
        */
-      /**
-       * Receives a 'cleanup' signal and cleans all modules.
-       * @listens cleanup
-       */
-      process.once('cleanup', function () {
+      function requestShutdown (signal, exitCode) {
+        if (cleanupStarted) {
+          scope.logger.warn(signal + ' received while cleanup is in progress. Waiting for safe shutdown.');
+          return;
+        }
+
+        cleanupStarted = true;
         scope.logger.info('Cleaning up...');
-        async.eachSeries(modules, function (module, cb) {
+
+        var moduleMap = scope.modules || {};
+        var moduleNames = Object.keys(moduleMap);
+
+        if (moduleNames.indexOf('loader') !== -1) {
+          moduleNames = ['loader'].concat(moduleNames.filter(function (moduleName) {
+            return moduleName !== 'loader';
+          }));
+        }
+
+        async.eachSeries(moduleNames, function (moduleName, cb) {
+          var module = moduleMap[moduleName];
           if (typeof (module.cleanup) === 'function') {
             module.cleanup(cb);
           } else {
@@ -737,8 +757,21 @@ d.run(function () {
           } else {
             scope.logger.info('Cleaned up successfully');
           }
-          process.exit(1);
+
+          process.exit(exitCode);
         });
+      }
+
+      /**
+       * Event reporting a cleanup.
+       * @event cleanup
+       */
+      /**
+       * Receives a 'cleanup' signal and cleans all modules.
+       * @listens cleanup
+       */
+      process.once('cleanup', function () {
+        requestShutdown('cleanup', 1);
       });
 
       /**
@@ -746,31 +779,11 @@ d.run(function () {
        * @event SIGTERM
        */
       /**
-       * Receives a 'SIGTERM' signal and emits a cleanup.
+       * Receives a 'SIGTERM' signal and cleans all modules.
        * @listens SIGTERM
        */
-      process.once('SIGTERM', function () {
-        /**
-         * emits cleanup once 'SIGTERM'.
-         * @emits cleanup
-         */
-        process.emit('cleanup');
-      });
-
-      /**
-       * Event reporting an exit.
-       * @event exit
-       */
-      /**
-       * Receives an 'exit' signal and emits a cleanup.
-       * @listens exit
-       */
-      process.once('exit', function () {
-        /**
-         * emits cleanup once 'exit'.
-         * @emits cleanup
-         */
-        process.emit('cleanup');
+      process.on('SIGTERM', function () {
+        requestShutdown('SIGTERM', 0);
       });
 
       /**
@@ -778,15 +791,11 @@ d.run(function () {
        * @event SIGINT
        */
       /**
-       * Receives a 'SIGINT' signal and emits a cleanup.
+       * Receives a 'SIGINT' signal and cleans all modules.
        * @listens SIGINT
        */
-      process.once('SIGINT', function () {
-        /**
-         * emits cleanup once 'SIGINT'.
-         * @emits cleanup
-         */
-        process.emit('cleanup');
+      process.on('SIGINT', function () {
+        requestShutdown('SIGINT', 0);
       });
     }
   });

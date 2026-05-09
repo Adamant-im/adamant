@@ -225,6 +225,7 @@ __private.list = function (filter, cb) {
     const count = rows.length ? rows[0].count : 0;
     library.db.query(sql.list({
       where: where,
+      originalField: orderBy.originalField,
       sortField: orderBy.sortField,
       sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {

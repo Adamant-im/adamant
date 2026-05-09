@@ -394,7 +394,7 @@ Block.prototype.objectNormalize = function (block) {
 
   try {
     for (i = 0; i < block.transactions.length; i++) {
-      block.transactions[i] = this.scope.transaction.objectNormalize(block.transactions[i]);
+      block.transactions[i] = this.scope.transaction.objectNormalize(block.transactions[i], block.height);
     }
   } catch (e) {
     throw e;

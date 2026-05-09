@@ -3,6 +3,7 @@
 var _ = require('lodash');
 var async = require('async');
 var constants = require('../helpers/constants.js');
+var slots = require('../helpers/slots.js');
 var jobsQueue = require('../helpers/jobsQueue.js');
 var extend = require('extend');
 var pgp = require('pg-promise')(); // We also initialize library here
@@ -105,6 +106,7 @@ Node.prototype.shared = {
    */
   getStatus: function (req, cb) {
     var lastBlock = modules.blocks.lastBlock.get();
+    var nodeTimestampMs = slots.getTimeMs();
     var wsClientOptions = {
       enabled: false
     };
@@ -139,6 +141,8 @@ Node.prototype.shared = {
             commit: library.lastCommit,
             version: library.config.version
           },
+          nodeTimestampMs: nodeTimestampMs,
+          unixTimestampMs: constants.epochTime.getTime() + nodeTimestampMs,
           wsClient: wsClientOptions
         });
   }

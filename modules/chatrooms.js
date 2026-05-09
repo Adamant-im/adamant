@@ -155,6 +155,7 @@ __private.listChats = function (filter, cb) {
     library.db.query(sql.listChats({
       where: where,
       whereOr: whereOr,
+      originalField: orderBy.originalField,
       sortField: orderBy.sortField,
       sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {
@@ -303,6 +304,7 @@ __private.listMessages = function (filter, cb) {
     library.db.query(sql.listMessages({
       where: where,
       whereOr: whereOr,
+      originalField: orderBy.originalField,
       sortField: orderBy.sortField,
       sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {

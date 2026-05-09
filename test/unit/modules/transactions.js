@@ -1208,6 +1208,32 @@ describe('transactions', function () {
         expect(mergedTxs).to.eql([...unconfirmedTxs, ...txs]);
       });
 
+      it('should prefer timestampMs when merging transactions by timestamp', () => {
+        options.orderBy = { originalField: 'timestamp', sortMethod: 'DESC' };
+
+        txs[0].timestamp = 100;
+        txs[0].timestampMs = 100100;
+        unconfirmedTxs[0].timestamp = 100;
+        unconfirmedTxs[0].timestampMs = 100900;
+
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
+
+        expect(mergedTxs).to.eql([...unconfirmedTxs, ...txs]);
+      });
+
+      it('should fall back to timestamp when timestampMs is missing', () => {
+        options.orderBy = { originalField: 'timestamp', sortMethod: 'DESC' };
+
+        txs[0].timestamp = 100;
+        delete txs[0].timestampMs;
+        unconfirmedTxs[0].timestamp = 101;
+        delete unconfirmedTxs[0].timestampMs;
+
+        const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
+
+        expect(mergedTxs).to.eql([...unconfirmedTxs, ...txs]);
+      });
+
       it('should return only the latest transaction when sorted by timestamp and limited to 1', () => {
         options.orderBy = { originalField: 'timestamp', sortMethod: 'DESC' };
         options.limit = 1;

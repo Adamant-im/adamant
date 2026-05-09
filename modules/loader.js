@@ -23,6 +23,7 @@ __private.blocksToSync = 0;
 __private.syncIntervalId = null;
 __private.syncInterval = 10000;
 __private.retries = 5;
+__private.stopRequested = false;
 
 /**
  * Initializes library with scope content.
@@ -103,6 +104,24 @@ __private.syncTrigger = function (turnOn) {
       __private.syncIntervalId = setTimeout(nextSyncTrigger, 1000);
     });
   }
+};
+
+/**
+ * Requests active loader work to stop at the next safe boundary.
+ * @private
+ */
+__private.requestStop = function () {
+  __private.stopRequested = true;
+  __private.syncTrigger(false);
+};
+
+/**
+ * Checks if shutdown was requested.
+ * @private
+ * @return {boolean}
+ */
+__private.isStopRequested = function () {
+  return __private.stopRequested;
 };
 
 /**
@@ -326,6 +345,16 @@ __private.loadBlockChain = function () {
   var offset = 0, limit = Number(library.config.loading.loadPerIteration) || 1000;
   var verify = false;
 
+  __private.stopRequested = false;
+  __private.isActive = true;
+
+  function finishLoading (ready) {
+    __private.isActive = false;
+    if (ready) {
+      library.bus.message('blockchainReady');
+    }
+  }
+
   function load (count) {
     verify = true;
     __private.total = count;
@@ -352,8 +381,12 @@ __private.loadBlockChain = function () {
       loadBlocksOffset: function (seriesCb) {
         async.until(
             function (testCb) {
-              return testCb(null, count < offset);
+              return testCb(null, __private.stopRequested || count < offset);
             }, function (cb) {
+              if (__private.stopRequested) {
+                return setImmediate(cb);
+              }
+
               if (count > 1) {
                 library.logger.info('Rebuilding blockchain, current block height: ' + (offset + 1));
               }
@@ -366,7 +399,7 @@ __private.loadBlockChain = function () {
                 __private.lastBlock = lastBlock;
 
                 return setImmediate(cb);
-              });
+              }, __private.isStopRequested);
             }, function (err) {
               return setImmediate(seriesCb, err);
             }
@@ -378,13 +411,21 @@ __private.loadBlockChain = function () {
         if (err.block) {
           library.logger.error('Blockchain failed at: ' + err.block.height);
           modules.blocks.chain.deleteAfterBlock(err.block.id, function (err, res) {
+            if (err) {
+              library.logger.error(err);
+            }
             library.logger.error('Blockchain clipped');
-            library.bus.message('blockchainReady');
+            finishLoading(true);
           });
+        } else {
+          finishLoading(false);
         }
+      } else if (__private.stopRequested) {
+        library.logger.info('Blockchain rebuild stopped for shutdown');
+        finishLoading(false);
       } else {
         library.logger.info('Blockchain ready');
-        library.bus.message('blockchainReady');
+        finishLoading(true);
       }
     });
   }
@@ -483,7 +524,8 @@ __private.loadBlockChain = function () {
 
     if (duplicatedDelegates > 0) {
       library.logger.error('Delegates table corrupted with duplicated entries');
-      return process.emit('exit');
+      finishLoading(false);
+      return process.emit('cleanup');
     }
 
     function updateMemAccounts (t) {
@@ -511,13 +553,14 @@ __private.loadBlockChain = function () {
         } else {
           __private.lastBlock = block;
           library.logger.info('Blockchain ready');
-          library.bus.message('blockchainReady');
+          finishLoading(true);
         }
       });
     });
   }).catch(function (err) {
     library.logger.error(err.stack || err);
-    return process.emit('exit');
+    finishLoading(false);
+    return process.emit('cleanup');
   });
 };
 
@@ -542,7 +585,7 @@ __private.loadBlocksFromNetwork = function (cb) {
     } else {
       async.whilst(
           function (testCb) {
-            return testCb(null, !loaded && errorCount < 5);
+            return testCb(null, !__private.stopRequested && !loaded && errorCount < 5);
           },
           function (next) {
             var peer = network.peers[Math.floor(Math.random() * network.peers.length)];
@@ -560,7 +603,7 @@ __private.loadBlocksFromNetwork = function (cb) {
                 loaded = lastValidBlock.id === lastBlock.id;
                 lastValidBlock = lastBlock = null;
                 next();
-              });
+              }, __private.isStopRequested);
             }
 
             function getCommonBlock (cb) {
@@ -614,41 +657,63 @@ __private.loadBlocksFromNetwork = function (cb) {
  * @todo check err actions
  */
 __private.sync = function (cb) {
+  if (__private.stopRequested) {
+    return setImmediate(cb);
+  }
+
   library.logger.info('Starting sync');
   library.bus.message('syncStarted');
 
   __private.isActive = true;
   __private.syncTrigger(true);
 
+  function skipOnStop (seriesCb, next) {
+    if (__private.stopRequested) {
+      return setImmediate(seriesCb);
+    }
+
+    return next(seriesCb);
+  }
+
   async.series({
     undoUnconfirmedList: function (seriesCb) {
-      library.logger.debug('Undoing unconfirmed transactions before sync');
-      return modules.transactions.undoUnconfirmedList(seriesCb);
+      return skipOnStop(seriesCb, function (next) {
+        library.logger.debug('Undoing unconfirmed transactions before sync');
+        return modules.transactions.undoUnconfirmedList(next);
+      });
     },
     getPeersBefore: function (seriesCb) {
-      library.logger.debug('Establishing broadhash consensus before sync');
-      return modules.transport.getPeers({ limit: constants.maxPeers }, seriesCb);
+      return skipOnStop(seriesCb, function (next) {
+        library.logger.debug('Establishing broadhash consensus before sync');
+        return modules.transport.getPeers({ limit: constants.maxPeers }, next);
+      });
     },
     loadBlocksFromNetwork: function (seriesCb) {
-      return __private.loadBlocksFromNetwork(seriesCb);
+      return skipOnStop(seriesCb, __private.loadBlocksFromNetwork);
     },
     updateSystem: function (seriesCb) {
-      return modules.system.update(seriesCb);
+      return skipOnStop(seriesCb, function (next) {
+        return modules.system.update(next);
+      });
     },
     getPeersAfter: function (seriesCb) {
-      library.logger.debug('Establishing broadhash consensus after sync');
-      return modules.transport.getPeers({ limit: constants.maxPeers }, seriesCb);
+      return skipOnStop(seriesCb, function (next) {
+        library.logger.debug('Establishing broadhash consensus after sync');
+        return modules.transport.getPeers({ limit: constants.maxPeers }, next);
+      });
     },
     applyUnconfirmedList: function (seriesCb) {
-      library.logger.debug('Applying unconfirmed transactions after sync');
-      return modules.transactions.applyUnconfirmedList(seriesCb);
+      return skipOnStop(seriesCb, function (next) {
+        library.logger.debug('Applying unconfirmed transactions after sync');
+        return modules.transactions.applyUnconfirmedList(next);
+      });
     }
   }, function (err) {
     __private.isActive = false;
     __private.syncTrigger(false);
     __private.blocksToSync = 0;
 
-    library.logger.info('Finished sync');
+    library.logger.info(__private.stopRequested ? 'Sync stopped for shutdown' : 'Finished sync');
     library.bus.message('syncFinished');
     return setImmediate(cb, err);
   });
@@ -771,7 +836,7 @@ Loader.prototype.syncing = function () {
  */
 Loader.prototype.getBlocksToSync = function () {
   return __private.blocksToSync;
-}
+};
 
 /**
  * Returns last blockchain height when syncing.
@@ -780,7 +845,7 @@ Loader.prototype.getBlocksToSync = function () {
  */
 Loader.prototype.getHeight = function () {
   return __private.lastBlock.height;
-}
+};
 
 /**
  * Returns if the blockchain is in sync process.
@@ -789,7 +854,7 @@ Loader.prototype.getHeight = function () {
  */
 Loader.prototype.loaded = function () {
   return __private.loaded;
-}
+};
 
 /**
  * Returns whether the blockchain has checked if it needs to sync
@@ -798,7 +863,7 @@ Loader.prototype.loaded = function () {
  */
 Loader.prototype.isReadyToSync = function () {
   return __private.ready;
-}
+};
 
 /**
  * Returns total synced blocks.
@@ -807,7 +872,7 @@ Loader.prototype.isReadyToSync = function () {
  */
 Loader.prototype.getTotalBlocks = function () {
   return __private.total;
-}
+};
 
 /**
  * Calls helpers.sandbox.callMethod().
@@ -916,9 +981,20 @@ Loader.prototype.onBlockchainReady = function () {
  * @return {setImmediateCallback} cb
  */
 Loader.prototype.cleanup = function (cb) {
+  function waitForIdle () {
+    if (__private.isActive) {
+      library.logger.info('Waiting for loader to finish active sync/rebuild...');
+      return setTimeout(waitForIdle, 10000);
+    }
+
+    return setImmediate(cb);
+  }
+
   __private.loaded = false;
   __private.ready = false;
-  return setImmediate(cb);
+  __private.requestStop();
+
+  return setImmediate(waitForIdle);
 };
 
 // Internal API
