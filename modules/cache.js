@@ -184,7 +184,7 @@ Cache.prototype.onNewBlock = function (block, broadcast, cb) {
       if (err) {
         logger.error('cache', ['Error clearing keys with pattern:', pattern, ' on new block'].join(' '));
       } else {
-        logger.debug('cache', ['keys with pattern:', pattern, 'cleared from cache on new block'].join(' '));
+        logger.trace('cache', ['Keys with pattern:', pattern, 'cleared from cache on new block'].join(' '));
       }
       mapCb(err);
     });
@@ -205,7 +205,7 @@ Cache.prototype.onFinishRound = function (round, cb) {
     if (err) {
       logger.error('cache', ['Error clearing keys with pattern:', pattern, ' round finish'].join(' '));
     } else {
-      logger.debug('cache', ['keys with pattern: ', pattern, 'cleared from cache new Round'].join(' '));
+      logger.trace('cache', ['Keys with pattern: ', pattern, 'cleared from cache new Round'].join(' '));
     }
     return cb(err);
   });
@@ -232,7 +232,7 @@ Cache.prototype.onTransactionsSaved = function (transactions, cb) {
       if (err) {
         logger.error('cache', ['Error clearing keys with pattern:', pattern, ' on delegate trs'].join(' '));
       } else {
-        logger.debug('cache', ['keys with pattern:', pattern, 'cleared from cache on delegate trs'].join(' '));
+        logger.trace('cache', ['Keys with pattern:', pattern, 'cleared from cache on delegate trs'].join(' '));
       }
       return cb(err);
     });
