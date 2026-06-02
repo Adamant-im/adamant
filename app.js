@@ -720,6 +720,7 @@ d.run(function () {
        */
       scope.logger.info('startup', 'Modules ready and launched');
       var cleanupStarted = false;
+      var cleanupSignalCount = 0;
 
       /**
        * Cleans all modules before shutdown.
@@ -731,11 +732,18 @@ d.run(function () {
        */
       function requestShutdown (signal, exitCode) {
         if (cleanupStarted) {
-          scope.logger.warn('exit', signal + ' received while cleanup is in progress. Waiting for safe shutdown.');
-          return;
+          cleanupSignalCount += 1;
+          if (cleanupSignalCount > 1) {
+            scope.logger.warn('exit', signal + ' received again while cleanup is in progress. Forcing shutdown.');
+            return process.exit(exitCode);
+          } else {
+            scope.logger.warn('exit', signal + ' received while cleanup is in progress. Waiting for safe shutdown.');
+            return;
+          }
         }
 
         cleanupStarted = true;
+        cleanupSignalCount = 0;
         scope.logger.info('exit', 'Cleaning up...');
 
         var moduleMap = scope.modules || {};

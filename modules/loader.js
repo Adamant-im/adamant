@@ -24,6 +24,7 @@ __private.syncIntervalId = null;
 __private.syncInterval = 10000;
 __private.retries = 5;
 __private.stopRequested = false;
+__private.shutdownRequested = false;
 
 /**
  * Initializes library with scope content.
@@ -112,6 +113,7 @@ __private.syncTrigger = function (turnOn) {
  * @private
  */
 __private.requestStop = function () {
+  __private.shutdownRequested = true;
   __private.stopRequested = true;
   __private.syncTrigger(false);
 };
@@ -346,13 +348,19 @@ __private.loadBlockChain = function () {
   var verify = false;
 
   __private.stopRequested = false;
+  __private.shutdownRequested = false;
   __private.isActive = true;
 
   function finishLoading (ready) {
     __private.isActive = false;
-    if (ready) {
+    if (ready && !__private.shutdownRequested) {
       library.bus.message('blockchainReady');
     }
+  }
+
+  function finishForShutdown () {
+    library.logger.info('loader', 'Blockchain loading stopped for shutdown');
+    finishLoading(false);
   }
 
   function load (count) {
@@ -431,6 +439,10 @@ __private.loadBlockChain = function () {
   }
 
   function reload (count, message) {
+    if (__private.stopRequested) {
+      return finishForShutdown();
+    }
+
     if (message) {
       library.logger.warn('loader', message);
       library.logger.warn('loader', 'Recreating memory tables');
@@ -492,6 +504,10 @@ __private.loadBlockChain = function () {
 
     library.logger.info('loader', 'Blocks count in database: ' + count);
 
+    if (__private.stopRequested) {
+      return finishForShutdown();
+    }
+
     var round = modules.rounds.calc(count);
 
     if (count === 1) {
@@ -539,6 +555,10 @@ __private.loadBlockChain = function () {
     }
 
     library.db.task(updateMemAccounts).then(function (results) {
+      if (__private.stopRequested) {
+        return finishForShutdown();
+      }
+
       if (results[1].length > 0) {
         return reload(count, 'Detected orphaned blocks in mem_accounts');
       }

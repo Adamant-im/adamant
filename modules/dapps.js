@@ -104,20 +104,10 @@ function DApps (cb, scope) {
    * @listens exit
    */
   process.on('exit', function () {
-    var keys = Object.keys(__private.launched);
-
-    async.eachSeries(keys, function (id, eachSeriesCb) {
-      if (!__private.launched[id]) {
-        return setImmediate(eachSeriesCb);
+    __private.stopLaunchedDApps(function (err) {
+      if (err) {
+        library.logger.error('dapps', err);
       }
-
-      __private.stopDApp({
-        transactionId: id
-      }, function (err) {
-        return setImmediate(eachSeriesCb, err);
-      });
-    }, function (err) {
-      library.logger.error('dapps', err);
     });
   });
 
@@ -909,6 +899,24 @@ __private.stopDApp = function (dapp, cb) {
   });
 };
 
+__private.stopLaunchedDApps = function (cb) {
+  var keys = Object.keys(__private.launched);
+
+  async.eachSeries(keys, function (id, eachSeriesCb) {
+    if (!__private.launched[id]) {
+      return setImmediate(eachSeriesCb);
+    }
+
+    __private.stopDApp({
+      transactionId: id
+    }, function (err) {
+      return setImmediate(eachSeriesCb, err);
+    });
+  }, function (err) {
+    return setImmediate(cb, err);
+  });
+};
+
 // Public methods
 /**
  * Calls helpers.sandbox.callMethod().
@@ -986,6 +994,10 @@ DApps.prototype.onBind = function (scope) {
       scope.rounds,
       scope.dapps
   );
+};
+
+DApps.prototype.cleanup = function (cb) {
+  __private.stopLaunchedDApps(cb);
 };
 
 /**
