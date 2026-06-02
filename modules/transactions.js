@@ -310,9 +310,9 @@ __private.getById = function (id, cb) {
       return setImmediate(cb, 'Transaction not found: ' + id);
     }
 
-    var transacton = library.logic.transaction.dbRead(rows[0]);
+    var transaction = library.logic.transaction.dbRead(rows[0]);
 
-    return setImmediate(cb, null, transacton);
+    return setImmediate(cb, null, transaction);
   }).catch(function (err) {
     library.logger.error('api-transactions', `An error occurred while trying to get transaction ${id}: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Transactions#getById error');
@@ -332,9 +332,9 @@ __private.getByIdFullAsset = function (id, cb) {
       return setImmediate(cb, 'Transaction not found: ' + id);
     }
 
-    var transacton = library.logic.transaction.dbRead(rows[0]);
+    var transaction = library.logic.transaction.dbRead(rows[0]);
 
-    return setImmediate(cb, null, transacton);
+    return setImmediate(cb, null, transaction);
   }).catch(function (err) {
     library.logger.error('api-transactions', `An error occurred while trying to get transaction ${id} from 'trs_list_full' table: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Transactions#getById error');
@@ -778,7 +778,14 @@ Transactions.prototype.undoUnconfirmedList = function (cb) {
  * @param {function} cb - Callback function
  */
 Transactions.prototype.apply = function (transaction, block, sender, cb) {
-  library.logger.debug('transactions', 'Applying confirmed transaction', transaction.id);
+  library.logger.debug('transactions', 'Applying confirmed transaction', {
+    id: transaction.id,
+    blockId: block.id,
+    height: block.height,
+    round: modules.rounds.calc(block.height),
+    senderId: transaction.senderId,
+    type: transaction.type
+  });
   library.logic.transaction.apply(transaction, block, sender, cb);
 };
 
@@ -805,7 +812,16 @@ Transactions.prototype.undo = function (transaction, block, sender, cb) {
  * @return {setImmediateCallback} for errors
  */
 Transactions.prototype.applyUnconfirmed = function (transaction, sender, cb) {
-  library.logger.debug('transactions', 'Applying unconfirmed transaction', transaction.id);
+  var lastBlock = modules.blocks.lastBlock.get();
+
+  library.logger.debug('transactions', 'Applying unconfirmed transaction', {
+    id: transaction.id,
+    blockId: transaction.blockId || null,
+    currentHeight: lastBlock.height,
+    currentRound: modules.rounds.calc(lastBlock.height),
+    senderId: transaction.senderId,
+    type: transaction.type
+  });
 
   if (!sender && transaction.blockId !== library.genesisblock.block.id) {
     return setImmediate(cb, 'Invalid block id');
@@ -896,10 +912,12 @@ Transactions.prototype.isLoaded = function () {
 Transactions.prototype.onBind = function (scope) {
   modules = {
     accounts: scope.accounts,
+    blocks: scope.blocks,
     transactions: scope.transactions,
     delegates: scope.delegates,
     chats: scope.chats,
-    states: scope.states
+    states: scope.states,
+    rounds: scope.rounds
   };
 
   __private.transactionPool.bind(

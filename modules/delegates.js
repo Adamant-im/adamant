@@ -165,7 +165,12 @@ __private.forge = function (cb) {
   // Do not try to forge new blocks as client is not ready
   const syncPending = !modules.loader.isReadyToSync() || modules.loader.syncing();
   if (!__private.loaded || syncPending || !modules.rounds.loaded() || modules.rounds.ticking()) {
-    library.logger.debug('delegates', 'Client not ready to forge');
+    library.logger.debug('delegates', 'Client not ready to forge', {
+      loaded: __private.loaded,
+      syncPending: syncPending,
+      roundsLoaded: modules.rounds.loaded(),
+      roundsTicking: modules.rounds.ticking()
+    });
     return setImmediate(cb);
   }
 
@@ -173,7 +178,12 @@ __private.forge = function (cb) {
   var lastBlock = modules.blocks.lastBlock.get();
 
   if (currentSlot === slots.getSlotNumber(lastBlock.timestamp)) {
-    library.logger.debug('delegates', 'Waiting for next delegate slot');
+    library.logger.debug('delegates', 'Waiting for next delegate slot', {
+      currentSlot: currentSlot,
+      lastBlockId: lastBlock.id,
+      lastBlockHeight: lastBlock.height,
+      lastBlockTimestamp: lastBlock.timestamp
+    });
     return setImmediate(cb);
   }
 

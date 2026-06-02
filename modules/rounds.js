@@ -116,7 +116,12 @@ Rounds.prototype.backwardTick = function (block, previousBlock, done) {
   function BackwardTick (t) {
     var promised = new Round(scope, t);
 
-    library.logger.debug('rounds', 'Performing backward tick');
+    library.logger.debug('rounds', 'Performing backward tick', {
+      blockId: block.id,
+      height: block.height,
+      round: round,
+      finishRound: scope.finishRound
+    });
     library.logger.trace('rounds', 'Backward tick context', {
       blockId: block.id,
       height: block.height,
@@ -216,7 +221,13 @@ Rounds.prototype.tick = function (block, done) {
   function Tick (t) {
     var promised = new Round(scope, t);
 
-    library.logger.debug('rounds', 'Performing forward tick');
+    library.logger.debug('rounds', 'Performing forward tick', {
+      blockId: block.id,
+      height: block.height,
+      round: round,
+      finishRound: scope.finishRound,
+      snapshotRound: scope.snapshotRound
+    });
     library.logger.trace('rounds', 'Forward tick context', {
       blockId: block.id,
       height: block.height,
@@ -271,7 +282,12 @@ Rounds.prototype.tick = function (block, done) {
     function (cb) {
       // Check if we are one block before last block of round, if yes - perform round snapshot
       if ((block.height + 1) % slots.delegates === 0) {
-        library.logger.debug('rounds', 'Performing round snapshot...');
+        library.logger.debug('rounds', 'Performing round snapshot...', {
+          blockId: block.id,
+          height: block.height,
+          round: round,
+          snapshotRound: scope.snapshotRound
+        });
 
         library.db.tx(function (t) {
           return t.batch([
@@ -281,7 +297,11 @@ Rounds.prototype.tick = function (block, done) {
             t.none(sql.performVotesSnapshot)
           ]);
         }).then(function () {
-          library.logger.trace('rounds', 'Round snapshot done');
+          library.logger.trace('rounds', 'Round snapshot done', {
+            blockId: block.id,
+            height: block.height,
+            round: round
+          });
           return setImmediate(cb);
         }).catch(function (err) {
           library.logger.error('rounds', 'Round snapshot failed', err);

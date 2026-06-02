@@ -84,7 +84,7 @@ Chain.prototype.saveBlock = function (block, cb) {
   // Prepare and execute SQL transaction
   // WARNING: DB_WRITE
   library.db.tx(function (t) {
-    // Create bytea fields (buffers), and returns pseudo-row object promise-like
+    // Create byte fields (buffers), and returns pseudo-row object promise-like
     var promise = library.logic.block.dbSave(block);
     // Initialize insert helper
     var inserts = new Inserts(promise, promise.values);
@@ -151,7 +151,7 @@ __private.promiseTransactions = function (t, block, blockPromises) {
     transaction.blockId = block.id;
     transaction.height = block.height;
     transaction.block_timestamp = block.timestamp;
-    // Create bytea fields (buffers), and returns pseudo-row promise-like object
+    // Create byte fields (buffers), and returns pseudo-row promise-like object
     return library.logic.transaction.dbSave(transaction);
   };
 
@@ -455,7 +455,12 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
             return process.exit(0);
           }
 
-          library.logger.debug('blocks', 'Block applied correctly with ' + block.transactions.length + ' transactions');
+          library.logger.debug('blocks', 'Block applied correctly', {
+            id: block.id,
+            height: block.height,
+            round: modules.rounds.calc(block.height),
+            transactions: block.transactions.length
+          });
           library.bus.message('newBlock', block, broadcast);
 
           // DATABASE write. Update delegates accounts
@@ -617,12 +622,20 @@ Chain.prototype.deleteLastBlock = function (cb) {
  * @return {Object}   cb.err Error if occurred
  */
 Chain.prototype.recoverChain = function (cb) {
-  library.logger.warn('blocks', 'Chain comparison failed, deleting last block');
+  var lastBlock = modules.blocks.lastBlock.get();
+
+  library.logger.warn('blocks', 'Chain comparison failed, deleting last block', {
+    lastBlockId: lastBlock.id,
+    lastBlockHeight: lastBlock.height
+  });
   self.deleteLastBlock(function (err, newLastBlock) {
     if (err) {
-      library.logger.error('blocks', 'Recovery failed');
+      library.logger.error('blocks', 'Recovery failed', err);
     } else {
-      library.logger.info('blocks', 'Last block deleted, new last block', newLastBlock.id);
+      library.logger.info('blocks', 'Last block deleted, new last block', {
+        id: newLastBlock.id,
+        height: newLastBlock.height
+      });
     }
     return setImmediate(cb, err);
   });

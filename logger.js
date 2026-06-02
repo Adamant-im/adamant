@@ -32,7 +32,6 @@ var logColors = {
 
 var namespaceColors = [
   'black',
-  'red',
   'yellow',
   'blue',
   'green',
@@ -41,12 +40,15 @@ var namespaceColors = [
   'white',
   'brightGreen',
   'gray',
-  'brightRed',
   'brightYellow',
   'brightBlue',
   'brightMagenta',
   'brightCyan',
-  'brightWhite'
+  'brightWhite',
+  'grey',
+  'brightGreen',
+  'brightBlue',
+  'brightCyan'
 ];
 
 var defaultLogLevels = {

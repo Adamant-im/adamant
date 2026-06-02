@@ -158,7 +158,12 @@ Round.prototype.truncateBlocks = function () {
  * @returns {Function} Promise
  */
 Round.prototype.restoreRoundSnapshot = function () {
-  this.scope.library.logger.debug('rounds', 'Restoring mem_round snapshot...');
+  this.scope.library.logger.debug('rounds', 'Restoring mem_round snapshot...', {
+    blockId: this.scope.block.id,
+    height: this.scope.block.height,
+    round: this.scope.round,
+    backwards: this.scope.backwards
+  });
   return this.t.none(sql.restoreRoundSnapshot);
 };
 
@@ -168,7 +173,12 @@ Round.prototype.restoreRoundSnapshot = function () {
  * @returns {Function} Promise
  */
 Round.prototype.restoreVotesSnapshot = function () {
-  this.scope.library.logger.debug('rounds', 'Restoring mem_accounts.vote snapshot...');
+  this.scope.library.logger.debug('rounds', 'Restoring mem_accounts.vote snapshot...', {
+    blockId: this.scope.block.id,
+    height: this.scope.block.height,
+    round: this.scope.round,
+    backwards: this.scope.backwards
+  });
   return this.t.none(sql.restoreVotesSnapshot);
 };
 

@@ -245,7 +245,10 @@ class TransportWsApi {
   updatePeers () {
     const self = this;
 
-    self.logger.info('ws-node-client', 'Updating peers…');
+    self.logger.info('ws-node-client', 'Updating peers…', {
+      connectedPeers: this.connections.size,
+      maxConnections: this.maxConnections
+    });
 
     this.connections.forEach(({ peer }) => {
       if (self.peers.isBanned(peer)) {
@@ -257,7 +260,10 @@ class TransportWsApi {
     const availableSlots = this.maxConnections - this.connections.size;
 
     if (availableSlots <= 0) {
-      self.logger.info('ws-node-client', 'Max connections reached. No peers updated.');
+      self.logger.info('ws-node-client', 'Max connections reached. No peers updated.', {
+        connectedPeers: this.connections.size,
+        maxConnections: this.maxConnections
+      });
       return;
     }
 
@@ -295,7 +301,10 @@ class TransportWsApi {
   rotatePeers () {
     const self = this;
 
-    self.logger.info('ws-node-client', 'Rotating peers…');
+    self.logger.info('ws-node-client', 'Rotating peers…', {
+      connectedPeers: self.connections.size,
+      rotationPercentage: wsConstants.rotationPercentage
+    });
 
     const totalConnections = self.connections.size;
 

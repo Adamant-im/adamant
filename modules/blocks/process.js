@@ -166,7 +166,13 @@ Process.prototype.loadBlocksOffset = function (limit, offset, verify, cb, should
           return setImmediate(cb);
         }
 
-        library.logger.debug('loader', 'Processing block', block.id);
+        library.logger.debug('loader', 'Processing block', {
+          id: block.id,
+          height: block.height,
+          previousBlock: block.previousBlock,
+          round: modules.rounds.calc(block.height),
+          transactions: block.transactions.length
+        });
         if (verify && block.id !== library.genesisblock.block.id) {
           // Sanity check of the block, if values are coherent.
           // No access to database.
@@ -460,10 +466,24 @@ __private.receiveForkOne = function (block, lastBlock, cb) {
 
   // Keep the oldest block, or if both have same age, keep block with lower id
   if (block.timestamp > lastBlock.timestamp || (block.timestamp === lastBlock.timestamp && block.id > lastBlock.id)) {
-    library.logger.info('loader', 'Last block stands after processing fork cause 1');
+    library.logger.info('loader', 'Last block stands after processing fork cause 1', {
+      receivedBlockId: block.id,
+      receivedBlockHeight: block.height,
+      receivedBlockTimestamp: block.timestamp,
+      lastBlockId: lastBlock.id,
+      lastBlockHeight: lastBlock.height,
+      lastBlockTimestamp: lastBlock.timestamp
+    });
     return setImmediate(cb); // Discard received block
   } else {
-    library.logger.info('loader', 'Last block and parent loses after processing fork cause 1');
+    library.logger.info('loader', 'Last block and parent loses after processing fork cause 1', {
+      receivedBlockId: block.id,
+      receivedBlockHeight: block.height,
+      receivedBlockTimestamp: block.timestamp,
+      lastBlockId: lastBlock.id,
+      lastBlockHeight: lastBlock.height,
+      lastBlockTimestamp: lastBlock.timestamp
+    });
     async.series([
       function (seriesCb) {
         try {
@@ -519,10 +539,24 @@ __private.receiveForkFive = function (block, lastBlock, cb) {
 
   // Keep the oldest block, or if both have same age, keep block with lower id
   if (block.timestamp > lastBlock.timestamp || (block.timestamp === lastBlock.timestamp && block.id > lastBlock.id)) {
-    library.logger.info('loader', 'Last block stands after processing fork 5');
+    library.logger.info('loader', 'Last block stands after processing fork 5', {
+      receivedBlockId: block.id,
+      receivedBlockHeight: block.height,
+      receivedBlockTimestamp: block.timestamp,
+      lastBlockId: lastBlock.id,
+      lastBlockHeight: lastBlock.height,
+      lastBlockTimestamp: lastBlock.timestamp
+    });
     return setImmediate(cb); // Discard received block
   } else {
-    library.logger.info('loader', 'Last block loses after processing fork 5');
+    library.logger.info('loader', 'Last block loses after processing fork 5', {
+      receivedBlockId: block.id,
+      receivedBlockHeight: block.height,
+      receivedBlockTimestamp: block.timestamp,
+      lastBlockId: lastBlock.id,
+      lastBlockHeight: lastBlock.height,
+      lastBlockTimestamp: lastBlock.timestamp
+    });
     async.series([
       function (seriesCb) {
         try {

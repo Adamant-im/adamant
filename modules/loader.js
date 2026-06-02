@@ -660,7 +660,10 @@ __private.sync = function (cb) {
     return setImmediate(cb);
   }
 
-  library.logger.info('loader', 'Starting sync');
+  library.logger.info('loader', 'Starting sync', {
+    height: modules.blocks.lastBlock.get().height,
+    blocksToSync: __private.blocksToSync
+  });
   library.bus.message('syncStarted');
 
   __private.isActive = true;
@@ -677,13 +680,18 @@ __private.sync = function (cb) {
   async.series({
     undoUnconfirmedList: function (seriesCb) {
       return skipOnStop(seriesCb, function (next) {
-        library.logger.debug('loader', 'Undoing unconfirmed transactions before sync');
+        library.logger.debug('loader', 'Undoing unconfirmed transactions before sync', {
+          height: modules.blocks.lastBlock.get().height
+        });
         return modules.transactions.undoUnconfirmedList(next);
       });
     },
     getPeersBefore: function (seriesCb) {
       return skipOnStop(seriesCb, function (next) {
-        library.logger.debug('loader', 'Establishing broadhash consensus before sync');
+        library.logger.debug('loader', 'Establishing broadhash consensus before sync', {
+          height: modules.blocks.lastBlock.get().height,
+          limit: constants.maxPeers
+        });
         return modules.transport.getPeers({ limit: constants.maxPeers }, next);
       });
     },
@@ -697,13 +705,18 @@ __private.sync = function (cb) {
     },
     getPeersAfter: function (seriesCb) {
       return skipOnStop(seriesCb, function (next) {
-        library.logger.debug('loader', 'Establishing broadhash consensus after sync');
+        library.logger.debug('loader', 'Establishing broadhash consensus after sync', {
+          height: modules.blocks.lastBlock.get().height,
+          limit: constants.maxPeers
+        });
         return modules.transport.getPeers({ limit: constants.maxPeers }, next);
       });
     },
     applyUnconfirmedList: function (seriesCb) {
       return skipOnStop(seriesCb, function (next) {
-        library.logger.debug('loader', 'Applying unconfirmed transactions after sync');
+        library.logger.debug('loader', 'Applying unconfirmed transactions after sync', {
+          height: modules.blocks.lastBlock.get().height
+        });
         return modules.transactions.applyUnconfirmedList(next);
       });
     }
@@ -712,7 +725,11 @@ __private.sync = function (cb) {
     __private.syncTrigger(false);
     __private.blocksToSync = 0;
 
-    library.logger.info('loader', __private.stopRequested ? 'Sync stopped for shutdown' : 'Finished sync');
+    library.logger.info('loader', __private.stopRequested ? 'Sync stopped for shutdown' : 'Finished sync', {
+      height: modules.blocks.lastBlock.get().height,
+      stopped: __private.stopRequested,
+      error: err ? err.message || err : null
+    });
     library.bus.message('syncFinished');
     return setImmediate(cb, err);
   });

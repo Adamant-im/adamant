@@ -151,7 +151,14 @@ Broadcaster.prototype.broadcast = function (params, options, cb) {
       }
     },
     function getFromPeer (peers, waterCb) {
-      library.logger.debug('broadcaster', 'Begin broadcast', options);
+      library.logger.debug('broadcaster', 'Begin broadcast', {
+        api: options.api,
+        method: options.method,
+        peerCount: peers.length,
+        limit: params.limit,
+        broadcastLimit: self.config.broadcastLimit,
+        parallelLimit: self.config.parallelLimit
+      });
 
       if (params.limit === self.config.peerLimit) {
         peers = peers.slice(0, self.config.broadcastLimit);
@@ -167,7 +174,11 @@ Broadcaster.prototype.broadcast = function (params, options, cb) {
           return setImmediate(eachLimitCb);
         });
       }, function (err) {
-        library.logger.debug('broadcaster', 'End broadcast');
+        library.logger.debug('broadcaster', 'End broadcast', {
+          api: options.api,
+          method: options.method,
+          peerCount: peers.length
+        });
         return setImmediate(waterCb, err, peers);
       });
     }
@@ -293,10 +304,14 @@ __private.squashQueue = function (broadcasts) {
  * @return {setImmediateCallback} cb
  */
 __private.releaseQueue = function (cb) {
-  library.logger.debug('broadcaster', 'Releasing enqueued broadcasts');
+  library.logger.debug('broadcaster', 'Releasing enqueued broadcasts', {
+    queueLength: self.queue.length
+  });
 
   if (!self.queue.length) {
-    library.logger.debug('broadcaster', 'Queue empty');
+    library.logger.debug('broadcaster', 'Queue empty', {
+      queueLength: self.queue.length
+    });
     return setImmediate(cb);
   }
 
