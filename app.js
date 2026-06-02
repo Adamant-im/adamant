@@ -105,7 +105,7 @@ if (programOpts.peers) {
 }
 
 if (programOpts.log) {
-  appConfig.consoleLogLevel = programOpts.log;
+  appConfig.consoleLog.level = programOpts.log;
 }
 
 if (programOpts.snapshot) {
@@ -177,10 +177,9 @@ var config = {
  * @property {object} - Logger instance.
  */
 var logger = new Logger({
-  consoleLogLevel: appConfig.consoleLogLevel,
-  errorLevel: appConfig.fileLogLevel,
-  filename: appConfig.logFileName,
-  debugFilename: appConfig.debugFileName
+  generalLog: appConfig.generalLog,
+  debugLog: appConfig.debugLog,
+  consoleLog: appConfig.consoleLog
 });
 
 // Trying to get last git commit

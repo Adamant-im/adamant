@@ -10,6 +10,9 @@ sftp-config.json
 
 # Logs
 logs/*.log
+logs-mainnet/*.log
+logs-testnet/*.log
+logs-localnet/*.log
 stacktrace*
 
 # Code Editors

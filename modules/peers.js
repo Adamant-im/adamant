@@ -22,11 +22,11 @@ var modules, library, self, __private = {}, shared = {};
 
 /**
  * Initializes library with scope content.
+ * @param {Function} cb - Callback function.
+ * @param {scope} scope - App instance.
  * @memberof module:peers
  * @class
  * @classdesc Main peers methods.
- * @param {function} cb - Callback function.
- * @param {scope} scope - App instance.
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
@@ -57,9 +57,10 @@ function Peers (cb, scope) {
 // Private methods
 /**
  * Returns peers length after get them by filter.
+ * @param {object} filter
+ * @param {Function} cb - Callback function.
+ *
  * @private
- * @param {Object} filter
- * @param {function} cb - Callback function.
  * @return {setImmediateCallback} peers length
  */
 __private.countByFilter = function (filter, cb) {
@@ -70,9 +71,10 @@ __private.countByFilter = function (filter, cb) {
 
 /**
  * Gets randomly ordered list of peers by filter.
+ * @param {object} filter
+ * @param {Function} cb - Callback function.
+ *
  * @private
- * @param {Object} filter
- * @param {function} cb - Callback function.
  * @return {setImmediateCallback} peers
  */
 __private.getByFilter = function (filter, cb) {
@@ -157,8 +159,8 @@ __private.getByFilter = function (filter, cb) {
 
 /**
  * Pings to every member of peers list.
+ * @param {Function} cb - Callback function.
  * @private
- * @param {function} cb - Callback function.
  * @return {setImmediateCallback} cb
  */
 __private.insertSeeds = function (cb) {
@@ -180,9 +182,9 @@ __private.insertSeeds = function (cb) {
 /**
  * Loads peers from database and checks every peer state and updated time.
  * Pings when checks are true.
+ * @param {Function} cb - Callback function.
  * @implements library.db
  * @private
- * @param {function} cb - Callback function.
  * @returns {setImmediateCallback} cb
  */
 __private.dbLoad = function (cb) {
@@ -222,9 +224,9 @@ __private.dbLoad = function (cb) {
 /**
  * Inserts list of peers into `peers` table and inserts dapps peers
  * into `peers_dapp` table.
+ * @param {Function} cb - Callback function.
  * @implements library.db
  * @private
- * @param {function} cb - Callback function.
  * @returns {setImmediateCallback} cb
  */
 __private.dbSave = function (cb) {
@@ -283,10 +285,11 @@ __private.dbSave = function (cb) {
 // Public methods
 /**
  * Calls helpers.sandbox.callMethod().
- * @implements module:helpers#callMethod
- * @param {function} call - Method to call.
+ * @param {Function} call - Method to call.
  * @param {*} args - List of arguments.
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
+ *
+ * @implements module:helpers#callMethod
  */
 Peers.prototype.sandboxApi = function (call, args, cb) {
   sandboxHelper.callMethod(Peers.prototype.shared, call, args, cb);
@@ -295,8 +298,9 @@ Peers.prototype.sandboxApi = function (call, args, cb) {
 /**
  * Sets peer state to active (2).
  * @param {peer} peer
- * @return {function} Calls peers.upsert
  * @todo rename this function to activePeer or similar
+ *
+ * @returns {Function} Calls peers.upsert
  */
 Peers.prototype.update = function (peer) {
   peer.state = Peer.STATE.CONNECTED;
@@ -343,15 +347,16 @@ Peers.prototype.isFrozen = function (ip, port) {
 
 /**
  * Removes peer from peers list if it is not a peer from config file list.
- * @implements logic.peers.remove
  * @param {string} pip - Peer ip
  * @param {number} port
+ *
+ * @implements logic.peers.remove
  * @return {function} Calls peers.remove
  */
 Peers.prototype.remove = function (pip, port) {
   if (self.isFrozen(pip, port)) {
     // FIXME: Keeping peer frozen is bad idea at all
-    library.logger.debug('Cannot remove frozen peer', pip + ':' + port);
+    library.logger.debug('peers', 'Cannot remove frozen peer', pip + ':' + port);
   } else {
     return library.logic.peers.remove({ ip: pip, port: port });
   }
@@ -359,10 +364,11 @@ Peers.prototype.remove = function (pip, port) {
 
 /**
  * Updates the request success rate for the peer.
- * @implements logic.peers.recordRequest
  * @param {string} ip
  * @param {number} port
  * @param {string?} error Provide the error in case of failed request
+ *
+ * @implements logic.peers.recordRequest
  * @return {boolean} Returns `true` if peer has been updated
  */
 Peers.prototype.recordRequest = function (ip, port, error) {
@@ -371,9 +377,9 @@ Peers.prototype.recordRequest = function (ip, port, error) {
 
 /**
  * Pings peer.
- * @implements transport.getFromPeer
  * @param {peer} peer - List of arguments.
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
+ * @implements transport.getFromPeer
  * @returns {setImmediateCallback} cb | error when ping peer fails
  */
 Peers.prototype.ping = function (peer, cb) {
@@ -393,7 +399,8 @@ Peers.prototype.ping = function (peer, cb) {
 
 /**
  * Discovers peers by getting list and validates them.
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
+ *
  * @return {setImmediateCallback} cb | error
  */
 Peers.prototype.discover = function (cb) {
@@ -485,8 +492,8 @@ Peers.prototype.isBanned = function (peer) {
 
 /**
  * Gets peers list and calculated consensus.
- * @param {Object} options - Contains limit, broadhash.
- * @param {function} cb - Callback function.
+ * @param {object} options - Contains limit, broadhash.
+ * @param {Function} cb - Callback function.
  * @return {setImmediateCallback} error | peers, consensus
  */
 Peers.prototype.list = function (options, cb) {
@@ -649,7 +656,7 @@ Peers.prototype.onPeersReady = function () {
 
 /**
  * Export peers to database.
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
  */
 Peers.prototype.cleanup = function (cb) {
   // Save peers on exit
@@ -660,7 +667,7 @@ Peers.prototype.cleanup = function (cb) {
 
 /**
  * Checks if `modules` is loaded.
- * @return {boolean} True if `modules` is loaded.
+ * @returns {boolean} True if `modules` is loaded.
  */
 Peers.prototype.isLoaded = function () {
   return !!modules;
@@ -668,8 +675,8 @@ Peers.prototype.isLoaded = function () {
 
 // Shared API
 /**
- * @todo implement API comments with apidoc.
  * @see {@link http://apidocjs.com/}
+ * @todo implement API comments with apidoc.
  */
 Peers.prototype.shared = {
   count: function (req, cb) {
