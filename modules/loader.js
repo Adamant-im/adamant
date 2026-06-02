@@ -23,15 +23,16 @@ __private.blocksToSync = 0;
 __private.syncIntervalId = null;
 __private.syncInterval = 10000;
 __private.retries = 5;
+__private.stopRequested = false;
 
 /**
  * Initializes library with scope content.
  * Calls private function initialize.
+ * @param {Function} cb - Callback function.
+ * @param {scope} scope - App instance.
  * @memberof module:loader
  * @class
  * @classdesc Main Loader methods.
- * @param {function} cb - Callback function.
- * @param {scope} scope - App instance.
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
@@ -80,10 +81,11 @@ __private.initialize = function () {
  * Cancels timers based on input parameter and private variable syncIntervalId
  * or Sync trigger by sending a socket signal with 'loader/sync' and setting
  * next sync with 1000 milliseconds.
+ * @param {boolean} turnOn
+ *
  * @private
  * @implements {library.network.wsServer.emit}
  * @implements {modules.blocks.lastBlock.get}
- * @param {boolean} turnOn
  * @emits loader/sync
  */
 __private.syncTrigger = function (turnOn) {
@@ -103,6 +105,24 @@ __private.syncTrigger = function (turnOn) {
       __private.syncIntervalId = setTimeout(nextSyncTrigger, 1000);
     });
   }
+};
+
+/**
+ * Requests active loader work to stop at the next safe boundary.
+ * @private
+ */
+__private.requestStop = function () {
+  __private.stopRequested = true;
+  __private.syncTrigger(false);
+};
+
+/**
+ * Checks if shutdown was requested.
+ * @private
+ * @returns {boolean}
+ */
+__private.isStopRequested = function () {
+  return __private.stopRequested;
 };
 
 /**
@@ -142,6 +162,7 @@ __private.syncTimer = function () {
 /**
  * Gets a random peer and loads signatures calling the api.
  * Processes each signature from peer.
+ * @param {Function} cb
  * @private
  * @implements {Loader.getNetwork}
  * @implements {modules.transport.getFromPeer}
@@ -149,7 +170,6 @@ __private.syncTimer = function () {
  * @implements {library.sequence.add}
  * @implements {async.eachSeries}
  * @implements {modules.multisignatures.processSignature}
- * @param {function} cb
  * @return {setImmediateCallback} cb, err
  */
 __private.loadSignatures = function (cb) {
@@ -203,6 +223,8 @@ __private.loadSignatures = function (cb) {
  * Gets a random peer and loads transactions calling the api.
  * Validates each transaction from peer and remove peer if invalid.
  * Calls processUnconfirmedTransaction for each transaction.
+ * @param {Function} cb
+ * @todo missed error propagation when balancesSequence.add
  * @private
  * @implements {Loader.getNetwork}
  * @implements {modules.transport.getFromPeer}
@@ -212,9 +234,7 @@ __private.loadSignatures = function (cb) {
  * @implements {modules.peers.remove}
  * @implements {library.balancesSequence.add}
  * @implements {modules.transactions.processUnconfirmedTransaction}
- * @param {function} cb
  * @return {setImmediateCallback} cb, err
- * @todo missed error propagation when balancesSequence.add
  */
 __private.loadTransactions = function (cb) {
   async.waterfall([
@@ -296,8 +316,8 @@ __private.loadTransactions = function (cb) {
  * Matches genesis block with database.
  * Verifies Snapshot mode.
  * Recreates memory tables when necessary:
- *  - Calls logic.account to removeTables and createTables
- *  - Calls block to load block. When blockchain ready emits a bus message.
+ * - Calls logic.account to removeTables and createTables
+ * - Calls block to load block. When blockchain ready emits a bus message.
  * Detects orphaned blocks in `mem_accounts` and gets delegates.
  * Loads last block and emits a bus message blockchain is ready.
  *
@@ -308,7 +328,7 @@ __private.loadTransactions = function (cb) {
  * Verification now relies on the `verifySnapshot(count, round)` function,
  * which uses `library.config.loading.snapshot`. The snapshot feature
  * allows partial verification of the blockchain up to a given round.
- *
+ * @throws {string} When fails to match genesis block with database
  * @private
  * @implements {library.db.task}
  * @implements {modules.rounds.calc}
@@ -320,11 +340,20 @@ __private.loadTransactions = function (cb) {
  * @implements {modules.blocks.deleteAfterBlock}
  * @implements {modules.blocks.loadLastBlock}
  * @emits exit
- * @throws {string} When fails to match genesis block with database
  */
 __private.loadBlockChain = function () {
   var offset = 0, limit = Number(library.config.loading.loadPerIteration) || 1000;
   var verify = false;
+
+  __private.stopRequested = false;
+  __private.isActive = true;
+
+  function finishLoading (ready) {
+    __private.isActive = false;
+    if (ready) {
+      library.bus.message('blockchainReady');
+    }
+  }
 
   function load (count) {
     verify = true;
@@ -352,8 +381,12 @@ __private.loadBlockChain = function () {
       loadBlocksOffset: function (seriesCb) {
         async.until(
             function (testCb) {
-              return testCb(null, count < offset);
+              return testCb(null, __private.stopRequested || count < offset);
             }, function (cb) {
+              if (__private.stopRequested) {
+                return setImmediate(cb);
+              }
+
               if (count > 1) {
                 library.logger.info('loader', 'Rebuilding blockchain, current block height: ' + (offset + 1));
               }
@@ -366,7 +399,7 @@ __private.loadBlockChain = function () {
                 __private.lastBlock = lastBlock;
 
                 return setImmediate(cb);
-              });
+              }, __private.isStopRequested);
             }, function (err) {
               return setImmediate(seriesCb, err);
             }
@@ -378,13 +411,21 @@ __private.loadBlockChain = function () {
         if (err.block) {
           library.logger.error('loader', 'Blockchain failed at: ' + err.block.height);
           modules.blocks.chain.deleteAfterBlock(err.block.id, function (err, res) {
+            if (err) {
+              library.logger.error('loader', 'Failed to clip blockchain', err);
+            }
             library.logger.error('loader', 'Blockchain clipped');
-            library.bus.message('blockchainReady');
+            finishLoading(true);
           });
+        } else {
+          finishLoading(false);
         }
+      } else if (__private.stopRequested) {
+        library.logger.info('loader', 'Blockchain rebuild stopped for shutdown');
+        finishLoading(false);
       } else {
         library.logger.info('loader', 'Blockchain ready');
-        library.bus.message('blockchainReady');
+        finishLoading(true);
       }
     });
   }
@@ -483,7 +524,8 @@ __private.loadBlockChain = function () {
 
     if (duplicatedDelegates > 0) {
       library.logger.error('loader', 'Delegates table corrupted with duplicated entries');
-      return process.emit('exit');
+      finishLoading(false);
+      return process.emit('cleanup');
     }
 
     function updateMemAccounts (t) {
@@ -511,25 +553,26 @@ __private.loadBlockChain = function () {
         } else {
           __private.lastBlock = block;
           library.logger.info('loader', 'Blockchain ready');
-          library.bus.message('blockchainReady');
+          finishLoading(true);
         }
       });
     });
   }).catch(function (err) {
     library.logger.error('loader', `Failed to load blockchain: ${err?.message || err}`, err.stack);
-    return process.emit('exit');
+    finishLoading(false);
+    return process.emit('cleanup');
   });
 };
 
 /**
  * Loads blocks from network.
+ * @param {Function} cb
  * @private
  * @implements {Loader.getNetwork}
  * @implements {async.whilst}
  * @implements {modules.blocks.lastBlock.get}
  * @implements {modules.blocks.loadBlocksFromPeer}
  * @implements {modules.blocks.getCommonBlock}
- * @param {function} cb
  * @return {setImmediateCallback} cb, err
  */
 __private.loadBlocksFromNetwork = function (cb) {
@@ -542,7 +585,7 @@ __private.loadBlocksFromNetwork = function (cb) {
     } else {
       async.whilst(
           function (testCb) {
-            return testCb(null, !loaded && errorCount < 5);
+            return testCb(null, !__private.stopRequested && !loaded && errorCount < 5);
           },
           function (next) {
             var peer = network.peers[Math.floor(Math.random() * network.peers.length)];
@@ -559,7 +602,7 @@ __private.loadBlocksFromNetwork = function (cb) {
                 loaded = lastValidBlock.id === lastBlock.id;
                 lastValidBlock = lastBlock = null;
                 next();
-              });
+              }, __private.isStopRequested);
             }
 
             function getCommonBlock (cb) {
@@ -602,6 +645,8 @@ __private.loadBlocksFromNetwork = function (cb) {
  * - Syncs: loadBlocksFromNetwork, updateSystem
  * - Establish broadhash consensus
  * - Applies unconfirmed transactions
+ * @param {Function} cb
+ * @todo check err actions
  * @private
  * @implements {async.series}
  * @implements {modules.transactions.undoUnconfirmedList}
@@ -609,45 +654,65 @@ __private.loadBlocksFromNetwork = function (cb) {
  * @implements {__private.loadBlocksFromNetwork}
  * @implements {modules.system.update}
  * @implements {modules.transactions.applyUnconfirmedList}
- * @param {function} cb
- * @todo check err actions
  */
 __private.sync = function (cb) {
+  if (__private.stopRequested) {
+    return setImmediate(cb);
+  }
+
   library.logger.info('loader', 'Starting sync');
   library.bus.message('syncStarted');
 
   __private.isActive = true;
   __private.syncTrigger(true);
 
+  function skipOnStop (seriesCb, next) {
+    if (__private.stopRequested) {
+      return setImmediate(seriesCb);
+    }
+
+    return next(seriesCb);
+  }
+
   async.series({
     undoUnconfirmedList: function (seriesCb) {
-      library.logger.debug('loader', 'Undoing unconfirmed transactions before sync');
-      return modules.transactions.undoUnconfirmedList(seriesCb);
+      return skipOnStop(seriesCb, function (next) {
+        library.logger.debug('loader', 'Undoing unconfirmed transactions before sync');
+        return modules.transactions.undoUnconfirmedList(next);
+      });
     },
     getPeersBefore: function (seriesCb) {
-      library.logger.debug('loader', 'Establishing broadhash consensus before sync');
-      return modules.transport.getPeers({ limit: constants.maxPeers }, seriesCb);
+      return skipOnStop(seriesCb, function (next) {
+        library.logger.debug('loader', 'Establishing broadhash consensus before sync');
+        return modules.transport.getPeers({ limit: constants.maxPeers }, next);
+      });
     },
     loadBlocksFromNetwork: function (seriesCb) {
-      return __private.loadBlocksFromNetwork(seriesCb);
+      return skipOnStop(seriesCb, __private.loadBlocksFromNetwork);
     },
     updateSystem: function (seriesCb) {
-      return modules.system.update(seriesCb);
+      return skipOnStop(seriesCb, function (next) {
+        return modules.system.update(next);
+      });
     },
     getPeersAfter: function (seriesCb) {
-      library.logger.debug('loader', 'Establishing broadhash consensus after sync');
-      return modules.transport.getPeers({ limit: constants.maxPeers }, seriesCb);
+      return skipOnStop(seriesCb, function (next) {
+        library.logger.debug('loader', 'Establishing broadhash consensus after sync');
+        return modules.transport.getPeers({ limit: constants.maxPeers }, next);
+      });
     },
     applyUnconfirmedList: function (seriesCb) {
-      library.logger.debug('loader', 'Applying unconfirmed transactions after sync');
-      return modules.transactions.applyUnconfirmedList(seriesCb);
+      return skipOnStop(seriesCb, function (next) {
+        library.logger.debug('loader', 'Applying unconfirmed transactions after sync');
+        return modules.transactions.applyUnconfirmedList(next);
+      });
     }
   }, function (err) {
     __private.isActive = false;
     __private.syncTrigger(false);
     __private.blocksToSync = 0;
 
-    library.logger.info('loader', 'Finished sync');
+    library.logger.info('loader', __private.stopRequested ? 'Sync stopped for shutdown' : 'Finished sync');
     library.bus.message('syncFinished');
     return setImmediate(cb, err);
   });
@@ -662,10 +727,11 @@ __private.sync = function (cb) {
  */
 /**
  * Gets the list of good peers.
+ * @param {number} heights
+ *
  * @private
  * @implements {modules.blocks.lastBlock.get}
  * @implements {library.logic.peers.create}
- * @param {number} heights
  * @return {Object} {height number, peers array}
  */
 __private.findGoodPeers = function (heights) {
@@ -728,10 +794,10 @@ __private.findGoodPeers = function (heights) {
 // - With this list we try to get a peer with sensibly good blockchain height (see __private.findGoodPeers for actual strategy).
 /**
  * Gets good peers.
+ * @param {Function} cb
  * @implements {modules.blocks.lastBlock.get}
  * @implements {modules.peers.list}
  * @implements {__private.findGoodPeers}
- * @param {function} cb
  * @return {setImmediateCallback} err | __private.network (good peers)
  */
 Loader.prototype.getNetwork = function (cb) {
@@ -756,7 +822,7 @@ Loader.prototype.getNetwork = function (cb) {
 
 /**
  * Checks if private variable syncIntervalId have value.
- * @return {boolean} True if syncIntervalId have value
+ * @returns {boolean} True if syncIntervalId have value
  */
 Loader.prototype.syncing = function () {
   return !!__private.syncIntervalId;
@@ -765,55 +831,51 @@ Loader.prototype.syncing = function () {
 /**
  * Returns current blockchain height to achieve if in sync process;
  * Returns `0` if syncing done.
- *
  * @returns {number}
  */
 Loader.prototype.getBlocksToSync = function () {
   return __private.blocksToSync;
-}
+};
 
 /**
  * Returns last blockchain height when syncing.
- *
  * @returns {number}
  */
 Loader.prototype.getHeight = function () {
   return __private.lastBlock.height;
-}
+};
 
 /**
  * Returns if the blockchain is in sync process.
- *
  * @returns {boolean}
  */
 Loader.prototype.loaded = function () {
   return __private.loaded;
-}
+};
 
 /**
  * Returns whether the blockchain has checked if it needs to sync
- *
  * @returns {boolean}
  */
 Loader.prototype.isReadyToSync = function () {
   return __private.ready;
-}
+};
 
 /**
  * Returns total synced blocks.
- *
  * @returns {number}
  */
 Loader.prototype.getTotalBlocks = function () {
   return __private.total;
-}
+};
 
 /**
  * Calls helpers.sandbox.callMethod().
- * @implements module:helpers#callMethod
- * @param {function} call - Method to call.
+ * @param {Function} call - Method to call.
  * @param {*} args - List of arguments.
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
+ *
+ * @implements module:helpers#callMethod
  */
 Loader.prototype.sandboxApi = function (call, args, cb) {
   sandboxHelper.callMethod(shared, call, args, cb);
@@ -821,7 +883,7 @@ Loader.prototype.sandboxApi = function (call, args, cb) {
 
 /**
  * Checks if `modules` is loaded.
- * @return {boolean} True if `modules` is loaded.
+ * @returns {boolean} True if `modules` is loaded.
  */
 Loader.prototype.isLoaded = function () {
   return !!modules;
@@ -836,7 +898,7 @@ Loader.prototype.isLoaded = function () {
  * @implements {__private.loadTransactions}
  * @implements {__private.loadSignatures}
  * @implements {__private.initialize}
- * @return {function} calls to __private.syncTimer()
+ * @returns {Function} calls to __private.syncTimer()
  */
 Loader.prototype.onPeersReady = function () {
   library.logger.trace('loader', 'Peers ready');
@@ -911,19 +973,31 @@ Loader.prototype.onBlockchainReady = function () {
 
 /**
  * Sets private variable loaded to false.
- * @param {function} cb
+ * @param {Function} cb
+ *
  * @return {setImmediateCallback} cb
  */
 Loader.prototype.cleanup = function (cb) {
+  function waitForIdle () {
+    if (__private.isActive) {
+      library.logger.info('loader', 'Waiting for loader to finish active sync/rebuild...');
+      return setTimeout(waitForIdle, 10000);
+    }
+
+    return setImmediate(cb);
+  }
+
   __private.loaded = false;
   __private.ready = false;
-  return setImmediate(cb);
+  __private.requestStop();
+
+  return setImmediate(waitForIdle);
 };
 
 // Internal API
 /**
- * @todo implement API comments with apidoc.
  * @see {@link http://apidocjs.com/}
+ * @todo implement API comments with apidoc.
  */
 Loader.prototype.internal = {
   statusPing: function () {
@@ -933,8 +1007,8 @@ Loader.prototype.internal = {
 
 // Shared API
 /**
- * @todo implement API comments with apidoc.
  * @see {@link http://apidocjs.com/}
+ * @todo implement API comments with apidoc.
  */
 Loader.prototype.shared = {
   status: function (req, cb) {

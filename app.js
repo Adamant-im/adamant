@@ -1,19 +1,19 @@
 'use strict';
 /**
  * A node-style callback as used by {@link logic} and {@link modules}.
- * @see {@link https://nodejs.org/api/errors.html#errors_node_js_style_callbacks}
  * @callback nodeStyleCallback
  * @param {?Error} error - Error, if any, otherwise `null`.
  * @param {Data} data - Data, if there hasn't been an error.
+ * @see {@link https://nodejs.org/api/errors.html#errors_node_js_style_callbacks}
  */
 /**
  * A triggered by setImmediate callback as used by {@link logic}, {@link modules} and {@link helpers}.
  * Parameters formats: (cb, error, data), (cb, error), (cb).
- * @see {@link https://nodejs.org/api/timers.html#timers_setimmediate_callback_args}
  * @callback setImmediateCallback
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
  * @param {?Error} [error] - Error, if any, otherwise `null`.
  * @param {Data} [data] - Data, if there hasn't been an error and the function should return data.
+ * @see {@link https://nodejs.org/api/timers.html#timers_setimmediate_callback_args}
  */
 
 /**
@@ -211,7 +211,7 @@ d.run(function () {
     /**
      * Loads `payloadHash` and generate dapp password if it is empty and required.
      * Then updates config.json with new random  password.
-     * @method config
+     * @function config
      * @param {nodeStyleCallback} cb - Callback function with the mutated `appConfig`.
      * @throws {Error} If failed to assign nethash from genesis block.
      */
@@ -258,7 +258,7 @@ d.run(function () {
 
     /**
      * Returns hash of last git commit.
-     * @method lastCommit
+     * @function lastCommit
      * @param {nodeStyleCallback} cb - Callback function with Hash of last git commit.
      */
     lastCommit: function (cb) {
@@ -283,8 +283,9 @@ d.run(function () {
 
     /**
      * ws client PWA,
-     * @method clientWs
+     * @function clientWs
      * @param {object} wsconfig - config from ws client PWA,
+     * @param scope
      * @param {nodeStyleCallback} cb - Callback function with created Method:
      * `emit`.
      */
@@ -292,15 +293,15 @@ d.run(function () {
       const ClientWs = require('./modules/clientWs');
 
       const clientWs = new ClientWs(
-        Object.assign(scope.config.wsClient, { cors: appConfig.cors }),
-        logger
+          Object.assign(scope.config.wsClient, { cors: appConfig.cors }),
+          logger
       );
 
       cb(null, clientWs);
     }],
     /**
      * Once config is completed, creates app, http & https servers & sockets with express.
-     * @method network
+     * @function network
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {nodeStyleCallback} cb - Callback function with created Object:
@@ -382,10 +383,10 @@ d.run(function () {
     /**
      * Once config, public, genesisblock, logger, build and network are completed,
      * adds configuration to `network.app`.
-     * @method connect
+     * @function connect
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
-     * @param {function} cb - Callback function.
+     * @param {Function} cb - Callback function.
      */
     connect: ['config', 'public', 'genesisblock', 'logger', 'build', 'network', function (scope, cb) {
       var path = require('path');
@@ -502,7 +503,7 @@ d.run(function () {
     },
     /**
      * It tries to connect with redis server based on config. provided in config.json file
-     * @param {function} cb
+     * @param {Function} cb
      */
     cache: function (cb) {
       var cache = require('./helpers/cache.js');
@@ -511,10 +512,10 @@ d.run(function () {
     /**
      * Once db, bus, schema and genesisblock are completed,
      * loads transaction, block, account and peers from logic folder.
-     * @method logic
+     * @function logic
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
-     * @param {function} cb - Callback function.
+     * @param {Function} cb - Callback function.
      */
     logic: ['db', 'bus', 'schema', 'genesisblock', function (scope, cb) {
       var Transaction = require('./logic/transaction.js');
@@ -548,8 +549,8 @@ d.run(function () {
         clientWs: function (cb) {
           cb(null, scope.clientWs);
         },
-        consensus(cb) {
-          cb(null, new Consensus());
+        consensus: function (cb) {
+          cb(null, new Consensus(config.consensusActivationHeights));
         },
         account: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'logger', function (scope, cb) {
           new Account(scope.db, scope.schema, scope.logger, cb);
@@ -575,7 +576,7 @@ d.run(function () {
      * Once network, connect, config, logger, bus, sequence,
      * dbSequence, balancesSequence, db and logic are completed,
      * loads modules from `modules` folder using `config.modules`.
-     * @method modules
+     * @function modules
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {nodeStyleCallback} cb - Callback function with resulted load.
@@ -610,6 +611,8 @@ d.run(function () {
 
     /**
      * Listens for new transactions using websocket and links peers to the websocket server
+     * @param scope
+     * @param cb
      */
     transportWs: ['network', 'config', 'modules', 'logic', function (scope, cb) {
       const { wsNode } = appConfig;
@@ -618,7 +621,7 @@ d.run(function () {
         transportWs.initialize();
       }
 
-      scope.network.wsServer.initialize(scope.logic)
+      scope.network.wsServer.initialize(scope.logic);
 
       cb();
     }],
@@ -626,10 +629,10 @@ d.run(function () {
     /**
      * Loads api from `api` folder using `config.api`, once modules, logger and
      * network are completed.
-     * @method api
+     * @function api
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
-     * @param {function} cb - Callback function.
+     * @param {Function} cb - Callback function.
      */
     api: ['modules', 'logger', 'network', function (scope, cb) {
       Object.keys(config.api).forEach(function (moduleName) {
@@ -659,7 +662,7 @@ d.run(function () {
     /**
      * Once 'ready' is completed, binds and listens for connections on the
      * specified host and port for `scope.network.server`.
-     * @method listen
+     * @function listen
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {nodeStyleCallback} cb - Callback function with `scope.network`.
@@ -690,8 +693,11 @@ d.run(function () {
       /**
        * Handles app instance (acts as global variable, passed as parameter).
        * @global
-       * @typedef {Object} scope
-       * @property {Object} api - Undefined.
+       * @typedef {object} scope
+       * @todo logic repeats: bus, ed, genesisblock, logger, schema.
+       * @todo description for nonce and ready
+       *
+       * @property {object} api - Undefined.
        * @property {undefined} balancesSequence - Sequence function, sequence Array.
        * @property {string} build - Empty.
        * @property {Object} bus - Message function, bus constructor.
@@ -712,21 +718,38 @@ d.run(function () {
        * @property {undefined} ready
        * @property {Object} schema - ZSchema with objects.
        * @property {Object} sequence - Sequence function, sequence Array.
-       * @todo logic repeats: bus, ed, genesisblock, logger, schema.
-       * @todo description for nonce and ready
        */
       scope.logger.info('startup', 'Modules ready and launched');
+      var cleanupStarted = false;
+
       /**
-       * Event reporting a cleanup.
-       * @event cleanup
+       * Cleans all modules before shutdown.
+       *
+       * Loader cleanup runs first so an active rebuild/sync can stop before
+       * blocks cleanup starts rejecting additional block processing.
+       * @param {string} signal
+       * @param {number} exitCode
        */
-      /**
-       * Receives a 'cleanup' signal and cleans all modules.
-       * @listens cleanup
-       */
-      process.once('cleanup', function () {
+      function requestShutdown (signal, exitCode) {
+        if (cleanupStarted) {
+          scope.logger.warn('exit', signal + ' received while cleanup is in progress. Waiting for safe shutdown.');
+          return;
+        }
+
+        cleanupStarted = true;
         scope.logger.info('exit', 'Cleaning up...');
-        async.eachSeries(modules, function (module, cb) {
+
+        var moduleMap = scope.modules || {};
+        var moduleNames = Object.keys(moduleMap);
+
+        if (moduleNames.indexOf('loader') !== -1) {
+          moduleNames = ['loader'].concat(moduleNames.filter(function (moduleName) {
+            return moduleName !== 'loader';
+          }));
+        }
+
+        async.eachSeries(moduleNames, function (moduleName, cb) {
+          var module = moduleMap[moduleName];
           if (typeof (module.cleanup) === 'function') {
             module.cleanup(cb);
           } else {
@@ -738,8 +761,21 @@ d.run(function () {
           } else {
             scope.logger.info('exit', 'Cleaned up successfully');
           }
-          process.exit(1);
+
+          process.exit(exitCode);
         });
+      }
+
+      /**
+       * Event reporting a cleanup.
+       * @event cleanup
+       */
+      /**
+       * Receives a 'cleanup' signal and cleans all modules.
+       * @listens cleanup
+       */
+      process.once('cleanup', function () {
+        requestShutdown('cleanup', 1);
       });
 
       /**
@@ -747,31 +783,11 @@ d.run(function () {
        * @event SIGTERM
        */
       /**
-       * Receives a 'SIGTERM' signal and emits a cleanup.
+       * Receives a 'SIGTERM' signal and cleans all modules.
        * @listens SIGTERM
        */
-      process.once('SIGTERM', function () {
-        /**
-         * emits cleanup once 'SIGTERM'.
-         * @emits cleanup
-         */
-        process.emit('cleanup');
-      });
-
-      /**
-       * Event reporting an exit.
-       * @event exit
-       */
-      /**
-       * Receives an 'exit' signal and emits a cleanup.
-       * @listens exit
-       */
-      process.once('exit', function () {
-        /**
-         * emits cleanup once 'exit'.
-         * @emits cleanup
-         */
-        process.emit('cleanup');
+      process.on('SIGTERM', function () {
+        requestShutdown('SIGTERM', 0);
       });
 
       /**
@@ -779,15 +795,11 @@ d.run(function () {
        * @event SIGINT
        */
       /**
-       * Receives a 'SIGINT' signal and emits a cleanup.
+       * Receives a 'SIGINT' signal and cleans all modules.
        * @listens SIGINT
        */
-      process.once('SIGINT', function () {
-        /**
-         * emits cleanup once 'SIGINT'.
-         * @emits cleanup
-         */
-        process.emit('cleanup');
+      process.on('SIGINT', function () {
+        requestShutdown('SIGINT', 0);
       });
     }
   });
@@ -809,7 +821,7 @@ process.on('uncaughtException', function (err) {
   });
   /**
    * emits cleanup once 'uncaughtException'.
-   * @emits cleanup
+   * @fires cleanup
    */
   process.emit('cleanup');
 });

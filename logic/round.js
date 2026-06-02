@@ -6,12 +6,12 @@ var sql = require('../sql/rounds.js');
 
 /**
  * Validates required scope properties.
+ * @param {object} scope
+ * @param {Task} t
+ * @class
  * @memberof module:rounds
  * @class
  * @classdesc Main Round logic.
- * @param {Object} scope
- * @param {Task} t
- * @constructor
  */
 // Constructor
 function Round (scope, t) {
@@ -56,7 +56,7 @@ function Round (scope, t) {
 /**
  * Returns result from call to mergeAccountAndGet
  * @implements {modules.accounts.mergeAccountAndGet}
- * @return {function} Promise
+ * @returns {Function} Promise
  */
 Round.prototype.mergeBlockGenerator = function () {
   return this.t.none(
@@ -71,7 +71,7 @@ Round.prototype.mergeBlockGenerator = function () {
 
 /**
  * If outsiders content, calls sql updateMissedBlocks.
- * @return {}
+ * @returns {}
  */
 Round.prototype.updateMissedBlocks = function () {
   if (this.scope.roundOutsiders.length === 0) {
@@ -83,8 +83,8 @@ Round.prototype.updateMissedBlocks = function () {
 
 /**
  * Calls sql getVotes from `mem_round` table.
- * @return {}
  * @todo round must be a param option.
+ * @returns {}
  */
 Round.prototype.getVotes = function () {
   return this.t.query(sql.getVotes, { round: this.scope.round });
@@ -94,7 +94,7 @@ Round.prototype.getVotes = function () {
  * Calls getVotes with round
  * @implements {getVotes}
  * @implements {modules.accounts.generateAddressByPublicKey}
- * @return {function} Promise
+ * @returns {Function} Promise
  */
 Round.prototype.updateVotes = function () {
   var self = this;
@@ -117,7 +117,7 @@ Round.prototype.updateVotes = function () {
 
 /**
  * For backwards option calls sql updateBlockId with newID: 0.
- * @return {function} Promise
+ * @returns {Function} Promise
  */
 Round.prototype.markBlockId = function () {
   if (this.scope.backwards) {
@@ -129,7 +129,7 @@ Round.prototype.markBlockId = function () {
 
 /**
  * Calls sql flush: deletes round from `mem_round` table.
- * @return {function} Promise
+ * @returns {Function} Promise
  */
 Round.prototype.flushRound = function () {
   return this.t.none(sql.flush, { round: this.scope.round });
@@ -137,7 +137,7 @@ Round.prototype.flushRound = function () {
 
 /**
  * Calls sql reCalcVotes: Update voteWeights in mem_account table.
- * @return {function} Promise
+ * @returns {Function} Promise
  */
 Round.prototype.reCalcVotes = function () {
   return this.t.none(sql.reCalcVotes);
@@ -146,7 +146,7 @@ Round.prototype.reCalcVotes = function () {
 /**
  * Calls sql truncateBlocks: deletes blocks greater than height from
  * `blocks` table.
- * @return {function} Promise
+ * @returns {Function} Promise
  */
 Round.prototype.truncateBlocks = function () {
   return this.t.none(sql.truncateBlocks, { height: this.scope.block.height });
@@ -155,7 +155,7 @@ Round.prototype.truncateBlocks = function () {
 /**
  * Calls sql restoreRoundSnapshot - restores snapshotted mem_round table
  * - performed only when rollback last block of round
- * @return {function} Promise
+ * @returns {Function} Promise
  */
 Round.prototype.restoreRoundSnapshot = function () {
   this.scope.library.logger.debug('rounds', 'Restoring mem_round snapshot...');
@@ -165,7 +165,7 @@ Round.prototype.restoreRoundSnapshot = function () {
 /**
  * Calls sql restoreVotesSnapshot - restores snapshotted mem_accounts.votes
  * - performed only when rollback last block of round
- * @return {function} Promise
+ * @returns {Function} Promise
  */
 Round.prototype.restoreVotesSnapshot = function () {
   this.scope.library.logger.debug('rounds', 'Restoring mem_accounts.vote snapshot...');
@@ -176,7 +176,7 @@ Round.prototype.restoreVotesSnapshot = function () {
  * For each delegate calls mergeAccountAndGet and creates an address array
  * @implements {helpers.RoundChanges}
  * @implements {modules.accounts.mergeAccountAndGet}
- * @return {function} Promise with address array
+ * @returns {Function} Promise with address array
  */
 Round.prototype.applyRound = function () {
   var roundChanges = new RoundChanges(this.scope);
@@ -226,7 +226,12 @@ Round.prototype.applyRound = function () {
     }));
   }
 
-  this.scope.library.logger.trace('rounds', 'Applying round', queries);
+  this.scope.library.logger.trace('rounds', 'Applying round', {
+    blockId: this.scope.block.id,
+    round: this.scope.round,
+    backwards: this.scope.backwards,
+    queryCount: queries.length
+  });
 
   if (queries.length > 0) {
     return this.t.none(queries.join(''));
@@ -247,7 +252,7 @@ Round.prototype.applyRound = function () {
  * @implements {updateMissedBlocks}
  * @implements {flushRound}
  * @implements {applyRound}
- * @return {function} call result
+ * @returns {Function} call result
  */
 Round.prototype.land = function () {
   return this.updateVotes()
@@ -279,7 +284,7 @@ Round.prototype.land = function () {
  * @implements {applyRound}
  * @implements {restoreRoundSnapshot}
  * @implements {restoreVotesSnapshot}
- * @return {function} call result
+ * @returns {Function} call result
  */
 Round.prototype.backwardLand = function () {
   return this.updateVotes()

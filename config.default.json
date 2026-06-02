@@ -54,10 +54,6 @@
         "port": 36666
       },
       {
-        "ip": "78.47.205.206",
-        "port": 36666
-      },
-      {
         "ip": "107.161.26.184",
         "port": 36666
       },
@@ -100,6 +96,10 @@
   },
   "transactions": {
     "maxTxsPerQueue": 1000
+  },
+  "consensusActivationHeights": {
+    "fairSystem": 4359465,
+    "spaceship": 100000000
   },
   "forging": {
     "force": false,

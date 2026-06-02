@@ -56,7 +56,7 @@ function Peers (cb, scope) {
 
 // Private methods
 /**
- * Returns peers lenght after get them by filter.
+ * Returns peers length after get them by filter.
  * @private
  * @param {Object} filter
  * @param {function} cb - Callback function.
@@ -334,12 +334,12 @@ Peers.prototype.switchToHttp = function (peer) {
 Peers.prototype.isFrozen = function (ip, port) {
   const peers = library.config.peers.list;
 
-  const isFrozen = peers.some(
-    (peer) => peer.ip === ip && peer.port === port,
-  );
+  const isFrozen = peers.some(function (peer) {
+    return peer.ip === ip && peer.port === port;
+  });
 
   return isFrozen;
-}
+};
 
 /**
  * Removes peer from peers list if it is not a peer from config file list.
@@ -366,10 +366,7 @@ Peers.prototype.remove = function (pip, port) {
  * @return {boolean} Returns `true` if peer has been updated
  */
 Peers.prototype.recordRequest = function (ip, port, error) {
-  return library.logic.peers.recordRequest(
-    { ip, port },
-    error,
-  );
+  return library.logic.peers.recordRequest({ ip, port }, error);
 };
 
 /**

@@ -141,11 +141,12 @@ Process.prototype.getCommonBlock = function (peer, height, cb) {
  * @param  {number}   offset Offset to start at
  * @param  {boolean}  verify Indicator that block needs to be verified
  * @param  {Function} cb Callback function
+ * @param  {Function} shouldStop Optional callback that returns true on shutdown
  * @return {Function} cb Callback function from params (through setImmediate)
  * @return {Object}   cb.err Error if occurred
  * @return {Object}   cb.lastBlock Current last block
  */
-Process.prototype.loadBlocksOffset = function (limit, offset, verify, cb) {
+Process.prototype.loadBlocksOffset = function (limit, offset, verify, cb, shouldStop) {
   // Calculate limit if offset is supplied
   var newLimit = limit + (offset || 0);
   var params = { limit: newLimit, offset: offset || 0 };
@@ -161,7 +162,7 @@ Process.prototype.loadBlocksOffset = function (limit, offset, verify, cb) {
 
       async.eachSeries(blocks, function (block, cb) {
         // Stop processing if node shutdown was requested
-        if (modules.blocks.isCleaning.get()) {
+        if (modules.blocks.isCleaning.get() || (shouldStop && shouldStop())) {
           return setImmediate(cb);
         }
 
@@ -205,11 +206,12 @@ Process.prototype.loadBlocksOffset = function (limit, offset, verify, cb) {
  * @method loadBlocksFromPeer
  * @param  {Peer}     peer Peer to perform chain comparison with
  * @param  {Function} cb Callback function
+ * @param  {Function} shouldStop Optional callback that returns true on shutdown
  * @return {Function} cb Callback function from params (through setImmediate)
  * @return {Object}   cb.err Error if occurred
  * @return {Object}   cb.lastValidBlock Normalized new last block
  */
-Process.prototype.loadBlocksFromPeer = function (peer, cb) {
+Process.prototype.loadBlocksFromPeer = function (peer, cb, shouldStop) {
   // Set current last block as last valid block
   var lastValidBlock = modules.blocks.lastBlock.get();
 
@@ -251,7 +253,7 @@ Process.prototype.loadBlocksFromPeer = function (peer, cb) {
     }
     // Iterate over received blocks, normalize block first...
     async.eachSeries(modules.blocks.utils.readDbRows(blocks), function (block, eachSeriesCb) {
-      if (modules.blocks.isCleaning.get()) {
+      if (modules.blocks.isCleaning.get() || (shouldStop && shouldStop())) {
         // Cancel processing if node shutdown was requested
         return setImmediate(eachSeriesCb);
       } else {

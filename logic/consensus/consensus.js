@@ -1,12 +1,16 @@
-const { consensusActivationHeights } = require('./activationHeights.js');
+const defaultConfig = require('../../config.default.json');
 
 /**
  * Manages consensus activation status based on blockchain height
  * Determines whether specific protocol upgrades have been activated
  */
 class Consensus {
-  constructor() {
+  constructor (activationHeights) {
     this.loader = null;
+    this.activationHeights = {
+      ...defaultConfig.consensusActivationHeights,
+      ...(activationHeights || {})
+    };
   }
 
   /**
@@ -14,28 +18,34 @@ class Consensus {
    * @param {object} modules - The modules to bind
    * @param {object} modules.loader - The loader module providing blockchain height
    */
-  bindModules(modules) {
+  bindModules (modules) {
     this.loader = modules.loader;
   }
 
   /**
-   * Checks if a given consensus upgrade is activated based on the current blockchain height
+   * Checks if a given consensus upgrade is activated based on a block height.
+   * Uses the current blockchain height when `height` is omitted.
    * @param {string} codeName - The name of the consensus upgrade
+   * @param {number} [height] - Block height to check
    * @throws {Error} If `codeName` is not a string
    * @return {boolean} `true` if the upgrade is activated, otherwise `false`
    */
-  isActivated(codeName) {
+  isActivated (codeName, height) {
     if (typeof codeName !== 'string') {
       throw new Error(`Expected code name to be a string but got ${typeof codeName}`);
     }
 
-    const activationHeight = consensusActivationHeights[codeName];
+    if (height !== undefined && typeof height !== 'number') {
+      throw new Error(`Expected height to be a number but got ${typeof height}`);
+    }
+
+    const activationHeight = this.activationHeights[codeName];
 
     if (activationHeight === undefined) {
       return false;
     }
 
-    const currentHeight = this.loader.getHeight();
+    const currentHeight = height === undefined ? this.loader.getHeight() : height;
 
     return currentHeight >= activationHeight;
   }

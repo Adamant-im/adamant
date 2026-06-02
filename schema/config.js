@@ -224,6 +224,20 @@ module.exports = {
         },
         required: ['maxTxsPerQueue']
       },
+      consensusActivationHeights: {
+        type: 'object',
+        properties: {
+          fairSystem: {
+            type: 'integer',
+            minimum: 1
+          },
+          spaceship: {
+            type: 'integer',
+            minimum: 1
+          }
+        },
+        required: ['fairSystem', 'spaceship']
+      },
       forging: {
         type: 'object',
         properties: {

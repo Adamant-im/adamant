@@ -189,7 +189,7 @@ function Migrator (pgp, db, logger) {
  */
 module.exports.connect = function (config, logger, cb) {
   var pgOptions = {
-    pgNative: true
+    pgNative: process.env.PG_NATIVE !== 'false'
   };
 
   var pgp = require('pg-promise')(pgOptions);
