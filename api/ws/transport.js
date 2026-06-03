@@ -9,6 +9,13 @@ const { wsNodeClient: wsConstants } = require('../../helpers/constants.js');
  * Connects to random peers via WebSocket to receive transactions/blocks/signature changes
  */
 class TransportWsApi {
+  /**
+   * Creates a WebSocket peer client.
+   * @param {object} modules - Bound node modules.
+   * @param {object} library - Bound logic/library scope with logger and system helpers.
+   * @param {object} options - WebSocket node configuration.
+   * @param {number} options.maxReceiveConnections - Maximum inbound peer sockets to maintain.
+   */
   constructor (modules, library, options) {
     this.modules = modules;
     this.library = library;
@@ -240,7 +247,9 @@ class TransportWsApi {
   }
 
   /**
-   * Fills the empty slots for WebSocket connections and removes banned peers
+   * Fills the empty slots for WebSocket connections and removes banned peers.
+   * Logs connection counts so operators can distinguish a full pool from
+   * missing candidate peers.
    */
   updatePeers () {
     const self = this;
@@ -296,7 +305,9 @@ class TransportWsApi {
   }
 
   /**
-   * Replace a specific % of the connected peers to avoid centralization
+   * Replace a specific % of the connected peers to avoid centralization.
+   * Logs the connected peer count before rotation because the resulting
+   * replacement count is derived from the live connection map.
    */
   rotatePeers () {
     const self = this;

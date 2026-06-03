@@ -154,7 +154,8 @@ Round.prototype.truncateBlocks = function () {
 
 /**
  * Calls sql restoreRoundSnapshot - restores snapshotted mem_round table
- * - performed only when rollback last block of round
+ * - performed only when rollback last block of round.
+ * Logs block and round context because snapshot restoration affects round state mirrors.
  * @returns {Function} Promise
  */
 Round.prototype.restoreRoundSnapshot = function () {
@@ -169,7 +170,8 @@ Round.prototype.restoreRoundSnapshot = function () {
 
 /**
  * Calls sql restoreVotesSnapshot - restores snapshotted mem_accounts.votes
- * - performed only when rollback last block of round
+ * - performed only when rollback last block of round.
+ * Logs block and round context because vote snapshots affect delegate weight state.
  * @returns {Function} Promise
  */
 Round.prototype.restoreVotesSnapshot = function () {

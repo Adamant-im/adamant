@@ -83,9 +83,10 @@ Rounds.prototype.flush = function (round, cb) {
 };
 
 /**
- * Performs backward tick on round
- * @param {block} block
- * @param {block} previousBlock
+ * Performs backward tick on round.
+ * Logs block height, round and finish-round state before applying the rollback tick.
+ * @param {block} block - Block being rolled back.
+ * @param {block} previousBlock - Previous block used to determine round boundaries.
  * @param {Function} done - Callback function
  * @implements {calc}
  * @implements {__private.getOutsiders}
@@ -185,9 +186,10 @@ Rounds.prototype.setSnapshotRounds = function (rounds) {
 };
 
 /**
- * Generates snapshot round
- * @param {block} block
- * @param {Function} done
+ * Generates snapshot round.
+ * Logs block height, round and snapshot state before applying the forward tick.
+ * @param {block} block - Block being applied.
+ * @param {Function} done - Callback function.
  * @implements {calc}
  * @implements {Round.mergeBlockGenerator}
  * @implements {Round.land}

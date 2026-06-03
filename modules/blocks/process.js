@@ -131,7 +131,9 @@ Process.prototype.getCommonBlock = function (peer, height, cb) {
 
 
 /**
- * Loads full blocks from database, used when rebuilding blockchain, snapshotting
+ * Loads full blocks from database, used when rebuilding blockchain, snapshotting.
+ * Logs each block with height, round, previous block id and transaction count
+ * before applying it so replay diagnostics can identify the exact block.
  * see: loader.loadBlockChain (private)
  *
  * @async
@@ -450,12 +452,14 @@ __private.receiveBlock = function (block, cb) {
 };
 
 /**
- * Receive block detected as fork cause 1: Consecutive height but different previous block id
+ * Receive block detected as fork cause 1: Consecutive height but different previous block id.
+ * Logs both competing blocks so fork decisions can be audited from logs.
  *
  * @private
  * @async
  * @method receiveBlock
  * @param {Object}   block Received block
+ * @param {Object}   lastBlock Current local last block
  * @param {Function} cb Callback function
  */
 __private.receiveForkOne = function (block, lastBlock, cb) {
@@ -518,12 +522,14 @@ __private.receiveForkOne = function (block, lastBlock, cb) {
 };
 
 /**
- * Receive block detected as fork cause 5: Same height and previous block id, but different block id
+ * Receive block detected as fork cause 5: Same height and previous block id, but different block id.
+ * Logs both competing blocks so fork decisions can be audited from logs.
  *
  * @private
  * @async
  * @method receiveBlock
  * @param {Object}   block Received block
+ * @param {Object}   lastBlock Current local last block
  * @param {Function} cb Callback function
  */
 __private.receiveForkFive = function (block, lastBlock, cb) {

@@ -665,7 +665,8 @@ __private.loadBlocksFromNetwork = function (cb) {
  * - Syncs: loadBlocksFromNetwork, updateSystem
  * - Establish broadhash consensus
  * - Applies unconfirmed transactions
- * @param {Function} cb
+ * Logs current chain height before and after sync phases.
+ * @param {Function} cb - Callback function.
  * @todo check err actions
  * @private
  * @implements {async.series}

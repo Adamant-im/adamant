@@ -612,7 +612,8 @@ Chain.prototype.deleteLastBlock = function (cb) {
 };
 
 /**
- * Recover chain - wrapper for deleteLastBlock
+ * Recover chain - wrapper for deleteLastBlock.
+ * Logs the removed and replacement blocks so recovery decisions can be audited.
  *
  * @private
  * @async

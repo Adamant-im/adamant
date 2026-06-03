@@ -609,14 +609,15 @@ d.run(function () {
     }],
 
     /**
-     * Listens for new transactions using websocket and links peers to the websocket server
-     * @param scope
-     * @param cb
+     * Listens for new transactions using websocket and links peers to the websocket server.
+     * @param {scope} scope - The results from current execution.
+     * @param {nodeStyleCallback} cb - Callback function.
      */
     transportWs: ['network', 'config', 'modules', 'logic', function (scope, cb) {
       const { wsNode } = appConfig;
       if (wsNode.maxReceiveConnections > 0) {
-        const transportWs = new TransportWsApi(scope.modules, scope.logic, appConfig.peers.options);
+        // TransportWsApi needs wsNode connection limits; peer API limits use a different config section.
+        const transportWs = new TransportWsApi(scope.modules, scope.logic, wsNode);
         transportWs.initialize();
       }
 

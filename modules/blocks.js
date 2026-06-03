@@ -172,7 +172,8 @@ Blocks.prototype.onBind = function (scope) {
 };
 
 /**
- * Handle node shutdown request
+ * Handle node shutdown request.
+ * Logs active cleanup state while waiting for block processing to drain.
  *
  * @public
  * @method cleanup

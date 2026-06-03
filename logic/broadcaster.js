@@ -131,11 +131,12 @@ Broadcaster.prototype.enqueue = function (params, options) {
 
 /**
  * Gets peers and for each peer create it and broadcast.
+ * Logs selected peer counts and request limits for broadcast diagnostics.
  * @implements {getPeers}
  * @implements {library.logic.peers.create}
- * @param {Object} params
- * @param {Object} options
- * @param {function} cb
+ * @param {Object} params - Broadcast peer selection parameters.
+ * @param {Object} options - Transport request options.
+ * @param {Function} cb - Callback function.
  * @return {setImmediateCallback} err | peers
  */
 Broadcaster.prototype.broadcast = function (params, options, cb) {
@@ -295,12 +296,13 @@ __private.squashQueue = function (broadcasts) {
  * - filterQueue
  * - squashQueue
  * - broadcast
+ * Logs queue length before release so skipped releases can be explained.
  * @private
  * @implements {__private.filterQueue}
  * @implements {__private.squashQueue}
  * @implements {getPeers}
  * @implements {broadcast}
- * @param {function} cb
+ * @param {Function} cb - Callback function.
  * @return {setImmediateCallback} cb
  */
 __private.releaseQueue = function (cb) {

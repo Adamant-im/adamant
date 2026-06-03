@@ -151,8 +151,9 @@ __private.getBlockSlotData = function (slot, height, cb) {
 /**
  * Gets peers, checks consensus and generates new block, once delegates
  * are enabled, client is ready to forge and is the correct slot.
+ * Logs readiness flags and slot context when forging is skipped.
  * @private
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
  * @return {setImmediateCallback}
  */
 __private.forge = function (cb) {

@@ -66,6 +66,12 @@ function validateForce (configData) {
   }
 }
 
+/**
+ * Recursively copies only missing default config keys into a user config.
+ * @param {object} target - User config object to mutate.
+ * @param {object} source - Default config object.
+ * @returns {object} Mutated target config.
+ */
 function deepMergeMissing (target, source) {
   for (const key in source) {
     if (Object.prototype.hasOwnProperty.call(source, key)) {
@@ -85,6 +91,11 @@ function deepMergeMissing (target, source) {
   return target;
 }
 
+/**
+ * Captures legacy flat logging keys before default config merge fills new sections.
+ * @param {object} configData - Raw user config before default merge.
+ * @returns {object} Legacy logging values and section presence flags.
+ */
 function getLegacyLoggingConfig (configData) {
   return {
     hasGeneralLog: !!configData.generalLog,
@@ -97,6 +108,11 @@ function getLegacyLoggingConfig (configData) {
   };
 }
 
+/**
+ * Applies legacy flat logging keys only when the matching new section was absent.
+ * @param {object} configData - Config object after default merge.
+ * @param {object} legacyLoggingConfig - Legacy logging values captured before merge.
+ */
 function applyLegacyLoggingConfig (configData, legacyLoggingConfig) {
   if (!legacyLoggingConfig.hasGeneralLog) {
     if (legacyLoggingConfig.fileLogLevel) {

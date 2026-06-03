@@ -773,9 +773,9 @@ Transactions.prototype.undoUnconfirmedList = function (cb) {
  * Applies confirmed transaction.
  * @implements {logic.transaction.apply}
  * @param {transaction} transaction
- * @param {block} block
- * @param {account} sender
- * @param {function} cb - Callback function
+ * @param {block} block - Confirmed block that includes the transaction.
+ * @param {account} sender - Sender account state at apply time.
+ * @param {Function} cb - Callback function.
  */
 Transactions.prototype.apply = function (transaction, block, sender, cb) {
   library.logger.debug('transactions', 'Applying confirmed transaction', {
@@ -793,12 +793,19 @@ Transactions.prototype.apply = function (transaction, block, sender, cb) {
  * Undoes confirmed transaction.
  * @implements {logic.transaction.undo}
  * @param {transaction} transaction
- * @param {block} block
- * @param {account} sender
- * @param {function} cb - Callback function
+ * @param {block} block - Confirmed block that includes the transaction.
+ * @param {account} sender - Sender account state at undo time.
+ * @param {Function} cb - Callback function.
  */
 Transactions.prototype.undo = function (transaction, block, sender, cb) {
-  library.logger.debug('transactions', 'Undoing confirmed transaction', transaction.id);
+  library.logger.debug('transactions', 'Undoing confirmed transaction', {
+    id: transaction.id,
+    blockId: block.id,
+    height: block.height,
+    round: modules.rounds.calc(block.height),
+    senderId: transaction.senderId,
+    type: transaction.type
+  });
   library.logic.transaction.undo(transaction, block, sender, cb);
 };
 
@@ -806,14 +813,15 @@ Transactions.prototype.undo = function (transaction, block, sender, cb) {
  * Gets requester if requesterPublicKey and calls applyUnconfirmed.
  * @implements {modules.accounts.getAccount}
  * @implements {logic.transaction.applyUnconfirmed}
- * @param {transaction} transaction
- * @param {account} sender
- * @param {function} cb - Callback function
+ * @param {transaction} transaction - Unconfirmed transaction from the pool or public API.
+ * @param {account} sender - Sender account state at admission time.
+ * @param {Function} cb - Callback function.
  * @return {setImmediateCallback} for errors
  */
 Transactions.prototype.applyUnconfirmed = function (transaction, sender, cb) {
   var lastBlock = modules.blocks.lastBlock.get();
 
+  // Unconfirmed transactions do not have an inclusion height yet; log chain context at admission time.
   library.logger.debug('transactions', 'Applying unconfirmed transaction', {
     id: transaction.id,
     blockId: transaction.blockId || null,
