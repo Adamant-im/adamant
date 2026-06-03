@@ -1,19 +1,19 @@
 'use strict';
 /**
  * A node-style callback as used by {@link logic} and {@link modules}.
- * @see {@link https://nodejs.org/api/errors.html#errors_node_js_style_callbacks}
  * @callback nodeStyleCallback
  * @param {?Error} error - Error, if any, otherwise `null`.
  * @param {Data} data - Data, if there hasn't been an error.
+ * @see {@link https://nodejs.org/api/errors.html#errors_node_js_style_callbacks}
  */
 /**
  * A triggered by setImmediate callback as used by {@link logic}, {@link modules} and {@link helpers}.
  * Parameters formats: (cb, error, data), (cb, error), (cb).
- * @see {@link https://nodejs.org/api/timers.html#timers_setimmediate_callback_args}
  * @callback setImmediateCallback
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
  * @param {?Error} [error] - Error, if any, otherwise `null`.
  * @param {Data} [data] - Data, if there hasn't been an error and the function should return data.
+ * @see {@link https://nodejs.org/api/timers.html#timers_setimmediate_callback_args}
  */
 
 /**
@@ -105,7 +105,8 @@ if (programOpts.peers) {
 }
 
 if (programOpts.log) {
-  appConfig.consoleLogLevel = programOpts.log;
+  appConfig.consoleLog.enabled = true;
+  appConfig.consoleLog.level = programOpts.log;
 }
 
 if (programOpts.snapshot) {
@@ -177,16 +178,16 @@ var config = {
  * @property {object} - Logger instance.
  */
 var logger = new Logger({
-  echo: appConfig.consoleLogLevel,
-  errorLevel: appConfig.fileLogLevel,
-  filename: appConfig.logFileName
+  generalLog: appConfig.generalLog,
+  debugLog: appConfig.debugLog,
+  consoleLog: appConfig.consoleLog
 });
 
 // Trying to get last git commit
 try {
   lastCommit = git.getLastCommit();
 } catch (err) {
-  logger.debug('Cannot get last git commit', err.message);
+  logger.debug('system', 'Cannot get last git commit', err.message);
 }
 
 /**
@@ -196,7 +197,7 @@ try {
 var d = require('domain').create();
 
 d.on('error', function (err) {
-  logger.fatal('Domain master', {
+  logger.fatal('runtime', 'Domain master', {
     message: err.message,
     stack: err.stack
   });
@@ -210,7 +211,7 @@ d.run(function () {
     /**
      * Loads `payloadHash` and generate dapp password if it is empty and required.
      * Then updates config.json with new random  password.
-     * @method config
+     * @function config
      * @param {nodeStyleCallback} cb - Callback function with the mutated `appConfig`.
      * @throws {Error} If failed to assign nethash from genesis block.
      */
@@ -218,7 +219,7 @@ d.run(function () {
       try {
         appConfig.nethash = Buffer.from(genesisblock.payloadHash, 'hex').toString('hex');
       } catch (e) {
-        logger.error('Failed to assign nethash from genesis block');
+        logger.error('genesis', 'Failed to assign nethash from genesis block');
         throw Error(e);
       }
 
@@ -257,7 +258,7 @@ d.run(function () {
 
     /**
      * Returns hash of last git commit.
-     * @method lastCommit
+     * @function lastCommit
      * @param {nodeStyleCallback} cb - Callback function with Hash of last git commit.
      */
     lastCommit: function (cb) {
@@ -282,8 +283,9 @@ d.run(function () {
 
     /**
      * ws client PWA,
-     * @method clientWs
+     * @function clientWs
      * @param {object} wsconfig - config from ws client PWA,
+     * @param scope
      * @param {nodeStyleCallback} cb - Callback function with created Method:
      * `emit`.
      */
@@ -299,7 +301,7 @@ d.run(function () {
     }],
     /**
      * Once config is completed, creates app, http & https servers & sockets with express.
-     * @method network
+     * @function network
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {nodeStyleCallback} cb - Callback function with created Object:
@@ -354,7 +356,7 @@ d.run(function () {
     dbSequence: ['logger', function (scope, cb) {
       var sequence = new Sequence({
         onWarning: function (current, limit) {
-          scope.logger.warn('DB queue', current);
+          scope.logger.warn('queue', 'Database queue size is too big. Tasks that queued database changes:', current);
         }
       });
       cb(null, sequence);
@@ -363,7 +365,7 @@ d.run(function () {
     sequence: ['logger', function (scope, cb) {
       var sequence = new Sequence({
         onWarning: function (current, limit) {
-          scope.logger.warn('Main queue', current);
+          scope.logger.warn('queue', 'Main queue size is too big. Jobs in the queue:', current);
         }
       });
       cb(null, sequence);
@@ -372,7 +374,7 @@ d.run(function () {
     balancesSequence: ['logger', function (scope, cb) {
       var sequence = new Sequence({
         onWarning: function (current, limit) {
-          scope.logger.warn('Balance queue', current);
+          scope.logger.warn('queue', 'Balance queue is overloaded. Tasks that require changing balance in the queue:', current);
         }
       });
       cb(null, sequence);
@@ -381,10 +383,10 @@ d.run(function () {
     /**
      * Once config, public, genesisblock, logger, build and network are completed,
      * adds configuration to `network.app`.
-     * @method connect
+     * @function connect
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
-     * @param {function} cb - Callback function.
+     * @param {Function} cb - Callback function.
      */
     connect: ['config', 'public', 'genesisblock', 'logger', 'build', 'network', function (scope, cb) {
       var path = require('path');
@@ -501,7 +503,7 @@ d.run(function () {
     },
     /**
      * It tries to connect with redis server based on config. provided in config.json file
-     * @param {function} cb
+     * @param {Function} cb
      */
     cache: function (cb) {
       var cache = require('./helpers/cache.js');
@@ -510,10 +512,10 @@ d.run(function () {
     /**
      * Once db, bus, schema and genesisblock are completed,
      * loads transaction, block, account and peers from logic folder.
-     * @method logic
+     * @function logic
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
-     * @param {function} cb - Callback function.
+     * @param {Function} cb - Callback function.
      */
     logic: ['db', 'bus', 'schema', 'genesisblock', function (scope, cb) {
       var Transaction = require('./logic/transaction.js');
@@ -574,7 +576,7 @@ d.run(function () {
      * Once network, connect, config, logger, bus, sequence,
      * dbSequence, balancesSequence, db and logic are completed,
      * loads modules from `modules` folder using `config.modules`.
-     * @method modules
+     * @function modules
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {nodeStyleCallback} cb - Callback function with resulted load.
@@ -587,14 +589,14 @@ d.run(function () {
           var d = require('domain').create();
 
           d.on('error', function (err) {
-            scope.logger.fatal('Domain ' + name, {
+            scope.logger.fatal('runtime', 'Domain ' + name, {
               message: err.message,
               stack: err.stack
             });
           });
 
           d.run(function () {
-            logger.debug('Loading module', name);
+            logger.debug('startup', 'Loading module', name);
             var Klass = require(config.modules[name]);
             var obj = new Klass(cb, scope);
             modules.push(obj);
@@ -608,12 +610,15 @@ d.run(function () {
     }],
 
     /**
-     * Listens for new transactions using websocket and links peers to the websocket server
+     * Listens for new transactions using websocket and links peers to the websocket server.
+     * @param {scope} scope - The results from current execution.
+     * @param {nodeStyleCallback} cb - Callback function.
      */
     transportWs: ['network', 'config', 'modules', 'logic', function (scope, cb) {
       const { wsNode } = appConfig;
       if (wsNode.maxReceiveConnections > 0) {
-        const transportWs = new TransportWsApi(scope.modules, scope.logic, appConfig.peers.options);
+        // TransportWsApi needs wsNode connection limits; peer API limits use a different config section.
+        const transportWs = new TransportWsApi(scope.modules, scope.logic, wsNode);
         transportWs.initialize();
       }
 
@@ -625,10 +630,10 @@ d.run(function () {
     /**
      * Loads api from `api` folder using `config.api`, once modules, logger and
      * network are completed.
-     * @method api
+     * @function api
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
-     * @param {function} cb - Callback function.
+     * @param {Function} cb - Callback function.
      */
     api: ['modules', 'logger', 'network', function (scope, cb) {
       Object.keys(config.api).forEach(function (moduleName) {
@@ -638,7 +643,7 @@ d.run(function () {
             var ApiEndpoint = require(apiEndpointPath);
             new ApiEndpoint(scope.modules[moduleName], scope.network.app, scope.logger, scope.modules.cache);
           } catch (e) {
-            scope.logger.error('Unable to load API endpoint for ' + moduleName + ' of ' + protocol, e);
+            scope.logger.error('startup', 'Unable to load API endpoint for ' + moduleName + ' of ' + protocol, e);
           }
         });
       });
@@ -658,19 +663,19 @@ d.run(function () {
     /**
      * Once 'ready' is completed, binds and listens for connections on the
      * specified host and port for `scope.network.server`.
-     * @method listen
+     * @function listen
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {nodeStyleCallback} cb - Callback function with `scope.network`.
      */
     listen: ['ready', function (scope, cb) {
       scope.network.server.listen(scope.config.port, scope.config.address, function (err) {
-        scope.logger.info('ADAMANT started: ' + scope.config.address + ':' + scope.config.port);
+        scope.logger.info('startup', 'ADAMANT started: ' + scope.config.address + ':' + scope.config.port);
 
         if (!err) {
           if (scope.config.ssl.enabled) {
             scope.network.https.listen(scope.config.ssl.options.port, scope.config.ssl.options.address, function (err) {
-              scope.logger.info('ADAMANT https started: ' + scope.config.ssl.options.address + ':' + scope.config.ssl.options.port);
+              scope.logger.info('startup', 'ADAMANT https started: ' + scope.config.ssl.options.address + ':' + scope.config.ssl.options.port);
 
               cb(err, scope.network);
             });
@@ -684,13 +689,16 @@ d.run(function () {
     }]
   }, function (err, scope) {
     if (err) {
-      logger.fatal(err);
+      logger.fatal('startup', err);
     } else {
       /**
        * Handles app instance (acts as global variable, passed as parameter).
        * @global
-       * @typedef {Object} scope
-       * @property {Object} api - Undefined.
+       * @typedef {object} scope
+       * @todo logic repeats: bus, ed, genesisblock, logger, schema.
+       * @todo description for nonce and ready
+       *
+       * @property {object} api - Undefined.
        * @property {undefined} balancesSequence - Sequence function, sequence Array.
        * @property {string} build - Empty.
        * @property {Object} bus - Message function, bus constructor.
@@ -711,29 +719,34 @@ d.run(function () {
        * @property {undefined} ready
        * @property {Object} schema - ZSchema with objects.
        * @property {Object} sequence - Sequence function, sequence Array.
-       * @todo logic repeats: bus, ed, genesisblock, logger, schema.
-       * @todo description for nonce and ready
        */
-      scope.logger.info('Modules ready and launched');
+      scope.logger.info('startup', 'Modules ready and launched');
       var cleanupStarted = false;
+      var cleanupSignalCount = 0;
 
       /**
        * Cleans all modules before shutdown.
        *
        * Loader cleanup runs first so an active rebuild/sync can stop before
        * blocks cleanup starts rejecting additional block processing.
-       *
        * @param {string} signal
        * @param {number} exitCode
        */
       function requestShutdown (signal, exitCode) {
         if (cleanupStarted) {
-          scope.logger.warn(signal + ' received while cleanup is in progress. Waiting for safe shutdown.');
-          return;
+          cleanupSignalCount += 1;
+          if (cleanupSignalCount > 1) {
+            scope.logger.warn('exit', signal + ' received again while cleanup is in progress. Forcing shutdown.');
+            return process.exit(exitCode);
+          } else {
+            scope.logger.warn('exit', signal + ' received while cleanup is in progress. Waiting for safe shutdown.');
+            return;
+          }
         }
 
         cleanupStarted = true;
-        scope.logger.info('Cleaning up...');
+        cleanupSignalCount = 0;
+        scope.logger.info('exit', 'Cleaning up...');
 
         var moduleMap = scope.modules || {};
         var moduleNames = Object.keys(moduleMap);
@@ -753,9 +766,9 @@ d.run(function () {
           }
         }, function (err) {
           if (err) {
-            scope.logger.error(err);
+            scope.logger.error('exit', 'An error occurred while cleaning up modules:', err);
           } else {
-            scope.logger.info('Cleaned up successfully');
+            scope.logger.info('exit', 'Cleaned up successfully');
           }
 
           process.exit(exitCode);
@@ -811,13 +824,13 @@ d.run(function () {
  */
 process.on('uncaughtException', function (err) {
   // Handle error safely
-  logger.fatal('System error', {
+  logger.fatal('runtime', 'System error', {
     message: err.message,
     stack: err.stack
   });
   /**
    * emits cleanup once 'uncaughtException'.
-   * @emits cleanup
+   * @fires cleanup
    */
   process.emit('cleanup');
 });

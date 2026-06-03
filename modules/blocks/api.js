@@ -35,7 +35,7 @@ function API (logger, db, block, schema, dbSequence) {
   };
   self = this;
 
-  library.logger.trace('Blocks->API: Submodule initialized.');
+  library.logger.trace('api-blocks', 'Blocks->API: Submodule initialized.');
   return self;
 }
 
@@ -62,7 +62,7 @@ __private.getById = function (id, cb) {
 
     return setImmediate(cb, null, block);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-blocks', `Failed to get block ${id} from database: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Blocks#getById error');
   });
 };
@@ -168,7 +168,7 @@ __private.list = function (filter, cb) {
 
     return setImmediate(cb, null, { blocks });
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-blocks', `Failed to get blocks from database: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Blocks#list error');
   });
 };
@@ -314,7 +314,7 @@ API.prototype.getStatus = function (req, cb) {
  * @param {modules} scope Exposed modules
  */
 API.prototype.onBind = function (scope) {
-  library.logger.trace('Blocks->API: Shared modules bind.');
+  library.logger.trace('api-blocks', 'Blocks->API: Shared modules bind.');
   modules = {
     blocks: scope.blocks,
     system: scope.system

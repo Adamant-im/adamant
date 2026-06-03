@@ -15,13 +15,13 @@ __private.ticking = false;
 
 /**
  * Initializes library with scope.
+ * @param {Function} cb - Callback function.
+ * @param {scope} scope - App instance.
+ * @todo apply node pattern for callbacks: callback always at the end.
  * @memberof module:rounds
  * @class
  * @classdesc Main rounds methods.
- * @param {function} cb - Callback function.
- * @param {scope} scope - App instance.
  * @return {setImmediateCallback} Callback function with `self` as data.
- * @todo apply node pattern for callbacks: callback always at the end.
  */
 // Constructor
 function Rounds (cb, scope) {
@@ -43,14 +43,14 @@ function Rounds (cb, scope) {
 
 // Public methods
 /**
- * @return {boolean} __private.loaded
+ * @returns {boolean} __private.loaded
  */
 Rounds.prototype.loaded = function () {
   return __private.loaded;
 };
 
 /**
- * @return {boolean} __private.ticking
+ * @returns {boolean} __private.ticking
  */
 Rounds.prototype.ticking = function () {
   return __private.ticking;
@@ -67,9 +67,9 @@ Rounds.prototype.calc = function (height) {
 
 /**
  * Deletes from `mem_round` table records based on round.
- * @implements {library.db.none}
  * @param {number} round
- * @param {function} cb
+ * @param {Function} cb
+ * @implements {library.db.none}
  * @return {setImmediateCallback} error message | cb
  *
  */
@@ -77,22 +77,23 @@ Rounds.prototype.flush = function (round, cb) {
   library.db.none(sql.flush, { round: round }).then(function () {
     return setImmediate(cb);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('rounds', `Failed to flush mem_round: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Rounds#flush error');
   });
 };
 
 /**
- * Performs backward tick on round
+ * Performs backward tick on round.
+ * Logs block height, round and finish-round state before applying the rollback tick.
+ * @param {block} block - Block being rolled back.
+ * @param {block} previousBlock - Previous block used to determine round boundaries.
+ * @param {Function} done - Callback function
  * @implements {calc}
  * @implements {__private.getOutsiders}
  * @implements {Round.mergeBlockGenerator}
  * @implements {Round.markBlockId}
  * @implements {Round.land}
  * @implements {library.db.tx}
- * @param {block} block
- * @param {block} previousBlock
- * @param {function} done - Callback function
  * @return {function} done with error if any
  */
 Rounds.prototype.backwardTick = function (block, previousBlock, done) {
@@ -116,8 +117,13 @@ Rounds.prototype.backwardTick = function (block, previousBlock, done) {
   function BackwardTick (t) {
     var promised = new Round(scope, t);
 
-    library.logger.debug('Performing backward tick');
-    library.logger.trace('Backward tick context', {
+    library.logger.debug('rounds', 'Performing backward tick', {
+      blockId: block.id,
+      height: block.height,
+      round: round,
+      finishRound: scope.finishRound
+    });
+    library.logger.trace('rounds', 'Backward tick context', {
       blockId: block.id,
       height: block.height,
       round: round,
@@ -160,7 +166,7 @@ Rounds.prototype.backwardTick = function (block, previousBlock, done) {
       library.db.tx(BackwardTick).then(function () {
         return setImmediate(cb);
       }).catch(function (err) {
-        library.logger.error(err.stack);
+        library.logger.error('rounds', `Failed to perform a backward tick: ${err?.message || err}`, err.stack);
         return setImmediate(cb, err);
       });
     }
@@ -180,15 +186,16 @@ Rounds.prototype.setSnapshotRounds = function (rounds) {
 };
 
 /**
- * Generates snapshot round
+ * Generates snapshot round.
+ * Logs block height, round and snapshot state before applying the forward tick.
+ * @param {block} block - Block being applied.
+ * @param {Function} done - Callback function.
  * @implements {calc}
  * @implements {Round.mergeBlockGenerator}
  * @implements {Round.land}
  * @implements {library.bus.message}
  * @implements {Round.truncateBlocks}
  * @implements {__private.getOutsiders}
- * @param {block} block
- * @param {function} done
  * @return {function} done message | err
  */
 Rounds.prototype.tick = function (block, done) {
@@ -216,8 +223,14 @@ Rounds.prototype.tick = function (block, done) {
   function Tick (t) {
     var promised = new Round(scope, t);
 
-    library.logger.debug('Performing forward tick');
-    library.logger.trace('Forward tick context', {
+    library.logger.debug('rounds', 'Performing forward tick', {
+      blockId: block.id,
+      height: block.height,
+      round: round,
+      finishRound: scope.finishRound,
+      snapshotRound: scope.snapshotRound
+    });
+    library.logger.trace('rounds', 'Forward tick context', {
       blockId: block.id,
       height: block.height,
       round: round,
@@ -264,14 +277,19 @@ Rounds.prototype.tick = function (block, done) {
       library.db.tx(Tick).then(function () {
         return setImmediate(cb);
       }).catch(function (err) {
-        library.logger.error(err.stack);
+        library.logger.error('rounds', err.stack);
         return setImmediate(cb, err);
       });
     },
     function (cb) {
       // Check if we are one block before last block of round, if yes - perform round snapshot
       if ((block.height + 1) % slots.delegates === 0) {
-        library.logger.debug('Performing round snapshot...');
+        library.logger.debug('rounds', 'Performing round snapshot...', {
+          blockId: block.id,
+          height: block.height,
+          round: round,
+          snapshotRound: scope.snapshotRound
+        });
 
         library.db.tx(function (t) {
           return t.batch([
@@ -281,10 +299,14 @@ Rounds.prototype.tick = function (block, done) {
             t.none(sql.performVotesSnapshot)
           ]);
         }).then(function () {
-          library.logger.trace('Round snapshot done');
+          library.logger.trace('rounds', 'Round snapshot done', {
+            blockId: block.id,
+            height: block.height,
+            round: round
+          });
           return setImmediate(cb);
         }).catch(function (err) {
-          library.logger.error('Round snapshot failed', err);
+          library.logger.error('rounds', 'Round snapshot failed', err);
           return setImmediate(cb, err);
         });
       } else {
@@ -305,10 +327,11 @@ Rounds.prototype.tick = function (block, done) {
 
 /**
  * Calls helpers.sandbox.callMethod().
- * @implements module:helpers#callMethod
- * @param {function} call - Method to call.
+ * @param {Function} call - Method to call.
  * @param {*} args - List of arguments.
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
+ *
+ * @implements module:helpers#callMethod
  */
 Rounds.prototype.sandboxApi = function (call, args, cb) {
   sandboxHelper.callMethod(shared, call, args, cb);
@@ -329,11 +352,11 @@ Rounds.prototype.onBind = function (scope) {
 
 /**
  * Sets private variable loaded to true.
+ * @param {block} block New block
+ * @listens module:loader~event:blockchainReady
  *
  * @public
  * @method  onBlockchainReady
- * @listens module:loader~event:blockchainReady
- * @param   {block}   block New block
  */
 Rounds.prototype.onBlockchainReady = function () {
   __private.loaded = true;
@@ -341,8 +364,9 @@ Rounds.prototype.onBlockchainReady = function () {
 
 /**
  * Emits a 'rounds/change' socket message.
- * @implements {library.network.wsServer.emit}
  * @param {number} round
+ *
+ * @implements {library.network.wsServer.emit}
  * @emits rounds/change
  */
 Rounds.prototype.onFinishRound = function (round) {
@@ -351,7 +375,8 @@ Rounds.prototype.onFinishRound = function (round) {
 
 /**
  * Sets private variable `loaded` to false.
- * @param {function} cb
+ * @param {Function} cb
+ *
  * @return {setImmediateCallback} cb
  */
 Rounds.prototype.cleanup = function (cb) {
@@ -363,11 +388,11 @@ Rounds.prototype.cleanup = function (cb) {
 /**
  * Generates outsiders array and pushes to param scope variable.
  * Obtains delegate list and for each delegate generate address.
+ * @param {scope} scope
+ * @param {Function} cb
  * @private
  * @implements {modules.delegates.generateDelegateList}
  * @implements {modules.accounts.generateAddressByPublicKey}
- * @param {scope} scope
- * @param {function} cb
  * @return {setImmediateCallback} cb if block height 1 | error
  */
 __private.getOutsiders = function (scope, cb) {
@@ -386,7 +411,7 @@ __private.getOutsiders = function (scope, cb) {
       }
       return setImmediate(eachCb);
     }, function (err) {
-      library.logger.trace('Got outsiders', scope.roundOutsiders);
+      library.logger.trace('rounds', 'Got outsiders', scope.roundOutsiders);
       return setImmediate(cb, err);
     });
   });
@@ -395,14 +420,14 @@ __private.getOutsiders = function (scope, cb) {
 /**
  * Gets rows from `round_blocks` and calculates rewards. Loads into scope
  * variable fees, rewards and delegates.
+ * @param {number} round
+ * @param {Function} cb
  * @private
  * @implements {library.db.query}
- * @param {number} round
- * @param {function} cb
  * @return {setImmediateCallback} err When failed to sum round | cb
  */
 __private.sumRound = function (scope, cb) {
-  library.logger.debug('Summing round', scope.round);
+  library.logger.debug('rounds', 'Summing round', scope.round);
 
   library.db.query(sql.summedRound, { round: scope.round, activeDelegates: constants.activeDelegates }).then(function (rows) {
     var rewards = [];
@@ -415,14 +440,14 @@ __private.sumRound = function (scope, cb) {
     scope.roundRewards = rewards;
     scope.roundDelegates = rows[0].delegates;
 
-    library.logger.trace('roundFees', scope.roundFees);
-    library.logger.trace('roundRewards', scope.roundRewards);
-    library.logger.trace('roundDelegates', scope.roundDelegates);
+    library.logger.trace('rounds', 'roundFees', scope.roundFees);
+    library.logger.trace('rounds', 'roundRewards', scope.roundRewards);
+    library.logger.trace('rounds', 'roundDelegates', scope.roundDelegates);
 
     return setImmediate(cb);
   }).catch(function (err) {
-    library.logger.error('Failed to sum round', scope.round);
-    library.logger.error(err.stack);
+    library.logger.error('rounds', 'Failed to sum round', scope.round);
+    library.logger.error('rounds', err.stack);
     return setImmediate(cb, err);
   });
 };

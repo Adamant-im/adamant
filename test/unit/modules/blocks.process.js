@@ -13,6 +13,7 @@ describe('blocks process', function () {
   let logicPeers;
   let schema;
   let blocks;
+  let loader;
   let transport;
   let lastBlock;
 
@@ -60,6 +61,9 @@ describe('blocks process', function () {
         processBlock: sinon.spy()
       }
     };
+    loader = {
+      getBlocksToSync: sinon.stub().returns(4)
+    };
     transport = {
       getFromPeer: sinon.stub().callsArgWith(2, null, { body: { blocks: [{}] } })
     };
@@ -77,6 +81,7 @@ describe('blocks process', function () {
     );
     process.onBind({
       blocks,
+      loader,
       transport
     });
   });
@@ -102,6 +107,21 @@ describe('blocks process', function () {
       done();
     }, function () {
       return true;
+    });
+  });
+
+  it('should log sync target and progress for loaded peer blocks', function (done) {
+    blocks.verify.processBlock = sinon.stub().callsArgWith(2, null);
+
+    process.loadBlocksFromPeer({ ip: '127.0.0.1', port: 36667 }, function (err, result) {
+      expect(err).to.equal(null);
+      expect(result).to.eql({ id: '2', height: 2 });
+      expect(logger.info.calledWith(
+          'loader',
+          'Block 2 loaded from: 127.0.0.1:36667',
+          'target: 4 height: 2 (50.00%)'
+      )).to.equal(true);
+      done();
     });
   });
 });

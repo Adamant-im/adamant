@@ -194,11 +194,11 @@ __private.listChats = function (filter, cb) {
       };
       return setImmediate(cb, null, data);
     }).catch(function (err) {
-      library.logger.error(err.stack);
+      library.logger.error('api-chatrooms', `An error occurred while getting list of chats: ${err?.message || err}`, err.stack);
       return setImmediate(cb, err);
     });
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-chatrooms', `An error occurred while getting chats count: ${err?.message || err}`, err.stack);
     return setImmediate(cb, err);
   });
 };
@@ -337,11 +337,11 @@ __private.listMessages = function (filter, cb) {
       };
       return setImmediate(cb, null, data);
     }).catch(function (err) {
-      library.logger.error(err.stack);
+      library.logger.error('api-chatrooms', `An error occurred while getting list of messages: ${err?.message || err}`, err.stack);
       return setImmediate(cb, err);
     });
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-chatrooms', `An error occurred while getting messages count: ${err?.message || err}`, err.stack);
     return setImmediate(cb, err);
   });
 };

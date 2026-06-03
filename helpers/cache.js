@@ -25,7 +25,7 @@ module.exports.connect = function (cacheEnabled, config, logger, cb) {
 
   client.connect()
       .then(() => {
-        logger.info('App connected with redis server');
+        logger.info('cache', 'App connected with redis server');
 
         if (!isRedisLoaded) {
           isRedisLoaded = true;
@@ -34,7 +34,7 @@ module.exports.connect = function (cacheEnabled, config, logger, cb) {
         }
       })
       .catch((err) => {
-        logger.error('Redis:', err);
+        logger.error('cache', 'An error occurred while connecting to redis server:', err);
         // Only throw an error if cache was enabled in config but were unable to load it properly
         if (!isRedisLoaded) {
           isRedisLoaded = true;

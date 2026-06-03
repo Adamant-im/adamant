@@ -10,6 +10,23 @@ var sql = require('../../sql/blocks.js');
 var modules, library, self, __private = {};
 
 /**
+ * Formats block sync progress from the current loader target.
+ * @param {block} block - Block loaded from a peer.
+ * @returns {string} Human-readable block height, target and progress details.
+ */
+function formatSyncProgress (block) {
+  var target = modules.loader && modules.loader.getBlocksToSync && modules.loader.getBlocksToSync();
+  var details = 'height: ' + block.height;
+
+  if (target > 0) {
+    var progress = Math.min((block.height / target) * 100, 100);
+    details = 'target: ' + target + ' ' + details + ' (' + progress.toFixed(2) + '%)';
+  }
+
+  return details;
+}
+
+/**
  * Initializes library.
  * @memberof module:blocks
  * @class
@@ -41,7 +58,7 @@ function Process (logger, block, peers, transaction, schema, db, dbSequence, seq
   };
   self = this;
 
-  library.logger.trace('Blocks->Process: Submodule initialized.');
+  library.logger.trace('blocks', 'Blocks->Process: Submodule initialized.');
   return self;
 }
 
@@ -115,7 +132,7 @@ Process.prototype.getCommonBlock = function (peer, height, cb) {
         }
       }).catch(function (err) {
         // SQL error occurred
-        library.logger.error(err.stack);
+        library.logger.error('blocks', `Failed to get common block: ${err?.message || err}`, err.stack);
         return setImmediate(waterCb, 'Blocks#getCommonBlock error');
       });
     }
@@ -131,7 +148,9 @@ Process.prototype.getCommonBlock = function (peer, height, cb) {
 
 
 /**
- * Loads full blocks from database, used when rebuilding blockchain, snapshotting
+ * Loads full blocks from database, used when rebuilding blockchain, snapshotting.
+ * Logs each block with height, round, previous block id and transaction count
+ * before applying it so replay diagnostics can identify the exact block.
  * see: loader.loadBlockChain (private)
  *
  * @async
@@ -151,7 +170,7 @@ Process.prototype.loadBlocksOffset = function (limit, offset, verify, cb, should
   var newLimit = limit + (offset || 0);
   var params = { limit: newLimit, offset: offset || 0 };
 
-  library.logger.debug('Loading blocks offset', { limit: limit, offset: offset, verify: verify });
+  library.logger.debug('loader', 'Loading blocks offset', { limit: limit, offset: offset, verify: verify });
   // Execute in sequence via dbSequence
   library.dbSequence.add(function (cb) {
     // Loads full blocks from database
@@ -166,14 +185,20 @@ Process.prototype.loadBlocksOffset = function (limit, offset, verify, cb, should
           return setImmediate(cb);
         }
 
-        library.logger.debug('Processing block', block.id);
+        library.logger.debug('loader', 'Processing block', {
+          id: block.id,
+          height: block.height,
+          previousBlock: block.previousBlock,
+          round: modules.rounds.calc(block.height),
+          transactions: block.transactions.length
+        });
         if (verify && block.id !== library.genesisblock.block.id) {
           // Sanity check of the block, if values are coherent.
           // No access to database.
           var check = modules.blocks.verify.verifyBlock(block);
 
           if (!check.verified) {
-            library.logger.error(['Block', block.id, 'verification failed'].join(' '), check.errors.join(', '));
+            library.logger.error('loader', ['Block', block.id, 'verification failed'].join(' '), check.errors.join(', '));
             // Return first error from checks
             return setImmediate(cb, check.errors[0]);
           }
@@ -192,7 +217,7 @@ Process.prototype.loadBlocksOffset = function (limit, offset, verify, cb, should
         return setImmediate(cb, err, modules.blocks.lastBlock.get());
       });
     }).catch(function (err) {
-      library.logger.error(err.stack);
+      library.logger.error('loader', `Failed to get blocks offset: ${err?.message || err}`, err.stack);
       return setImmediate(cb, 'Blocks#loadBlocksOffset error');
     });
   }, cb);
@@ -217,7 +242,7 @@ Process.prototype.loadBlocksFromPeer = function (peer, cb, shouldStop) {
 
   // Normalize peer
   peer = library.logic.peers.create(peer);
-  library.logger.info('Loading blocks from: ' + peer.string);
+  library.logger.info('loader', 'Loading blocks from: ' + peer.string);
 
   function getFromPeer (seriesCb) {
     // Ask remote peer for blocks
@@ -272,11 +297,11 @@ Process.prototype.loadBlocksFromPeer = function (peer, cb, shouldStop) {
       if (!err) {
         // Update last valid block
         lastValidBlock = block;
-        library.logger.info(['Block', block.id, 'loaded from:', peer.string].join(' '), 'height: ' + block.height);
+        library.logger.info('loader', ['Block', block.id, 'loaded from:', peer.string].join(' '), formatSyncProgress(block));
       } else {
         var id = (block ? block.id : 'null');
 
-        library.logger.debug('Block processing failed', { id: id, err: err.toString(), module: 'blocks', block: block });
+        library.logger.debug('loader', 'Block processing failed', { id: id, err: err.toString(), module: 'blocks', block: block });
       }
       return seriesCb(err);
     }, true);
@@ -342,7 +367,7 @@ Process.prototype.generateBlock = function (keypair, timestamp, cb) {
         transactions: ready
       });
     } catch (e) {
-      library.logger.error(e.stack);
+      library.logger.error('loader', `Failed to generate a new block: ${e?.message || e}`, e.stack);
       return setImmediate(cb, e);
     }
 
@@ -372,7 +397,7 @@ Process.prototype.onReceiveBlock = function (block) {
     // Do not receive new blocks as client is not ready
     const syncPending = !modules.loader.isReadyToSync() || modules.loader.syncing();
     if (!__private.loaded || syncPending || modules.rounds.ticking()) {
-      library.logger.debug('Client not ready to receive block', block.id);
+      library.logger.debug('loader', 'Client not ready to receive block', block.id);
       return setImmediate(cb);
     }
 
@@ -391,11 +416,11 @@ Process.prototype.onReceiveBlock = function (block) {
       return __private.receiveForkFive(block, lastBlock, cb);
     } else {
       if (block.id === lastBlock.id) {
-        library.logger.debug('Block already processed', block.id);
+        library.logger.debug('loader', 'Block already processed', block.id);
       } else if (block.height < lastBlock.height) {
-        library.logger.debug('Received old block', block.id);
+        library.logger.debug('loader', 'Received old block', block.id);
       } else {
-        library.logger.warn([
+        library.logger.warn('loader', [
           'Discarded the received block because it does not match the current chain.',
 
           'Blockchain Last Block:',
@@ -429,7 +454,7 @@ Process.prototype.onReceiveBlock = function (block) {
  * @param {Function} cb Callback function
  */
 __private.receiveBlock = function (block, cb) {
-  library.logger.info([
+  library.logger.info('loader', [
     'Received new block id:', block.id,
     'height:', block.height,
     'round:', modules.rounds.calc(block.height),
@@ -444,12 +469,14 @@ __private.receiveBlock = function (block, cb) {
 };
 
 /**
- * Receive block detected as fork cause 1: Consecutive height but different previous block id
+ * Receive block detected as fork cause 1: Consecutive height but different previous block id.
+ * Logs both competing blocks so fork decisions can be audited from logs.
  *
  * @private
  * @async
  * @method receiveBlock
  * @param {Object}   block Received block
+ * @param {Object}   lastBlock Current local last block
  * @param {Function} cb Callback function
  */
 __private.receiveForkOne = function (block, lastBlock, cb) {
@@ -460,10 +487,24 @@ __private.receiveForkOne = function (block, lastBlock, cb) {
 
   // Keep the oldest block, or if both have same age, keep block with lower id
   if (block.timestamp > lastBlock.timestamp || (block.timestamp === lastBlock.timestamp && block.id > lastBlock.id)) {
-    library.logger.info('Last block stands');
+    library.logger.info('loader', 'Last block stands after processing fork cause 1', {
+      receivedBlockId: block.id,
+      receivedBlockHeight: block.height,
+      receivedBlockTimestamp: block.timestamp,
+      lastBlockId: lastBlock.id,
+      lastBlockHeight: lastBlock.height,
+      lastBlockTimestamp: lastBlock.timestamp
+    });
     return setImmediate(cb); // Discard received block
   } else {
-    library.logger.info('Last block and parent loses');
+    library.logger.info('loader', 'Last block and parent loses after processing fork cause 1', {
+      receivedBlockId: block.id,
+      receivedBlockHeight: block.height,
+      receivedBlockTimestamp: block.timestamp,
+      lastBlockId: lastBlock.id,
+      lastBlockHeight: lastBlock.height,
+      lastBlockTimestamp: lastBlock.timestamp
+    });
     async.series([
       function (seriesCb) {
         try {
@@ -478,7 +519,7 @@ __private.receiveForkOne = function (block, lastBlock, cb) {
         var check = modules.blocks.verify.verifyReceipt(tmp_block);
 
         if (!check.verified) {
-          library.logger.error(['Block', tmp_block.id, 'verification failed'].join(' '), check.errors.join(', '));
+          library.logger.error('loader', ['Block', tmp_block.id, 'verification failed'].join(' '), check.errors.join(', '));
           // Return first error from checks
           return setImmediate(seriesCb, check.errors[0]);
         } else {
@@ -490,7 +531,7 @@ __private.receiveForkOne = function (block, lastBlock, cb) {
       modules.blocks.chain.deleteLastBlock
     ], function (err) {
       if (err) {
-        library.logger.error('Fork recovery failed', err);
+        library.logger.error('loader', 'Fork cause 1 recovery failed', err);
       }
       return setImmediate(cb, err);
     });
@@ -498,12 +539,14 @@ __private.receiveForkOne = function (block, lastBlock, cb) {
 };
 
 /**
- * Receive block detected as fork cause 5: Same height and previous block id, but different block id
+ * Receive block detected as fork cause 5: Same height and previous block id, but different block id.
+ * Logs both competing blocks so fork decisions can be audited from logs.
  *
  * @private
  * @async
  * @method receiveBlock
  * @param {Object}   block Received block
+ * @param {Object}   lastBlock Current local last block
  * @param {Function} cb Callback function
  */
 __private.receiveForkFive = function (block, lastBlock, cb) {
@@ -514,15 +557,29 @@ __private.receiveForkFive = function (block, lastBlock, cb) {
 
   // Check if delegate forged on more than one node
   if (block.generatorPublicKey === lastBlock.generatorPublicKey) {
-    library.logger.warn('Delegate forging on multiple nodes', block.generatorPublicKey);
+    library.logger.warn('loader', 'Delegate forging on multiple nodes', block.generatorPublicKey);
   }
 
   // Keep the oldest block, or if both have same age, keep block with lower id
   if (block.timestamp > lastBlock.timestamp || (block.timestamp === lastBlock.timestamp && block.id > lastBlock.id)) {
-    library.logger.info('Last block stands');
+    library.logger.info('loader', 'Last block stands after processing fork 5', {
+      receivedBlockId: block.id,
+      receivedBlockHeight: block.height,
+      receivedBlockTimestamp: block.timestamp,
+      lastBlockId: lastBlock.id,
+      lastBlockHeight: lastBlock.height,
+      lastBlockTimestamp: lastBlock.timestamp
+    });
     return setImmediate(cb); // Discard received block
   } else {
-    library.logger.info('Last block loses');
+    library.logger.info('loader', 'Last block loses after processing fork 5', {
+      receivedBlockId: block.id,
+      receivedBlockHeight: block.height,
+      receivedBlockTimestamp: block.timestamp,
+      lastBlockId: lastBlock.id,
+      lastBlockHeight: lastBlock.height,
+      lastBlockTimestamp: lastBlock.timestamp
+    });
     async.series([
       function (seriesCb) {
         try {
@@ -537,7 +594,7 @@ __private.receiveForkFive = function (block, lastBlock, cb) {
         var check = modules.blocks.verify.verifyReceipt(tmp_block);
 
         if (!check.verified) {
-          library.logger.error(['Block', tmp_block.id, 'verification failed'].join(' '), check.errors.join(', '));
+          library.logger.error('loader', ['Block', tmp_block.id, 'verification failed'].join(' '), check.errors.join(', '));
           // Return first error from checks
           return setImmediate(seriesCb, check.errors[0]);
         } else {
@@ -554,7 +611,7 @@ __private.receiveForkFive = function (block, lastBlock, cb) {
       }
     ], function (err) {
       if (err) {
-        library.logger.error('Fork recovery failed', err);
+        library.logger.error('loader', 'Fork cause 5 recovery failed', err);
       }
       return setImmediate(cb, err);
     });
@@ -573,7 +630,7 @@ __private.receiveForkFive = function (block, lastBlock, cb) {
  * @param {modules} scope Exposed modules
  */
 Process.prototype.onBind = function (scope) {
-  library.logger.trace('Blocks->Process: Shared modules bind.');
+  library.logger.trace('loader', 'Blocks->Process: Shared modules bind.');
   modules = {
     accounts: scope.accounts,
     blocks: scope.blocks,

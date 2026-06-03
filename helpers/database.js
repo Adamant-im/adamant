@@ -109,7 +109,7 @@ function Migrator (pgp, db, logger) {
    */
   this.applyPendingMigrations = function (pendingMigrations, waterCb) {
     if (pendingMigrations.length) {
-      logger.info(`Found ${pendingMigrations.length} pending migrations. Start executing, this may take a while…`);
+      logger.info('migrator', `Found ${pendingMigrations.length} pending migrations. Start executing, this may take a while…`);
     }
 
     var appliedMigrations = [];
@@ -125,7 +125,7 @@ function Migrator (pgp, db, logger) {
       });
     }, function (err) {
       if (pendingMigrations.length && !err) {
-        logger.info('Migrations have been successfully completed.');
+        logger.info('migrator', 'Migrations have been successfully completed.');
       }
 
       return waterCb(err, appliedMigrations);
@@ -199,7 +199,11 @@ module.exports.connect = function (config, logger, cb) {
   monitor.setTheme('matrix');
 
   monitor.setLog(function (msg, info) {
-    logger.log(info.event, info.text);
+    if (info.event === 'error') {
+      logger.error('pg-monitor', info.text);
+    } else {
+      logger.info('pg-monitor', `${info.event}: ${info.text}`);
+    }
     info.display = false;
   });
 

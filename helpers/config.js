@@ -8,9 +8,10 @@ var constants = require('../helpers/constants.js');
 
 /**
  * Loads config.json file
+ * @param {string} configPath
+ *
  * @memberof module:helpers
  * @implements {validateForce}
- * @param {string} configPath
  * @return {Object} configData
  */
 function Config (configPath) {
@@ -18,18 +19,20 @@ function Config (configPath) {
     const configJson = fs.readFileSync(path.resolve(process.cwd(), (configPath || 'config.json')), 'utf8');
 
     const defaultConfigPath = path.join(__dirname, '../config.default.json');
-    const defaultConfigJson = fs.existsSync(defaultConfigPath)
-      ? fs.readFileSync(defaultConfigPath, 'utf8')
-      : '{}';
+    const defaultConfigJson = fs.existsSync(defaultConfigPath) ?
+      fs.readFileSync(defaultConfigPath, 'utf8') :
+      '{}';
 
     if (!configJson.length) {
       throw 'Failed to read config file';
     }
 
     const configData = JSON.parse(configJson);
-    const defatultConfigData = JSON.parse(defaultConfigJson);
+    const defaultConfigData = JSON.parse(defaultConfigJson);
+    const legacyLoggingConfig = getLegacyLoggingConfig(configData);
 
-    deepMergeMissing(configData, defatultConfigData);
+    deepMergeMissing(configData, defaultConfigData);
+    applyLegacyLoggingConfig(configData, legacyLoggingConfig);
 
     var validator = new z_schema();
     var valid = validator.validate(configData, configSchema.config);
@@ -49,8 +52,8 @@ function Config (configPath) {
 
 /**
  * Validates nethash value from constants and sets forging force to false if any.
+ * @param {object} configData
  * @private
- * @param {Object} configData
  */
 function validateForce (configData) {
   if (configData.forging.force) {
@@ -63,7 +66,13 @@ function validateForce (configData) {
   }
 }
 
-function deepMergeMissing(target, source) {
+/**
+ * Recursively copies only missing default config keys into a user config.
+ * @param {object} target - User config object to mutate.
+ * @param {object} source - Default config object.
+ * @returns {object} Mutated target config.
+ */
+function deepMergeMissing (target, source) {
   for (const key in source) {
     if (Object.prototype.hasOwnProperty.call(source, key)) {
       if (!(key in target)) {
@@ -80,6 +89,49 @@ function deepMergeMissing(target, source) {
   }
 
   return target;
+}
+
+/**
+ * Captures legacy flat logging keys before default config merge fills new sections.
+ * @param {object} configData - Raw user config before default merge.
+ * @returns {object} Legacy logging values and section presence flags.
+ */
+function getLegacyLoggingConfig (configData) {
+  return {
+    hasGeneralLog: !!configData.generalLog,
+    hasDebugLog: !!configData.debugLog,
+    hasConsoleLog: !!configData.consoleLog,
+    fileLogLevel: configData.fileLogLevel,
+    logFileName: configData.logFileName,
+    debugFileName: configData.debugFileName,
+    consoleLogLevel: configData.consoleLogLevel
+  };
+}
+
+/**
+ * Applies legacy flat logging keys only when the matching new section was absent.
+ * @param {object} configData - Config object after default merge.
+ * @param {object} legacyLoggingConfig - Legacy logging values captured before merge.
+ */
+function applyLegacyLoggingConfig (configData, legacyLoggingConfig) {
+  if (!legacyLoggingConfig.hasGeneralLog) {
+    if (legacyLoggingConfig.fileLogLevel) {
+      configData.generalLog.level = legacyLoggingConfig.fileLogLevel;
+    }
+
+    if (legacyLoggingConfig.logFileName) {
+      configData.generalLog.fileName = legacyLoggingConfig.logFileName;
+    }
+  }
+
+  if (!legacyLoggingConfig.hasDebugLog && legacyLoggingConfig.debugFileName) {
+    configData.debugLog.enabled = true;
+    configData.debugLog.fileName = legacyLoggingConfig.debugFileName;
+  }
+
+  if (!legacyLoggingConfig.hasConsoleLog && legacyLoggingConfig.consoleLogLevel) {
+    configData.consoleLog.level = legacyLoggingConfig.consoleLogLevel;
+  }
 }
 
 // Exports

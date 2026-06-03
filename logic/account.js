@@ -430,12 +430,13 @@ function Account (db, schema, logger, cb) {
  * @return {setImmediateCallback} cb|error.
  */
 Account.prototype.createTables = function (cb) {
-  var sql = new pgp.QueryFile(path.join(process.cwd(), 'sql', 'memoryTables.sql'), { minify: true });
+  const filename = path.join(process.cwd(), 'sql', 'memoryTables.sql');
+  var sql = new pgp.QueryFile(filename, { minify: true });
 
   this.scope.db.query(sql).then(function () {
     return setImmediate(cb);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('accounts', `An error occurred while trying to create memory tables from ${filename}: ${err?.message || err}.`, err.stack);
     return setImmediate(cb, 'Account#createTables error');
   });
 };
@@ -466,7 +467,7 @@ Account.prototype.removeTables = function (cb) {
   this.scope.db.query(sqles.join('')).then(function () {
     return setImmediate(cb);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('accounts', `An error occurred while trying to delete memory tables: ${err?.message || err}.`, err.stack);
     return setImmediate(cb, 'Account#removeTables error');
   });
 };
@@ -625,7 +626,7 @@ Account.prototype.getAll = function (filter, fields, cb) {
   this.scope.db.query(query.toString() + ';').then(function (rows) {
     return setImmediate(cb, null, rows);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('accounts', `An error occurred while trying to query mem_accounts table: ${err?.message || err}.`, err.stack);
     return setImmediate(cb, 'Account#getAll error');
   });
 };
@@ -655,7 +656,7 @@ Account.prototype.set = function (address, rawFields, cb) {
   this.scope.db.none(query, fields.values).then(function () {
     return setImmediate(cb);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('accounts', `An error occurred while trying to set fields for the mem_accounts table: ${err?.message || err}.`, err.stack);
     return setImmediate(cb, 'Account#set error');
   });
 };
@@ -690,7 +691,7 @@ Account.prototype.merge = function (address, diff, cb) {
         case Number:
           if (isNaN(trueValue) || trueValue === Infinity) {
             const error = new Error(`Encountered unsafe number: ${trueValue}`)
-            library.logger.error(error.stack, diff);
+            library.logger.error('accounts', `${error.message}; While trying to merge: ${JSON.stringify(diff)}`, error.stack);
             return setImmediate(cb, error.message);
           } else if (Math.abs(trueValue) === trueValue && trueValue !== 0) {
             update[value] = knex.raw('?? + ?', [value, Math.floor(trueValue)])
@@ -897,7 +898,7 @@ Account.prototype.merge = function (address, diff, cb) {
   this.scope.db.none(queries).then(function () {
     return done();
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('account', `An error occurred while trying to merge account data: ${err?.message || err}`, err.stack);
     return done('Account#merge error');
   });
 };
@@ -917,7 +918,7 @@ Account.prototype.remove = function (address, cb) {
   this.scope.db.none(sql).then(function () {
     return setImmediate(cb, null, address);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('account', `An error occurred while trying to remove an account: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Account#remove error');
   });
 };
