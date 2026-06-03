@@ -224,7 +224,7 @@ Chain.prototype.deleteAfterBlock = function (blockId, cb) {
   library.db.query(sql.deleteAfterBlock, { id: blockId }).then(function (res) {
     return setImmediate(cb, null, res);
   }).catch(function (err) {
-    library.logger.error('blocks', `An error occurred while trying to delete all blocks with heigh greater than ${blockId} block: ${err?.message || err}`, err.stack);
+    library.logger.error('blocks', `An error occurred while trying to delete all blocks with height greater than ${blockId}: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Blocks#deleteAfterBlock error');
   });
 };
