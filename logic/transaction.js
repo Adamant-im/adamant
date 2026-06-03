@@ -388,7 +388,7 @@ Transaction.prototype.countById = function (trs, cb) {
     id: trs.id
   }).then(function (row) {
     return setImmediate(cb, null, row.count);
-  }).catch(function (err) {
+  }).catch((err) => {
     this.scope.logger.error(
         'transactions',
         `An error occurred while fetching transactions count by ID: ${err?.message || err}`,

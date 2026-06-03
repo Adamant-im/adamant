@@ -105,6 +105,7 @@ if (programOpts.peers) {
 }
 
 if (programOpts.log) {
+  appConfig.consoleLog.enabled = true;
   appConfig.consoleLog.level = programOpts.log;
 }
 
