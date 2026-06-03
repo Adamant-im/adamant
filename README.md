@@ -30,6 +30,20 @@ See also:
 
 Refer to [ADAMANT Node documentation](https://docs.adamant.im/own-node/installation.html) for complete installation instructions. It includes hardware requirements, installation scripts, and step-by-step guides for setting up an ADM blockchain node on various operating systems, including Linux, macOS, and Windows.
 
+### Critical Shutdown Notice
+
+Stop the node with graceful shutdown. When running in the foreground, press `Ctrl+C` and wait until cleanup finishes. Do not use `kill -9`, forced terminal termination, or any other uncatchable process kill unless the process is already unrecoverably stuck.
+
+The node stores derived consensus state in memory mirror tables such as `mem_accounts` and `mem_round`. A forced kill can interrupt block, transaction, or round writes and leave those tables inconsistent with the persisted blockchain. On the next startup this may force a full memory-state rebuild from the beginning of the chain:
+
+```text
+[WRN] loader Detected unapplied rounds in mem_round
+[WRN] loader Recreating memory tables
+[inf] loader Rebuilding blockchain, current block height: 1
+```
+
+If this happens, do not try to repair `mem_*` tables with manual SQL edits. The reliable recovery options are restoring a trusted database snapshot or letting the node rebuild/replay derived state from the blockchain.
+
 ### Test Environment
 
 You may want to test the node in a safe environment before running a `mainnet` node. The `testnet` configuration allows to experiment and run tests without affecting the `mainnet`.

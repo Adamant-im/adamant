@@ -73,6 +73,13 @@ Recommendations:
 - Do not move account, balance, or block mutation code out of these queues casually.
 - For new mutation paths, follow neighboring queue semantics.
 - When debugging state bugs, check queue ordering and reentrancy first.
+- Always stop local testnet/mainnet nodes with graceful shutdown (`Ctrl+C` in the foreground process, or a catchable termination signal). Do not use `kill -9` or forced process termination unless the process is already unrecoverably stuck.
+
+Critical shutdown note:
+
+- Forced kills can leave `mem_accounts`, `mem_round`, and related memory mirror tables inconsistent with `blocks`.
+- If the next startup logs `Detected unapplied rounds in mem_round`, `Recreating memory tables`, and `Rebuilding blockchain, current block height: 1`, treat the local derived state as untrusted.
+- Do not “fix” this by deleting or editing `mem_*` rows manually. The reliable options are restoring a trusted database snapshot or letting the node rebuild/replay from persisted blockchain data.
 
 ## 6) Legacy Patterns to Respect While Shipping
 
@@ -218,7 +225,7 @@ Environment bootstrap checklist:
 6. Run testnet at least once and confirm startup logs before broader tests:
    - `npm run start:testnet`
    - Look for: `ADAMANT started` and `Blockchain ready`
-7. Stop testnet cleanly before running non-API unit suites.
+7. Stop testnet cleanly with `Ctrl+C` before running non-API unit suites. Do not use forced kill commands for a node process that is still writing blocks or round state.
 
 Observed environment pitfalls:
 
