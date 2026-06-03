@@ -10,6 +10,23 @@ var sql = require('../../sql/blocks.js');
 var modules, library, self, __private = {};
 
 /**
+ * Formats block sync progress from the current loader target.
+ * @param {block} block - Block loaded from a peer.
+ * @returns {string} Human-readable block height, target and progress details.
+ */
+function formatSyncProgress (block) {
+  var target = modules.loader && modules.loader.getBlocksToSync && modules.loader.getBlocksToSync();
+  var details = 'height: ' + block.height;
+
+  if (target > 0) {
+    var progress = Math.min((block.height / target) * 100, 100);
+    details = 'target: ' + target + ' ' + details + ' (' + progress.toFixed(2) + '%)';
+  }
+
+  return details;
+}
+
+/**
  * Initializes library.
  * @memberof module:blocks
  * @class
@@ -280,7 +297,7 @@ Process.prototype.loadBlocksFromPeer = function (peer, cb, shouldStop) {
       if (!err) {
         // Update last valid block
         lastValidBlock = block;
-        library.logger.info('loader', ['Block', block.id, 'loaded from:', peer.string].join(' '), 'height: ' + block.height);
+        library.logger.info('loader', ['Block', block.id, 'loaded from:', peer.string].join(' '), formatSyncProgress(block));
       } else {
         var id = (block ? block.id : 'null');
 
