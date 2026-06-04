@@ -88,6 +88,53 @@ describe('configOverrides', () => {
       expect(entries[1].path).to.deep.equal(['redis']);
       expect(entries[1].value.password).to.equal(null);
     });
+
+    it('should parse JSON override files as nested partial overrides', () => {
+      const filePath = writeTempFile('overrides.json', JSON.stringify({
+        consensusActivationHeights: {
+          fairSystem: 4359465
+        },
+        redis: {
+          url: 'redis://127.0.0.1:6379/1',
+          password: null
+        },
+        forging: {
+          secret: []
+        }
+      }));
+
+      const entries = configOverrides.parseOverrideFile(filePath);
+
+      expect(entries).to.deep.equal([
+        {
+          path: ['consensusActivationHeights', 'fairSystem'],
+          value: 4359465,
+          source: '--config-overrides ' + filePath
+        },
+        {
+          path: ['redis', 'url'],
+          value: 'redis://127.0.0.1:6379/1',
+          source: '--config-overrides ' + filePath
+        },
+        {
+          path: ['redis', 'password'],
+          value: null,
+          source: '--config-overrides ' + filePath
+        },
+        {
+          path: ['forging', 'secret'],
+          value: [],
+          source: '--config-overrides ' + filePath
+        }
+      ]);
+    });
+
+    it('should reject JSON override files with non-object roots', () => {
+      const filePath = writeTempFile('overrides.json', '[]');
+
+      expect(() => configOverrides.parseOverrideFile(filePath))
+          .to.throw(/root value must be an object/);
+    });
   });
 
   describe('applyOverrides()', () => {
@@ -230,6 +277,22 @@ describe('configOverrides', () => {
       });
 
       expect(config.port).to.equal(36670);
+    });
+
+    it('should apply JSON override files before direct overrides', () => {
+      const overrideFile = writeTempFile('overrides.json', JSON.stringify({
+        port: 36668,
+        consensusActivationHeights: {
+          fairSystem: 4359465
+        }
+      }));
+      const config = Config(testConfigPath, {
+        file: overrideFile,
+        sets: ['port=36669']
+      });
+
+      expect(config.port).to.equal(36669);
+      expect(config.consensusActivationHeights.fairSystem).to.equal(4359465);
     });
 
     it('should fail during schema validation for invalid override value types', () => {

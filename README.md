@@ -53,7 +53,7 @@ Refer to [ADAMANT Node Testnet](https://docs.adamant.im/own-node/testnet.html) s
 ### Configuration Overrides
 
 Startup config can be overridden without editing `config.json` or `test/config.json`.
-Overrides are applied in this order: selected config file, `--config-overrides` env-style file, repeated `--config-set` values, then legacy CLI shortcuts such as `--port`, `--address`, `--peers`, `--log`, and `--snapshot`.
+Overrides are applied in this order: selected config file, `--config-overrides` file, repeated `--config-set` values, then legacy CLI shortcuts such as `--port`, `--address`, `--peers`, `--log`, and `--snapshot`.
 The final resolved config is validated against the node config schema before startup.
 
 Use dot paths that match the config object shape:
@@ -73,7 +73,7 @@ npm run start -- --config-set port=36667
 npm run start:testnet -- --config-set api.access.public=true
 ```
 
-An env-style override file can contain one `key=value` override per line:
+The `--config-overrides` file type is selected by extension. Any non-`.json` file is parsed as env-style content with one `key=value` override per line:
 
 ```dotenv
 consensusActivationHeights.fairSystem=4359465
@@ -83,7 +83,33 @@ redis={ "url": "redis://127.0.0.1:6379/1", "password": null }
 Run with:
 
 ```sh
-node app.js --config-overrides ./local.overrides.env
+node app.js \
+  --config test/config.json \
+  --genesis test/genesisBlock.json \
+  --config-overrides test/config.overrides.env
+```
+
+Files ending in `.json` are parsed as nested JSON partial overrides:
+
+```json
+{
+  "consensusActivationHeights": {
+    "fairSystem": 4359465
+  },
+  "redis": {
+    "url": "redis://127.0.0.1:6379/1",
+    "password": null
+  }
+}
+```
+
+Run with:
+
+```sh
+node app.js \
+  --config test/config.json \
+  --genesis test/genesisBlock.json \
+  --config-overrides test/config.overrides.json
 ```
 
 Values are parsed as JSON first, so numbers, booleans, `null`, arrays, and objects keep their types. Non-JSON values are treated as strings. Unknown paths, unsafe path segments, malformed JSON arrays or objects, and schema-invalid values fail before startup.

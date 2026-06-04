@@ -14,7 +14,7 @@ var sensitivePathPattern = /(secret|password|passphrase|privatekey|private_key|t
 /**
  * Resolves override sources into parsed config override entries.
  * @param {object} options - Override options.
- * @param {string} [options.file] - Env-style override file path.
+ * @param {string} [options.file] - Env-style or JSON override file path.
  * @param {Array<string>} [options.sets] - Direct key=value overrides.
  * @param {Array<object>} [options.overrides] - Pre-parsed override entries.
  */
@@ -68,12 +68,27 @@ function applyOverrides (configData, entries, schema, events) {
 }
 
 /**
- * Parses an env-style override file.
+ * Parses an override file. `.json` files use nested JSON object syntax;
+ * all other extensions use env-style key=value syntax.
  * @param {string} filePath - Override file path.
  */
 function parseOverrideFile (filePath) {
   var resolvedPath = path.resolve(process.cwd(), filePath);
   var content = fs.readFileSync(resolvedPath, 'utf8');
+
+  if (path.extname(resolvedPath).toLowerCase() === '.json') {
+    return parseJsonOverrideFile(content, resolvedPath);
+  }
+
+  return parseEnvOverrideFile(content, resolvedPath);
+}
+
+/**
+ * Parses an env-style override file.
+ * @param {string} content - File content.
+ * @param {string} resolvedPath - Resolved file path.
+ */
+function parseEnvOverrideFile (content, resolvedPath) {
   var entries = [];
 
   content.split(/\r?\n/).forEach(function (line, index) {
@@ -88,6 +103,61 @@ function parseOverrideFile (filePath) {
 
   return entries;
 }
+
+/**
+ * Parses a JSON override file.
+ * @param {string} content - File content.
+ * @param {string} resolvedPath - Resolved file path.
+ */
+function parseJsonOverrideFile (content, resolvedPath) {
+  var json;
+
+  try {
+    json = JSON.parse(content);
+  } catch (error) {
+    throw Error('Invalid JSON config override file "' + resolvedPath + '": ' + error.message);
+  }
+
+  if (!json || typeof json !== 'object' || Array.isArray(json)) {
+    throw Error('Invalid JSON config override file "' + resolvedPath + '": root value must be an object');
+  }
+
+  return flattenJsonOverrideObject(json, [], '--config-overrides ' + resolvedPath);
+}
+
+/**
+ * Converts a nested JSON override object into override entries.
+ * @param {object} object - JSON object.
+ * @param {Array<string>} prefix - Current dot path prefix.
+ * @param {string} source - Human-readable source for logs and errors.
+ */
+function flattenJsonOverrideObject (object, prefix, source) {
+  return Object.keys(object).reduce(function (entries, key) {
+    var overridePath = prefix.concat(parseOverridePath(key));
+    var value = object[key];
+
+    if (isPlainObject(value)) {
+      return entries.concat(flattenJsonOverrideObject(value, overridePath, source));
+    } else {
+      entries.push({
+        path: overridePath,
+        value: value,
+        source: source
+      });
+    }
+
+    return entries;
+  }, []);
+}
+
+/**
+ * Checks whether a value is a plain object.
+ * @param {*} value - Value to check.
+ */
+function isPlainObject (value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
 
 /**
  * Parses a single key=value override.
