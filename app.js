@@ -66,6 +66,8 @@ program
     .version(packageJson.version)
     .option('-c, --config <path>', 'config.json file path')
     .option('-g, --genesis <path>', 'genesisBlock.json file path')
+    .option('--config-overrides <path>', 'env-style config override file path')
+    .option('--config-set <key=value>', 'config override as dot.path=value', collectOption, [])
     .option('-p, --port <port>', 'listening port number')
     .option('-a, --address <ip>', 'listening host name or ip')
     .option('-x, --peers [peers...]', 'peers list')
@@ -79,41 +81,12 @@ var programOpts = program.opts();
  * @property {object} - The default list of configuration options. Can be updated by CLI.
  * @default 'config.json'
  */
-var appConfig = require('./helpers/config.js')(programOpts.config);
+var appConfig = require('./helpers/config.js')(programOpts.config, {
+  file: programOpts.configOverrides,
+  sets: programOpts.configSet,
+  overrides: getLegacyCliConfigOverrides(programOpts)
+});
 var genesisblock = require(path.resolve(process.cwd(), (programOpts.genesis || 'genesisBlock.json')));
-
-if (programOpts.port) {
-  appConfig.port = programOpts.port;
-}
-
-if (programOpts.address) {
-  appConfig.address = programOpts.address;
-}
-
-if (programOpts.peers) {
-  if (typeof programOpts.peers === 'string') {
-    appConfig.peers.list = programOpts.peers.split(',').map(function (peer) {
-      peer = peer.split(':');
-      return {
-        ip: peer.shift(),
-        port: peer.shift() || appConfig.port
-      };
-    });
-  } else {
-    appConfig.peers.list = [];
-  }
-}
-
-if (programOpts.log) {
-  appConfig.consoleLog.enabled = true;
-  appConfig.consoleLog.level = programOpts.log;
-}
-
-if (programOpts.snapshot) {
-  appConfig.loading.snapshot = Math.abs(
-      Math.floor(programOpts.snapshot)
-  );
-}
 
 // Define top endpoint availability
 process.env.TOP = appConfig.topAccounts;
@@ -182,6 +155,8 @@ var logger = new Logger({
   debugLog: appConfig.debugLog,
   consoleLog: appConfig.consoleLog
 });
+
+logConfigEvents(logger, appConfig.__configEvents);
 
 // Trying to get last git commit
 try {
@@ -813,6 +788,136 @@ d.run(function () {
     }
   });
 });
+
+/**
+ * Collects a repeatable Commander option.
+ * @param {string} value - Option value.
+ * @param {Array<string>} previous - Previously collected values.
+ */
+function collectOption (value, previous) {
+  previous.push(value);
+  return previous;
+}
+
+/**
+ * Converts legacy CLI shortcuts into config override entries.
+ * Generic overrides are applied first, and these shortcuts keep the historical
+ * highest precedence among startup config changes.
+ * @param {object} options - Commander options.
+ */
+function getLegacyCliConfigOverrides (options) {
+  var overrides = [];
+
+  if (options.port) {
+    overrides.push({
+      path: 'port',
+      value: Number(options.port),
+      source: '--port'
+    });
+  }
+
+  if (options.address) {
+    overrides.push({
+      path: 'address',
+      value: options.address,
+      source: '--address'
+    });
+  }
+
+  if (options.peers) {
+    overrides.push({
+      path: 'peers.list',
+      value: function (configData) {
+        return parsePeersOption(options.peers, configData.port);
+      },
+      source: '--peers'
+    });
+  }
+
+  if (options.log) {
+    overrides.push({
+      path: 'consoleLog.enabled',
+      value: true,
+      source: '--log'
+    });
+
+    overrides.push({
+      path: 'consoleLog.level',
+      value: options.log,
+      source: '--log'
+    });
+  }
+
+  if (options.snapshot) {
+    overrides.push({
+      path: 'loading.snapshot',
+      value: Math.abs(Math.floor(options.snapshot)),
+      source: '--snapshot'
+    });
+  }
+
+  return overrides;
+}
+
+/**
+ * Parses the legacy comma-separated peers option.
+ * @param {string|boolean} peers - Commander peers option.
+ * @param {string} port - Optional CLI port override.
+ */
+function parsePeersOption (peers, port) {
+  if (Array.isArray(peers)) {
+    if (!peers.length) {
+      return [];
+    }
+
+    peers = peers.join(',');
+  }
+
+  if (typeof peers !== 'string') {
+    return [];
+  }
+
+  return peers.split(',').map(function (peer) {
+    peer = peer.split(':');
+
+    return {
+      ip: peer.shift(),
+      port: Number(peer.shift() || port)
+    };
+  });
+}
+
+/**
+ * Logs config startup events after logger initialization.
+ * @param {Logger} logger - Logger instance.
+ * @param {Array<object>} events - Config events.
+ */
+function logConfigEvents (logger, events) {
+  (events || []).forEach(function (event) {
+    logger.info(
+        'config',
+        'Parameter ' +
+        event.path +
+        ' overridden by ' +
+        event.source +
+        ' with value: ' +
+        formatConfigLogValue(event.value),
+        { value: event.value }
+    );
+  });
+}
+
+/**
+ * Formats a config value for startup logs.
+ * @param {*} value - Redacted config value.
+ */
+function formatConfigLogValue (value) {
+  if (typeof value === 'string') {
+    return '\'' + value + '\'';
+  }
+
+  return JSON.stringify(value);
+}
 
 /**
  * Event reporting an uncaughtException.

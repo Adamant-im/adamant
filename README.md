@@ -50,6 +50,46 @@ You may want to test the node in a safe environment before running a `mainnet` n
 
 Refer to [ADAMANT Node Testnet](https://docs.adamant.im/own-node/testnet.html) section of documentation.
 
+### Configuration Overrides
+
+Startup config can be overridden without editing `config.json` or `test/config.json`.
+Overrides are applied in this order: selected config file, `--config-overrides` env-style file, repeated `--config-set` values, then legacy CLI shortcuts such as `--port`, `--address`, `--peers`, `--log`, and `--snapshot`.
+The final resolved config is validated against the node config schema before startup.
+
+Use dot paths that match the config object shape:
+
+```sh
+node app.js \
+  --config test/config.json \
+  --genesis test/genesisBlock.json \
+  --config-set consensusActivationHeights.fairSystem=4359465 \
+  --config-set 'redis={ "url": "redis://127.0.0.1:6379/1", "password": null }'
+```
+
+The same flags work through npm scripts:
+
+```sh
+npm run start -- --config-set port=36667
+npm run start:testnet -- --config-set api.access.public=true
+```
+
+An env-style override file can contain one `key=value` override per line:
+
+```dotenv
+consensusActivationHeights.fairSystem=4359465
+redis={ "url": "redis://127.0.0.1:6379/1", "password": null }
+```
+
+Run with:
+
+```sh
+node app.js --config-overrides ./local.overrides.env
+```
+
+Values are parsed as JSON first, so numbers, booleans, `null`, arrays, and objects keep their types. Non-JSON values are treated as strings. Unknown paths, unsafe path segments, malformed JSON arrays or objects, and schema-invalid values fail before startup.
+
+Be careful when overriding `consensusActivationHeights.*`: using activation heights that do not match the selected network can make a node diverge from that network.
+
 ## Tests
 
 Refer to [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
