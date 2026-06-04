@@ -305,6 +305,55 @@ describe('localnet scripts', () => {
     });
   });
 
+  it('should mark processes missing when they exit before SIGTERM', async () => {
+    const options = localnet.normalizeOptions({
+      cwd: tempDir,
+      runtimeDir: '.localnet-test',
+      logsDir: 'logs-localnet-test'
+    });
+    const manifestPath = localnet.getManifestPath(options);
+    const kill = sinon.stub(process, 'kill').callsFake((pid, signal) => {
+      if (pid === 4321 && signal === 0) {
+        return true;
+      }
+
+      if (pid === 4321 && signal === 'SIGTERM') {
+        const error = Error('No such process');
+
+        error.code = 'ESRCH';
+        throw error;
+      }
+
+      return true;
+    });
+
+    fs.mkdirSync(path.dirname(manifestPath), { recursive: true });
+    fs.writeFileSync(manifestPath, JSON.stringify({
+      status: 'running',
+      nodes: [
+        {
+          id: 'node-1',
+          pid: 4321
+        }
+      ]
+    }, null, 2));
+
+    const result = await localnet.stopLocalnet({
+      cwd: tempDir,
+      runtimeDir: '.localnet-test',
+      logsDir: 'logs-localnet-test',
+      stopTimeoutMs: 1
+    });
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+
+    expect(result.stopped).to.be.empty;
+    expect(result.timedOut).to.be.empty;
+    expect(result.missing.map((node) => node.id)).to.deep.equal(['node-1']);
+    expect(manifest.stopResult.missing).to.deep.equal(['node-1']);
+    expect(kill.calledWith(4321, 0)).to.equal(true);
+    expect(kill.calledWith(4321, 'SIGTERM')).to.equal(true);
+  });
+
   it('should drop localnet databases on stop when requested', async () => {
     const options = localnet.normalizeOptions({
       cwd: tempDir,
@@ -385,5 +434,24 @@ describe('localnet scripts', () => {
       '--if-exists',
       'adamant_localnet_node_1'
     ]);
+  });
+
+  it('should escape localnet database prefix before listing databases', () => {
+    const spawnSync = sinon.stub(childProcess, 'spawnSync').returns({
+      status: 0,
+      stdout: 'adamant%_local\\net_node_1\n',
+      stderr: ''
+    });
+    const result = localnet.listLocalnetDatabases(localnet.normalizeOptions({
+      cwd: tempDir,
+      dbNamePrefix: 'adamant%_local\\net\'node_'
+    }));
+    const query = spawnSync.firstCall.args[1][8];
+
+    expect(result).to.deep.equal(['adamant%_local\\net_node_1']);
+    expect(query).to.equal(
+        'SELECT datname FROM pg_database WHERE datname LIKE ' +
+        '\'adamant\\%\\_local\\\\net\'\'node\\_%\' ESCAPE E\'\\\\\' ORDER BY datname'
+    );
   });
 });

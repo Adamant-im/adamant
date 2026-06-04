@@ -211,7 +211,10 @@ async function stopLocalnet (input) {
       continue;
     }
 
-    process.kill(node.pid, 'SIGTERM');
+    if (!sendGracefulShutdownSignal(node.pid)) {
+      missing.push(node);
+      continue;
+    }
 
     // Do not escalate to SIGKILL; callers must inspect timedOut and decide manually.
     const exited = await waitForExit(node.pid, options.stopTimeoutMs);
@@ -558,13 +561,13 @@ function getLocalnetDatabaseNames (options, manifest) {
  * @param {object} options - Normalized localnet options.
  */
 function listLocalnetDatabases (options) {
-  const escapedPrefix = options.dbNamePrefix.replace(/'/g, '\'\'').replace(/_/g, '\\_');
+  const escapedPrefix = escapePostgresLikePattern(options.dbNamePrefix);
   const result = runPostgresCommand('psql', [
     '-d',
     'postgres',
     '-At',
     '-c',
-    'SELECT datname FROM pg_database WHERE datname LIKE \'' + escapedPrefix + '%\' ESCAPE \'\\\\\' ORDER BY datname'
+    'SELECT datname FROM pg_database WHERE datname LIKE \'' + escapedPrefix + '%\' ESCAPE E\'\\\\\' ORDER BY datname'
   ], options);
 
   if (result.status !== 0) {
@@ -577,6 +580,19 @@ function listLocalnetDatabases (options) {
         return databaseName.trim();
       })
       .filter(Boolean);
+}
+
+/**
+ * Escapes user-controlled text for a PostgreSQL LIKE pattern string literal and returns the quoted prefix.
+ * @param {string} value - Raw LIKE prefix text.
+ */
+function escapePostgresLikePattern (value) {
+  // Backslash must be escaped first because the query uses it as the LIKE escape character.
+  return String(value)
+      .replace(/\\/g, '\\\\')
+      .replace(/%/g, '\\%')
+      .replace(/_/g, '\\_')
+      .replace(/'/g, '\'\'');
 }
 
 /**
@@ -667,6 +683,23 @@ function isProcessRunning (pid) {
     return true;
   } catch (error) {
     return error.code === 'EPERM';
+  }
+}
+
+/**
+ * Sends the graceful shutdown signal to a node process and returns whether the signal was sent.
+ * @param {number} pid - Process ID.
+ */
+function sendGracefulShutdownSignal (pid) {
+  try {
+    process.kill(pid, 'SIGTERM');
+    return true;
+  } catch (error) {
+    if (error.code === 'ESRCH') {
+      return false;
+    }
+
+    throw error;
   }
 }
 
