@@ -66,7 +66,7 @@ program
     .version(packageJson.version)
     .option('-c, --config <path>', 'config.json file path')
     .option('-g, --genesis <path>', 'genesisBlock.json file path')
-    .option('--config-overrides <path>', 'env-style or JSON config override file path')
+    .option('--config-overrides <path>', 'env-style or JSON config override file path', collectOption, [])
     .option('--config-set <key=value>', 'config override as dot.path=value', collectOption, [])
     .option('-p, --port <port>', 'listening port number')
     .option('-a, --address <ip>', 'listening host name or ip')

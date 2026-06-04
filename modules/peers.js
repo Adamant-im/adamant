@@ -460,11 +460,12 @@ Peers.prototype.discover = function (cb) {
 };
 
 /**
- * Filters peers with private or address or with the same nonce.
+ * Filters peers with private address or with the same nonce.
  * @param {peer[]} peers
- * @return {peer[]} Filtered list of peers
  */
 Peers.prototype.acceptable = function (peers) {
+  const allowPrivatePeers = !!(library.config.peers.options && library.config.peers.options.allowPrivatePeers);
+
   return _(peers)
       .uniqWith(function (a, b) {
       // Removing non-unique peers
@@ -473,12 +474,13 @@ Peers.prototype.acceptable = function (peers) {
       .filter(function (peer) {
         // Removing peers with private address or nonce equal to self
         const isJsAPI = peer.os === 'adm-js-api' || peer.os === 'lisk-js-api';
+        const isPrivatePeerAllowed = allowPrivatePeers || !ip.isPrivate(peer.ip);
 
         if ((process.env['NODE_ENV'] || '').toUpperCase() === 'TEST') {
           return peer.nonce !== modules.system.getNonce() && !isJsAPI;
         }
 
-        return !ip.isPrivate(peer.ip) && peer.nonce !== modules.system.getNonce() && !isJsAPI;
+        return isPrivatePeerAllowed && peer.nonce !== modules.system.getNonce() && !isJsAPI;
       }).value();
 };
 

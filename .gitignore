@@ -15,6 +15,7 @@ logs/*.log
 logs-mainnet/*.log
 logs-testnet/*.log
 logs-localnet/*.log
+logs-localnet/
 stacktrace*
 
 # Code Editors
@@ -32,6 +33,7 @@ test/.nyc_output
 
 # Temporary data
 tmp
+.localnet/
 *.swp
 *.swo
 

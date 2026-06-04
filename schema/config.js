@@ -261,6 +261,9 @@ module.exports = {
               },
               timeout: {
                 type: 'integer'
+              },
+              allowPrivatePeers: {
+                type: 'boolean'
               }
             },
             required: ['limits', 'timeout']

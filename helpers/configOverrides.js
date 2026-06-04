@@ -14,7 +14,7 @@ var sensitivePathPattern = /(secret|password|passphrase|privatekey|private_key|t
 /**
  * Resolves override sources into parsed config override entries.
  * @param {object} options - Override options.
- * @param {string} [options.file] - Env-style or JSON override file path.
+ * @param {string|Array<string>} [options.file] - Env-style or JSON override file path.
  * @param {Array<string>} [options.sets] - Direct key=value overrides.
  * @param {Array<object>} [options.overrides] - Pre-parsed override entries.
  */
@@ -23,9 +23,10 @@ function resolveOverrides (options) {
 
   var entries = [];
 
-  if (options.file) {
-    entries = entries.concat(parseOverrideFile(options.file));
-  }
+  // Keep repeatable override files ordered so later layers can override earlier ones.
+  normalizeOverrideFiles(options.file).forEach(function (filePath) {
+    entries = entries.concat(parseOverrideFile(filePath));
+  });
 
   (options.sets || []).forEach(function (override) {
     entries.push(parseOverride(override, '--config-set'));
@@ -40,6 +41,24 @@ function resolveOverrides (options) {
   });
 
   return entries;
+}
+
+/**
+ * Normalizes optional override file input into an ordered list.
+ * @param {string|Array<string>} files - Override file path or paths.
+ */
+function normalizeOverrideFiles (files) {
+  if (!files) {
+    return [];
+  }
+
+  if (Array.isArray(files)) {
+    return files.filter(function (filePath) {
+      return !!filePath;
+    });
+  }
+
+  return [files];
 }
 
 /**
@@ -425,5 +444,6 @@ module.exports = {
   parseOverridePath: parseOverridePath,
   parseOverrideValue: parseOverrideValue,
   redactConfigValue: redactConfigValue,
+  normalizeOverrideFiles: normalizeOverrideFiles,
   resolveOverrides: resolveOverrides
 };

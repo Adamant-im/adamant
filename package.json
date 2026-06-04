@@ -6,6 +6,10 @@
   "scripts": {
     "start": "node app.js",
     "start:testnet": "node app.js --config test/config.json --genesis test/genesisBlock.json",
+    "start:localnet": "node scripts/localnet/start.js",
+    "stop:localnet": "node scripts/localnet/stop.js",
+    "status:localnet": "node scripts/localnet/status.js",
+    "drop:localnet": "node scripts/localnet/drop.js",
     "test:full": "npx grunt test --verbose",
     "test:single": "npx mocha --trace-uncaught",
     "test:unit": "npx mocha test/unit/* --trace-uncaught",
