@@ -6,7 +6,7 @@ ssl/
 # Config files
 config.json
 test/config.json
-test/config.override.json
+test/config.overrides.json
 test/config.overrides.env
 sftp-config.json
 
