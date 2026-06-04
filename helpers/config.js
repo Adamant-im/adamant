@@ -5,16 +5,18 @@ var path = require('path');
 var z_schema = require('./z_schema.js');
 var configSchema = require('../schema/config.js');
 var constants = require('../helpers/constants.js');
+var configOverrides = require('./configOverrides.js');
 
 /**
  * Loads config.json file
  * @param {string} configPath
+ * @param {object} overrideOptions
  *
  * @memberof module:helpers
  * @implements {validateForce}
  * @return {Object} configData
  */
-function Config (configPath) {
+function Config (configPath, overrideOptions) {
   try {
     const configJson = fs.readFileSync(path.resolve(process.cwd(), (configPath || 'config.json')), 'utf8');
 
@@ -30,9 +32,21 @@ function Config (configPath) {
     const configData = JSON.parse(configJson);
     const defaultConfigData = JSON.parse(defaultConfigJson);
     const legacyLoggingConfig = getLegacyLoggingConfig(configData);
+    const configEvents = [];
 
     deepMergeMissing(configData, defaultConfigData);
     applyLegacyLoggingConfig(configData, legacyLoggingConfig);
+    configOverrides.applyOverrides(
+        configData,
+        configOverrides.resolveOverrides(overrideOptions),
+        configSchema.config,
+        configEvents
+    );
+
+    Object.defineProperty(configData, '__configEvents', {
+      value: configEvents,
+      enumerable: false
+    });
 
     var validator = new z_schema();
     var valid = validator.validate(configData, configSchema.config);
