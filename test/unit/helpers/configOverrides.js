@@ -70,6 +70,16 @@ describe('configOverrides', () => {
       expect(() => configOverrides.parseOverride('redis={ bad json }', 'test'))
           .to.throw(/Invalid JSON value/);
     });
+
+    it('should reject unsafe keys inside direct JSON values', () => {
+      expect(() => configOverrides.parseOverride('redis={ "__proto__": { "polluted": true } }', 'test'))
+          .to.throw(/unsafe key "__proto__"/);
+    });
+
+    it('should reject unsafe keys inside single-quoted JSON values', () => {
+      expect(() => configOverrides.parseOverride('redis=\'{ "constructor": { "polluted": true } }\'', 'test'))
+          .to.throw(/unsafe key "constructor"/);
+    });
   });
 
   describe('parseOverrideFile()', () => {
@@ -134,6 +144,21 @@ describe('configOverrides', () => {
 
       expect(() => configOverrides.parseOverrideFile(filePath))
           .to.throw(/root value must be an object/);
+    });
+
+    it('should reject unsafe keys inside JSON override files', () => {
+      const filePath = writeTempFile('overrides.json', JSON.stringify({
+        forging: {
+          secret: [
+            {
+              prototype: true
+            }
+          ]
+        }
+      }));
+
+      expect(() => configOverrides.parseOverrideFile(filePath))
+          .to.throw(/unsafe key "prototype"/);
     });
   });
 
@@ -230,7 +255,7 @@ describe('configOverrides', () => {
   });
 
   describe('Config()', () => {
-    const testConfigPath = path.join(__dirname, '../../config.json');
+    const testConfigPath = path.join(__dirname, '../../config.default.json');
 
     it('should validate and return configs with direct overrides', () => {
       const config = Config(testConfigPath, {
@@ -301,6 +326,17 @@ describe('configOverrides', () => {
 
       expect(() => Config(testConfigPath, {
         sets: ['port=not-an-integer']
+      })).to.throw('process.exit');
+      expect(process.exit.calledWith(1)).to.be.true;
+      expect(console.error.firstCall.args[1]).to.include('Failed to validate config data');
+    });
+
+    it('should fail during schema validation for zero snapshot override', () => {
+      sinon.stub(console, 'error');
+      sinon.stub(process, 'exit').throws(new Error('process.exit'));
+
+      expect(() => Config(testConfigPath, {
+        sets: ['loading.snapshot=0']
       })).to.throw('process.exit');
       expect(process.exit.calledWith(1)).to.be.true;
       expect(console.error.firstCall.args[1]).to.include('Failed to validate config data');

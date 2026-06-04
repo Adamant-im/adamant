@@ -355,7 +355,7 @@ module.exports = {
           },
           snapshot: {
             type: 'integer',
-            minimum: 0
+            minimum: 1
           }
         },
         required: ['loadPerIteration']

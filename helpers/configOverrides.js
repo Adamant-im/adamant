@@ -113,7 +113,10 @@ function parseJsonOverrideFile (content, resolvedPath) {
   var json;
 
   try {
-    json = JSON.parse(content);
+    json = assertNoUnsafeKeys(
+        JSON.parse(content),
+        'JSON config override file "' + resolvedPath + '"'
+    );
   } catch (error) {
     throw Error('Invalid JSON config override file "' + resolvedPath + '": ' + error.message);
   }
@@ -218,13 +221,16 @@ function parseOverrideValue (rawValue, overridePath) {
   }
 
   try {
-    return JSON.parse(value);
+    return assertNoUnsafeKeys(JSON.parse(value), 'config override "' + overridePath + '"');
   } catch (error) {
     var singleQuotedValue = stripSingleOuterQuotes(value);
 
     if (singleQuotedValue !== value) {
       try {
-        return JSON.parse(singleQuotedValue);
+        return assertNoUnsafeKeys(
+            JSON.parse(singleQuotedValue),
+            'config override "' + overridePath + '"'
+        );
       } catch (singleQuoteError) {
         if (singleQuotedValue[0] === '{' || singleQuotedValue[0] === '[') {
           throw Error(
@@ -245,6 +251,35 @@ function parseOverrideValue (rawValue, overridePath) {
 
     return value;
   }
+}
+
+/**
+ * Rejects parsed JSON override values with prototype-polluting keys.
+ * @param {*} value - Parsed JSON value.
+ * @param {string} source - Human-readable source for error messages.
+ */
+function assertNoUnsafeKeys (value, source) {
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach(function (item) {
+      assertNoUnsafeKeys(item, source);
+    });
+
+    return value;
+  }
+
+  Object.keys(value).forEach(function (key) {
+    if (unsafePathSegments[key]) {
+      throw Error('Invalid ' + source + ': unsafe key "' + key + '"');
+    }
+
+    assertNoUnsafeKeys(value[key], source);
+  });
+
+  return value;
 }
 
 /**
