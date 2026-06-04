@@ -75,7 +75,7 @@ describe('localnet scripts', () => {
     expect(plan.nodes[2].args).to.deep.equal([
       'app.js',
       '--config',
-      'config.default.json',
+      'test/config.default.json',
       '--genesis',
       'test/genesisBlock.json',
       '--config-overrides',
@@ -203,6 +203,68 @@ describe('localnet scripts', () => {
 
     expect(localnetStatus.readDelegateSecretsCount(node)).to.equal(2);
     expect(lastForging.timestamp).to.equal('2026-06-04T12:00:05.000Z');
+  });
+
+  it('should format status consensus as broadhash consensus', () => {
+    const line = localnetStatus.formatNodeStatusLine({
+      id: 'node-1',
+      pid: 12345,
+      pidRunning: true,
+      api: {
+        ok: true,
+        payload: {
+          loader: {
+            loaded: true,
+            syncing: false,
+            consensus: 50
+          },
+          network: {
+            height: 10,
+            broadhash: 'broadhash-value',
+            nethash: 'nethash-value'
+          }
+        }
+      },
+      peers: {
+        ok: true,
+        peers: [
+          {
+            state: 2,
+            broadhash: 'broadhash-value'
+          },
+          {
+            state: 2,
+            broadhash: 'broadhash-value'
+          }
+        ]
+      },
+      delegateSecretsCount: 34,
+      lastForging: null
+    });
+
+    expect(line).to.include('broadhash consensus 100% (cached 50%)');
+    expect(line).to.include('broadhash broadhash-value');
+    expect(line).to.include('nethash nethash-value');
+  });
+
+  it('should calculate live broadhash consensus from connected peer records', () => {
+    const consensus = localnetStatus.calculateBroadhashConsensus('broadhash-a', [
+      {
+        state: 2,
+        broadhash: 'broadhash-a'
+      },
+      {
+        state: 2,
+        broadhash: 'broadhash-b'
+      },
+      {
+        state: 1,
+        broadhash: 'broadhash-a'
+      }
+    ]);
+
+    expect(consensus).to.equal(50);
+    expect(localnetStatus.formatConsensus(100, 50)).to.equal('100% (cached 50%)');
   });
 
   it('should mark missing localnet processes as stopped', async () => {

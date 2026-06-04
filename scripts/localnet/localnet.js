@@ -6,7 +6,7 @@ const path = require('path');
 
 const DEFAULTS = {
   nodes: 3,
-  config: 'config.default.json',
+  config: 'test/config.default.json',
   genesis: 'test/genesisBlock.json',
   genesisPasses: 'test/genesisPasses.json',
   configOverrides: ['test/config.localnet.json'],

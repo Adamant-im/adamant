@@ -58,7 +58,12 @@ async function getLocalnetStatus (input) {
  */
 async function getNodeStatus (node, timeoutMs) {
   const pidRunning = !!(node.pid && localnet.isProcessRunning(node.pid));
-  const api = await fetchNodeApiStatus(node.apiUrl, timeoutMs);
+  const results = await Promise.all([
+    fetchNodeApiStatus(node.apiUrl, timeoutMs),
+    fetchNodePeers(node.apiUrl, timeoutMs)
+  ]);
+  const api = results[0];
+  const peers = results[1];
 
   return {
     id: node.id,
@@ -67,6 +72,7 @@ async function getNodeStatus (node, timeoutMs) {
     apiUrl: node.apiUrl,
     wsClientUrl: node.wsClientUrl,
     api,
+    peers,
     delegateSecretsCount: readDelegateSecretsCount(node),
     lastForging: findLastForgingEvent(node.generalLogFile)
   };
@@ -78,10 +84,44 @@ async function getNodeStatus (node, timeoutMs) {
  * @param {number} timeoutMs - HTTP request timeout in milliseconds.
  */
 function fetchNodeApiStatus (apiUrl, timeoutMs) {
+  return fetchNodeJson(apiUrl, '/api/node/status', timeoutMs).then(function (result) {
+    if (!result.ok) {
+      return result;
+    }
+
+    return Object.assign({}, result, {
+      payload: extractNodeStatusPayload(result.body),
+      error: result.body.error || null
+    });
+  });
+}
+
+/**
+ * Requests `/api/peers` from one localnet node.
+ * @param {string} apiUrl - Base node API URL from manifest.
+ * @param {number} timeoutMs - HTTP request timeout in milliseconds.
+ */
+function fetchNodePeers (apiUrl, timeoutMs) {
+  return fetchNodeJson(apiUrl, '/api/peers?limit=100', timeoutMs).then(function (result) {
+    if (!result.ok) {
+      return result;
+    }
+
+    return Object.assign({}, result, {
+      peers: Array.isArray(result.body.peers) ? result.body.peers : []
+    });
+  });
+}
+
+/**
+ * Requests and parses JSON from a localnet node API endpoint.
+ * @param {string} apiUrl - Base node API URL from manifest.
+ * @param {string} endpoint - Absolute API endpoint path and query.
+ * @param {number} timeoutMs - HTTP request timeout in milliseconds.
+ */
+function fetchNodeJson (apiUrl, endpoint, timeoutMs) {
   return new Promise(function (resolve) {
-    const statusUrl = new URL(apiUrl);
-    statusUrl.pathname = '/api/node/status';
-    statusUrl.search = '';
+    const statusUrl = new URL(endpoint, apiUrl);
 
     const transport = statusUrl.protocol === 'https:' ? https : http;
     const request = transport.get(statusUrl, function (response) {
@@ -101,6 +141,7 @@ function fetchNodeApiStatus (apiUrl, timeoutMs) {
           resolve({
             ok: response.statusCode >= 200 && response.statusCode < 300 && parsedBody.success !== false,
             statusCode: response.statusCode,
+            body: parsedBody,
             payload,
             error: parsedBody.error || null
           });
@@ -108,6 +149,7 @@ function fetchNodeApiStatus (apiUrl, timeoutMs) {
           resolve({
             ok: false,
             statusCode: response.statusCode,
+            body: null,
             payload: null,
             error: 'Invalid JSON response: ' + error.message
           });
@@ -124,6 +166,7 @@ function fetchNodeApiStatus (apiUrl, timeoutMs) {
       resolve({
         ok: false,
         statusCode: null,
+        body: null,
         payload: null,
         error: error.message
       });
@@ -223,6 +266,27 @@ function buildSummary (manifest, nodes) {
 }
 
 /**
+ * Calculates current broadhash consensus from peer records.
+ * @param {string} broadhash - Local node broadhash.
+ * @param {Array<object>} peers - Current peer records from `/api/peers`.
+ */
+function calculateBroadhashConsensus (broadhash, peers) {
+  const connectedPeers = (peers || []).filter(function (peer) {
+    return peer.state === 2;
+  });
+
+  if (!broadhash || !connectedPeers.length) {
+    return null;
+  }
+
+  const matchedPeers = connectedPeers.filter(function (peer) {
+    return peer.broadhash === broadhash;
+  });
+
+  return Math.round(matchedPeers.length / connectedPeers.length * 100 * 1e2) / 1e2;
+}
+
+/**
  * Formats localnet status as a compact terminal report.
  * @param {object} status - Localnet status returned by `getLocalnetStatus`.
  */
@@ -269,7 +333,11 @@ function formatNodeStatusLine (node) {
   const processState = node.pidRunning ? 'pid ' + node.pid + ' running' : 'pid ' + (node.pid || 'n/a') + ' not running';
   const height = Number.isFinite(network.height) ? network.height : 'n/a';
   const nethash = network.nethash || 'n/a';
-  const consensus = Number.isFinite(loader.consensus) ? loader.consensus + '%' : 'n/a';
+  const broadhash = network.broadhash || 'n/a';
+  const cachedConsensus = Number.isFinite(loader.consensus) ? loader.consensus : null;
+  const liveConsensus = node.peers && node.peers.ok ?
+    calculateBroadhashConsensus(network.broadhash, node.peers.peers) :
+    null;
 
   return [
     '- ' + node.id + ':',
@@ -278,11 +346,33 @@ function formatNodeStatusLine (node) {
     'height ' + height + ',',
     'loaded ' + formatBoolean(loader.loaded) + ',',
     'syncing ' + formatBoolean(loader.syncing) + ',',
-    'consensus ' + consensus + ',',
+    'broadhash consensus ' + formatConsensus(liveConsensus, cachedConsensus) + ',',
+    'broadhash ' + broadhash + ',',
     'delegates ' + node.delegateSecretsCount + ',',
     'last forge ' + formatLastForging(node.lastForging) + ',',
     'nethash ' + nethash
   ].join(' ');
+}
+
+/**
+ * Formats live and cached consensus values for terminal output.
+ * @param {?number} liveConsensus - Consensus calculated from current peer records.
+ * @param {?number} cachedConsensus - Cached consensus returned by `/api/node/status`.
+ */
+function formatConsensus (liveConsensus, cachedConsensus) {
+  if (liveConsensus === null && cachedConsensus === null) {
+    return 'n/a';
+  }
+
+  if (liveConsensus === null) {
+    return cachedConsensus + '% cached';
+  }
+
+  if (cachedConsensus !== null && cachedConsensus !== liveConsensus) {
+    return liveConsensus + '% (cached ' + cachedConsensus + '%)';
+  }
+
+  return liveConsensus + '%';
 }
 
 /**
@@ -345,12 +435,16 @@ module.exports = {
   getLocalnetStatus,
   getNodeStatus,
   fetchNodeApiStatus,
+  fetchNodePeers,
+  fetchNodeJson,
   extractNodeStatusPayload,
   readDelegateSecretsCount,
   findLastForgingEvent,
   buildSummary,
+  calculateBroadhashConsensus,
   formatStatusReport,
   formatNodeStatusLine,
   formatBoolean,
+  formatConsensus,
   formatLastForging
 };

@@ -107,11 +107,11 @@ __private.removePeer = function (options, extraMessage) {
  */
 __private.recordRequest = function (options) {
   return modules.peers.recordRequest(
-    options.peer.ip,
-    options.peer.port,
-    options.error,
+      options.peer.ip,
+      options.peer.port,
+      options.error
   );
-}
+};
 
 /**
  * Validates signatures body and for each signature calls receiveSignature.
@@ -413,7 +413,7 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
           }
 
           modules.peers.update(peer);
-          __private.recordRequest({ peer })
+          __private.recordRequest({ peer });
 
           return setImmediate(cb, null, { body: res.data, peer: peer });
         }

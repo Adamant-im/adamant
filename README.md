@@ -129,7 +129,7 @@ npm run drop:localnet
 
 `start:localnet` runs nodes in the background with:
 
-- `config.default.json` as the base config;
+- `test/config.default.json` as the base config;
 - `test/genesisBlock.json` as the genesis block;
 - `test/genesisPasses.json` as the genesis delegate passphrase source;
 - `--config-overrides test/config.localnet.json` by default;
@@ -154,7 +154,7 @@ Use `status:localnet` to inspect localnet without attaching to node processes:
 npm run status:localnet
 ```
 
-It reads the manifest, checks every managed PID, requests `/api/node/status` from every node, reports the number of configured forging delegates, and shows the last successful forging log timestamp with its age in seconds.
+It reads the manifest, checks every managed PID, requests `/api/node/status` and `/api/peers` from every node, reports the number of configured forging delegates, and shows the last successful forging log timestamp with its age in seconds. The reported broadhash consensus is calculated live from current connected peer records; if `/api/node/status` still has an older cached consensus value, status output shows it as `cached`.
 
 Localnet uses the testnet genesis block by default. The node derives `nethash` from `genesisBlock.payloadHash`, which is the SHA-256 payload hash verified from the genesis block transactions. It is not a random identifier. If you use a different genesis block, every localnet node must use the same genesis block and resulting nethash.
 
