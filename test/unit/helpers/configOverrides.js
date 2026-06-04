@@ -320,6 +320,29 @@ describe('configOverrides', () => {
       expect(config.consensusActivationHeights.fairSystem).to.equal(4359465);
     });
 
+    it('should apply multiple config override files in order', () => {
+      const firstOverrideFile = writeTempFile('first.json', JSON.stringify({
+        port: 36668,
+        redis: {
+          url: 'redis://127.0.0.1:6379/2'
+        }
+      }));
+      const secondOverrideFile = writeTempFile('second.json', JSON.stringify({
+        port: 36669
+      }));
+      const config = Config(testConfigPath, {
+        file: [firstOverrideFile, secondOverrideFile]
+      });
+
+      expect(config.port).to.equal(36669);
+      expect(config.redis.url).to.equal('redis://127.0.0.1:6379/2');
+      expect(config.__configEvents.map((event) => event.source)).to.deep.equal([
+        '--config-overrides ' + firstOverrideFile,
+        '--config-overrides ' + firstOverrideFile,
+        '--config-overrides ' + secondOverrideFile
+      ]);
+    });
+
     it('should fail during schema validation for invalid override value types', () => {
       sinon.stub(console, 'error');
       sinon.stub(process, 'exit').throws(new Error('process.exit'));

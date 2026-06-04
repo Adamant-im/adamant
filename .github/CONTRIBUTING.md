@@ -82,6 +82,17 @@ npm run start:testnet
 
 See [Test Environment](../README.md#Test-Environment) for reference.
 
+For multi-node local testing, use the localnet scripts:
+
+```sh
+npm run start:localnet -- --nodes 3
+npm run status:localnet
+npm run stop:localnet
+npm run drop:localnet
+```
+
+Localnet nodes write per-node `adamant_localnet.log` and `adamant_localnet_debug.log` files under `logs-localnet/node-N/` and runtime metadata under `.localnet/`. Use `npm run status:localnet` to check managed PIDs, `/api/node/status`, configured delegate counts, and the last successful forging timestamp. Always stop localnet with `npm run stop:localnet` so every node follows the graceful shutdown path. Localnet databases persist across normal stops; use `npm run stop:localnet -- --drop-on-stop` or `npm run drop:localnet` for a full localnet database cleanup.
+
 > [!CAUTION] > **Unit tests** should NOT be run in parallel to prevent disruption of the node's state, and the `testnet` should be run at least once before.
 
 To run a single test file, use the following command:

@@ -322,6 +322,20 @@ describe('peers', function () {
       expect(peers.acceptable([privatePeer])).that.is.an('array').and.to.be.empty;
     });
 
+    it('should accept peer with private ip when explicitly configured', function () {
+      var previousValue = config.peers.options.allowPrivatePeers;
+      var privatePeer = _.clone(validPeer);
+      privatePeer.ip = '127.0.0.1';
+
+      config.peers.options.allowPrivatePeers = true;
+
+      try {
+        expect(peers.acceptable([privatePeer])).that.is.an('array').and.to.deep.equal([privatePeer]);
+      } finally {
+        config.peers.options.allowPrivatePeers = previousValue;
+      }
+    });
+
     it('should not accept peer with adm-js-api os', function () {
       var privatePeer = _.clone(validPeer);
       privatePeer.os = 'adm-js-api';
