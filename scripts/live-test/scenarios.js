@@ -371,41 +371,61 @@ async function runTransactionHappyPathScenario (context) {
       'multisignature registration'
   );
 
-  // DApp transfers require a persisted DApp lifecycle; these smoke checks intentionally use
-  // invalid or unknown DApp data so public testnet runs cover the type without registering junk apps.
-  await submitExpectedTransactionFailure(
+  const dappName = 'live' + crypto.randomBytes(5).toString('hex');
+  const dappLink = 'https://example.com/' + dappName + '.zip';
+  const dapp = await submitAcceptedApiTransaction(
       context,
       client,
-      expectedFailures,
-      tx.createDappTransaction(fresh, {
+      transactions,
+      'put',
+      '/api/dapps',
+      {
+        secret: fresh.secret,
         category: 0,
-        name: 'live' + crypto.randomBytes(5).toString('hex'),
-        description: 'Expected live-test rejection',
+        name: dappName,
+        description: 'ADAMANT live test dapp',
         tags: 'live-test',
-        type: 0,
-        link: 'https://example.invalid/live-test.txt'
-      }),
-      'dapp-registration-invalid-link'
+        type: 1,
+        link: dappLink
+      },
+      'dapp-registration',
+      transactionTypes.DAPP
   );
-  await submitExpectedTransactionFailure(
+
+  if (context.options.waitBlocks > 0) {
+    await waitForBlocks(context, context.options.waitBlocks);
+  }
+  await waitForDapp(context, client, dapp.id, 'dapp registration');
+
+  await submitAcceptedApiTransaction(
       context,
       client,
-      expectedFailures,
-      tx.createInTransferTransaction(fresh, '8713095156789756398', context.options.transferAmount),
-      'dapp-in-transfer-unknown-dapp'
+      transactions,
+      'put',
+      '/api/dapps/transaction',
+      {
+        secret: fresh.secret,
+        amount: context.options.transferAmount,
+        dappId: dapp.id
+      },
+      'dapp-in-transfer',
+      transactionTypes.IN_TRANSFER
   );
-  await submitExpectedTransactionFailure(
+  await submitAcceptedApiTransaction(
       context,
       client,
-      expectedFailures,
-      tx.createOutTransferTransaction(
-          fresh,
-          recipient.address,
-          '8713095156789756398',
-          String(Date.now()).slice(0, 13),
-          context.options.transferAmount
-      ),
-      'dapp-out-transfer-unknown-dapp'
+      transactions,
+      'put',
+      '/api/dapps/withdrawal',
+      {
+        secret: fresh.secret,
+        recipientId: recipient.address,
+        amount: context.options.transferAmount,
+        dappId: dapp.id,
+        transactionId: String(Date.now()).slice(0, 13)
+      },
+      'dapp-out-transfer',
+      transactionTypes.OUT_TRANSFER
   );
 
   context.metrics.increment('transactions.accepted', transactions.length);
@@ -683,25 +703,34 @@ async function submitAcceptedTransaction (context, client, transactions, transac
 }
 
 /**
- * Submits a transaction that must be rejected and records the expected failure.
+ * Submits an API-created transaction and records its returned transaction metadata.
  * @param {object} context - Runner context.
  * @param {HttpClient} client - Target REST client.
- * @param {Array<object>} expectedFailures - Expected-failure metadata sink.
- * @param {object} transaction - Transaction object.
+ * @param {Array<object>} transactions - Accepted transaction metadata sink.
+ * @param {string} method - HTTP client method.
+ * @param {string} path - API path.
+ * @param {object} body - Request body.
  * @param {string} label - Human-readable action label.
+ * @param {number} type - Expected transaction type.
  */
-async function submitExpectedTransactionFailure (context, client, expectedFailures, transaction, label) {
-  const result = await client.post('/api/transactions/process', { transaction });
-  const rejected = !result.body || result.body.success === false;
+async function submitAcceptedApiTransaction (context, client, transactions, method, path, body, label, type) {
+  const result = await client[method](path, body);
 
   context.metrics.latency('transaction.submit', result.latencyMs);
-  context.assert(rejected, 'Expected transaction rejection unexpectedly succeeded: ' + label);
-  context.metrics.increment('transactions.expected_failed');
-  expectedFailures.push(Object.assign(publicTransaction(transaction, label), {
-    status: result.status,
-    expectedFailure: true,
-    error: result.body && (result.body.error || result.body.message)
-  }));
+  context.assert(result.ok, 'HTTP failed while submitting ' + label + ': ' + result.status);
+  context.assert(result.body && result.body.success, 'Node rejected ' + label + ': ' + formatApiError(result.body));
+
+  const transaction = result.body.transaction || {
+    id: result.body.transactionId,
+    type
+  };
+  const metadata = publicTransaction(Object.assign({}, transaction, {
+    type: transaction.type === undefined ? type : transaction.type
+  }), label);
+
+  transactions.push(metadata);
+
+  return metadata;
 }
 
 /**
@@ -855,6 +884,40 @@ async function waitForAccountDelegate (context, client, address, delegatePublicK
       expectedPresent +
       ' on ' +
       address +
+      '. Last response: ' +
+      JSON.stringify(lastBody)
+  );
+}
+
+/**
+ * Waits until a registered DApp is visible through the public API.
+ * @param {object} context - Runner context.
+ * @param {HttpClient} client - Target REST client.
+ * @param {string} dappId - DApp transaction id.
+ * @param {string} label - Human-readable wait label.
+ */
+async function waitForDapp (context, client, dappId, label) {
+  const deadline = Date.now() + context.options.blockWaitTimeoutMs;
+  let lastBody;
+
+  while (Date.now() < deadline) {
+    const result = await client.get('/api/dapps/get?id=' + encodeURIComponent(dappId));
+
+    context.metrics.latency('dapps.get', result.latencyMs);
+    lastBody = result.body;
+
+    if (result.ok && result.body && result.body.success && result.body.dapp && result.body.dapp.transactionId === dappId) {
+      return result.body.dapp;
+    }
+
+    await sleep(context.options.pollIntervalMs);
+  }
+
+  throw Error(
+      'Timed out waiting for ' +
+      label +
+      ' dapp ' +
+      dappId +
       '. Last response: ' +
       JSON.stringify(lastBody)
   );
