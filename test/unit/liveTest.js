@@ -10,6 +10,7 @@ const report = require('../../scripts/live-test/report.js');
 const scenarios = require('../../scripts/live-test/scenarios.js');
 const target = require('../../scripts/live-test/target.js');
 const transactions = require('../../scripts/live-test/transactions.js');
+const testDefaultConfig = require('../config.default.json');
 
 describe('live scenario runner utilities', () => {
   let tempDir;
@@ -96,12 +97,6 @@ describe('live scenario runner utilities', () => {
   });
 
   it('should collect activation heights and redact config override metadata', () => {
-    const baseConfigPath = writeTempFile('config.json', JSON.stringify({
-      consensusActivationHeights: {
-        fairSystem: 10,
-        spaceship: 20
-      }
-    }));
     const overridePath = writeTempFile('override.json', JSON.stringify({
       consensusActivationHeights: {
         spaceship: 30
@@ -114,12 +109,11 @@ describe('live scenario runner utilities', () => {
       configOverrides: [overridePath],
       configSet: ['db.password="new-password"']
     }, {
-      configPath: baseConfigPath,
       nodes: []
     });
 
     expect(metadata.consensusActivationHeights).to.deep.equal({
-      fairSystem: 10,
+      fairSystem: testDefaultConfig.consensusActivationHeights.fairSystem,
       spaceship: 30
     });
     expect(JSON.stringify(metadata)).not.to.include('secret value');
@@ -127,10 +121,45 @@ describe('live scenario runner utilities', () => {
     expect(metadata.overrides.some((entry) => entry.value === 'XXXXXXXXXX')).to.equal(true);
   });
 
+  it('should always use test/config.default.json as activation metadata base', () => {
+    const baseConfigPath = writeTempFile('config.default.json', JSON.stringify({
+      consensusActivationHeights: {
+        fairSystem: 10,
+        spaceship: 20
+      }
+    }));
+    const metadata = liveTest.collectConfigMetadata({
+      configOverrides: [],
+      configSet: []
+    }, {
+      manifest: {
+        baseConfig: baseConfigPath
+      },
+      nodes: []
+    });
+
+    expect(metadata.consensusActivationHeights).to.deep.equal({
+      fairSystem: testDefaultConfig.consensusActivationHeights.fairSystem,
+      spaceship: testDefaultConfig.consensusActivationHeights.spaceship
+    });
+  });
+
+  it('should keep safe secret-related counters visible in reports', () => {
+    const sanitized = report.redactSensitive({
+      delegateSecretsCount: 34,
+      delegateSecret: 'secret value'
+    });
+
+    expect(sanitized.delegateSecretsCount).to.equal(34);
+    expect(sanitized.delegateSecret).to.equal('XXXXXXXXXX');
+  });
+
   it('should build transaction helpers without exposing passphrases in public fixture metadata', () => {
     const account = transactions.createAccount();
     const recipient = transactions.createAccount();
     const transaction = transactions.createSendTransaction(account, recipient.address, 100000000);
+    const chat = transactions.createChatTransaction(account, recipient.address, 3);
+    const state = transactions.createStateTransaction(account, 'live-test-key', 'ok', 1);
     const fixture = transactions.publicFixtureAccount({
       secret: 'fixture secret',
       address: account.address,
@@ -145,6 +174,18 @@ describe('live scenario runner utilities', () => {
     });
     expect(transaction.id).to.be.a('string');
     expect(transaction.signature).to.be.a('string');
+    expect(chat).to.include({
+      type: 8,
+      recipientId: recipient.address
+    });
+    expect(chat.asset.chat.type).to.equal(3);
+    expect(state).to.include({
+      type: 9,
+      recipientId: null
+    });
+    expect(state.asset.state.type).to.equal(1);
+    expect(transactions.getTransactionTypeName(8)).to.equal('CHAT_MESSAGE');
+    expect(transactions.getChatMessageTypeName(3)).to.equal('SIGNAL_MESSAGE');
     expect(fixture).to.deep.equal({
       address: account.address,
       publicKey: account.publicKey,
@@ -152,6 +193,52 @@ describe('live scenario runner utilities', () => {
       amount: undefined
     });
     expect(JSON.stringify(fixture)).not.to.include('fixture secret');
+  });
+
+  it('should render accepted and expected-failed transaction summaries in Markdown reports', () => {
+    const markdown = report.renderMarkdownReport({
+      status: 'passed',
+      target: {
+        mode: 'testnet',
+        nodes: []
+      },
+      run: {
+        id: 'testnet-example',
+        startedAt: '2026-06-05T00:00:00.000Z',
+        finishedAt: '2026-06-05T00:01:00.000Z'
+      },
+      scenarios: [
+        {
+          id: 'transactions.happy-path',
+          status: 'passed',
+          result: {
+            transactions: [
+              {
+                label: 'chat-signal',
+                type: 8,
+                typeName: 'CHAT_MESSAGE',
+                subtype: 3,
+                subtypeName: 'SIGNAL_MESSAGE'
+              }
+            ],
+            expectedFailures: [
+              {
+                label: 'dapp-in-transfer-unknown-dapp',
+                type: 6,
+                typeName: 'IN_TRANSFER',
+                expectedFailure: true
+              }
+            ]
+          }
+        }
+      ],
+      metrics: {}
+    });
+
+    expect(markdown).to.include('## Transactions');
+    expect(markdown).to.include('chat-signal: CHAT_MESSAGE (8, subtype SIGNAL_MESSAGE (3)) - accepted');
+    expect(markdown).to.include('dapp-in-transfer-unknown-dapp: IN_TRANSFER (6) - expected failed');
+    expect(markdown).not.to.include('senderId');
   });
 
   it('should normalize transfer fixture arrays for transaction scenarios', () => {

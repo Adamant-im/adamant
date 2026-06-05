@@ -19,9 +19,22 @@ function redactSensitive (value) {
   }
 
   return Object.keys(value).reduce(function (result, key) {
-    result[key] = SENSITIVE_KEY_PATTERN.test(key) ? 'XXXXXXXXXX' : redactSensitive(value[key]);
+    result[key] = shouldRedactKey(key) ? 'XXXXXXXXXX' : redactSensitive(value[key]);
     return result;
   }, {});
+}
+
+/**
+ * Checks whether a report key should be redacted.
+ * @param {string} key - Object key.
+ */
+function shouldRedactKey (key) {
+  // Counts reveal only localnet topology, not the underlying passphrases.
+  if (/count$/i.test(key)) {
+    return false;
+  }
+
+  return SENSITIVE_KEY_PATTERN.test(key);
 }
 
 /**
@@ -79,6 +92,16 @@ function renderMarkdownReport (report) {
   lines.push(JSON.stringify(report.metrics, null, 2));
   lines.push('```');
 
+  const transactionRows = collectTransactionRows(report.scenarios);
+
+  if (transactionRows.length) {
+    lines.push('');
+    lines.push('## Transactions');
+    transactionRows.forEach(function (transaction) {
+      lines.push('- ' + formatTransactionRow(transaction));
+    });
+  }
+
   if (report.finalNodeStates && report.finalNodeStates.length) {
     lines.push('');
     lines.push('## Final Node State');
@@ -102,8 +125,59 @@ function renderMarkdownReport (report) {
   return lines.join('\n') + '\n';
 }
 
+/**
+ * Collects transaction summaries from scenario result payloads.
+ * @param {Array<object>} scenarios - Scenario report entries.
+ */
+function collectTransactionRows (scenarios) {
+  const rows = [];
+
+  scenarios.forEach(function (scenario) {
+    const result = scenario.result || {};
+
+    (result.transactions || []).forEach(function (transaction) {
+      rows.push(Object.assign({
+        scenarioId: scenario.id,
+        outcome: 'accepted'
+      }, transaction));
+    });
+
+    (result.expectedFailures || []).forEach(function (transaction) {
+      rows.push(Object.assign({
+        scenarioId: scenario.id,
+        outcome: 'expected failed'
+      }, transaction));
+    });
+  });
+
+  return rows;
+}
+
+/**
+ * Formats one report transaction row without exposing transaction payload details.
+ * @param {object} transaction - Public transaction metadata.
+ */
+function formatTransactionRow (transaction) {
+  const label = transaction.label ? transaction.label + ': ' : '';
+  const subtype = transaction.subtypeName === undefined ? '' :
+    ', subtype ' + transaction.subtypeName + ' (' + transaction.subtype + ')';
+
+  return transaction.scenarioId +
+    ' - ' +
+    label +
+    transaction.typeName +
+    ' (' +
+    transaction.type +
+    subtype +
+    ') - ' +
+    transaction.outcome;
+}
+
 module.exports = {
+  collectTransactionRows,
+  formatTransactionRow,
   redactSensitive,
   renderMarkdownReport,
+  shouldRedactKey,
   writeReports
 };

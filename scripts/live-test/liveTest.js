@@ -12,6 +12,8 @@ const { redactSensitive, writeReports } = require('./report.js');
 const { resolveTarget } = require('./target.js');
 const { selectScenarios } = require('./scenarios.js');
 
+const BASE_CONFIG_PATH = 'test/config.default.json';
+
 const DEFAULTS = {
   timeoutMs: 5000,
   readyTimeoutMs: 120000,
@@ -277,14 +279,16 @@ function loadGenesisPasses (genesisPassesPath) {
 function collectConfigMetadata (options, target) {
   const entries = [];
   const paths = [];
+  const baseConfigPath = path.resolve(process.cwd(), BASE_CONFIG_PATH);
 
-  if (target.configPath && fs.existsSync(target.configPath)) {
-    const baseConfig = JSON.parse(fs.readFileSync(target.configPath, 'utf8'));
+  // Live reports always start from the canonical testnet/localnet base config.
+  if (baseConfigPath && fs.existsSync(baseConfigPath)) {
+    const baseConfig = JSON.parse(fs.readFileSync(baseConfigPath, 'utf8'));
 
     // Include base activation metadata even when no override files were supplied.
     if (baseConfig.consensusActivationHeights) {
       entries.push({
-        source: target.configPath,
+        source: baseConfigPath,
         path: 'consensusActivationHeights',
         value: baseConfig.consensusActivationHeights
       });
@@ -490,6 +494,7 @@ async function runCli (mode, description) {
 }
 
 module.exports = {
+  BASE_CONFIG_PATH,
   DEFAULTS,
   buildContext,
   collectConfigMetadata,

@@ -37,6 +37,15 @@ class HttpClient {
   }
 
   /**
+   * Performs a PUT request.
+   * @param {string} path - Absolute API path.
+   * @param {object} body - JSON body.
+   */
+  put (path, body) {
+    return this.request('put', path, body);
+  }
+
+  /**
    * Performs an HTTP request and returns status, body, and timing.
    * @param {string} method - HTTP method.
    * @param {string} path - Absolute API path.

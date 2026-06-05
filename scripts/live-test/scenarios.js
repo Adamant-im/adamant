@@ -15,6 +15,7 @@ const NORMAL_LOAD_PROFILES = {
 const STRESS_LOAD_PROFILES = {
   overload: { requests: 200, concurrency: 20 }
 };
+const SIDE_ACCOUNT_FUNDING_AMOUNT = 50 * 100000000;
 
 const SCENARIOS = [
   {
@@ -255,15 +256,42 @@ async function runTransactionHappyPathScenario (context) {
   const funded = accountFromFixture(fixture);
   const fresh = tx.createAccount();
   const recipient = tx.createAccount();
+  const signatureAccount = tx.createAccount();
+  const secondSignatureKey = tx.createAccount();
+  const multisignatureAccount = tx.createAccount();
+  const multisignatureMember = tx.createAccount();
   const transactions = [];
+  const rejections = [];
+  const expectedFailures = [];
 
-  const funding = tx.createSendTransaction(funded, fresh.address, context.options.fundingAmount);
-  await submitTransaction(context, client, '/api/transactions/process', { transaction: funding }, 'fund fresh account');
-  transactions.push(publicTransaction(funding));
+  await submitAcceptedTransaction(
+      context,
+      client,
+      transactions,
+      tx.createSendTransaction(funded, fresh.address, context.options.fundingAmount),
+      'fund fresh account'
+  );
+  await submitAcceptedTransaction(
+      context,
+      client,
+      transactions,
+      tx.createSendTransaction(funded, signatureAccount.address, SIDE_ACCOUNT_FUNDING_AMOUNT),
+      'fund signature account'
+  );
+  await submitAcceptedTransaction(
+      context,
+      client,
+      transactions,
+      tx.createSendTransaction(funded, multisignatureAccount.address, SIDE_ACCOUNT_FUNDING_AMOUNT),
+      'fund multisignature account'
+  );
 
   if (context.options.waitBlocks > 0) {
     await waitForBlocks(context, context.options.waitBlocks);
   }
+  await waitForAccountBalance(context, client, fresh.address, context.options.fundingAmount, 'fresh account funding');
+  await waitForAccountBalance(context, client, signatureAccount.address, SIDE_ACCOUNT_FUNDING_AMOUNT, 'signature account funding');
+  await waitForAccountBalance(context, client, multisignatureAccount.address, SIDE_ACCOUNT_FUNDING_AMOUNT, 'multisignature account funding');
 
   const send = tx.createSendTransaction(fresh, recipient.address, context.options.transferAmount);
   await submitTransaction(context, client, '/api/transactions/process', { transaction: send }, 'fresh account send');
@@ -277,7 +305,7 @@ async function runTransactionHappyPathScenario (context) {
   if (delegateResult.body && delegateResult.body.success) {
     transactions.push(publicTransaction(delegate));
   } else {
-    context.metrics.increment('transactions.rejected');
+    recordTransactionRejection(context, rejections, 'delegate-registration', delegateResult);
   }
 
   const delegates = await client.get('/api/delegates?limit=1');
@@ -289,8 +317,9 @@ async function runTransactionHappyPathScenario (context) {
     context.metrics.latency('transaction.submit', voteResult.latencyMs);
     if (voteResult.body && voteResult.body.success) {
       transactions.push(publicTransaction(vote));
+      await waitForAccountDelegate(context, client, fresh.address, voteTarget.publicKey, true, 'vote confirmation');
     } else {
-      context.metrics.increment('transactions.rejected');
+      recordTransactionRejection(context, rejections, 'vote', voteResult);
     }
 
     const unvote = tx.createVoteTransaction(fresh, ['-' + voteTarget.publicKey]);
@@ -299,27 +328,85 @@ async function runTransactionHappyPathScenario (context) {
     if (unvoteResult.body && unvoteResult.body.success) {
       transactions.push(publicTransaction(unvote));
     } else {
-      context.metrics.increment('transactions.rejected');
+      recordTransactionRejection(context, rejections, 'unvote', unvoteResult);
     }
   }
 
-  const chat = tx.createChatTransaction(fresh, recipient.address);
-  const chatResult = await client.post('/api/transactions', { transaction: chat });
-  context.metrics.latency('transaction.submit', chatResult.latencyMs);
-  if (chatResult.body && chatResult.body.success) {
-    transactions.push(publicTransaction(chat));
-  } else {
-    context.metrics.increment('transactions.rejected');
+  for (const chatType of Object.values(transactionTypes.CHAT_MESSAGE_TYPES)) {
+    const chat = tx.createChatTransaction(fresh, recipient.address, chatType);
+    const chatResult = await client.post('/api/transactions', { transaction: chat });
+
+    context.metrics.latency('transaction.submit', chatResult.latencyMs);
+    if (chatResult.body && chatResult.body.success) {
+      transactions.push(publicTransaction(chat, 'chat-' + tx.getChatMessageTypeName(chatType).toLowerCase()));
+    } else {
+      recordTransactionRejection(context, rejections, 'chat-' + tx.getChatMessageTypeName(chatType).toLowerCase(), chatResult);
+    }
   }
 
-  const state = tx.createStateTransaction(fresh, 'live-test-' + crypto.randomBytes(4).toString('hex'), 'ok');
-  const stateResult = await client.post('/api/transactions', { transaction: state });
-  context.metrics.latency('transaction.submit', stateResult.latencyMs);
-  if (stateResult.body && stateResult.body.success) {
-    transactions.push(publicTransaction(state));
-  } else {
-    context.metrics.increment('transactions.rejected');
+  for (const stateType of [0, 1]) {
+    const state = tx.createStateTransaction(fresh, 'live-test-' + crypto.randomBytes(4).toString('hex'), 'ok', stateType);
+    const stateResult = await client.post('/api/transactions', { transaction: state });
+
+    context.metrics.latency('transaction.submit', stateResult.latencyMs);
+    if (stateResult.body && stateResult.body.success) {
+      transactions.push(publicTransaction(state, 'state-type-' + stateType));
+    } else {
+      recordTransactionRejection(context, rejections, 'state-type-' + stateType, stateResult);
+    }
   }
+
+  await submitAcceptedTransaction(
+      context,
+      client,
+      transactions,
+      tx.createSignatureTransaction(signatureAccount, secondSignatureKey),
+      'second-signature registration'
+  );
+  await submitAcceptedTransaction(
+      context,
+      client,
+      transactions,
+      tx.createMultisignatureTransaction(multisignatureAccount, [multisignatureMember]),
+      'multisignature registration'
+  );
+
+  // DApp transfers require a persisted DApp lifecycle; these smoke checks intentionally use
+  // invalid or unknown DApp data so public testnet runs cover the type without registering junk apps.
+  await submitExpectedTransactionFailure(
+      context,
+      client,
+      expectedFailures,
+      tx.createDappTransaction(fresh, {
+        category: 0,
+        name: 'live' + crypto.randomBytes(5).toString('hex'),
+        description: 'Expected live-test rejection',
+        tags: 'live-test',
+        type: 0,
+        link: 'https://example.invalid/live-test.txt'
+      }),
+      'dapp-registration-invalid-link'
+  );
+  await submitExpectedTransactionFailure(
+      context,
+      client,
+      expectedFailures,
+      tx.createInTransferTransaction(fresh, '8713095156789756398', context.options.transferAmount),
+      'dapp-in-transfer-unknown-dapp'
+  );
+  await submitExpectedTransactionFailure(
+      context,
+      client,
+      expectedFailures,
+      tx.createOutTransferTransaction(
+          fresh,
+          recipient.address,
+          '8713095156789756398',
+          String(Date.now()).slice(0, 13),
+          context.options.transferAmount
+      ),
+      'dapp-out-transfer-unknown-dapp'
+  );
 
   context.metrics.increment('transactions.accepted', transactions.length);
 
@@ -329,7 +416,9 @@ async function runTransactionHappyPathScenario (context) {
       address: fresh.address,
       publicKey: fresh.publicKey
     },
-    transactions
+    transactions,
+    rejections,
+    expectedFailures
   };
 }
 
@@ -439,6 +528,7 @@ async function runTransactionAbuseScenario (context) {
   if (context.options.waitBlocks > 0) {
     await waitForBlocks(context, context.options.waitBlocks);
   }
+  await waitForAccountBalance(context, client, doubleSpendSender.address, 3 * 100000000, 'double-spend funding');
 
   // Both spends are valid in isolation, but together they exceed the freshly funded unconfirmed balance.
   const firstSpend = tx.createSendTransaction(doubleSpendSender, doubleSpendRecipient.address, 250000000);
@@ -580,6 +670,41 @@ async function submitTransaction (context, client, path, body, label) {
 }
 
 /**
+ * Submits one transaction through the standard process endpoint and records it as accepted.
+ * @param {object} context - Runner context.
+ * @param {HttpClient} client - Target REST client.
+ * @param {Array<object>} transactions - Accepted transaction metadata sink.
+ * @param {object} transaction - Transaction object.
+ * @param {string} label - Human-readable action label.
+ */
+async function submitAcceptedTransaction (context, client, transactions, transaction, label) {
+  await submitTransaction(context, client, '/api/transactions/process', { transaction }, label);
+  transactions.push(publicTransaction(transaction, label));
+}
+
+/**
+ * Submits a transaction that must be rejected and records the expected failure.
+ * @param {object} context - Runner context.
+ * @param {HttpClient} client - Target REST client.
+ * @param {Array<object>} expectedFailures - Expected-failure metadata sink.
+ * @param {object} transaction - Transaction object.
+ * @param {string} label - Human-readable action label.
+ */
+async function submitExpectedTransactionFailure (context, client, expectedFailures, transaction, label) {
+  const result = await client.post('/api/transactions/process', { transaction });
+  const rejected = !result.body || result.body.success === false;
+
+  context.metrics.latency('transaction.submit', result.latencyMs);
+  context.assert(rejected, 'Expected transaction rejection unexpectedly succeeded: ' + label);
+  context.metrics.increment('transactions.expected_failed');
+  expectedFailures.push(Object.assign(publicTransaction(transaction, label), {
+    status: result.status,
+    expectedFailure: true,
+    error: result.body && (result.body.error || result.body.message)
+  }));
+}
+
+/**
  * Polls node status until readiness criteria are met.
  * @param {object} context - Runner context.
  * @param {object} node - Target node metadata.
@@ -641,6 +766,115 @@ async function waitForBlocks (context, blocks) {
   }
 
   throw Error('Timed out waiting for height ' + target + '.');
+}
+
+/**
+ * Waits until an account has at least the expected confirmed balance.
+ * @param {object} context - Runner context.
+ * @param {HttpClient} client - Target REST client.
+ * @param {string} address - Account address.
+ * @param {number|string} minimumBalance - Required confirmed balance.
+ * @param {string} label - Human-readable wait label.
+ */
+async function waitForAccountBalance (context, client, address, minimumBalance, label) {
+  const deadline = Date.now() + context.options.blockWaitTimeoutMs;
+  const expected = BigInt(String(minimumBalance));
+  let lastBody;
+
+  while (Date.now() < deadline) {
+    const result = await client.get('/api/accounts/getBalance?address=' + encodeURIComponent(address));
+
+    context.metrics.latency('accounts.balance', result.latencyMs);
+    lastBody = result.body;
+
+    if (result.ok && result.body && result.body.success) {
+      const balance = BigInt(result.body.balance || '0');
+
+      if (balance >= expected) {
+        return balance.toString();
+      }
+    }
+
+    await sleep(context.options.pollIntervalMs);
+  }
+
+  throw Error(
+      'Timed out waiting for ' +
+      label +
+      ' balance >= ' +
+      expected.toString() +
+      ' on ' +
+      address +
+      '. Last response: ' +
+      JSON.stringify(lastBody)
+  );
+}
+
+/**
+ * Waits until an account delegate relationship reaches the expected state.
+ * @param {object} context - Runner context.
+ * @param {HttpClient} client - Target REST client.
+ * @param {string} address - Account address.
+ * @param {string} delegatePublicKey - Delegate public key.
+ * @param {boolean} expectedPresent - Whether the delegate should be present.
+ * @param {string} label - Human-readable wait label.
+ */
+async function waitForAccountDelegate (context, client, address, delegatePublicKey, expectedPresent, label) {
+  const deadline = Date.now() + context.options.blockWaitTimeoutMs;
+  let lastBody;
+
+  while (Date.now() < deadline) {
+    const result = await client.get('/api/accounts/delegates?address=' + encodeURIComponent(address));
+
+    context.metrics.latency('accounts.delegates', result.latencyMs);
+    lastBody = result.body;
+
+    if (result.ok && result.body && result.body.success) {
+      const delegates = result.body.delegates || [];
+      const present = delegates.some(function (delegate) {
+        return delegate.publicKey === delegatePublicKey;
+      });
+
+      if (present === expectedPresent) {
+        return {
+          present,
+          delegatesCount: delegates.length
+        };
+      }
+    }
+
+    await sleep(context.options.pollIntervalMs);
+  }
+
+  throw Error(
+      'Timed out waiting for ' +
+      label +
+      ' delegate ' +
+      delegatePublicKey +
+      ' expectedPresent=' +
+      expectedPresent +
+      ' on ' +
+      address +
+      '. Last response: ' +
+      JSON.stringify(lastBody)
+  );
+}
+
+/**
+ * Records a non-fatal transaction rejection in metrics and scenario result data.
+ * @param {object} context - Runner context.
+ * @param {Array<object>} rejections - Scenario rejection sink.
+ * @param {string} label - Rejected transaction label.
+ * @param {object} result - HTTP client result.
+ */
+function recordTransactionRejection (context, rejections, label, result) {
+  context.metrics.increment('transactions.rejected');
+  rejections.push({
+    label,
+    status: result.status,
+    error: result.body && (result.body.error || result.body.message),
+    body: result.body
+  });
 }
 
 /**
@@ -737,16 +971,29 @@ function accountFromFixture (fixture) {
 /**
  * Builds report-safe transaction metadata.
  * @param {object} transaction - Full transaction object.
+ * @param {string} [label] - Human-readable transaction label.
  */
-function publicTransaction (transaction) {
-  return {
+function publicTransaction (transaction, label) {
+  const metadata = {
     id: transaction.id,
+    label,
     type: transaction.type,
+    typeName: tx.getTransactionTypeName(transaction.type),
     senderId: transaction.senderId,
     recipientId: transaction.recipientId,
     amount: transaction.amount,
     fee: transaction.fee
   };
+
+  if (transaction.type === transactionTypes.CHAT_MESSAGE && transaction.asset && transaction.asset.chat) {
+    metadata.subtype = transaction.asset.chat.type;
+    metadata.subtypeName = tx.getChatMessageTypeName(transaction.asset.chat.type);
+  } else if (transaction.type === transactionTypes.STATE && transaction.asset && transaction.asset.state) {
+    metadata.subtype = transaction.asset.state.type;
+    metadata.subtypeName = 'STATE_TYPE_' + transaction.asset.state.type;
+  }
+
+  return metadata;
 }
 
 /**
