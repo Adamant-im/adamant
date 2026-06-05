@@ -266,13 +266,29 @@ npm run scenario:localnet -- --suite load --profile high
 npm run scenario:localnet -- --scenario transactions.abuse
 ```
 
+Available scenarios:
+
+| Scenario id | Suite | Modes | Description |
+| --- | --- | --- | --- |
+| `target.readiness` | `target` | `testnet`, `localnet` | Waits until every target node is loaded, not syncing, and above the configured minimum height. |
+| `api.rest` | `api` | `testnet`, `localnet` | Exercises client/explorer REST endpoints including node status, loader sync, blocks, transactions, delegates, peers, and fixture account balance. |
+| `api.websocket` | `api` | `testnet`, `localnet` | Connects to the client WebSocket endpoint and verifies a basic transaction type subscription. |
+| `consensus.activation` | `consensus` | `testnet`, `localnet` | Reports observed pre/post activation state for `fairSystem` and `spaceship`; in localnet mode, also checks basic node agreement. |
+| `transactions.happy-path` | `transactions` | `testnet`, `localnet` | Funds a fresh account from test genesis fixtures, then tries send, delegate registration, vote, unvote, chat, and state transactions. |
+| `transactions.abuse` | `security` | `testnet`, `localnet` | Runs bounded invalid signature, invalid amount, malformed payload, repeated invalid submission, duplicate transaction, and double-spend checks. |
+| `delegates.forging` | `forging` | `localnet` | Checks delegate, next-forger, and forging status APIs for each localnet node. |
+| `load.http` | `load` | `testnet`, `localnet` | Measures bounded `/api/node/status` latency and throughput with the selected normal profile. |
+| `load.stress` | `load` | `testnet`, `localnet` | Runs the opt-in overload profile. Requires `--unsafe-stress`. |
+
+Default scenario selection without `--all`, `--suite`, or `--scenario` runs only read-only target/API checks. `--all` excludes `load.stress` unless `--unsafe-stress` is passed.
+
 Stress and overload profiles are opt-in:
 
 ```sh
 npm run scenario:localnet -- --scenario load.stress --profile overload --unsafe-stress
 ```
 
-Each run writes a JSON report and a Markdown report under `reports/live-test/`. Reports include target metadata, node versions, selected scenarios, final scenario status, latency and throughput measurements, activation-height metadata, localnet log references when available, and redacted config override metadata. Generated reports are ignored by git.
+Each run writes a JSON report and a Markdown report under `reports/live-test/`. Reports include target metadata, node versions, selected scenarios, final scenario status, failure messages, latency and throughput measurements, activation-height metadata, localnet log references when available, and redacted config override metadata. If the CLI prints `Live scenarios failed.`, open the generated report paths printed by the command and inspect the failed scenario entries. Generated reports are ignored by git.
 
 Transaction scenarios can use `test/genesisPasses.json` fixture accounts to fund fresh accounts and exercise sends, delegate registration, voting, unvoting, chat messages, state transactions, duplicate or invalid submissions, and malformed payloads. Fixture passphrases are test-only inputs and are redacted from reports.
 
