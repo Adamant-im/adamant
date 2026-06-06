@@ -154,6 +154,50 @@ describe('live scenario runner utilities', () => {
     expect(sanitized.delegateSecret).to.equal('XXXXXXXXXX');
   });
 
+  it('should calculate forging consensus and reward stage details', () => {
+    const preReward = scenarios.buildRewardStage(100, {
+      milestone: 0,
+      reward: 0,
+      supply: '9800000000000000'
+    });
+    const firstReward = scenarios.buildRewardStage(2000000, {
+      milestone: 0,
+      reward: 50000000,
+      supply: '9800000050000000'
+    });
+    const consensus = scenarios.calculateLiveBroadhashConsensus('same', [
+      { state: 2, broadhash: 'same' },
+      { state: 2, broadhash: 'different' },
+      { state: 1, broadhash: 'same' }
+    ]);
+
+    expect(preReward).to.include({
+      name: 'pre-reward',
+      active: false,
+      stageIndex: null,
+      startHeight: 0,
+      endHeight: 1999999,
+      currentRewardAdm: '0',
+      nextStageHeight: 2000000,
+      nextRewardAdm: '0.5',
+      supplyAdm: '98000000'
+    });
+    expect(firstReward).to.include({
+      name: 'milestone-0',
+      active: true,
+      stageIndex: 0,
+      startHeight: 2000000,
+      endHeight: 8299999,
+      currentRewardAdm: '0.5'
+    });
+    expect(consensus).to.deep.equal({
+      connectedPeers: 2,
+      matchingPeers: 1,
+      livePercent: 50
+    });
+    expect(scenarios.formatAdamantAmount('6124269306')).to.equal('61.24269306');
+  });
+
   it('should build transaction helpers without exposing passphrases in public fixture metadata', () => {
     const account = transactions.createAccount();
     const recipient = transactions.createAccount();
@@ -244,6 +288,110 @@ describe('live scenario runner utilities', () => {
     expect(markdown).to.include('chat-signal: CHAT_MESSAGE (8, subtype SIGNAL_MESSAGE (3)) - accepted');
     expect(markdown).to.include('dapp-in-transfer-unknown-dapp: IN_TRANSFER (6) - expected failed');
     expect(markdown).not.to.include('senderId');
+  });
+
+  it('should render per-node forging, consensus, and reward details', () => {
+    const markdown = report.renderMarkdownReport({
+      status: 'passed',
+      target: {
+        mode: 'localnet',
+        nodes: []
+      },
+      run: {
+        id: 'localnet-forging',
+        startedAt: '2026-06-06T00:00:00.000Z',
+        finishedAt: '2026-06-06T00:01:00.000Z'
+      },
+      scenarios: [
+        {
+          id: 'delegates.forging',
+          status: 'passed',
+          result: {
+            nodes: [
+              {
+                id: 'node-1',
+                apiUrl: 'http://127.0.0.1:36670',
+                delegateSecretsCount: 34,
+                forging: {
+                  enabled: true,
+                  configuredDelegateCount: 2,
+                  configuredDelegatePublicKeys: ['public-key-1', 'public-key-2']
+                },
+                delegates: {
+                  returnedCount: 101,
+                  totalCount: 101
+                },
+                nextForgers: {
+                  currentBlock: 4444,
+                  currentBlockSlot: 100,
+                  currentSlot: 101,
+                  publicKeys: ['next-public-key']
+                },
+                network: {
+                  height: 4444,
+                  nethash: 'nethash',
+                  broadhash: 'broadhash'
+                },
+                consensus: {
+                  cachedPercent: 100,
+                  livePercent: 100,
+                  connectedPeers: 2,
+                  matchingPeers: 2,
+                  switches: [
+                    {
+                      name: 'spaceship',
+                      state: 'active',
+                      activationHeight: 1,
+                      distance: -4443
+                    }
+                  ]
+                },
+                rewardStage: {
+                  name: 'pre-reward',
+                  active: false,
+                  protocolMilestone: 0,
+                  startHeight: 0,
+                  endHeight: 1999999,
+                  currentRewardAdm: '0',
+                  supplyAdm: '98000000',
+                  nextStageHeight: 2000000,
+                  nextRewardAdm: '0.5'
+                },
+                latestBlock: {
+                  height: 4444,
+                  id: 'block-id',
+                  generatorPublicKey: 'generator-public-key',
+                  generatorId: 'U123',
+                  generatorNodeIds: ['node-3'],
+                  confirmations: 1,
+                  rewardAdm: '0',
+                  totalFeeAdm: '0.5',
+                  totalForgedAdm: '0.5'
+                },
+                latestGeneratorForged: {
+                  rewardsAdm: '0',
+                  feesAdm: '61.24269306',
+                  forgedAdm: '61.24269306'
+                }
+              }
+            ]
+          }
+        }
+      ],
+      metrics: {}
+    });
+
+    expect(markdown).to.include('## Forging Details');
+    expect(markdown).to.include('### node-1');
+    expect(markdown).to.include('API: http://127.0.0.1:36670');
+    expect(markdown).to.include('Consensus: live 100% (2/2 connected peers match); cached 100%');
+    expect(markdown).to.include('Reward stage: pre-reward; active false; protocol milestone 0');
+    expect(markdown).to.include('Next reward stage: height 2000000; reward 0.5 ADM');
+    expect(markdown).to.include(
+        'Latest block: height 4444; id block-id; generator generator-public-key (U123); configured on node-3'
+    );
+    expect(markdown).to.include('Latest generator totals: rewards 0 ADM; fees 61.24269306 ADM');
+    expect(markdown).to.include('Configured forging public keys: public-key-1, public-key-2');
   });
 
   it('should render security abuse rejection details and overload summary', () => {

@@ -737,27 +737,227 @@ async function runDelegatesScenario (context) {
 
   for (const node of context.target.nodes) {
     const client = context.clientFor(node);
-    const status = await client.get('/api/delegates/forging/status');
+    const forgingStatus = await client.get('/api/delegates/forging/status');
     const delegates = await client.get('/api/delegates?limit=101');
     const nextForgers = await client.get('/api/delegates/getNextForgers?limit=10');
+    const nodeStatus = await client.get('/api/node/status');
+    const peers = await client.get('/api/peers?limit=100');
+    const blocks = await client.get('/api/blocks?limit=1&orderBy=height:desc');
 
-    context.metrics.latency('delegates.status', status.latencyMs);
+    context.metrics.latency('delegates.status', forgingStatus.latencyMs);
     context.metrics.latency('delegates.list', delegates.latencyMs);
+    context.metrics.latency('delegates.next-forgers', nextForgers.latencyMs);
+    context.metrics.latency('delegates.node-status', nodeStatus.latencyMs);
+    context.metrics.latency('delegates.peers', peers.latencyMs);
+    context.metrics.latency('delegates.latest-block', blocks.latencyMs);
+    context.assert(
+        forgingStatus.ok && forgingStatus.body && forgingStatus.body.success,
+        'Unable to read forging status for ' + node.id
+    );
     context.assert(delegates.ok && delegates.body && delegates.body.success, 'Unable to list delegates for ' + node.id);
     context.assert(nextForgers.ok && nextForgers.body && nextForgers.body.success, 'Unable to list next forgers for ' + node.id);
+    context.assert(nodeStatus.ok && nodeStatus.body && nodeStatus.body.success, 'Unable to read node status for ' + node.id);
+    context.assert(peers.ok && peers.body && peers.body.success, 'Unable to list peers for ' + node.id);
+    context.assert(blocks.ok && blocks.body && blocks.body.success, 'Unable to read latest block for ' + node.id);
+
+    const network = nodeStatus.body.network || {};
+    const loader = nodeStatus.body.loader || {};
+    const latestBlock = blocks.body.blocks && blocks.body.blocks[0];
+
+    context.assert(latestBlock, 'Latest block is missing for ' + node.id);
+
+    const forged = await client.get(
+        '/api/delegates/forging/getForgedByAccount?generatorPublicKey=' +
+        encodeURIComponent(latestBlock.generatorPublicKey)
+    );
+
+    context.metrics.latency('delegates.generator-forged', forged.latencyMs);
+    context.assert(
+        forged.ok && forged.body && forged.body.success,
+        'Unable to read forged totals for latest block generator on ' + node.id
+    );
 
     results.push({
       id: node.id,
+      apiUrl: node.apiUrl,
       delegateSecretsCount: node.delegateSecretsCount,
-      forgingEnabled: status.body && status.body.enabled,
-      delegatesCount: delegates.body && delegates.body.delegates && delegates.body.delegates.length,
-      nextForgersCount: nextForgers.body && nextForgers.body.delegates && nextForgers.body.delegates.length
+      forging: {
+        enabled: forgingStatus.body.enabled,
+        configuredDelegateCount: (forgingStatus.body.delegates || []).length,
+        configuredDelegatePublicKeys: forgingStatus.body.delegates || []
+      },
+      delegates: {
+        returnedCount: (delegates.body.delegates || []).length,
+        totalCount: delegates.body.totalCount
+      },
+      nextForgers: {
+        currentBlock: nextForgers.body.currentBlock,
+        currentBlockSlot: nextForgers.body.currentBlockSlot,
+        currentSlot: nextForgers.body.currentSlot,
+        publicKeys: nextForgers.body.delegates || []
+      },
+      network: {
+        height: network.height,
+        nethash: network.nethash,
+        broadhash: network.broadhash
+      },
+      consensus: Object.assign(
+          {
+            cachedPercent: Number.isFinite(loader.consensus) ? loader.consensus : null,
+            switches: buildConsensusSwitches(
+                network.height,
+                context.configMetadata.consensusActivationHeights || {}
+            )
+          },
+          calculateLiveBroadhashConsensus(network.broadhash, peers.body.peers)
+      ),
+      rewardStage: buildRewardStage(network.height, network),
+      latestBlock: publicBlockForgingResult(latestBlock),
+      latestGeneratorForged: {
+        publicKey: latestBlock.generatorPublicKey,
+        fees: String(forged.body.fees),
+        feesAdm: formatAdamantAmount(forged.body.fees),
+        rewards: String(forged.body.rewards),
+        rewardsAdm: formatAdamantAmount(forged.body.rewards),
+        forged: String(forged.body.forged),
+        forgedAdm: formatAdamantAmount(forged.body.forged)
+      }
     });
   }
+
+  // Attribute the latest generator only after every node's configured forging keys are known.
+  results.forEach(function (result) {
+    result.latestBlock.generatorNodeIds = results.filter(function (candidate) {
+      return candidate.forging.configuredDelegatePublicKeys.indexOf(result.latestBlock.generatorPublicKey) !== -1;
+    }).map(function (candidate) {
+      return candidate.id;
+    });
+  });
 
   return {
     nodes: results
   };
+}
+
+/**
+ * Calculates live broadhash agreement from connected peer records.
+ * @param {string} broadhash - Local node broadhash.
+ * @param {Array<object>} peers - Peer records returned by `/api/peers`.
+ */
+function calculateLiveBroadhashConsensus (broadhash, peers) {
+  const connectedPeers = (peers || []).filter(function (peer) {
+    return peer.state === 2;
+  });
+  const matchingPeers = connectedPeers.filter(function (peer) {
+    return peer.broadhash === broadhash;
+  });
+
+  return {
+    connectedPeers: connectedPeers.length,
+    matchingPeers: matchingPeers.length,
+    livePercent: broadhash && connectedPeers.length ?
+      Math.round(matchingPeers.length / connectedPeers.length * 100 * 1e2) / 1e2 :
+      null
+  };
+}
+
+/**
+ * Builds observed activation state for each configured consensus switch.
+ * @param {number} height - Current node height.
+ * @param {object} activationHeights - Consensus switch activation heights.
+ */
+function buildConsensusSwitches (height, activationHeights) {
+  return Object.keys(activationHeights).sort().map(function (name) {
+    const activationHeight = activationHeights[name];
+
+    return {
+      name,
+      activationHeight,
+      state: height >= activationHeight ? 'active' : 'inactive',
+      distance: activationHeight - height
+    };
+  });
+}
+
+/**
+ * Describes the configured block reward stage observed at a node height.
+ * @param {number} height - Current node height.
+ * @param {object} network - Network status payload.
+ */
+function buildRewardStage (height, network) {
+  const rewards = constants.rewards;
+  const lastStageIndex = rewards.milestones.length - 1;
+  const preReward = height < rewards.offset;
+  const stageIndex = preReward ?
+    null :
+    Math.min(Math.floor((height - rewards.offset) / rewards.distance), lastStageIndex);
+  const stageStartHeight = preReward ? 0 : rewards.offset + stageIndex * rewards.distance;
+  const stageEndHeight = preReward ?
+    rewards.offset - 1 :
+    stageIndex === lastStageIndex ? null : stageStartHeight + rewards.distance - 1;
+  const nextStageHeight = preReward ?
+    rewards.offset :
+    stageIndex === lastStageIndex ? null : stageEndHeight + 1;
+  const nextReward = preReward ?
+    rewards.milestones[0] :
+    stageIndex === lastStageIndex ? null : rewards.milestones[stageIndex + 1];
+  const configuredReward = preReward ? 0 : rewards.milestones[stageIndex];
+
+  return {
+    name: preReward ? 'pre-reward' : 'milestone-' + stageIndex,
+    active: !preReward,
+    stageIndex,
+    protocolMilestone: network.milestone,
+    startHeight: stageStartHeight,
+    endHeight: stageEndHeight,
+    currentReward: String(network.reward === undefined ? configuredReward : network.reward),
+    currentRewardAdm: formatAdamantAmount(
+        network.reward === undefined ? configuredReward : network.reward
+    ),
+    configuredReward: String(configuredReward),
+    configuredRewardAdm: formatAdamantAmount(configuredReward),
+    nextStageHeight,
+    nextReward: nextReward === null ? null : String(nextReward),
+    nextRewardAdm: nextReward === null ? null : formatAdamantAmount(nextReward),
+    supply: String(network.supply),
+    supplyAdm: formatAdamantAmount(network.supply)
+  };
+}
+
+/**
+ * Selects report-safe forging fields from the latest block.
+ * @param {object} block - Latest block returned by the blocks API.
+ */
+function publicBlockForgingResult (block) {
+  return {
+    id: block.id,
+    height: block.height,
+    generatorPublicKey: block.generatorPublicKey,
+    generatorId: block.generatorId,
+    reward: String(block.reward),
+    rewardAdm: formatAdamantAmount(block.reward),
+    totalFee: String(block.totalFee),
+    totalFeeAdm: formatAdamantAmount(block.totalFee),
+    totalForged: String(block.totalForged),
+    totalForgedAdm: formatAdamantAmount(block.totalForged),
+    confirmations: block.confirmations
+  };
+}
+
+/**
+ * Formats an integer amount in ADAMANT atomic units as ADM without precision loss.
+ * @param {string|number} amount - Integer amount in atomic units.
+ */
+function formatAdamantAmount (amount) {
+  const rawAmount = String(amount === undefined || amount === null ? 0 : amount);
+  const negative = rawAmount.charAt(0) === '-';
+  const digits = negative ? rawAmount.slice(1) : rawAmount;
+  // Keep this string-based because total supply is larger than Number.MAX_SAFE_INTEGER.
+  const padded = digits.padStart(9, '0');
+  const whole = padded.slice(0, -8) || '0';
+  const fraction = padded.slice(-8).replace(/0+$/, '');
+
+  return (negative ? '-' : '') + whole + (fraction ? '.' + fraction : '');
 }
 
 /**
@@ -1615,5 +1815,10 @@ module.exports = {
   NORMAL_LOAD_PROFILES,
   SCENARIOS,
   STRESS_LOAD_PROFILES,
+  buildConsensusSwitches,
+  buildRewardStage,
+  calculateLiveBroadhashConsensus,
+  formatAdamantAmount,
+  publicBlockForgingResult,
   selectScenarios
 };
