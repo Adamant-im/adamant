@@ -263,6 +263,8 @@ Useful selection flags:
 npm run scenario:testnet -- --suite api
 npm run scenario:localnet -- --suite consensus
 npm run scenario:localnet -- --suite load --profile high
+npm run scenario:localnet -- --suite load --http-stress
+npm run scenario:localnet -- --suite load --txqueue-type0-stress
 npm run scenario:localnet -- --scenario transactions.abuse
 ```
 
@@ -278,19 +280,26 @@ Available scenarios:
 | `transactions.abuse` | `security` | `testnet`, `localnet` | Exercises malformed and abusive transactions across transaction types, duplicate admission, balance overspend, concurrent unconfirmed-balance accounting, repeated invalid submissions, and bounded transaction overload. |
 | `delegates.forging` | `forging` | `localnet` | Records per-node forging configuration, delegate and next-forger results, live and cached consensus, activation switches, reward stage, latest block rewards, and generator totals. |
 | `load.http` | `load` | `testnet`, `localnet` | Measures bounded `/api/node/status` latency and throughput with the selected normal profile. |
-| `load.stress` | `load` | `testnet`, `localnet` | Runs the opt-in overload profile. Requires `--unsafe-stress`. |
+| `load.httpstress` | `load` | `testnet`, `localnet` | Sends 2000 concurrent-scheduled `/api/node/status` requests using concurrency 20. Requires `--http-stress`. |
+| `load.txqueue-type0` | `load` | `testnet`, `localnet` | Generates and submits valid type `0` transfers for 16 seconds without artificial delay, then observes transaction pool state on every target node. Requires `--txqueue-type0-stress` or `--txqueue-all-stress`. |
 
-Default scenario selection without `--all`, `--suite`, or `--scenario` runs only read-only target/API checks. `--all` excludes `load.stress` unless `--unsafe-stress` is passed.
+Default scenario selection without `--all`, `--suite`, or `--scenario` runs only read-only target/API checks. `--all` and `--suite load` exclude opt-in stress scenarios unless their corresponding flags are passed.
 
 Stress and overload profiles are opt-in:
 
 ```sh
-npm run scenario:localnet -- --scenario load.stress --profile overload --unsafe-stress
+npm run scenario:localnet -- --scenario load.httpstress --profile overload --http-stress
+npm run scenario:localnet -- --scenario load.txqueue-type0 --txqueue-type0-stress
+npm run scenario:localnet -- --suite load --txqueue-all-stress
 ```
 
-Running `--suite load --unsafe-stress` selects both load scenarios. With the default `baseline` option, `load.http` sends 5 sequential `GET /api/node/status` requests, while `load.stress` falls back to its only supported `overload` profile and sends 200 requests with concurrency 20. The stress scenario is a bounded read-only API burst against the primary target node: it does not submit transactions, forge blocks, or directly stress consensus processing. A run passes only when every request receives an HTTP 2xx response with a JSON body containing `success: true`, and all successful responses report one nethash. There are currently no latency or throughput pass thresholds.
+Running `--suite load --http-stress` selects `load.http` and `load.httpstress`. With the default `baseline` option, `load.http` sends 5 sequential `GET /api/node/status` requests, while `load.httpstress` falls back to its only supported `overload` profile and sends 2000 requests with concurrency 20. The HTTP stress scenario is a bounded read-only API burst against the primary target node: it does not submit transactions, forge blocks, or directly stress consensus processing. A run passes only when every request receives an HTTP 2xx response with a JSON body containing `success: true`, and all successful responses report one nethash. There are currently no latency or throughput pass thresholds.
 
-The `transactions.abuse` scenario also includes a bounded malformed-transaction overload check. Its defaults can be changed without enabling the separate `load.stress` scenario:
+Running `--suite load --txqueue-type0-stress` selects `load.http` and `load.txqueue-type0`. The transaction queue scenario uses the funded transfer fixture account to continuously generate, sign, and submit valid type `0` transactions for 16 seconds. Every transaction sends `1 ADM`, pays the configured send fee, and uses a unique valid recipient. Twenty workers run without an artificial delay; each worker submits its next transaction immediately after the previous request completes. API rejection is recorded rather than treated as a malformed transaction because a valid transaction may be rejected when the pool is full or admission state changes under load.
+
+The transaction queue scenario captures `/api/node/status` and `/api/transactions/count` from every target node before generation, immediately after generation, 10 seconds after generation, and 30 seconds after generation. Reports include node loaded/syncing/consensus state, height and chain identifiers, plus `confirmed`, `queued`, `unconfirmed`, and `multisignature` counters. The internal `bundled` pool count is not exposed by the public transaction count API and is explicitly reported as unavailable. `--txqueue-all-stress` enables every transaction queue stress scenario; currently this is equivalent to `--txqueue-type0-stress`.
+
+The `transactions.abuse` scenario also includes a bounded malformed-transaction overload check. Its defaults can be changed without enabling the separate `load.httpstress` scenario:
 
 ```sh
 npm run scenario:testnet -- --suite security \
@@ -300,7 +309,7 @@ npm run scenario:testnet -- --suite security \
 
 One balance-accounting check funds a fresh account with `2 ADM` and submits three valid type `0` transactions concurrently. Each sends `0.2 ADM` and pays the `0.5 ADM` send fee. The three transactions require `3 * (0.2 + 0.5) = 2.1 ADM`. All three may initially be admitted to the transaction pool, so the test follows every transaction by id instead of treating admission as confirmation. After block production settles, exactly two transactions must be included with at least two confirmations, the third must remain queued/unconfirmed or disappear from the pool, and the confirmed sender balance must be `0.6 ADM`. The security report records the final state, confirmation count, block id, and height for each submitted transaction.
 
-Each run writes a JSON report and a Markdown report under `reports/live-test/`. Reports include target metadata, node versions, selected scenarios, final scenario status, failure messages, latency and throughput measurements, activation-height metadata, localnet log references when available, and redacted config override metadata. Transaction reports list submitted transaction types and subtypes without payload details. Security reports list each abuse case, why it is invalid or abusive, which validation layer rejected it, and the returned rejection message. Forging reports include a section for every target node with its API endpoint, forging state and configured public keys, delegate and next-forger API results, chain identifiers, live and cached broadhash consensus, consensus switch state, current and next reward stage, supply, latest block reward and fees, and the latest generator's cumulative rewards, fees, and forged amount. Load reports state the exact target, method and endpoint, requested and applied profiles, request and concurrency counts, pass condition, failure classes, HTTP status histogram, elapsed time, throughput, latency distribution, and node state observed in successful responses. If the CLI prints `Live scenarios failed.`, open the generated report paths printed by the command and inspect the failed scenario entries. Generated reports are ignored by git.
+Each run writes a JSON report and a Markdown report under `reports/live-test/`. Reports include target metadata, node versions, selected scenarios, final scenario status, failure messages, latency and throughput measurements, activation-height metadata, localnet log references when available, and redacted config override metadata. Transaction reports list submitted transaction types and subtypes without payload details. Security reports list each abuse case, why it is invalid or abusive, which validation layer rejected it, and the returned rejection message. Forging reports include a section for every target node with its API endpoint, forging state and configured public keys, delegate and next-forger API results, chain identifiers, live and cached broadhash consensus, consensus switch state, current and next reward stage, supply, latest block reward and fees, and the latest generator's cumulative rewards, fees, and forged amount. HTTP load reports state the exact target, method and endpoint, requested and applied profiles, request and concurrency counts, pass condition, failure classes, HTTP status histogram, elapsed time, throughput, latency distribution, and node state observed in successful responses. Transaction queue load reports add admission and rejection totals, rejection reasons, generation rates, and per-node pool snapshots at every observation phase. If the CLI prints `Live scenarios failed.`, open the generated report paths printed by the command and inspect the failed scenario entries. Generated reports are ignored by git.
 
 Transaction scenarios can use `test/genesisPasses.json` fixture accounts to fund fresh accounts and exercise all supported transaction types, duplicate or invalid submissions, concurrent balance accounting, and malformed payloads. Fixture passphrases are test-only inputs and are redacted from reports.
 

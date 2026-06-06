@@ -60,17 +60,39 @@ describe('live scenario runner utilities', () => {
       suites: ['load'],
       scenarios: [],
       all: false,
-      unsafeStress: false
+      httpStress: false,
+      txqueueType0Stress: false,
+      txqueueAllStress: false
     }, 'localnet');
-    const stress = scenarios.selectScenarios({
+    const httpStress = scenarios.selectScenarios({
       suites: ['load'],
       scenarios: [],
       all: false,
-      unsafeStress: true
+      httpStress: true,
+      txqueueType0Stress: false,
+      txqueueAllStress: false
+    }, 'localnet');
+    const type0Stress = scenarios.selectScenarios({
+      suites: ['load'],
+      scenarios: [],
+      all: false,
+      httpStress: false,
+      txqueueType0Stress: true,
+      txqueueAllStress: false
+    }, 'localnet');
+    const allTxQueueStress = scenarios.selectScenarios({
+      suites: ['load'],
+      scenarios: [],
+      all: false,
+      httpStress: false,
+      txqueueType0Stress: false,
+      txqueueAllStress: true
     }, 'localnet');
 
     expect(regular.map((scenario) => scenario.id)).to.deep.equal(['load.http']);
-    expect(stress.map((scenario) => scenario.id)).to.deep.equal(['load.http', 'load.stress']);
+    expect(httpStress.map((scenario) => scenario.id)).to.deep.equal(['load.http', 'load.httpstress']);
+    expect(type0Stress.map((scenario) => scenario.id)).to.deep.equal(['load.http', 'load.txqueue-type0']);
+    expect(allTxQueueStress.map((scenario) => scenario.id)).to.deep.equal(['load.http', 'load.txqueue-type0']);
   });
 
   it('should redact secrets in reports recursively', () => {
@@ -240,6 +262,7 @@ describe('live scenario runner utilities', () => {
     transactions.resignTransaction(transaction, account);
     expect(transaction.id).to.be.a('string');
     expect(transaction.id).not.to.equal(originalId);
+    expect(transactions.createRandomAddress()).to.match(/^U[0-9]+$/);
     expect(fixture).to.deep.equal({
       address: account.address,
       publicKey: account.publicKey,
@@ -471,7 +494,7 @@ describe('live scenario runner utilities', () => {
           }
         },
         {
-          id: 'load.stress',
+          id: 'load.httpstress',
           suite: 'load',
           status: 'passed',
           durationMs: 500,
@@ -489,7 +512,7 @@ describe('live scenario runner utilities', () => {
             profile: {
               requestedName: 'baseline',
               appliedName: 'overload',
-              requests: 200,
+              requests: 2000,
               concurrency: 20
             },
             acceptance: {
@@ -498,19 +521,19 @@ describe('live scenario runner utilities', () => {
               throughputThresholdRps: null
             },
             results: {
-              totalRequests: 200,
-              completed: 200,
+              totalRequests: 2000,
+              completed: 2000,
               failed: 0,
               transportFailures: 0,
               httpFailures: 0,
               apiFailures: 0,
               statusCodes: {
-                200: 200
+                200: 2000
               },
               elapsedMs: 480,
               throughputRps: 416.67,
               latencyMs: {
-                count: 200,
+                count: 2000,
                 min: 8,
                 avg: 30,
                 p95: 50,
@@ -533,17 +556,147 @@ describe('live scenario runner utilities', () => {
     });
 
     expect(markdown).to.include('## Load Details');
-    expect(markdown).to.include('bounded read-only requests to one target node');
+    expect(markdown).to.include('HTTP load is read-only');
     expect(markdown).to.include('### load.http');
     expect(markdown).to.include('Profile: requested baseline; applied baseline; requests 5; concurrency 1');
     expect(markdown).to.include('Result: 5/5 successful; 0 failed; passed true');
     expect(markdown).to.include('Latency: min 10 ms; average 15 ms; p95 20 ms; max 20 ms; samples 5');
     expect(markdown).to.include('Observed node state: height 4500..4501');
-    expect(markdown).to.include('### load.stress');
-    expect(markdown).to.include('Profile: requested baseline; applied overload; requests 200; concurrency 20');
-    expect(markdown).to.include('HTTP status codes: 200=200');
+    expect(markdown).to.include('### load.httpstress');
+    expect(markdown).to.include('Profile: requested baseline; applied overload; requests 2000; concurrency 20');
+    expect(markdown).to.include('HTTP status codes: 200=2000');
     expect(markdown).to.include('successful throughput 416.67 requests/second');
     expect(markdown).to.include('Performance thresholds: latency not configured; throughput not configured');
+  });
+
+  it('should render type 0 transaction queue workload and snapshots', () => {
+    const markdown = report.renderMarkdownReport({
+      status: 'passed',
+      target: {
+        mode: 'localnet',
+        nodes: []
+      },
+      run: {
+        id: 'localnet-txqueue',
+        startedAt: '2026-06-06T00:00:00.000Z',
+        finishedAt: '2026-06-06T00:01:00.000Z'
+      },
+      scenarios: [
+        {
+          id: 'load.txqueue-type0',
+          suite: 'load',
+          status: 'passed',
+          durationMs: 46000,
+          result: {
+            kind: 'type 0 transaction queue stress',
+            target: {
+              nodeId: 'node-1',
+              apiUrl: 'http://127.0.0.1:36670'
+            },
+            sourceAccount: {
+              address: 'U1',
+              publicKey: 'public-key'
+            },
+            transaction: {
+              type: 0,
+              typeName: 'SEND',
+              amountAdm: '1',
+              feeAdm: '0.5',
+              uniqueRecipientPerTransaction: true
+            },
+            workload: {
+              configuredDurationMs: 16000,
+              actualDurationMs: 16020,
+              concurrency: 20,
+              artificialDelayMs: 0,
+              generated: 1200,
+              accepted: 1000,
+              rejected: 200,
+              transportFailures: 0,
+              httpFailures: 0,
+              generationRatePerSecond: 74.91,
+              acceptedRatePerSecond: 62.42,
+              statusCodes: {
+                200: 1200
+              },
+              rejectionReasons: {
+                'Transaction pool is full': 200
+              }
+            },
+            publicPoolCategories: ['confirmed', 'queued', 'unconfirmed', 'multisignature'],
+            unavailablePoolCategories: ['bundled'],
+            snapshots: [
+              {
+                phase: 'before',
+                offsetMs: 0,
+                nodes: [
+                  {
+                    id: 'node-1',
+                    ok: true,
+                    status: {
+                      version: '0.9.0, commit abc',
+                      loaded: true,
+                      syncing: false,
+                      consensus: 100,
+                      height: 100,
+                      nethash: 'nethash',
+                      broadhash: 'before-broadhash',
+                      feeAdm: '0.5',
+                      rewardAdm: '0'
+                    },
+                    transactions: {
+                      confirmed: 10,
+                      queued: 0,
+                      unconfirmed: 0,
+                      multisignature: 0
+                    }
+                  }
+                ]
+              },
+              {
+                phase: 'immediate',
+                offsetMs: 0,
+                nodes: [
+                  {
+                    id: 'node-1',
+                    ok: true,
+                    status: {
+                      version: '0.9.0, commit abc',
+                      loaded: true,
+                      syncing: false,
+                      consensus: 100,
+                      height: 101,
+                      nethash: 'nethash',
+                      broadhash: 'after-broadhash',
+                      feeAdm: '0.5',
+                      rewardAdm: '0'
+                    },
+                    transactions: {
+                      confirmed: 35,
+                      queued: 975,
+                      unconfirmed: 25,
+                      multisignature: 0
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      metrics: {}
+    });
+
+    expect(markdown).to.include('### load.txqueue-type0');
+    expect(markdown).to.include('valid SEND (0) transactions');
+    expect(markdown).to.include('amount 1 ADM; fee 0.5 ADM');
+    expect(markdown).to.include('configured generation window 16000 ms');
+    expect(markdown).to.include('generated 1200; accepted 1000; rejected 200');
+    expect(markdown).to.include('Transaction pool is full=200');
+    expect(markdown).to.include('unavailable through the public count API bundled');
+    expect(markdown).to.include('#### Transaction Pool Snapshots');
+    expect(markdown).to.include('| immediate | 0 ms | node-1 | ok | 101 | true | false | 100% | 35 | 975 | 25 | 0 |');
+    expect(markdown).to.include('immediate, node-1: version 0.9.0, commit abc');
   });
 
   it('should render security abuse rejection details and overload summary', () => {
@@ -667,6 +820,8 @@ describe('live scenario runner utilities', () => {
     const testnet = liveTest.normalizeOptions({
       mode: 'testnet',
       node: ['127.0.0.1:36667', '127.0.0.1:36668'],
+      httpStress: true,
+      txqueueAllStress: true,
       transactionOverloadCount: '60',
       transactionOverloadConcurrency: '10'
     });
@@ -679,6 +834,9 @@ describe('live scenario runner utilities', () => {
     expect(testnet.nodes).to.deep.equal([]);
     expect(testnet.transactionOverloadCount).to.equal(60);
     expect(testnet.transactionOverloadConcurrency).to.equal(10);
+    expect(testnet.httpStress).to.equal(true);
+    expect(testnet.txqueueType0Stress).to.equal(false);
+    expect(testnet.txqueueAllStress).to.equal(true);
     expect(localnet.node).to.equal(null);
     expect(localnet.nodes).to.deep.equal(['127.0.0.1:36670', '127.0.0.1:36671']);
   });

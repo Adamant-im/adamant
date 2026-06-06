@@ -15,12 +15,16 @@ const NORMAL_LOAD_PROFILES = {
 };
 
 const STRESS_LOAD_PROFILES = {
-  overload: { requests: 200, concurrency: 20 }
+  overload: { requests: 2000, concurrency: 20 }
 };
 const SIDE_ACCOUNT_FUNDING_AMOUNT = 50 * 100000000;
 const CONCURRENT_SPEND_BALANCE = 2 * 100000000;
 const CONCURRENT_SPEND_AMOUNT = 0.2 * 100000000;
 const CONCURRENT_SPEND_COUNT = 3;
+const TXQUEUE_TYPE0_AMOUNT = 1 * 100000000;
+const TXQUEUE_TYPE0_DURATION_MS = 16000;
+const TXQUEUE_TYPE0_CONCURRENCY = 20;
+const TXQUEUE_SNAPSHOT_DELAYS_MS = [10000, 30000];
 
 const SCENARIOS = [
   {
@@ -80,12 +84,20 @@ const SCENARIOS = [
     run: runLoadScenario
   },
   {
-    id: 'load.stress',
+    id: 'load.httpstress',
     suite: 'load',
     modes: ['testnet', 'localnet'],
-    stress: true,
-    description: 'Run opt-in overload profile.',
-    run: runStressScenario
+    stressFlag: '--http-stress',
+    description: 'Run the opt-in HTTP overload profile.',
+    run: runHttpStressScenario
+  },
+  {
+    id: 'load.txqueue-type0',
+    suite: 'load',
+    modes: ['testnet', 'localnet'],
+    stressFlag: '--txqueue-type0-stress',
+    description: 'Continuously submit valid type 0 transactions and observe transaction pool state.',
+    run: runType0TxQueueStressScenario
   }
 ];
 
@@ -101,7 +113,7 @@ function selectScenarios (options, mode) {
 
   if (options.all) {
     selected = selected.filter(function (scenario) {
-      return !scenario.stress || options.unsafeStress;
+      return isScenarioEnabledByOptions(scenario, options);
     });
   } else if (options.scenarios && options.scenarios.length) {
     selected = selected.filter(function (scenario) {
@@ -109,7 +121,7 @@ function selectScenarios (options, mode) {
     });
   } else if (options.suites && options.suites.length) {
     selected = selected.filter(function (scenario) {
-      return options.suites.indexOf(scenario.suite) !== -1 && (!scenario.stress || options.unsafeStress);
+      return options.suites.indexOf(scenario.suite) !== -1 && isScenarioEnabledByOptions(scenario, options);
     });
   } else {
     // Default to read-only checks so an accidental bare command does not publish transactions.
@@ -123,6 +135,28 @@ function selectScenarios (options, mode) {
   }
 
   return selected;
+}
+
+/**
+ * Checks whether an opt-in scenario is enabled for suite or all selection.
+ * Explicit scenario selection is validated separately to produce a useful error.
+ * @param {object} scenario - Scenario definition.
+ * @param {object} options - Normalized CLI options.
+ */
+function isScenarioEnabledByOptions (scenario, options) {
+  if (!scenario.stressFlag) {
+    return true;
+  }
+
+  if (scenario.stressFlag === '--http-stress') {
+    return options.httpStress;
+  }
+
+  if (scenario.stressFlag === '--txqueue-type0-stress') {
+    return options.txqueueType0Stress || options.txqueueAllStress;
+  }
+
+  return false;
 }
 
 /**
@@ -976,11 +1010,254 @@ async function runLoadScenario (context) {
  * Runs the selected opt-in stress profile.
  * @param {object} context - Runner context.
  */
-async function runStressScenario (context) {
+async function runHttpStressScenario (context) {
   const profileName = STRESS_LOAD_PROFILES[context.options.profile] ? context.options.profile : 'overload';
   const profile = STRESS_LOAD_PROFILES[profileName];
 
   return runHttpLoad(context, profileName, profile, true);
+}
+
+/**
+ * Continuously submits valid type 0 transfers and observes pool propagation and draining.
+ * @param {object} context - Runner context.
+ */
+async function runType0TxQueueStressScenario (context) {
+  const fixture = context.fixtureAccounts.transfer;
+
+  if (!fixture || !fixture.secret) {
+    return context.skip('No funded transfer fixture account found in genesis passes.');
+  }
+
+  const node = context.primaryNode;
+  const client = context.clientFor(node);
+  const sender = accountFromFixture(fixture);
+  const snapshots = [];
+  const statusCodes = {};
+  const rejectionReasons = {};
+  const acceptedTransactionIds = [];
+  const startedAt = Date.now();
+  let generated = 0;
+  let accepted = 0;
+  let rejected = 0;
+  let transportFailures = 0;
+  let httpFailures = 0;
+
+  snapshots.push(await collectTransactionPoolSnapshot(context, 'before', 0));
+
+  const workloadStartedAt = Date.now();
+  const deadline = workloadStartedAt + TXQUEUE_TYPE0_DURATION_MS;
+
+  /**
+   * Generates, signs, and submits transactions without an artificial delay.
+   */
+  async function worker () {
+    while (Date.now() < deadline) {
+      const transaction = tx.createSendTransaction(
+          sender,
+          tx.createRandomAddress(),
+          TXQUEUE_TYPE0_AMOUNT
+      );
+
+      generated++;
+
+      const result = await client.post('/api/transactions/process', { transaction });
+      const statusCode = String(result.status);
+
+      context.metrics.latency('txqueue.type0.submit', result.latencyMs);
+      statusCodes[statusCode] = (statusCodes[statusCode] || 0) + 1;
+
+      if (result.ok && result.body && result.body.success) {
+        accepted++;
+        if (acceptedTransactionIds.length < 10) {
+          acceptedTransactionIds.push(transaction.id);
+        }
+      } else if (result.status === 0) {
+        transportFailures++;
+        recordReason(rejectionReasons, result.error || 'transport failure');
+      } else {
+        rejected++;
+        if (!result.ok) {
+          httpFailures++;
+        }
+        recordReason(rejectionReasons, formatApiError(result.body));
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: TXQUEUE_TYPE0_CONCURRENCY }, worker));
+
+  const workloadFinishedAt = Date.now();
+
+  snapshots.push(await collectTransactionPoolSnapshot(
+      context,
+      'immediate',
+      0
+  ));
+
+  await sleep(TXQUEUE_SNAPSHOT_DELAYS_MS[0]);
+  snapshots.push(await collectTransactionPoolSnapshot(
+      context,
+      'after-10s',
+      Date.now() - workloadFinishedAt
+  ));
+
+  await sleep(TXQUEUE_SNAPSHOT_DELAYS_MS[1] - TXQUEUE_SNAPSHOT_DELAYS_MS[0]);
+  snapshots.push(await collectTransactionPoolSnapshot(
+      context,
+      'after-30s',
+      Date.now() - workloadFinishedAt
+  ));
+
+  const snapshotFailures = snapshots.reduce(function (count, snapshot) {
+    return count + snapshot.nodes.filter(function (snapshotNode) {
+      return !snapshotNode.ok;
+    }).length;
+  }, 0);
+  const workloadElapsedMs = workloadFinishedAt - workloadStartedAt;
+  const scenarioResult = {
+    kind: 'type 0 transaction queue stress',
+    target: {
+      nodeId: node.id,
+      apiUrl: node.apiUrl
+    },
+    sourceAccount: {
+      address: sender.address,
+      publicKey: sender.publicKey
+    },
+    transaction: {
+      type: transactionTypes.SEND,
+      typeName: tx.getTransactionTypeName(transactionTypes.SEND),
+      amount: TXQUEUE_TYPE0_AMOUNT,
+      amountAdm: formatAdamantAmount(TXQUEUE_TYPE0_AMOUNT),
+      fee: constants.fees.send,
+      feeAdm: formatAdamantAmount(constants.fees.send),
+      uniqueRecipientPerTransaction: true
+    },
+    workload: {
+      configuredDurationMs: TXQUEUE_TYPE0_DURATION_MS,
+      actualDurationMs: workloadElapsedMs,
+      concurrency: TXQUEUE_TYPE0_CONCURRENCY,
+      artificialDelayMs: 0,
+      generated,
+      accepted,
+      rejected,
+      transportFailures,
+      httpFailures,
+      completedResponses: accepted + rejected + transportFailures,
+      generationRatePerSecond: roundRate(generated, workloadElapsedMs),
+      acceptedRatePerSecond: roundRate(accepted, workloadElapsedMs),
+      statusCodes,
+      rejectionReasons,
+      acceptedTransactionIdSamples: acceptedTransactionIds
+    },
+    snapshots,
+    publicPoolCategories: ['confirmed', 'queued', 'unconfirmed', 'multisignature'],
+    unavailablePoolCategories: ['bundled'],
+    elapsedMs: Date.now() - startedAt,
+    passed: generated > 0 && transportFailures === 0 && snapshotFailures === 0
+  };
+
+  if (!scenarioResult.passed) {
+    const error = Error(
+        'Type 0 transaction queue stress failed: generated ' +
+        generated +
+        ', transport failures ' +
+        transportFailures +
+        ', snapshot failures ' +
+        snapshotFailures +
+        '.'
+    );
+
+    error.result = scenarioResult;
+    throw error;
+  }
+
+  return scenarioResult;
+}
+
+/**
+ * Collects node status and public transaction pool counters from every target node.
+ * @param {object} context - Runner context.
+ * @param {string} phase - Snapshot phase label.
+ * @param {number} offsetMs - Milliseconds since workload completion.
+ */
+async function collectTransactionPoolSnapshot (context, phase, offsetMs) {
+  const nodes = await Promise.all(context.target.nodes.map(async function (node) {
+    const client = context.clientFor(node);
+    const responses = await Promise.all([
+      client.get('/api/node/status'),
+      client.get('/api/transactions/count')
+    ]);
+    const status = responses[0];
+    const counts = responses[1];
+    const statusBody = status.body || {};
+    const countBody = counts.body || {};
+    const network = statusBody.network || {};
+    const loader = statusBody.loader || {};
+    const ok = status.ok &&
+      statusBody.success &&
+      counts.ok &&
+      countBody.success;
+
+    context.metrics.latency('txqueue.snapshot.status', status.latencyMs);
+    context.metrics.latency('txqueue.snapshot.count', counts.latencyMs);
+
+    return {
+      id: node.id,
+      apiUrl: node.apiUrl,
+      ok: !!ok,
+      error: ok ? null : [
+        status.error || statusBody.error,
+        counts.error || countBody.error
+      ].filter(Boolean).join('; ') || 'snapshot request failed',
+      status: {
+        version: formatObservedNodeVersion(statusBody.version),
+        loaded: loader.loaded,
+        syncing: loader.syncing,
+        consensus: loader.consensus,
+        height: network.height,
+        nethash: network.nethash,
+        broadhash: network.broadhash,
+        fee: network.fee,
+        feeAdm: formatAdamantAmount(network.fee),
+        reward: network.reward,
+        rewardAdm: formatAdamantAmount(network.reward)
+      },
+      transactions: {
+        confirmed: countBody.confirmed,
+        queued: countBody.queued,
+        unconfirmed: countBody.unconfirmed,
+        multisignature: countBody.multisignature
+      }
+    };
+  }));
+
+  return {
+    phase,
+    capturedAt: new Date().toISOString(),
+    offsetMs,
+    nodes
+  };
+}
+
+/**
+ * Increments an aggregate reason counter using a bounded report-safe label.
+ * @param {object} reasons - Reason histogram.
+ * @param {string} reason - Rejection or transport reason.
+ */
+function recordReason (reasons, reason) {
+  const label = String(reason || 'unknown').slice(0, 240);
+
+  reasons[label] = (reasons[label] || 0) + 1;
+}
+
+/**
+ * Calculates a rounded per-second rate.
+ * @param {number} count - Completed item count.
+ * @param {number} elapsedMs - Elapsed milliseconds.
+ */
+function roundRate (count, elapsedMs) {
+  return Math.round(count / Math.max(elapsedMs / 1000, 0.001) * 100) / 100;
 }
 
 /**
@@ -1133,6 +1410,10 @@ async function runHttpLoad (context, profileName, profile, stress) {
  * @param {string|object} version - Version returned by `/api/node/status`.
  */
 function formatObservedNodeVersion (version) {
+  if (version === undefined || version === null) {
+    return null;
+  }
+
   if (!version || typeof version !== 'object') {
     return String(version);
   }
@@ -1936,8 +2217,12 @@ module.exports = {
   buildConsensusSwitches,
   buildRewardStage,
   calculateLiveBroadhashConsensus,
+  collectTransactionPoolSnapshot,
   formatAdamantAmount,
   formatObservedNodeVersion,
+  isScenarioEnabledByOptions,
   publicBlockForgingResult,
+  recordReason,
+  roundRate,
   selectScenarios
 };

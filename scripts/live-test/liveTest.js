@@ -45,7 +45,9 @@ function configureProgram (program) {
       .option('--node <host:port|url>', 'explicit target node; repeatable in localnet mode', collectOption, [])
       .option('--manifest <path>', 'localnet manifest path')
       .option('--profile <name>', 'load profile: baseline, sustained, high, overload', DEFAULTS.profile)
-      .option('--unsafe-stress', 'enable opt-in stress/overload scenarios')
+      .option('--http-stress', 'enable the opt-in HTTP stress scenario')
+      .option('--txqueue-type0-stress', 'enable the opt-in type 0 transaction queue stress scenario')
+      .option('--txqueue-all-stress', 'enable all opt-in transaction queue stress scenarios')
       .option('--timeout-ms <ms>', 'HTTP/WebSocket timeout', String(DEFAULTS.timeoutMs))
       .option('--ready-timeout-ms <ms>', 'node readiness timeout', String(DEFAULTS.readyTimeoutMs))
       .option('--block-wait-timeout-ms <ms>', 'block wait timeout', String(DEFAULTS.blockWaitTimeoutMs))
@@ -126,7 +128,9 @@ async function runLiveTests (input) {
       suites: options.suites,
       scenarios: options.scenarios,
       profile: options.profile,
-      unsafeStress: options.unsafeStress
+      httpStress: options.httpStress,
+      txqueueType0Stress: options.txqueueType0Stress,
+      txqueueAllStress: options.txqueueAllStress
     },
     configMetadata: context.configMetadata,
     finalNodeStates,
@@ -235,7 +239,9 @@ function normalizeOptions (input) {
     nodes: input.mode === 'localnet' ? nodeValues : [],
     manifest: input.manifest,
     profile: input.profile || DEFAULTS.profile,
-    unsafeStress: !!input.unsafeStress,
+    httpStress: !!input.httpStress,
+    txqueueType0Stress: !!input.txqueueType0Stress,
+    txqueueAllStress: !!input.txqueueAllStress,
     timeoutMs: parseNonNegativeInteger(input.timeoutMs, 'timeoutMs', DEFAULTS.timeoutMs),
     readyTimeoutMs: parseNonNegativeInteger(input.readyTimeoutMs, 'readyTimeoutMs', DEFAULTS.readyTimeoutMs),
     blockWaitTimeoutMs: parseNonNegativeInteger(input.blockWaitTimeoutMs, 'blockWaitTimeoutMs', DEFAULTS.blockWaitTimeoutMs),
@@ -378,15 +384,36 @@ function deriveActivationHeights (entries) {
  * @param {object} options - Runner options.
  */
 function assertStressAllowed (scenarios, options) {
-  const stress = scenarios.filter(function (scenario) {
-    return scenario.stress;
+  const blocked = scenarios.filter(function (scenario) {
+    return scenario.stressFlag && !isStressScenarioEnabled(scenario, options);
   });
 
-  if (stress.length && !options.unsafeStress) {
-    throw Error('Stress scenario selected without --unsafe-stress: ' + stress.map(function (scenario) {
-      return scenario.id;
+  if (blocked.length) {
+    throw Error('Stress scenario selected without its opt-in flag: ' + blocked.map(function (scenario) {
+      return scenario.id + ' requires ' + scenario.stressFlag;
     }).join(', '));
   }
+}
+
+/**
+ * Checks whether the CLI options explicitly enable a stress scenario.
+ * @param {object} scenario - Scenario definition.
+ * @param {object} options - Normalized runner options.
+ */
+function isStressScenarioEnabled (scenario, options) {
+  if (!scenario.stressFlag) {
+    return true;
+  }
+
+  if (scenario.stressFlag === '--http-stress') {
+    return options.httpStress;
+  }
+
+  if (scenario.stressFlag === '--txqueue-type0-stress') {
+    return options.txqueueType0Stress || options.txqueueAllStress;
+  }
+
+  return false;
 }
 
 /**
@@ -507,6 +534,7 @@ module.exports = {
   collectConfigMetadata,
   configureProgram,
   collectFinalNodeStates,
+  isStressScenarioEnabled,
   normalizeOptions,
   runCli,
   runLiveTests

@@ -40,6 +40,13 @@ function createAccount () {
 }
 
 /**
+ * Creates a valid random ADAMANT address without generating a signing keypair.
+ */
+function createRandomAddress () {
+  return accounts.getAddressByPublicKey(crypto.randomBytes(32).toString('hex'));
+}
+
+/**
  * Creates a keypair from a passphrase.
  * @param {string} secret - Passphrase.
  */
@@ -513,6 +520,7 @@ module.exports = {
   createInTransferTransaction,
   createMultisignatureTransaction,
   createOutTransferTransaction,
+  createRandomAddress,
   createSendTransaction,
   createSignatureTransaction,
   createStateTransaction,

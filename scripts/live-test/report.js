@@ -153,7 +153,7 @@ function renderMarkdownReport (report) {
  */
 function collectLoadScenarios (scenarios) {
   return scenarios.filter(function (scenario) {
-    return scenario.suite === 'load' || scenario.id === 'load.http' || scenario.id === 'load.stress';
+    return scenario.suite === 'load';
   });
 }
 
@@ -167,12 +167,18 @@ function appendLoadDetails (lines, scenarios) {
   lines.push('## Load Details');
   lines.push('');
   lines.push(
-      'These scenarios send bounded read-only requests to one target node. ' +
-      'They do not submit transactions, forge blocks, or define latency/throughput pass thresholds.'
+      'Load scenarios are opt-in according to their workload. HTTP load is read-only; ' +
+      'transaction queue load publishes real signed transactions and changes network state.'
   );
 
   scenarios.forEach(function (scenario) {
     const result = scenario.result || {};
+
+    if (result.kind === 'type 0 transaction queue stress') {
+      appendTxQueueLoadDetails(lines, scenario);
+      return;
+    }
+
     const target = result.target || {};
     const request = result.request || {};
     const profile = result.profile || {};
@@ -278,6 +284,172 @@ function appendLoadDetails (lines, scenarios) {
       lines.push('- Failure examples: ' + observed.failureExamples.map(formatLoadFailure).join('; ') + '.');
     }
   });
+}
+
+/**
+ * Appends a type 0 transaction queue workload summary and per-node snapshots.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {object} scenario - Transaction queue scenario report entry.
+ */
+function appendTxQueueLoadDetails (lines, scenario) {
+  const result = scenario.result || {};
+  const target = result.target || {};
+  const transaction = result.transaction || {};
+  const workload = result.workload || {};
+  const sourceAccount = result.sourceAccount || {};
+
+  lines.push('');
+  lines.push('### ' + scenario.id);
+  lines.push('- Scenario status: ' + scenario.status + '; duration ' + formatDuration(scenario.durationMs) + '.');
+  lines.push(
+      '- Test: continuously generate, sign, and submit valid ' +
+      formatReportValue(transaction.typeName) +
+      ' (' +
+      formatReportValue(transaction.type) +
+      ') transactions to ' +
+      formatReportValue(target.nodeId) +
+      ' at ' +
+      formatReportValue(target.apiUrl) +
+      '.'
+  );
+  lines.push(
+      '- Transaction: amount ' +
+      formatAdmValue(transaction.amountAdm) +
+      '; fee ' +
+      formatAdmValue(transaction.feeAdm) +
+      '; unique valid recipient per transaction ' +
+      formatReportValue(transaction.uniqueRecipientPerTransaction) +
+      '; sender ' +
+      formatReportValue(sourceAccount.address) +
+      '.'
+  );
+  lines.push(
+      '- Workload: configured generation window ' +
+      formatDuration(workload.configuredDurationMs) +
+      '; actual ' +
+      formatDuration(workload.actualDurationMs) +
+      '; concurrency ' +
+      formatReportValue(workload.concurrency) +
+      '; artificial delay ' +
+      formatDuration(workload.artificialDelayMs) +
+      '.'
+  );
+  lines.push(
+      '- Admission results: generated ' +
+      formatReportValue(workload.generated) +
+      '; accepted ' +
+      formatReportValue(workload.accepted) +
+      '; rejected ' +
+      formatReportValue(workload.rejected) +
+      '; transport failures ' +
+      formatReportValue(workload.transportFailures) +
+      '; HTTP failures ' +
+      formatReportValue(workload.httpFailures) +
+      '.'
+  );
+  lines.push(
+      '- Rates: generated ' +
+      formatReportValue(workload.generationRatePerSecond) +
+      '/s; accepted ' +
+      formatReportValue(workload.acceptedRatePerSecond) +
+      '/s; HTTP statuses ' +
+      formatStatusCodes(workload.statusCodes) +
+      '.'
+  );
+  lines.push('- Rejection reasons: ' + formatReasonHistogram(workload.rejectionReasons) + '.');
+  lines.push(
+      '- Pool visibility: public counters ' +
+      formatList(result.publicPoolCategories) +
+      '; unavailable through the public count API ' +
+      formatList(result.unavailablePoolCategories) +
+      '.'
+  );
+  lines.push(
+      '- Pool stages: queued transactions passed admission and wait for application; ' +
+      'unconfirmed transactions are applied to temporary account state and eligible for a block; ' +
+      'multisignature transactions wait for required signatures; confirmed is the persisted chain total.'
+  );
+  lines.push('');
+  lines.push('#### Transaction Pool Snapshots');
+  lines.push('');
+  lines.push(
+      '| Phase | Offset | Node | API status | Height | Loaded | Syncing | Consensus | Confirmed | Queued | Unconfirmed | Multisignature |'
+  );
+  lines.push('| --- | ---: | --- | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: |');
+
+  (result.snapshots || []).forEach(function (snapshot) {
+    (snapshot.nodes || []).forEach(function (node) {
+      const status = node.status || {};
+      const transactions = node.transactions || {};
+
+      lines.push(
+          '| ' +
+          formatReportValue(snapshot.phase) +
+          ' | ' +
+          formatDuration(snapshot.offsetMs) +
+          ' | ' +
+          formatReportValue(node.id) +
+          ' | ' +
+          (node.ok ? 'ok' : 'failed: ' + formatReportValue(node.error)) +
+          ' | ' +
+          formatReportValue(status.height) +
+          ' | ' +
+          formatReportValue(status.loaded) +
+          ' | ' +
+          formatReportValue(status.syncing) +
+          ' | ' +
+          formatPercent(status.consensus) +
+          ' | ' +
+          formatReportValue(transactions.confirmed) +
+          ' | ' +
+          formatReportValue(transactions.queued) +
+          ' | ' +
+          formatReportValue(transactions.unconfirmed) +
+          ' | ' +
+          formatReportValue(transactions.multisignature) +
+          ' |'
+      );
+    });
+  });
+
+  lines.push('');
+  lines.push('#### Node Status Snapshots');
+
+  (result.snapshots || []).forEach(function (snapshot) {
+    (snapshot.nodes || []).forEach(function (node) {
+      const status = node.status || {};
+
+      lines.push(
+          '- ' +
+          formatReportValue(snapshot.phase) +
+          ', ' +
+          formatReportValue(node.id) +
+          ': version ' +
+          formatReportValue(status.version) +
+          '; nethash ' +
+          formatReportValue(status.nethash) +
+          '; broadhash ' +
+          formatReportValue(status.broadhash) +
+          '; fee ' +
+          formatAdmValue(status.feeAdm) +
+          '; reward ' +
+          formatAdmValue(status.rewardAdm) +
+          '.'
+      );
+    });
+  });
+}
+
+/**
+ * Formats a rejection reason histogram.
+ * @param {object} reasons - Rejection reason counts.
+ */
+function formatReasonHistogram (reasons) {
+  const labels = Object.keys(reasons || {}).sort();
+
+  return labels.length ? labels.map(function (label) {
+    return label + '=' + reasons[label];
+  }).join('; ') : 'none';
 }
 
 /**
@@ -674,6 +846,7 @@ function formatAbuseRow (check) {
 module.exports = {
   appendForgingDetails,
   appendLoadDetails,
+  appendTxQueueLoadDetails,
   collectAbuseRows,
   collectForgingNodes,
   collectLoadScenarios,
@@ -687,6 +860,7 @@ module.exports = {
   formatMilliseconds,
   formatObservedHeightRange,
   formatPercent,
+  formatReasonHistogram,
   formatReportValue,
   formatStatusCodes,
   formatThreshold,
