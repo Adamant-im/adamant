@@ -196,6 +196,11 @@ describe('live scenario runner utilities', () => {
       livePercent: 50
     });
     expect(scenarios.formatAdamantAmount('6124269306')).to.equal('61.24269306');
+    expect(scenarios.formatObservedNodeVersion({
+      version: '0.9.0',
+      commit: 'abc123',
+      build: ''
+    })).to.equal('0.9.0, commit abc123');
   });
 
   it('should build transaction helpers without exposing passphrases in public fixture metadata', () => {
@@ -392,6 +397,153 @@ describe('live scenario runner utilities', () => {
     );
     expect(markdown).to.include('Latest generator totals: rewards 0 ADM; fees 61.24269306 ADM');
     expect(markdown).to.include('Configured forging public keys: public-key-1, public-key-2');
+  });
+
+  it('should render exact normal and stress load details', () => {
+    const markdown = report.renderMarkdownReport({
+      status: 'passed',
+      target: {
+        mode: 'localnet',
+        nodes: []
+      },
+      run: {
+        id: 'localnet-load',
+        startedAt: '2026-06-06T00:00:00.000Z',
+        finishedAt: '2026-06-06T00:01:00.000Z'
+      },
+      scenarios: [
+        {
+          id: 'load.http',
+          suite: 'load',
+          status: 'passed',
+          durationMs: 120,
+          result: {
+            kind: 'normal bounded load',
+            target: {
+              nodeId: 'node-1',
+              apiUrl: 'http://127.0.0.1:36670'
+            },
+            request: {
+              method: 'GET',
+              path: '/api/node/status',
+              body: null
+            },
+            profile: {
+              requestedName: 'baseline',
+              appliedName: 'baseline',
+              requests: 5,
+              concurrency: 1
+            },
+            acceptance: {
+              requirement: 'Every request returns HTTP 2xx with JSON success=true.',
+              latencyThresholdMs: null,
+              throughputThresholdRps: null
+            },
+            results: {
+              totalRequests: 5,
+              completed: 5,
+              failed: 0,
+              transportFailures: 0,
+              httpFailures: 0,
+              apiFailures: 0,
+              statusCodes: {
+                200: 5
+              },
+              elapsedMs: 100,
+              throughputRps: 50,
+              latencyMs: {
+                count: 5,
+                min: 10,
+                avg: 15,
+                p95: 20,
+                max: 20
+              },
+              observedNodeState: {
+                minHeight: 4500,
+                maxHeight: 4501,
+                nethashes: ['testnet-nethash'],
+                broadhashChanges: 2,
+                versions: ['0.9.0']
+              },
+              failureExamples: []
+            },
+            passed: true
+          }
+        },
+        {
+          id: 'load.stress',
+          suite: 'load',
+          status: 'passed',
+          durationMs: 500,
+          result: {
+            kind: 'opt-in stress burst',
+            target: {
+              nodeId: 'node-1',
+              apiUrl: 'http://127.0.0.1:36670'
+            },
+            request: {
+              method: 'GET',
+              path: '/api/node/status',
+              body: null
+            },
+            profile: {
+              requestedName: 'baseline',
+              appliedName: 'overload',
+              requests: 200,
+              concurrency: 20
+            },
+            acceptance: {
+              requirement: 'Every request returns HTTP 2xx with JSON success=true.',
+              latencyThresholdMs: null,
+              throughputThresholdRps: null
+            },
+            results: {
+              totalRequests: 200,
+              completed: 200,
+              failed: 0,
+              transportFailures: 0,
+              httpFailures: 0,
+              apiFailures: 0,
+              statusCodes: {
+                200: 200
+              },
+              elapsedMs: 480,
+              throughputRps: 416.67,
+              latencyMs: {
+                count: 200,
+                min: 8,
+                avg: 30,
+                p95: 50,
+                max: 60
+              },
+              observedNodeState: {
+                minHeight: 4501,
+                maxHeight: 4501,
+                nethashes: ['testnet-nethash'],
+                broadhashChanges: 1,
+                versions: ['0.9.0']
+              },
+              failureExamples: []
+            },
+            passed: true
+          }
+        }
+      ],
+      metrics: {}
+    });
+
+    expect(markdown).to.include('## Load Details');
+    expect(markdown).to.include('bounded read-only requests to one target node');
+    expect(markdown).to.include('### load.http');
+    expect(markdown).to.include('Profile: requested baseline; applied baseline; requests 5; concurrency 1');
+    expect(markdown).to.include('Result: 5/5 successful; 0 failed; passed true');
+    expect(markdown).to.include('Latency: min 10 ms; average 15 ms; p95 20 ms; max 20 ms; samples 5');
+    expect(markdown).to.include('Observed node state: height 4500..4501');
+    expect(markdown).to.include('### load.stress');
+    expect(markdown).to.include('Profile: requested baseline; applied overload; requests 200; concurrency 20');
+    expect(markdown).to.include('HTTP status codes: 200=200');
+    expect(markdown).to.include('successful throughput 416.67 requests/second');
+    expect(markdown).to.include('Performance thresholds: latency not configured; throughput not configured');
   });
 
   it('should render security abuse rejection details and overload summary', () => {

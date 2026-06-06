@@ -118,6 +118,12 @@ function renderMarkdownReport (report) {
     appendForgingDetails(lines, forgingNodes);
   }
 
+  const loadScenarios = collectLoadScenarios(report.scenarios);
+
+  if (loadScenarios.length) {
+    appendLoadDetails(lines, loadScenarios);
+  }
+
   if (report.finalNodeStates && report.finalNodeStates.length) {
     lines.push('');
     lines.push('## Final Node State');
@@ -139,6 +145,206 @@ function renderMarkdownReport (report) {
   }
 
   return lines.join('\n') + '\n';
+}
+
+/**
+ * Collects load scenario entries that contain detailed result payloads.
+ * @param {Array<object>} scenarios - Scenario report entries.
+ */
+function collectLoadScenarios (scenarios) {
+  return scenarios.filter(function (scenario) {
+    return scenario.suite === 'load' || scenario.id === 'load.http' || scenario.id === 'load.stress';
+  });
+}
+
+/**
+ * Appends exact workload, acceptance criteria, and observed load results.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {Array<object>} scenarios - Load scenario report entries.
+ */
+function appendLoadDetails (lines, scenarios) {
+  lines.push('');
+  lines.push('## Load Details');
+  lines.push('');
+  lines.push(
+      'These scenarios send bounded read-only requests to one target node. ' +
+      'They do not submit transactions, forge blocks, or define latency/throughput pass thresholds.'
+  );
+
+  scenarios.forEach(function (scenario) {
+    const result = scenario.result || {};
+    const target = result.target || {};
+    const request = result.request || {};
+    const profile = result.profile || {};
+    const acceptance = result.acceptance || {};
+    const observed = result.results || {};
+    const nodeState = observed.observedNodeState || {};
+    const latency = observed.latencyMs || {};
+
+    lines.push('');
+    lines.push('### ' + scenario.id);
+    lines.push('- Scenario status: ' + scenario.status + '; duration ' + formatDuration(scenario.durationMs) + '.');
+    lines.push(
+        '- Test: ' +
+        formatReportValue(result.kind) +
+        ' against ' +
+        formatReportValue(target.nodeId) +
+        ' at ' +
+        formatReportValue(target.apiUrl) +
+        '.'
+    );
+    lines.push(
+        '- Request: ' +
+        formatReportValue(request.method) +
+        ' ' +
+        formatReportValue(request.path) +
+        '; request body ' +
+        (request.body === null ? 'none' : formatReportValue(request.body)) +
+        '.'
+    );
+    lines.push(
+        '- Profile: requested ' +
+        formatReportValue(profile.requestedName) +
+        '; applied ' +
+        formatReportValue(profile.appliedName) +
+        '; requests ' +
+        formatReportValue(profile.requests) +
+        '; concurrency ' +
+        formatReportValue(profile.concurrency) +
+        '.'
+    );
+    lines.push('- Pass condition: ' + formatReportValue(acceptance.requirement));
+    lines.push(
+        '- Performance thresholds: latency ' +
+        formatThreshold(acceptance.latencyThresholdMs, 'ms') +
+        '; throughput ' +
+        formatThreshold(acceptance.throughputThresholdRps, 'rps') +
+        '. Measurements are informational.'
+    );
+    lines.push(
+        '- Result: ' +
+        formatReportValue(observed.completed) +
+        '/' +
+        formatReportValue(observed.totalRequests) +
+        ' successful; ' +
+        formatReportValue(observed.failed) +
+        ' failed; passed ' +
+        formatReportValue(result.passed) +
+        '.'
+    );
+    lines.push(
+        '- Failure classes: transport ' +
+        formatReportValue(observed.transportFailures) +
+        '; HTTP ' +
+        formatReportValue(observed.httpFailures) +
+        '; API payload ' +
+        formatReportValue(observed.apiFailures) +
+        '.'
+    );
+    lines.push('- HTTP status codes: ' + formatStatusCodes(observed.statusCodes) + '.');
+    lines.push(
+        '- Timing: elapsed ' +
+        formatDuration(observed.elapsedMs) +
+        '; successful throughput ' +
+        formatReportValue(observed.throughputRps) +
+        ' requests/second.'
+    );
+    lines.push(
+        '- Latency: min ' +
+        formatMilliseconds(latency.min) +
+        '; average ' +
+        formatMilliseconds(latency.avg) +
+        '; p95 ' +
+        formatMilliseconds(latency.p95) +
+        '; max ' +
+        formatMilliseconds(latency.max) +
+        '; samples ' +
+        formatReportValue(latency.count) +
+        '.'
+    );
+    lines.push(
+        '- Observed node state: height ' +
+        formatObservedHeightRange(nodeState.minHeight, nodeState.maxHeight) +
+        '; nethashes ' +
+        formatList(nodeState.nethashes) +
+        '; versions ' +
+        formatList(nodeState.versions) +
+        '; distinct broadhashes ' +
+        formatReportValue(nodeState.broadhashChanges) +
+        '.'
+    );
+
+    if (Array.isArray(observed.failureExamples) && observed.failureExamples.length) {
+      lines.push('- Failure examples: ' + observed.failureExamples.map(formatLoadFailure).join('; ') + '.');
+    }
+  });
+}
+
+/**
+ * Formats a nullable performance threshold.
+ * @param {?number} value - Threshold value.
+ * @param {string} unit - Display unit.
+ */
+function formatThreshold (value, unit) {
+  return value === undefined || value === null ? 'not configured' : value + ' ' + unit;
+}
+
+/**
+ * Formats an elapsed duration in milliseconds.
+ * @param {?number} value - Duration in milliseconds.
+ */
+function formatDuration (value) {
+  return value === undefined || value === null ? 'n/a' : value + ' ms';
+}
+
+/**
+ * Formats a latency value in milliseconds.
+ * @param {?number} value - Latency in milliseconds.
+ */
+function formatMilliseconds (value) {
+  return value === undefined || value === null ? 'n/a' : value + ' ms';
+}
+
+/**
+ * Formats minimum and maximum heights observed in load responses.
+ * @param {?number} minHeight - Minimum observed height.
+ * @param {?number} maxHeight - Maximum observed height.
+ */
+function formatObservedHeightRange (minHeight, maxHeight) {
+  if (minHeight === undefined || minHeight === null || maxHeight === undefined || maxHeight === null) {
+    return 'n/a';
+  }
+
+  return minHeight === maxHeight ? String(minHeight) : minHeight + '..' + maxHeight;
+}
+
+/**
+ * Formats an HTTP status code histogram.
+ * @param {object} statusCodes - Status code counts.
+ */
+function formatStatusCodes (statusCodes) {
+  const codes = Object.keys(statusCodes || {}).sort(function (left, right) {
+    return Number(left) - Number(right);
+  });
+
+  return codes.length ? codes.map(function (code) {
+    return code + '=' + statusCodes[code];
+  }).join(', ') : 'none';
+}
+
+/**
+ * Formats one captured load failure without dumping response payloads.
+ * @param {object} failure - Captured failure metadata.
+ */
+function formatLoadFailure (failure) {
+  return 'status ' +
+    formatReportValue(failure.status) +
+    ', transport ' +
+    formatReportValue(failure.transportError) +
+    ', API ' +
+    formatReportValue(failure.apiError) +
+    ', success ' +
+    formatReportValue(failure.success);
 }
 
 /**
@@ -467,15 +673,23 @@ function formatAbuseRow (check) {
 
 module.exports = {
   appendForgingDetails,
+  appendLoadDetails,
   collectAbuseRows,
   collectForgingNodes,
+  collectLoadScenarios,
   collectTransactionRows,
   formatAbuseRow,
   formatAdmValue,
+  formatDuration,
   formatHeightRange,
   formatList,
+  formatLoadFailure,
+  formatMilliseconds,
+  formatObservedHeightRange,
   formatPercent,
   formatReportValue,
+  formatStatusCodes,
+  formatThreshold,
   formatTransactionRow,
   redactSensitive,
   renderMarkdownReport,

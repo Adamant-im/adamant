@@ -5,6 +5,7 @@ const { io } = require('socket.io-client');
 
 const constants = require('../../helpers/constants.js');
 const transactionTypes = require('../../helpers/transactionTypes.js');
+const { summarizeNumbers } = require('./metrics.js');
 const tx = require('./transactions.js');
 
 const NORMAL_LOAD_PROFILES = {
@@ -965,9 +966,10 @@ function formatAdamantAmount (amount) {
  * @param {object} context - Runner context.
  */
 async function runLoadScenario (context) {
-  const profile = NORMAL_LOAD_PROFILES[context.options.profile] || NORMAL_LOAD_PROFILES.baseline;
+  const profileName = NORMAL_LOAD_PROFILES[context.options.profile] ? context.options.profile : 'baseline';
+  const profile = NORMAL_LOAD_PROFILES[profileName];
 
-  return runHttpLoad(context, profile, false);
+  return runHttpLoad(context, profileName, profile, false);
 }
 
 /**
@@ -975,22 +977,34 @@ async function runLoadScenario (context) {
  * @param {object} context - Runner context.
  */
 async function runStressScenario (context) {
-  const profile = STRESS_LOAD_PROFILES[context.options.profile] || STRESS_LOAD_PROFILES.overload;
+  const profileName = STRESS_LOAD_PROFILES[context.options.profile] ? context.options.profile : 'overload';
+  const profile = STRESS_LOAD_PROFILES[profileName];
 
-  return runHttpLoad(context, profile, true);
+  return runHttpLoad(context, profileName, profile, true);
 }
 
 /**
  * Executes concurrent `/api/node/status` requests and reports throughput.
  * @param {object} context - Runner context.
+ * @param {string} profileName - Applied load profile name.
  * @param {object} profile - Load profile.
  * @param {boolean} stress - Whether this is an opt-in stress profile.
  */
-async function runHttpLoad (context, profile, stress) {
-  const client = context.clientFor(context.primaryNode);
+async function runHttpLoad (context, profileName, profile, stress) {
+  const node = context.primaryNode;
+  const client = context.clientFor(node);
   const started = Date.now();
+  const latencySamples = [];
+  const statusCodes = {};
+  const failureExamples = [];
+  const observedHeights = [];
+  const observedNethashes = new Set();
+  const observedBroadhashes = new Set();
+  const observedVersions = new Set();
   let completed = 0;
-  let failed = 0;
+  let transportFailures = 0;
+  let httpFailures = 0;
+  let apiFailures = 0;
   let cursor = 0;
 
   /**
@@ -1001,12 +1015,45 @@ async function runHttpLoad (context, profile, stress) {
       // JavaScript runs this cursor mutation on one event loop, giving a simple bounded work queue.
       cursor++;
       const result = await client.get('/api/node/status');
+      const body = result.body || {};
+      const network = body.network || {};
+      const statusCode = String(result.status);
 
       context.metrics.latency(stress ? 'stress.status' : 'load.status', result.latencyMs);
+      latencySamples.push(result.latencyMs);
+      statusCodes[statusCode] = (statusCodes[statusCode] || 0) + 1;
+
       if (result.ok && result.body && result.body.success) {
         completed++;
+        if (Number.isFinite(network.height)) {
+          observedHeights.push(network.height);
+        }
+        if (network.nethash) {
+          observedNethashes.add(network.nethash);
+        }
+        if (network.broadhash) {
+          observedBroadhashes.add(network.broadhash);
+        }
+        if (body.version) {
+          observedVersions.add(formatObservedNodeVersion(body.version));
+        }
       } else {
-        failed++;
+        if (result.status === 0) {
+          transportFailures++;
+        } else if (!result.ok) {
+          httpFailures++;
+        } else {
+          apiFailures++;
+        }
+
+        if (failureExamples.length < 10) {
+          failureExamples.push({
+            status: result.status,
+            transportError: result.error,
+            apiError: body.error || body.message,
+            success: body.success
+          });
+        }
       }
     }
   }
@@ -1015,15 +1062,86 @@ async function runHttpLoad (context, profile, stress) {
 
   const elapsedSec = Math.max((Date.now() - started) / 1000, 0.001);
   const throughput = Math.round((completed / elapsedSec) * 100) / 100;
-
-  context.assert(failed === 0, 'Load profile had ' + failed + ' failed requests.');
-
-  return {
-    profile,
-    completed,
-    failed,
-    throughputRps: throughput
+  const failed = transportFailures + httpFailures + apiFailures;
+  const consistentNethash = observedNethashes.size <= 1;
+  const scenarioResult = {
+    kind: stress ? 'opt-in stress burst' : 'normal bounded load',
+    target: {
+      nodeId: node.id,
+      apiUrl: node.apiUrl
+    },
+    request: {
+      method: 'GET',
+      path: '/api/node/status',
+      body: null
+    },
+    profile: {
+      requestedName: context.options.profile,
+      appliedName: profileName,
+      requests: profile.requests,
+      concurrency: profile.concurrency
+    },
+    acceptance: {
+      requirement: 'Every request returns HTTP 2xx with JSON success=true.',
+      latencyThresholdMs: null,
+      throughputThresholdRps: null
+    },
+    results: {
+      totalRequests: profile.requests,
+      completed,
+      failed,
+      transportFailures,
+      httpFailures,
+      apiFailures,
+      statusCodes,
+      elapsedMs: Math.round(elapsedSec * 1000),
+      throughputRps: throughput,
+      latencyMs: summarizeNumbers(latencySamples),
+      observedNodeState: {
+        minHeight: observedHeights.length ? Math.min.apply(null, observedHeights) : null,
+        maxHeight: observedHeights.length ? Math.max.apply(null, observedHeights) : null,
+        nethashes: Array.from(observedNethashes),
+        broadhashChanges: observedBroadhashes.size,
+        versions: Array.from(observedVersions)
+      },
+      failureExamples
+    },
+    passed: failed === 0 && consistentNethash
   };
+
+  if (!scenarioResult.passed) {
+    const reasons = [];
+
+    if (failed > 0) {
+      reasons.push(failed + ' failed requests');
+    }
+    if (!consistentNethash) {
+      reasons.push('responses reported different nethashes');
+    }
+
+    const error = Error('Load profile failed: ' + reasons.join('; ') + '.');
+
+    error.result = scenarioResult;
+    throw error;
+  }
+
+  return scenarioResult;
+}
+
+/**
+ * Normalizes a node status version value into a stable report string.
+ * @param {string|object} version - Version returned by `/api/node/status`.
+ */
+function formatObservedNodeVersion (version) {
+  if (!version || typeof version !== 'object') {
+    return String(version);
+  }
+
+  return [
+    version.version || 'unknown',
+    version.commit ? 'commit ' + version.commit : null,
+    version.build ? 'build ' + version.build : null
+  ].filter(Boolean).join(', ');
 }
 
 /**
@@ -1819,6 +1937,7 @@ module.exports = {
   buildRewardStage,
   calculateLiveBroadhashConsensus,
   formatAdamantAmount,
+  formatObservedNodeVersion,
   publicBlockForgingResult,
   selectScenarios
 };
