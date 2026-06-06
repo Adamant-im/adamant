@@ -303,6 +303,18 @@ function createStateTransaction (account, key, value, stateType) {
 }
 
 /**
+ * Re-signs a transaction after a test mutates fields that participate in bytes.
+ * @param {object} transaction - Transaction to mutate.
+ * @param {object} account - Sender account.
+ */
+function resignTransaction (transaction, account) {
+  delete transaction.signature;
+  delete transaction.id;
+  signAndId(transaction, account);
+  return transaction;
+}
+
+/**
  * Signs a transaction and assigns its id.
  * @param {object} transaction - Transaction to mutate.
  * @param {object} account - Sender account.
@@ -508,5 +520,6 @@ module.exports = {
   getChatMessageTypeName,
   getTransactionTypeName,
   keypairFromSecret,
-  publicFixtureAccount
+  publicFixtureAccount,
+  resignTransaction
 };

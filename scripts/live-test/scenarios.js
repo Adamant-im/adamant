@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const { io } = require('socket.io-client');
 
+const constants = require('../../helpers/constants.js');
 const transactionTypes = require('../../helpers/transactionTypes.js');
 const tx = require('./transactions.js');
 
@@ -16,6 +17,9 @@ const STRESS_LOAD_PROFILES = {
   overload: { requests: 200, concurrency: 20 }
 };
 const SIDE_ACCOUNT_FUNDING_AMOUNT = 50 * 100000000;
+const CONCURRENT_SPEND_BALANCE = 2 * 100000000;
+const CONCURRENT_SPEND_AMOUNT = 0.2 * 100000000;
+const CONCURRENT_SPEND_COUNT = 3;
 
 const SCENARIOS = [
   {
@@ -457,76 +461,196 @@ async function runTransactionAbuseScenario (context) {
   const funded = accountFromFixture(fixture);
   const recipient = tx.createAccount();
   const duplicateRecipient = tx.createAccount();
-  const doubleSpendSender = tx.createAccount();
-  const doubleSpendRecipient = tx.createAccount();
+  const overspendSender = tx.createAccount();
+  const overspendRecipient = tx.createAccount();
+  const concurrentSpendSender = tx.createAccount();
+  const secondSignatureKey = tx.createAccount();
+  const multisignatureMember = tx.createAccount();
   const valid = tx.createSendTransaction(funded, recipient.address, context.options.transferAmount);
-  const duplicate = tx.createSendTransaction(funded, duplicateRecipient.address, context.options.transferAmount);
-  const invalidSignature = Object.assign({}, valid, {
+  const invalidSignature = cloneTransaction(valid);
+
+  Object.assign(invalidSignature, {
     id: undefined,
     signature: crypto.randomBytes(64).toString('hex')
   });
-  const negativeAmount = tx.createSendTransaction(funded, recipient.address, context.options.transferAmount);
 
+  const negativeAmount = tx.createSendTransaction(funded, recipient.address, context.options.transferAmount);
   negativeAmount.amount = -1;
-  negativeAmount.id = undefined;
+  tx.resignTransaction(negativeAmount, funded);
+
+  const invalidDelegate = tx.createDelegateTransaction(funded, '');
+  tx.resignTransaction(invalidDelegate, funded);
+
+  const invalidVote = tx.createVoteTransaction(funded, ['+' + crypto.randomBytes(8).toString('hex')]);
+
+  const invalidSignatureRegistration = tx.createSignatureTransaction(funded, secondSignatureKey);
+  invalidSignatureRegistration.asset.signature.publicKey = crypto.randomBytes(8).toString('hex');
+  tx.resignTransaction(invalidSignatureRegistration, funded);
+
+  const invalidMultisignature = tx.createMultisignatureTransaction(funded, [multisignatureMember]);
+  invalidMultisignature.asset.multisignature.min = 2;
+  tx.resignTransaction(invalidMultisignature, funded);
+
+  const invalidChat = tx.createChatTransaction(funded, recipient.address, transactionTypes.CHAT_MESSAGE_TYPES.ORDINARY_MESSAGE);
+  invalidChat.asset.chat.type = 99;
+  tx.resignTransaction(invalidChat, funded);
+
+  const invalidState = tx.createStateTransaction(funded, 'bad-state', 'ok', 2);
+
+  const invalidDapp = tx.createDappTransaction(funded, {
+    category: 0,
+    name: 'bad' + crypto.randomBytes(5).toString('hex'),
+    description: 'Expected abuse rejection',
+    tags: 'live-test',
+    type: 1,
+    link: 'https://example.com/not-a-zip.txt'
+  });
+
+  const unknownDappId = '8713095156789756398';
+  const invalidInTransfer = tx.createInTransferTransaction(funded, unknownDappId, context.options.transferAmount);
+  const invalidOutTransfer = tx.createOutTransferTransaction(
+      funded,
+      recipient.address,
+      unknownDappId,
+      String(Date.now()).slice(0, 13),
+      context.options.transferAmount
+  );
 
   const checks = [
     {
       id: 'invalid-signature',
+      type: valid.type,
+      reason: 'Primary signature is random bytes and must not verify against signed transaction bytes.',
       request: function () {
         return client.post('/api/transactions/process', { transaction: invalidSignature });
       }
     },
     {
       id: 'negative-amount',
+      type: negativeAmount.type,
+      reason: 'SEND amount is negative even though the transaction is correctly signed after mutation.',
       request: function () {
         return client.post('/api/transactions/process', { transaction: negativeAmount });
       }
     },
     {
       id: 'malformed-json-shape',
+      type: null,
+      reason: 'Payload is not a valid transaction object and should be rejected by schema or transaction normalization.',
       request: function () {
         return client.post('/api/transactions/process', { transaction: { type: 'bad' } });
+      }
+    },
+    {
+      id: 'unknown-transaction-type',
+      type: 999,
+      reason: 'Transaction type is outside the registered ADM transaction type range.',
+      request: function () {
+        return client.post('/api/transactions/process', { transaction: { type: 999, timestamp: 1, asset: {} } });
+      }
+    },
+    {
+      id: 'delegate-empty-username',
+      type: invalidDelegate.type,
+      reason: 'Delegate registration uses an empty username.',
+      request: function () {
+        return client.post('/api/transactions/process', { transaction: invalidDelegate });
+      }
+    },
+    {
+      id: 'vote-invalid-public-key',
+      type: invalidVote.type,
+      reason: 'Vote operation references a malformed delegate public key.',
+      request: function () {
+        return client.post('/api/transactions/process', { transaction: invalidVote });
+      }
+    },
+    {
+      id: 'signature-invalid-public-key',
+      type: invalidSignatureRegistration.type,
+      reason: 'Second-signature registration carries a public key with invalid length.',
+      request: function () {
+        return client.post('/api/transactions/process', { transaction: invalidSignatureRegistration });
+      }
+    },
+    {
+      id: 'multisignature-min-exceeds-keygroup',
+      type: invalidMultisignature.type,
+      reason: 'Multisignature minimum exceeds keysgroup size.',
+      request: function () {
+        return client.post('/api/transactions/process', { transaction: invalidMultisignature });
+      }
+    },
+    {
+      id: 'chat-invalid-subtype',
+      type: invalidChat.type,
+      subtype: invalidChat.asset.chat.type,
+      reason: 'Chat message subtype is outside the allowed 0..3 range.',
+      request: function () {
+        return client.post('/api/transactions/process', { transaction: invalidChat });
+      }
+    },
+    {
+      id: 'state-invalid-subtype',
+      type: invalidState.type,
+      subtype: invalidState.asset.state.type,
+      reason: 'State subtype is outside the allowed 0..1 range.',
+      request: function () {
+        return client.post('/api/transactions/process', { transaction: invalidState });
+      }
+    },
+    {
+      id: 'dapp-invalid-link-extension',
+      type: invalidDapp.type,
+      reason: 'DApp link is syntactically valid but does not point to a .zip file.',
+      request: function () {
+        return client.post('/api/transactions/process', { transaction: invalidDapp });
+      }
+    },
+    {
+      id: 'in-transfer-unknown-dapp',
+      type: invalidInTransfer.type,
+      reason: 'DApp in-transfer references a DApp id that is not registered on chain.',
+      request: function () {
+        return client.post('/api/transactions/process', { transaction: invalidInTransfer });
+      }
+    },
+    {
+      id: 'out-transfer-unknown-dapp',
+      type: invalidOutTransfer.type,
+      reason: 'DApp out-transfer references a DApp id that is not registered on chain.',
+      request: function () {
+        return client.post('/api/transactions/process', { transaction: invalidOutTransfer });
       }
     }
   ];
   const results = [];
 
   for (const check of checks) {
-    const result = await check.request();
-    const rejected = !result.body || result.body.success === false;
-
-    context.metrics.latency('abuse.submit', result.latencyMs);
-    context.assert(rejected, 'Abuse check unexpectedly succeeded: ' + check.id);
-    context.metrics.increment('abuse.rejected');
-    results.push({
-      id: check.id,
-      rejected,
-      status: result.status,
-      error: result.body && (result.body.error || result.body.message)
-    });
+    results.push(await submitAbuseCheck(context, check));
   }
 
   // Keep repeated invalid submissions intentionally small; public testnet safety matters.
   const repeatedInvalid = [];
   for (let index = 0; index < context.options.repeatedInvalidCount; index++) {
-    const result = await client.post('/api/transactions/process', { transaction: { type: 'bad', repeat: index } });
-    const rejected = !result.body || result.body.success === false;
-
-    context.metrics.latency('abuse.submit', result.latencyMs);
-    context.assert(rejected, 'Repeated invalid submission unexpectedly succeeded at index ' + index);
-    context.metrics.increment('abuse.rejected');
-    repeatedInvalid.push({
-      rejected,
-      status: result.status
-    });
+    repeatedInvalid.push(await submitAbuseCheck(context, {
+      id: 'repeated-invalid-' + index,
+      type: null,
+      reason: 'Repeated malformed payload must remain rejected without poisoning transaction state.',
+      request: function () {
+        return client.post('/api/transactions/process', { transaction: { type: 'bad', repeat: index } });
+      }
+    }));
   }
   results.push({
     id: 'repeated-invalid-submissions',
+    reason: 'Small repeated malformed burst verifies stable rejection over multiple attempts.',
     rejected: true,
+    rejectedBy: 'node validation',
     attempts: repeatedInvalid.length
   });
 
+  const duplicate = tx.createSendTransaction(funded, duplicateRecipient.address, context.options.transferAmount);
   const duplicateFirst = await client.post('/api/transactions/process', { transaction: duplicate });
   const duplicateSecond = await client.post('/api/transactions/process', { transaction: duplicate });
 
@@ -537,40 +661,71 @@ async function runTransactionAbuseScenario (context) {
   context.metrics.increment('abuse.rejected');
   results.push({
     id: 'duplicate-transaction',
+    type: duplicate.type,
+    typeName: tx.getTransactionTypeName(duplicate.type),
+    reason: 'Exact same transaction id is submitted twice; second admission must be rejected as duplicate.',
     rejected: true,
+    rejectedBy: classifyRejection(duplicateSecond).rejectedBy,
+    howRejected: classifyRejection(duplicateSecond).howRejected,
     status: duplicateSecond.status,
     error: duplicateSecond.body && (duplicateSecond.body.error || duplicateSecond.body.message)
   });
 
-  const funding = tx.createSendTransaction(funded, doubleSpendSender.address, 3 * 100000000);
-  await submitTransaction(context, client, '/api/transactions/process', { transaction: funding }, 'double-spend funding');
+  const funding = tx.createSendTransaction(funded, overspendSender.address, 3 * 100000000);
+  await submitTransaction(context, client, '/api/transactions/process', { transaction: funding }, 'overspend funding');
 
   if (context.options.waitBlocks > 0) {
     await waitForBlocks(context, context.options.waitBlocks);
   }
-  await waitForAccountBalance(context, client, doubleSpendSender.address, 3 * 100000000, 'double-spend funding');
+  await waitForAccountBalance(context, client, overspendSender.address, 3 * 100000000, 'overspend funding');
 
-  // Both spends are valid in isolation, but together they exceed the freshly funded unconfirmed balance.
-  const firstSpend = tx.createSendTransaction(doubleSpendSender, doubleSpendRecipient.address, 250000000);
-  const secondSpend = tx.createSendTransaction(doubleSpendSender, duplicateRecipient.address, 250000000);
-  const firstSpendResult = await client.post('/api/transactions/process', { transaction: firstSpend });
-  const secondSpendResult = await client.post('/api/transactions/process', { transaction: secondSpend });
+  const overspend = tx.createSendTransaction(overspendSender, overspendRecipient.address, 350000000);
+  const overspendResult = await client.post('/api/transactions/process', { transaction: overspend });
 
-  context.metrics.latency('abuse.submit', firstSpendResult.latencyMs);
-  context.metrics.latency('abuse.submit', secondSpendResult.latencyMs);
-  context.assert(firstSpendResult.body && firstSpendResult.body.success, 'Double-spend setup transaction was rejected: ' + formatApiError(firstSpendResult.body));
-  context.assert(!secondSpendResult.body || secondSpendResult.body.success === false, 'Double-spend attempt unexpectedly succeeded.');
+  context.metrics.latency('abuse.submit', overspendResult.latencyMs);
+  context.assert(!overspendResult.body || overspendResult.body.success === false, 'Confirmed-balance overspend unexpectedly succeeded.');
   context.metrics.increment('abuse.rejected');
   results.push({
-    id: 'double-spend-unconfirmed-balance',
+    id: 'confirmed-balance-overspend',
+    type: overspend.type,
+    typeName: tx.getTransactionTypeName(overspend.type),
+    reason: 'A single signed SEND spends more than the sender confirmed balance plus fee.',
     rejected: true,
-    status: secondSpendResult.status,
-    error: secondSpendResult.body && (secondSpendResult.body.error || secondSpendResult.body.message)
+    rejectedBy: classifyRejection(overspendResult).rejectedBy,
+    howRejected: classifyRejection(overspendResult).howRejected,
+    status: overspendResult.status,
+    error: overspendResult.body && (overspendResult.body.error || overspendResult.body.message)
   });
 
-  return {
-    checks: results
+  const concurrentOverspend = await runConcurrentBalanceOverspend(
+      context,
+      client,
+      funded,
+      concurrentSpendSender
+  );
+  results.push(concurrentOverspend);
+
+  const overload = await runTransactionOverload(context, client);
+  const scenarioResult = {
+    checks: results,
+    repeatedInvalid,
+    overload
   };
+
+  if (!concurrentOverspend.passed) {
+    const error = Error(
+        'Concurrent balance overspend expected 2 confirmed and 1 not confirmed, got ' +
+        concurrentOverspend.confirmedCount +
+        ' confirmed and ' +
+        concurrentOverspend.notConfirmedCount +
+        ' not confirmed.'
+    );
+
+    error.result = scenarioResult;
+    throw error;
+  }
+
+  return scenarioResult;
 }
 
 /**
@@ -731,6 +886,348 @@ async function submitAcceptedApiTransaction (context, client, transactions, meth
   transactions.push(metadata);
 
   return metadata;
+}
+
+/**
+ * Runs one expected abuse rejection and records why/how it was rejected.
+ * @param {object} context - Runner context.
+ * @param {object} check - Abuse check definition.
+ */
+async function submitAbuseCheck (context, check) {
+  const result = await check.request();
+  const rejected = !result.body || result.body.success === false;
+  const rejection = classifyRejection(result);
+
+  context.metrics.latency('abuse.submit', result.latencyMs);
+  context.assert(rejected, 'Abuse check unexpectedly succeeded: ' + check.id);
+  context.metrics.increment('abuse.rejected');
+
+  return {
+    id: check.id,
+    type: check.type,
+    typeName: check.type === null || check.type === undefined ? null : tx.getTransactionTypeName(check.type),
+    subtype: check.subtype,
+    reason: check.reason,
+    rejected,
+    rejectedBy: rejection.rejectedBy,
+    howRejected: rejection.howRejected,
+    status: result.status,
+    error: result.body && (result.body.error || result.body.message)
+  };
+}
+
+/**
+ * Submits three valid SEND transactions concurrently whose combined amount and fees exceed balance.
+ * @param {object} context - Runner context.
+ * @param {HttpClient} client - Target REST client.
+ * @param {object} funded - Funded fixture account.
+ * @param {object} sender - Fresh account used for concurrent spends.
+ */
+async function runConcurrentBalanceOverspend (context, client, funded, sender) {
+  const funding = tx.createSendTransaction(funded, sender.address, CONCURRENT_SPEND_BALANCE);
+
+  await submitTransaction(context, client, '/api/transactions/process', { transaction: funding }, 'concurrent overspend funding');
+
+  if (context.options.waitBlocks > 0) {
+    await waitForBlocks(context, context.options.waitBlocks);
+  }
+  await waitForAccountBalance(
+      context,
+      client,
+      sender.address,
+      CONCURRENT_SPEND_BALANCE,
+      'concurrent overspend funding'
+  );
+
+  const transactions = Array.from({ length: CONCURRENT_SPEND_COUNT }, function () {
+    return tx.createSendTransaction(sender, tx.createAccount().address, CONCURRENT_SPEND_AMOUNT);
+  });
+  const responses = await Promise.all(transactions.map(function (transaction) {
+    return client.post('/api/transactions/process', { transaction });
+  }));
+  const admitted = responses.filter(function (result) {
+    return result.ok && result.body && result.body.success;
+  });
+  const admissionRejected = responses.filter(function (result) {
+    return result.ok && result.body && result.body.success === false;
+  });
+  const transportFailures = responses.filter(function (result) {
+    return !result.ok;
+  });
+  const requiredTotal = CONCURRENT_SPEND_COUNT * (CONCURRENT_SPEND_AMOUNT + constants.fees.send);
+  const admissionRejectionErrors = admissionRejected.map(function (result) {
+    return result.body.error || result.body.message || 'success=false';
+  });
+
+  responses.forEach(function (result) {
+    context.metrics.latency('abuse.concurrent_spend', result.latencyMs);
+  });
+  context.metrics.increment('abuse.concurrent_spend_admitted', admitted.length);
+  context.metrics.increment('abuse.concurrent_spend_admission_rejected', admissionRejected.length);
+
+  context.assert(
+      transportFailures.length === 0,
+      'Concurrent balance overspend had ' + transportFailures.length + ' HTTP/transport failures.'
+  );
+
+  const confirmationResult = await waitForConcurrentSpendConfirmations(
+      context,
+      client,
+      transactions
+  );
+  const finalBalanceResult = await client.get(
+      '/api/accounts/getBalance?address=' + encodeURIComponent(sender.address)
+  );
+  const expectedFinalBalance = CONCURRENT_SPEND_BALANCE -
+    2 * (CONCURRENT_SPEND_AMOUNT + constants.fees.send);
+  const finalBalance = finalBalanceResult.body && finalBalanceResult.body.balance;
+  const passed = confirmationResult.confirmedCount === 2 &&
+    confirmationResult.minimumConfirmations >= 2 &&
+    confirmationResult.notConfirmedCount === 1 &&
+    String(finalBalance) === String(expectedFinalBalance);
+
+  context.metrics.latency('accounts.balance', finalBalanceResult.latencyMs);
+  context.metrics.increment('abuse.concurrent_spend_confirmed', confirmationResult.confirmedCount);
+  context.metrics.increment(
+      'abuse.concurrent_spend_not_confirmed',
+      confirmationResult.notConfirmedCount
+  );
+
+  return {
+    id: 'concurrent-unconfirmed-balance-overspend',
+    type: transactionTypes.SEND,
+    typeName: tx.getTransactionTypeName(transactionTypes.SEND),
+    reason: 'Three valid SEND transactions of 0.2 ADM are submitted concurrently from a 2 ADM balance; with a 0.5 ADM fee each they require 2.1 ADM.',
+    rejected: confirmationResult.notConfirmedCount === 1,
+    rejectedBy: 'block inclusion and confirmed balance',
+    howRejected: 'Admission accepted ' +
+      admitted.length +
+      '/3 and rejected ' +
+      admissionRejected.length +
+      '/3. Final chain state confirmed ' +
+      confirmationResult.confirmedCount +
+      '/3; ' +
+      confirmationResult.notConfirmedCount +
+      '/3 remained queued, unconfirmed, or missing. Minimum confirmations: ' +
+      confirmationResult.minimumConfirmations +
+      '. Final balance: ' +
+      finalBalance +
+      ', expected: ' +
+      expectedFinalBalance +
+      '.' +
+      (admissionRejectionErrors.length ? ' Admission errors: ' + admissionRejectionErrors.join('; ') : ''),
+    balance: CONCURRENT_SPEND_BALANCE,
+    amountEach: CONCURRENT_SPEND_AMOUNT,
+    feeEach: constants.fees.send,
+    requiredTotal,
+    admittedCount: admitted.length,
+    admissionRejectedCount: admissionRejected.length,
+    confirmedCount: confirmationResult.confirmedCount,
+    minimumConfirmations: confirmationResult.minimumConfirmations,
+    notConfirmedCount: confirmationResult.notConfirmedCount,
+    transactions: confirmationResult.transactions,
+    expectedFinalBalance,
+    finalBalance,
+    passed
+  };
+}
+
+/**
+ * Waits for concurrent spends to settle and verifies each transaction by id and confirmations.
+ * @param {object} context - Runner context.
+ * @param {HttpClient} client - Target REST client.
+ * @param {Array<object>} transactions - Submitted transactions.
+ */
+async function waitForConcurrentSpendConfirmations (context, client, transactions) {
+  const deadline = Date.now() + context.options.blockWaitTimeoutMs;
+  let settlementHeight = null;
+  let latest = [];
+
+  while (Date.now() < deadline) {
+    const heightResult = await client.get('/api/blocks/getHeight');
+    const height = heightResult.body && heightResult.body.height;
+
+    context.metrics.latency('blocks.height', heightResult.latencyMs);
+    latest = await Promise.all(transactions.map(function (transaction) {
+      return getTransactionConfirmationState(context, client, transaction.id);
+    }));
+
+    const confirmedCount = latest.filter(function (state) {
+      return state.confirmations > 0;
+    }).length;
+
+    if (confirmedCount > 2) {
+      return summarizeConcurrentSpendStates(latest);
+    }
+
+    if (confirmedCount === 2 && settlementHeight === null) {
+      settlementHeight = height;
+    }
+
+    // Recheck after another block so confirmations and exclusion of the third transaction are observable.
+    if (settlementHeight !== null && height > settlementHeight) {
+      return summarizeConcurrentSpendStates(latest);
+    }
+
+    await sleep(context.options.pollIntervalMs);
+  }
+
+  return summarizeConcurrentSpendStates(latest);
+}
+
+/**
+ * Reads one transaction as confirmed, unconfirmed, or missing.
+ * @param {object} context - Runner context.
+ * @param {HttpClient} client - Target REST client.
+ * @param {string} transactionId - Transaction id.
+ */
+async function getTransactionConfirmationState (context, client, transactionId) {
+  const encodedId = encodeURIComponent(transactionId);
+  const confirmedResult = await client.get('/api/transactions/get?id=' + encodedId);
+  const confirmedTransaction = confirmedResult.body && confirmedResult.body.transaction;
+
+  context.metrics.latency('transactions.confirmation', confirmedResult.latencyMs);
+
+  if (confirmedTransaction) {
+    return {
+      id: transactionId,
+      state: 'confirmed',
+      confirmations: Number(confirmedTransaction.confirmations || 0),
+      blockId: confirmedTransaction.blockId,
+      height: confirmedTransaction.height,
+      error: null
+    };
+  }
+
+  const unconfirmedResult = await client.get('/api/transactions/unconfirmed/get?id=' + encodedId);
+  const unconfirmedTransaction = unconfirmedResult.body && unconfirmedResult.body.transaction;
+
+  context.metrics.latency('transactions.confirmation', unconfirmedResult.latencyMs);
+
+  if (unconfirmedTransaction) {
+    return {
+      id: transactionId,
+      state: 'unconfirmed',
+      confirmations: 0,
+      blockId: null,
+      height: null,
+      error: null
+    };
+  }
+
+  const queuedResult = await client.get('/api/transactions/queued/get?id=' + encodedId);
+  const queuedTransaction = queuedResult.body && queuedResult.body.transaction;
+
+  context.metrics.latency('transactions.confirmation', queuedResult.latencyMs);
+
+  return {
+    id: transactionId,
+    state: queuedTransaction ? 'queued' : 'missing',
+    confirmations: 0,
+    blockId: null,
+    height: null,
+    error: queuedTransaction ? null : (
+      queuedResult.body && queuedResult.body.error
+    )
+  };
+}
+
+/**
+ * Summarizes final confirmation states for concurrent spends.
+ * @param {Array<object>} states - Per-transaction confirmation states.
+ */
+function summarizeConcurrentSpendStates (states) {
+  const confirmed = states.filter(function (state) {
+    return state.confirmations > 0;
+  });
+
+  return {
+    confirmedCount: confirmed.length,
+    minimumConfirmations: confirmed.length ?
+      Math.min.apply(null, confirmed.map(function (state) {
+        return state.confirmations;
+      })) :
+      0,
+    notConfirmedCount: states.length - confirmed.length,
+    transactions: states
+  };
+}
+
+/**
+ * Runs a bounded concurrent malformed-transaction overload check.
+ * @param {object} context - Runner context.
+ * @param {HttpClient} client - Target REST client.
+ */
+async function runTransactionOverload (context, client) {
+  const started = Date.now();
+  const total = context.options.transactionOverloadCount;
+  const concurrency = Math.max(1, context.options.transactionOverloadConcurrency);
+  let cursor = 0;
+  let rejected = 0;
+  let failed = 0;
+  const samples = [];
+
+  /**
+   * Claims overload submissions from a shared bounded cursor.
+   */
+  async function worker () {
+    while (cursor < total) {
+      const index = cursor++;
+      const result = await client.post('/api/transactions/process', {
+        transaction: buildMalformedOverloadTransaction(index)
+      });
+      const didReject = !result.body || result.body.success === false;
+
+      context.metrics.latency('abuse.overload_submit', result.latencyMs);
+      if (didReject && result.status >= 200 && result.status < 500) {
+        rejected++;
+      } else {
+        failed++;
+      }
+
+      if (samples.length < 5) {
+        samples.push({
+          index,
+          status: result.status,
+          rejected: didReject,
+          error: result.body && (result.body.error || result.body.message)
+        });
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, Math.max(total, 1)) }, worker));
+
+  context.assert(failed === 0, 'Transaction overload had ' + failed + ' non-rejected submissions.');
+  context.metrics.increment('abuse.overload_rejected', rejected);
+
+  const elapsedSec = Math.max((Date.now() - started) / 1000, 0.001);
+
+  return {
+    id: 'transaction-overload',
+    reason: 'Concurrent malformed transaction submissions must be rejected without HTTP 5xx or accepted payloads.',
+    total,
+    concurrency,
+    rejected,
+    failed,
+    throughputRps: Math.round((rejected / elapsedSec) * 100) / 100,
+    samples
+  };
+}
+
+/**
+ * Builds one malformed payload for overload checks.
+ * @param {number} index - Submission index.
+ */
+function buildMalformedOverloadTransaction (index) {
+  const variants = [
+    { type: 'bad', repeat: index },
+    { type: 999, timestamp: index, asset: {} },
+    { type: transactionTypes.SEND, amount: -index - 1, asset: {} },
+    { type: transactionTypes.CHAT_MESSAGE, asset: { chat: { type: 99 } } }
+  ];
+
+  return variants[index % variants.length];
 }
 
 /**
@@ -938,6 +1435,39 @@ function recordTransactionRejection (context, rejections, label, result) {
     error: result.body && (result.body.error || result.body.message),
     body: result.body
   });
+}
+
+/**
+ * Classifies a rejected HTTP/API response for human-readable security reports.
+ * @param {object} result - HTTP client result.
+ */
+function classifyRejection (result) {
+  if (!result.ok) {
+    return {
+      rejectedBy: result.status === 0 ? 'transport' : 'http',
+      howRejected: result.error || ('HTTP status ' + result.status)
+    };
+  }
+
+  if (result.body && result.body.success === false) {
+    return {
+      rejectedBy: 'node validation',
+      howRejected: result.body.error || result.body.message || 'success=false'
+    };
+  }
+
+  return {
+    rejectedBy: 'unknown',
+    howRejected: 'empty or non-success response'
+  };
+}
+
+/**
+ * Clones a transaction-like JSON object for mutation in abuse checks.
+ * @param {object} transaction - Transaction object.
+ */
+function cloneTransaction (transaction) {
+  return JSON.parse(JSON.stringify(transaction));
 }
 
 /**

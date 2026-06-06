@@ -160,6 +160,7 @@ describe('live scenario runner utilities', () => {
     const transaction = transactions.createSendTransaction(account, recipient.address, 100000000);
     const chat = transactions.createChatTransaction(account, recipient.address, 3);
     const state = transactions.createStateTransaction(account, 'live-test-key', 'ok', 1);
+    const originalId = transaction.id;
     const fixture = transactions.publicFixtureAccount({
       secret: 'fixture secret',
       address: account.address,
@@ -186,6 +187,10 @@ describe('live scenario runner utilities', () => {
     expect(state.asset.state.type).to.equal(1);
     expect(transactions.getTransactionTypeName(8)).to.equal('CHAT_MESSAGE');
     expect(transactions.getChatMessageTypeName(3)).to.equal('SIGNAL_MESSAGE');
+    transaction.amount = 200000000;
+    transactions.resignTransaction(transaction, account);
+    expect(transaction.id).to.be.a('string');
+    expect(transaction.id).not.to.equal(originalId);
     expect(fixture).to.deep.equal({
       address: account.address,
       publicKey: account.publicKey,
@@ -241,6 +246,82 @@ describe('live scenario runner utilities', () => {
     expect(markdown).not.to.include('senderId');
   });
 
+  it('should render security abuse rejection details and overload summary', () => {
+    const markdown = report.renderMarkdownReport({
+      status: 'passed',
+      target: {
+        mode: 'testnet',
+        nodes: []
+      },
+      run: {
+        id: 'testnet-security',
+        startedAt: '2026-06-05T00:00:00.000Z',
+        finishedAt: '2026-06-05T00:01:00.000Z'
+      },
+      scenarios: [
+        {
+          id: 'transactions.abuse',
+          status: 'passed',
+          result: {
+            checks: [
+              {
+                id: 'chat-invalid-subtype',
+                type: 8,
+                typeName: 'CHAT_MESSAGE',
+                subtype: 99,
+                reason: 'Chat message subtype is outside the allowed range.',
+                rejectedBy: 'node validation',
+                howRejected: 'Invalid message type'
+              },
+              {
+                id: 'concurrent-unconfirmed-balance-overspend',
+                type: 0,
+                typeName: 'SEND',
+                reason: 'Three valid SEND transactions require more than the available balance.',
+                rejectedBy: 'block inclusion and confirmed balance',
+                howRejected: 'Admission accepted 3/3. Final chain state confirmed 2/3.',
+                transactions: [
+                  {
+                    id: 'tx-confirmed',
+                    state: 'confirmed',
+                    confirmations: 2,
+                    blockId: 'block-1'
+                  },
+                  {
+                    id: 'tx-unconfirmed',
+                    state: 'unconfirmed',
+                    confirmations: 0
+                  }
+                ],
+                passed: true
+              }
+            ],
+            overload: {
+              id: 'transaction-overload',
+              reason: 'Concurrent malformed transaction submissions must be rejected.',
+              total: 10,
+              concurrency: 2,
+              rejected: 10,
+              failed: 0,
+              throughputRps: 50
+            }
+          }
+        }
+      ],
+      metrics: {}
+    });
+
+    expect(markdown).to.include('## Security Abuse Details');
+    expect(markdown).to.include('chat-invalid-subtype: type CHAT_MESSAGE (8), subtype 99');
+    expect(markdown).to.include('Why: Chat message subtype is outside the allowed range.');
+    expect(markdown).to.include('Rejected by: node validation. How: Invalid message type');
+    expect(markdown).to.include('concurrent-unconfirmed-balance-overspend: type SEND (0)');
+    expect(markdown).to.include('Rejected by: block inclusion and confirmed balance.');
+    expect(markdown).to.include('tx-confirmed=confirmed, confirmations 2, block block-1');
+    expect(markdown).to.include('tx-unconfirmed=unconfirmed, confirmations 0');
+    expect(markdown).to.include('transaction-overload: Concurrent malformed transaction submissions must be rejected. Rejected 10/10, failed 0');
+  });
+
   it('should normalize transfer fixture arrays for transaction scenarios', () => {
     const genesisPassesPath = writeTempFile('genesisPasses.json', JSON.stringify({
       genesis: {
@@ -285,7 +366,9 @@ describe('live scenario runner utilities', () => {
   it('should normalize CLI options for testnet and localnet node modes', () => {
     const testnet = liveTest.normalizeOptions({
       mode: 'testnet',
-      node: ['127.0.0.1:36667', '127.0.0.1:36668']
+      node: ['127.0.0.1:36667', '127.0.0.1:36668'],
+      transactionOverloadCount: '60',
+      transactionOverloadConcurrency: '10'
     });
     const localnet = liveTest.normalizeOptions({
       mode: 'localnet',
@@ -294,6 +377,8 @@ describe('live scenario runner utilities', () => {
 
     expect(testnet.node).to.equal('127.0.0.1:36667');
     expect(testnet.nodes).to.deep.equal([]);
+    expect(testnet.transactionOverloadCount).to.equal(60);
+    expect(testnet.transactionOverloadConcurrency).to.equal(10);
     expect(localnet.node).to.equal(null);
     expect(localnet.nodes).to.deep.equal(['127.0.0.1:36670', '127.0.0.1:36671']);
   });

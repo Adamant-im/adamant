@@ -27,6 +27,8 @@ const DEFAULTS = {
   fundingAmount: 3200 * 100000000,
   transferAmount: 1 * 100000000,
   repeatedInvalidCount: 3,
+  transactionOverloadCount: 30,
+  transactionOverloadConcurrency: 6,
   genesisPasses: 'test/genesisPasses.json',
   testnetConfig: 'test/config.default.json'
 };
@@ -54,6 +56,8 @@ function configureProgram (program) {
       .option('--funding-amount <amount>', 'funding amount in internal ADM units', String(DEFAULTS.fundingAmount))
       .option('--transfer-amount <amount>', 'send amount in internal ADM units', String(DEFAULTS.transferAmount))
       .option('--repeated-invalid-count <count>', 'bounded repeated invalid transaction submissions', String(DEFAULTS.repeatedInvalidCount))
+      .option('--transaction-overload-count <count>', 'bounded invalid transaction overload submissions', String(DEFAULTS.transactionOverloadCount))
+      .option('--transaction-overload-concurrency <count>', 'bounded invalid transaction overload concurrency', String(DEFAULTS.transactionOverloadConcurrency))
       .option('--genesis-passes <path>', 'test genesis passphrase fixture path', DEFAULTS.genesisPasses)
       .option('--testnet-config <path>', 'testnet config path for fallback peer resolution', DEFAULTS.testnetConfig)
       .option('--config-overrides <path>', 'config override file to include in report metadata; repeatable', collectOption, [])
@@ -101,7 +105,8 @@ async function runLiveTests (input) {
         suite: scenario.suite,
         status: 'failed',
         durationMs: Date.now() - startedAt,
-        error: error.message
+        error: error.message,
+        result: error.result
       });
     }
   }
@@ -241,6 +246,8 @@ function normalizeOptions (input) {
     fundingAmount: parseNonNegativeInteger(input.fundingAmount, 'fundingAmount', DEFAULTS.fundingAmount),
     transferAmount: parseNonNegativeInteger(input.transferAmount, 'transferAmount', DEFAULTS.transferAmount),
     repeatedInvalidCount: parseNonNegativeInteger(input.repeatedInvalidCount, 'repeatedInvalidCount', DEFAULTS.repeatedInvalidCount),
+    transactionOverloadCount: parseNonNegativeInteger(input.transactionOverloadCount, 'transactionOverloadCount', DEFAULTS.transactionOverloadCount),
+    transactionOverloadConcurrency: parseNonNegativeInteger(input.transactionOverloadConcurrency, 'transactionOverloadConcurrency', DEFAULTS.transactionOverloadConcurrency),
     genesisPasses: input.genesisPasses || DEFAULTS.genesisPasses,
     testnetConfig: input.testnetConfig || DEFAULTS.testnetConfig,
     configOverrides: normalizeList(input.configOverrides),

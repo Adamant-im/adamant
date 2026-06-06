@@ -274,8 +274,8 @@ Available scenarios:
 | `api.rest` | `api` | `testnet`, `localnet` | Exercises client/explorer REST endpoints including node status, loader sync, blocks, transactions, delegates, peers, and fixture account balance. |
 | `api.websocket` | `api` | `testnet`, `localnet` | Connects to the client WebSocket endpoint and verifies a basic transaction type subscription. |
 | `consensus.activation` | `consensus` | `testnet`, `localnet` | Reports observed pre/post activation state for `fairSystem` and `spaceship`; in localnet mode, also checks basic node agreement. |
-| `transactions.happy-path` | `transactions` | `testnet`, `localnet` | Funds a fresh account from test genesis fixtures, then tries send, delegate registration, vote, unvote, chat, and state transactions. |
-| `transactions.abuse` | `security` | `testnet`, `localnet` | Runs bounded invalid signature, invalid amount, malformed payload, repeated invalid submission, duplicate transaction, and double-spend checks. |
+| `transactions.happy-path` | `transactions` | `testnet`, `localnet` | Exercises successful transaction types `0..9`, including vote/unvote, all chat subtypes, both state subtypes, second signature, multisignature, and the DApp registration/in-transfer/out-transfer lifecycle. |
+| `transactions.abuse` | `security` | `testnet`, `localnet` | Exercises malformed and abusive transactions across transaction types, duplicate admission, balance overspend, concurrent unconfirmed-balance accounting, repeated invalid submissions, and bounded transaction overload. |
 | `delegates.forging` | `forging` | `localnet` | Checks delegate, next-forger, and forging status APIs for each localnet node. |
 | `load.http` | `load` | `testnet`, `localnet` | Measures bounded `/api/node/status` latency and throughput with the selected normal profile. |
 | `load.stress` | `load` | `testnet`, `localnet` | Runs the opt-in overload profile. Requires `--unsafe-stress`. |
@@ -288,9 +288,19 @@ Stress and overload profiles are opt-in:
 npm run scenario:localnet -- --scenario load.stress --profile overload --unsafe-stress
 ```
 
-Each run writes a JSON report and a Markdown report under `reports/live-test/`. Reports include target metadata, node versions, selected scenarios, final scenario status, failure messages, latency and throughput measurements, activation-height metadata, localnet log references when available, and redacted config override metadata. If the CLI prints `Live scenarios failed.`, open the generated report paths printed by the command and inspect the failed scenario entries. Generated reports are ignored by git.
+The `transactions.abuse` scenario also includes a bounded malformed-transaction overload check. Its defaults can be changed without enabling the separate `load.stress` scenario:
 
-Transaction scenarios can use `test/genesisPasses.json` fixture accounts to fund fresh accounts and exercise sends, delegate registration, voting, unvoting, chat messages, state transactions, duplicate or invalid submissions, and malformed payloads. Fixture passphrases are test-only inputs and are redacted from reports.
+```sh
+npm run scenario:testnet -- --suite security \
+  --transaction-overload-count 60 \
+  --transaction-overload-concurrency 10
+```
+
+One balance-accounting check funds a fresh account with `2 ADM` and submits three valid type `0` transactions concurrently. Each sends `0.2 ADM` and pays the `0.5 ADM` send fee. The three transactions require `3 * (0.2 + 0.5) = 2.1 ADM`. All three may initially be admitted to the transaction pool, so the test follows every transaction by id instead of treating admission as confirmation. After block production settles, exactly two transactions must be included with at least two confirmations, the third must remain queued/unconfirmed or disappear from the pool, and the confirmed sender balance must be `0.6 ADM`. The security report records the final state, confirmation count, block id, and height for each submitted transaction.
+
+Each run writes a JSON report and a Markdown report under `reports/live-test/`. Reports include target metadata, node versions, selected scenarios, final scenario status, failure messages, latency and throughput measurements, activation-height metadata, localnet log references when available, and redacted config override metadata. Transaction reports list submitted transaction types and subtypes without payload details. Security reports list each abuse case, why it is invalid or abusive, which validation layer rejected it, and the returned rejection message. If the CLI prints `Live scenarios failed.`, open the generated report paths printed by the command and inspect the failed scenario entries. Generated reports are ignored by git.
+
+Transaction scenarios can use `test/genesisPasses.json` fixture accounts to fund fresh accounts and exercise all supported transaction types, duplicate or invalid submissions, concurrent balance accounting, and malformed payloads. Fixture passphrases are test-only inputs and are redacted from reports.
 
 ### Test commands
 

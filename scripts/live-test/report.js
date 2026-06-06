@@ -102,6 +102,16 @@ function renderMarkdownReport (report) {
     });
   }
 
+  const abuseRows = collectAbuseRows(report.scenarios);
+
+  if (abuseRows.length) {
+    lines.push('');
+    lines.push('## Security Abuse Details');
+    abuseRows.forEach(function (check) {
+      lines.push('- ' + formatAbuseRow(check));
+    });
+  }
+
   if (report.finalNodeStates && report.finalNodeStates.length) {
     lines.push('');
     lines.push('## Final Node State');
@@ -123,6 +133,34 @@ function renderMarkdownReport (report) {
   }
 
   return lines.join('\n') + '\n';
+}
+
+/**
+ * Collects security abuse check summaries from scenario result payloads.
+ * @param {Array<object>} scenarios - Scenario report entries.
+ */
+function collectAbuseRows (scenarios) {
+  const rows = [];
+
+  scenarios.forEach(function (scenario) {
+    const result = scenario.result || {};
+
+    (result.checks || []).forEach(function (check) {
+      rows.push(Object.assign({
+        scenarioId: scenario.id,
+        kind: 'check'
+      }, check));
+    });
+
+    if (result.overload) {
+      rows.push(Object.assign({
+        scenarioId: scenario.id,
+        kind: 'overload'
+      }, result.overload));
+    }
+  });
+
+  return rows;
 }
 
 /**
@@ -173,8 +211,63 @@ function formatTransactionRow (transaction) {
     transaction.outcome;
 }
 
+/**
+ * Formats one abuse report row with the reason and rejection result.
+ * @param {object} check - Abuse check metadata.
+ */
+function formatAbuseRow (check) {
+  if (check.kind === 'overload') {
+    return check.scenarioId +
+      ' - ' +
+      check.id +
+      ': ' +
+      check.reason +
+      ' Rejected ' +
+      check.rejected +
+      '/' +
+      check.total +
+      ', failed ' +
+      check.failed +
+      ', concurrency ' +
+      check.concurrency +
+      ', throughput ' +
+      check.throughputRps +
+      ' rps.';
+  }
+
+  const type = check.typeName ? ' type ' + check.typeName + ' (' + check.type + ')' : ' malformed payload';
+  const subtype = check.subtype === undefined ? '' : ', subtype ' + check.subtype;
+  const transactionStates = Array.isArray(check.transactions) ?
+    ' Transactions: ' + check.transactions.map(function (transaction) {
+      return transaction.id +
+        '=' +
+        transaction.state +
+        ', confirmations ' +
+        transaction.confirmations +
+        (transaction.blockId ? ', block ' + transaction.blockId : '');
+    }).join('; ') +
+    '.' :
+    '';
+
+  return check.scenarioId +
+    ' - ' +
+    check.id +
+    ':' +
+    type +
+    subtype +
+    '. Why: ' +
+    check.reason +
+    ' Rejected by: ' +
+    check.rejectedBy +
+    '. How: ' +
+    (check.howRejected || check.error || 'no details') +
+    transactionStates;
+}
+
 module.exports = {
+  collectAbuseRows,
   collectTransactionRows,
+  formatAbuseRow,
   formatTransactionRow,
   redactSensitive,
   renderMarkdownReport,
