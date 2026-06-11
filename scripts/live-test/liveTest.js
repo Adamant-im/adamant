@@ -47,6 +47,7 @@ function configureProgram (program) {
       .option('--profile <name>', 'load profile: baseline, sustained, high, overload', DEFAULTS.profile)
       .option('--http-stress', 'enable the opt-in HTTP stress scenario')
       .option('--txqueue-type0-stress', 'enable the opt-in type 0 transaction queue stress scenario')
+      .option('--txqueue-type8-stress', 'enable the opt-in type 8 transaction queue stress scenario')
       .option('--txqueue-all-stress', 'enable all opt-in transaction queue stress scenarios')
       .option('--timeout-ms <ms>', 'HTTP/WebSocket timeout', String(DEFAULTS.timeoutMs))
       .option('--ready-timeout-ms <ms>', 'node readiness timeout', String(DEFAULTS.readyTimeoutMs))
@@ -130,6 +131,7 @@ async function runLiveTests (input) {
       profile: options.profile,
       httpStress: options.httpStress,
       txqueueType0Stress: options.txqueueType0Stress,
+      txqueueType8Stress: options.txqueueType8Stress,
       txqueueAllStress: options.txqueueAllStress
     },
     configMetadata: context.configMetadata,
@@ -156,8 +158,9 @@ async function runLiveTests (input) {
  */
 async function collectFinalNodeStates (context) {
   const states = [];
+  const nodes = context.target.transactionObservationNodes || context.target.nodes;
 
-  for (const node of context.target.nodes) {
+  for (const node of nodes) {
     const client = context.clientFor(node);
     const status = await client.get('/api/node/status');
     const blocks = await client.get('/api/blocks?limit=1&orderBy=height:desc');
@@ -241,6 +244,7 @@ function normalizeOptions (input) {
     profile: input.profile || DEFAULTS.profile,
     httpStress: !!input.httpStress,
     txqueueType0Stress: !!input.txqueueType0Stress,
+    txqueueType8Stress: !!input.txqueueType8Stress,
     txqueueAllStress: !!input.txqueueAllStress,
     timeoutMs: parseNonNegativeInteger(input.timeoutMs, 'timeoutMs', DEFAULTS.timeoutMs),
     readyTimeoutMs: parseNonNegativeInteger(input.readyTimeoutMs, 'readyTimeoutMs', DEFAULTS.readyTimeoutMs),
@@ -413,6 +417,10 @@ function isStressScenarioEnabled (scenario, options) {
     return options.txqueueType0Stress || options.txqueueAllStress;
   }
 
+  if (scenario.stressFlag === '--txqueue-type8-stress') {
+    return options.txqueueType8Stress || options.txqueueAllStress;
+  }
+
   return false;
 }
 
@@ -426,7 +434,8 @@ function redactTarget (target) {
     source: target.source,
     manifestPath: target.manifestPath,
     configPath: target.configPath,
-    nodes: target.nodes
+    nodes: target.nodes,
+    transactionObservationNodes: target.transactionObservationNodes
   });
 }
 

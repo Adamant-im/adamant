@@ -174,7 +174,8 @@ function appendLoadDetails (lines, scenarios) {
   scenarios.forEach(function (scenario) {
     const result = scenario.result || {};
 
-    if (result.kind === 'type 0 transaction queue stress') {
+    if (result.kind === 'transaction queue stress' ||
+        result.kind === 'type 0 transaction queue stress') {
       appendTxQueueLoadDetails(lines, scenario);
       return;
     }
@@ -287,7 +288,7 @@ function appendLoadDetails (lines, scenarios) {
 }
 
 /**
- * Appends a type 0 transaction queue workload summary and per-node snapshots.
+ * Appends a transaction queue workload summary and per-node snapshots.
  * @param {Array<string>} lines - Markdown output lines.
  * @param {object} scenario - Transaction queue scenario report entry.
  */
@@ -297,6 +298,11 @@ function appendTxQueueLoadDetails (lines, scenario) {
   const transaction = result.transaction || {};
   const workload = result.workload || {};
   const sourceAccount = result.sourceAccount || {};
+  const confirmation = result.confirmation || {};
+  const blockchainTps = result.blockchainTps || {};
+  const confirmationNodes = (confirmation.nodes || []).filter(function (node) {
+    return node.id !== target.nodeId;
+  });
 
   lines.push('');
   lines.push('### ' + scenario.id);
@@ -310,19 +316,10 @@ function appendTxQueueLoadDetails (lines, scenario) {
       formatReportValue(target.nodeId) +
       ' at ' +
       formatReportValue(target.apiUrl) +
+      formatConfirmationTargets(confirmationNodes) +
       '.'
   );
-  lines.push(
-      '- Transaction: amount ' +
-      formatAdmValue(transaction.amountAdm) +
-      '; fee ' +
-      formatAdmValue(transaction.feeAdm) +
-      '; unique valid recipient per transaction ' +
-      formatReportValue(transaction.uniqueRecipientPerTransaction) +
-      '; sender ' +
-      formatReportValue(sourceAccount.address) +
-      '.'
-  );
+  lines.push('- Transaction: ' + formatTxQueueTransactionDetails(transaction, sourceAccount) + '.');
   lines.push(
       '- Workload: configured generation window ' +
       formatDuration(workload.configuredDurationMs) +
@@ -365,17 +362,121 @@ function appendTxQueueLoadDetails (lines, scenario) {
       '.'
   );
   lines.push(
+      '- Snapshot scope: pool counters are node-wide and include unrelated network traffic; ' +
+      'the accepted transaction confirmation rows below are filtered to IDs from this scenario.'
+  );
+  lines.push(
       '- Pool stages: queued transactions passed admission and wait for application; ' +
       'unconfirmed transactions are applied to temporary account state and eligible for a block; ' +
-      'multisignature transactions wait for required signatures; confirmed is the persisted chain total.'
+      'multisignature transactions wait for required signatures; confirmed is the total number persisted in blocks.'
   );
+  lines.push(
+      '- Accepted transaction confirmation: ' +
+      formatReportValue(confirmation.accepted) +
+      ' accepted IDs; complete on every observation node ' +
+      formatReportValue(confirmation.complete) +
+      '; waited ' +
+      formatDuration(confirmation.waitedMs) +
+      '; timeout ' +
+      formatDuration(confirmation.timeoutMs) +
+      '; searched from height ' +
+      formatReportValue(confirmation.fromHeight) +
+      '.'
+  );
+  lines.push('- Confirmation outcome: ' + formatConfirmationOutcome(confirmation) + '.');
+
+  (confirmation.nodes || []).forEach(function (node) {
+    lines.push(
+        '- Confirmation on ' +
+        formatReportValue(node.id) +
+        ': confirmed ' +
+        formatReportValue(node.confirmed) +
+        '/' +
+        formatReportValue(node.accepted) +
+        '; unconfirmed ' +
+        formatReportValue(node.unconfirmed) +
+        '; queued ' +
+        formatReportValue(node.queued) +
+        '; multisignature ' +
+        formatReportValue(node.multisignature) +
+        '; missing from public states ' +
+        formatReportValue(node.missing) +
+        '; API status ' +
+        (node.ok ? 'ok' : 'failed: ' + formatReportValue(node.error)) +
+        '.'
+    );
+  });
+
+  if (blockchainTps.available) {
+    lines.push('');
+    lines.push('#### Blockchain TPS');
+    lines.push('');
+    lines.push(
+        '- Observation: ' +
+        formatReportValue(blockchainTps.nodeId) +
+        '; heights ' +
+        formatHeightRange(blockchainTps.firstHeight, blockchainTps.lastHeight) +
+        '; blocks ' +
+        formatReportValue(blockchainTps.blocks) +
+        '; real block-time window ' +
+        formatReportValue(blockchainTps.observedSeconds) +
+        ' seconds.'
+    );
+    lines.push(
+        '- Confirmation coverage: confirmed ' +
+        formatReportValue(blockchainTps.confirmedTransactions) +
+        '/' +
+        formatReportValue(blockchainTps.acceptedTransactions) +
+        ' accepted stress transactions (' +
+        formatPercent(blockchainTps.confirmationCoveragePercent) +
+        '); missing ' +
+        formatReportValue(blockchainTps.missingTransactions) +
+        '; complete ' +
+        formatReportValue(blockchainTps.confirmationComplete) +
+        '.'
+    );
+    lines.push(
+        '- TPS: confirmed stress transactions ' +
+        formatReportValue(blockchainTps.acceptedStressTps) +
+        '; all blockchain transactions in the same blocks ' +
+        formatReportValue(blockchainTps.blockchainTps) +
+        '.'
+    );
+    lines.push(
+        '- Block data: confirmed stress transactions ' +
+        formatReportValue(
+            blockchainTps.confirmedStressTransactions === undefined ?
+              blockchainTps.acceptedStressTransactions :
+              blockchainTps.confirmedStressTransactions
+        ) +
+        '; all transactions ' +
+        formatReportValue(blockchainTps.blockchainTransactions) +
+        '; average ' +
+        formatReportValue(blockchainTps.averageTransactionsPerBlock) +
+        ' transactions/block; peak ' +
+        formatReportValue(blockchainTps.peakTransactionsPerBlock) +
+        '/' +
+        formatReportValue(blockchainTps.maxTransactionsPerBlock) +
+        '; observed capacity ' +
+        formatPercent(blockchainTps.observedBlockCapacityPercent) +
+        '.'
+    );
+    lines.push(
+        '- Method: TPS uses actual block timestamps and transaction counts from every block in the inclusive confirmation range; ' +
+        'one slot is included for the final block. When confirmation is incomplete, stress TPS covers only accepted ' +
+        'transactions still present in the final observed chain.'
+    );
+  } else {
+    lines.push('- Blockchain TPS: unavailable; ' + formatReportValue(blockchainTps.error) + '.');
+  }
+
   lines.push('');
   lines.push('#### Transaction Pool Snapshots');
   lines.push('');
   lines.push(
-      '| Phase | Offset | Node | API status | Height | Loaded | Syncing | Consensus | Confirmed | Queued | Unconfirmed | Multisignature |'
+      '| Phase | Offset | Node | API status | Height | Progress | Loaded | Syncing | Consensus | Confirmed | Queued | Unconfirmed | Multisignature |'
   );
-  lines.push('| --- | ---: | --- | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: |');
+  lines.push('| --- | ---: | --- | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: |');
 
   (result.snapshots || []).forEach(function (snapshot) {
     (snapshot.nodes || []).forEach(function (node) {
@@ -393,6 +494,8 @@ function appendTxQueueLoadDetails (lines, scenario) {
           (node.ok ? 'ok' : 'failed: ' + formatReportValue(node.error)) +
           ' | ' +
           formatReportValue(status.height) +
+          ' | ' +
+          formatTransactionProgress(node, snapshot, confirmation) +
           ' | ' +
           formatReportValue(status.loaded) +
           ' | ' +
@@ -438,6 +541,136 @@ function appendTxQueueLoadDetails (lines, scenario) {
       );
     });
   });
+}
+
+/**
+ * Formats transaction-type-specific queue workload metadata without payload contents.
+ * @param {object} transaction - Report-safe transaction metadata.
+ * @param {object} sourceAccount - Report-safe source account metadata.
+ */
+function formatTxQueueTransactionDetails (transaction, sourceAccount) {
+  const details = [
+    'amount ' + formatAdmValue(transaction.amountAdm)
+  ];
+
+  if (transaction.feeMinAdm !== undefined || transaction.feeMaxAdm !== undefined) {
+    details.push(
+        'observed fee range ' +
+        formatAdmValue(transaction.feeMinAdm).replace(/ ADM$/, '') +
+        '..' +
+        formatAdmValue(transaction.feeMaxAdm)
+    );
+  } else {
+    details.push('fee ' + formatAdmValue(transaction.feeAdm));
+  }
+
+  if (transaction.subtype !== undefined) {
+    details.push(
+        'subtype ' +
+        formatReportValue(transaction.subtypeName) +
+        ' (' +
+        formatReportValue(transaction.subtype) +
+        ')'
+    );
+  }
+
+  if (transaction.randomMessage) {
+    details.push(
+        'random message length ' +
+        formatReportValue(transaction.configuredMessageLengthMin) +
+        '..' +
+        formatReportValue(transaction.configuredMessageLengthMax) +
+        ' characters'
+    );
+    details.push(
+        'observed length ' +
+        formatReportValue(transaction.observedMessageLengthMin) +
+        '..' +
+        formatReportValue(transaction.observedMessageLengthMax) +
+        ', average ' +
+        formatReportValue(transaction.observedAverageMessageLength)
+    );
+    details.push('encoding ' + formatReportValue(transaction.messageEncoding));
+    details.push('payload contents omitted from reports');
+  }
+
+  details.push(
+      'unique valid recipient per transaction ' +
+      formatReportValue(transaction.uniqueRecipientPerTransaction)
+  );
+  details.push('sender ' + formatReportValue(sourceAccount.address));
+
+  return details.join('; ');
+}
+
+/**
+ * Formats confirmed scenario transaction IDs against recipient admission count.
+ * @param {object} node - Snapshot node result.
+ * @param {object} snapshot - Snapshot containing the observation phase.
+ * @param {object} confirmation - Final confirmation summary used for legacy report fallback.
+ */
+function formatTransactionProgress (node, snapshot, confirmation) {
+  const progress = node.progress || {};
+
+  if (progress.confirmed !== undefined &&
+      progress.confirmed !== null &&
+      progress.accepted !== undefined &&
+      progress.accepted !== null) {
+    return progress.confirmed + '/' + progress.accepted;
+  }
+
+  if (snapshot.phase === 'before' && confirmation.accepted !== undefined) {
+    return '0/' + confirmation.accepted;
+  }
+
+  if (['after-confirmed', 'after-settled-missing', 'confirmation-timeout'].includes(snapshot.phase)) {
+    const confirmationNode = (confirmation.nodes || []).find(function (candidate) {
+      return candidate.id === node.id;
+    });
+
+    if (confirmationNode) {
+      return confirmationNode.confirmed + '/' + confirmationNode.accepted;
+    }
+  }
+
+  return 'n/a/' + formatReportValue(confirmation.accepted);
+}
+
+/**
+ * Formats additional nodes used to verify block inclusion.
+ * @param {Array<object>} nodes - Confirmation node summaries.
+ */
+function formatConfirmationTargets (nodes) {
+  if (!nodes.length) {
+    return '';
+  }
+
+  return ' and confirmed on ' + nodes.map(function (node) {
+    return formatReportValue(node.id) + ' at ' + formatReportValue(node.apiUrl);
+  }).join(', ');
+}
+
+/**
+ * Formats the distinction between pending confirmation and settled missing transactions.
+ * @param {object} confirmation - Public confirmation summary.
+ */
+function formatConfirmationOutcome (confirmation) {
+  if (confirmation.outcome === 'confirmed') {
+    return 'all accepted transactions are included in blocks on every observation node';
+  }
+
+  if (confirmation.outcome === 'missing-after-settlement') {
+    return 'all observed public pools are empty, but ' +
+      formatReportValue(confirmation.missingAfterSettlement) +
+      ' accepted transactions are absent from both the final chain and public pools; ' +
+      'they are not pending and may have been orphaned or dropped';
+  }
+
+  return 'confirmation timed out with up to ' +
+    formatReportValue(confirmation.maxPending) +
+    ' accepted transactions still visible in public pools and up to ' +
+    formatReportValue(confirmation.maxMissing) +
+    ' not visible in the observed chain or public pools';
 }
 
 /**
@@ -853,6 +1086,8 @@ module.exports = {
   collectTransactionRows,
   formatAbuseRow,
   formatAdmValue,
+  formatConfirmationOutcome,
+  formatConfirmationTargets,
   formatDuration,
   formatHeightRange,
   formatList,
@@ -864,6 +1099,7 @@ module.exports = {
   formatReportValue,
   formatStatusCodes,
   formatThreshold,
+  formatTransactionProgress,
   formatTransactionRow,
   redactSensitive,
   renderMarkdownReport,

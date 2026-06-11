@@ -55,6 +55,80 @@ describe('live scenario runner utilities', () => {
     expect(() => target.normalizeEndpoint('127.0.0.1')).to.throw(/expected host:port/);
   });
 
+  it('should use the third configured testnet peer for transaction observation', () => {
+    const recipient = target.normalizeEndpoint('127.0.0.1:36667', { id: 'node-recipient' });
+    const peer = target.resolveTestnetObservationPeer(testDefaultConfig, recipient, 'test/config.default.json');
+
+    expect(peer).to.include({
+      id: 'node-peer',
+      host: testDefaultConfig.peers.list[2].ip,
+      port: testDefaultConfig.peers.list[2].port
+    });
+
+    const explicitThirdPeer = target.normalizeEndpoint(
+        testDefaultConfig.peers.list[2].ip + ':' + testDefaultConfig.peers.list[2].port,
+        { id: 'node-recipient' }
+    );
+    const distinctPeer = target.resolveTestnetObservationPeer(
+        testDefaultConfig,
+        explicitThirdPeer,
+        'test/config.default.json'
+    );
+
+    expect(distinctPeer.apiUrl).not.to.equal(explicitThirdPeer.apiUrl);
+  });
+
+  it('should collect final state from every transaction observation node', async () => {
+    const nodes = [
+      { id: 'node-recipient', apiUrl: 'http://recipient.test' },
+      { id: 'node-peer', apiUrl: 'http://peer.test' }
+    ];
+    const states = await liveTest.collectFinalNodeStates({
+      target: {
+        nodes: [nodes[0]],
+        transactionObservationNodes: nodes
+      },
+      clientFor: function (node) {
+        return {
+          get: async function (requestPath) {
+            if (requestPath === '/api/node/status') {
+              return {
+                ok: true,
+                body: {
+                  success: true,
+                  network: {
+                    height: node.id === 'node-recipient' ? 100 : 101,
+                    broadhash: node.id + '-broadhash',
+                    nethash: 'testnet-nethash'
+                  },
+                  version: '0.9.0'
+                }
+              };
+            }
+
+            return {
+              body: {
+                blocks: [
+                  {
+                    id: node.id + '-block',
+                    height: node.id === 'node-recipient' ? 100 : 101
+                  }
+                ]
+              }
+            };
+          }
+        };
+      }
+    });
+
+    expect(states.map((state) => state.id)).to.deep.equal(['node-recipient', 'node-peer']);
+    expect(states[1]).to.include({
+      apiUrl: 'http://peer.test',
+      blockId: 'node-peer-block',
+      height: 101
+    });
+  });
+
   it('should select non-stress scenarios by suite unless stress is explicitly enabled', () => {
     const regular = scenarios.selectScenarios({
       suites: ['load'],
@@ -62,6 +136,7 @@ describe('live scenario runner utilities', () => {
       all: false,
       httpStress: false,
       txqueueType0Stress: false,
+      txqueueType8Stress: false,
       txqueueAllStress: false
     }, 'localnet');
     const httpStress = scenarios.selectScenarios({
@@ -70,6 +145,7 @@ describe('live scenario runner utilities', () => {
       all: false,
       httpStress: true,
       txqueueType0Stress: false,
+      txqueueType8Stress: false,
       txqueueAllStress: false
     }, 'localnet');
     const type0Stress = scenarios.selectScenarios({
@@ -78,6 +154,16 @@ describe('live scenario runner utilities', () => {
       all: false,
       httpStress: false,
       txqueueType0Stress: true,
+      txqueueType8Stress: false,
+      txqueueAllStress: false
+    }, 'localnet');
+    const type8Stress = scenarios.selectScenarios({
+      suites: ['load'],
+      scenarios: [],
+      all: false,
+      httpStress: false,
+      txqueueType0Stress: false,
+      txqueueType8Stress: true,
       txqueueAllStress: false
     }, 'localnet');
     const allTxQueueStress = scenarios.selectScenarios({
@@ -86,13 +172,60 @@ describe('live scenario runner utilities', () => {
       all: false,
       httpStress: false,
       txqueueType0Stress: false,
+      txqueueType8Stress: false,
       txqueueAllStress: true
     }, 'localnet');
 
     expect(regular.map((scenario) => scenario.id)).to.deep.equal(['load.http']);
     expect(httpStress.map((scenario) => scenario.id)).to.deep.equal(['load.http', 'load.httpstress']);
     expect(type0Stress.map((scenario) => scenario.id)).to.deep.equal(['load.http', 'load.txqueue-type0']);
-    expect(allTxQueueStress.map((scenario) => scenario.id)).to.deep.equal(['load.http', 'load.txqueue-type0']);
+    expect(type8Stress.map((scenario) => scenario.id)).to.deep.equal(['load.http', 'load.txqueue-type8']);
+    expect(allTxQueueStress.map((scenario) => scenario.id)).to.deep.equal([
+      'load.http',
+      'load.txqueue-type0',
+      'load.txqueue-type8'
+    ]);
+  });
+
+  it('should query confirmed queue transactions using the scenario transaction type', async () => {
+    const requestedPaths = [];
+    const state = await scenarios.collectAcceptedTransactionStates(
+        {
+          clientFor: function () {
+            return {
+              get: async function (requestPath) {
+                requestedPaths.push(requestPath);
+                return {
+                  ok: true,
+                  latencyMs: 1,
+                  body: {
+                    success: true,
+                    count: 0,
+                    transactions: []
+                  }
+                };
+              }
+            };
+          },
+          metrics: {
+            latency: function () {}
+          }
+        },
+        {
+          id: 'node-1',
+          apiUrl: 'http://127.0.0.1:36667'
+        },
+        'U1',
+        'public-key',
+        new Set(['transaction-id']),
+        100,
+        8,
+        false
+    );
+
+    expect(state.ok).to.equal(true);
+    expect(requestedPaths).to.have.length(1);
+    expect(requestedPaths[0]).to.include('type=8');
   });
 
   it('should redact secrets in reports recursively', () => {
@@ -230,6 +363,11 @@ describe('live scenario runner utilities', () => {
     const recipient = transactions.createAccount();
     const transaction = transactions.createSendTransaction(account, recipient.address, 100000000);
     const chat = transactions.createChatTransaction(account, recipient.address, 3);
+    const longChatMessage = 'a'.repeat(1000);
+    const longChat = transactions.createChatTransaction(account, recipient.address, 1, {
+      message: Buffer.from(longChatMessage).toString('hex'),
+      ownMessage: Buffer.from(longChatMessage).toString('hex')
+    });
     const state = transactions.createStateTransaction(account, 'live-test-key', 'ok', 1);
     const originalId = transaction.id;
     const fixture = transactions.publicFixtureAccount({
@@ -251,6 +389,8 @@ describe('live scenario runner utilities', () => {
       recipientId: recipient.address
     });
     expect(chat.asset.chat.type).to.equal(3);
+    expect(Buffer.from(longChat.asset.chat.message, 'hex').toString()).to.equal(longChatMessage);
+    expect(longChat.fee).to.equal(200000);
     expect(state).to.include({
       type: 9,
       recipientId: null
@@ -258,6 +398,8 @@ describe('live scenario runner utilities', () => {
     expect(state.asset.state.type).to.equal(1);
     expect(transactions.getTransactionTypeName(8)).to.equal('CHAT_MESSAGE');
     expect(transactions.getChatMessageTypeName(3)).to.equal('SIGNAL_MESSAGE');
+    expect(scenarios.createRandomChatMessage(1)).to.match(/^[A-Za-z0-9]$/);
+    expect(scenarios.createRandomChatMessage(1000)).to.match(/^[A-Za-z0-9]{1000}$/);
     transaction.amount = 200000000;
     transactions.resignTransaction(transaction, account);
     expect(transaction.id).to.be.a('string');
@@ -270,6 +412,32 @@ describe('live scenario runner utilities', () => {
       amount: undefined
     });
     expect(JSON.stringify(fixture)).not.to.include('fixture secret');
+  });
+
+  it('should create valid type 8 queue transactions with bounded random payloads', () => {
+    const account = transactions.createAccount();
+    const details = {
+      messageLengthMin: null,
+      messageLengthMax: null,
+      messageLengthTotal: 0,
+      feeMin: null,
+      feeMax: null
+    };
+    const transaction = scenarios.createTxQueueTransaction(account, 8, details);
+    const message = Buffer.from(transaction.asset.chat.message, 'hex').toString();
+    const ownMessage = Buffer.from(transaction.asset.chat.own_message, 'hex').toString();
+
+    expect(transaction.type).to.equal(8);
+    expect(transaction.asset.chat.type).to.equal(1);
+    expect(transaction.recipientId).to.match(/^U[0-9]+$/);
+    expect(message).to.match(/^[A-Za-z0-9]{1,1000}$/);
+    expect(ownMessage).to.have.length(message.length);
+    expect(transaction.fee).to.be.oneOf([100000, 200000]);
+    expect(details.messageLengthMin).to.equal(message.length);
+    expect(details.messageLengthMax).to.equal(message.length);
+    expect(details.messageLengthTotal).to.equal(message.length);
+    expect(details.feeMin).to.equal(transaction.fee);
+    expect(details.feeMax).to.equal(transaction.fee);
   });
 
   it('should render accepted and expected-failed transaction summaries in Markdown reports', () => {
@@ -623,6 +791,64 @@ describe('live scenario runner utilities', () => {
                 'Transaction pool is full': 200
               }
             },
+            confirmation: {
+              complete: true,
+              outcome: 'confirmed',
+              poolsDrained: true,
+              maxPending: 0,
+              maxMissing: 0,
+              missingAfterSettlement: 0,
+              accepted: 1000,
+              waitedMs: 205000,
+              timeoutMs: 260000,
+              fromHeight: 101,
+              nodes: [
+                {
+                  id: 'node-1',
+                  apiUrl: 'http://127.0.0.1:36670',
+                  ok: true,
+                  accepted: 1000,
+                  confirmed: 1000,
+                  unconfirmed: 0,
+                  queued: 0,
+                  multisignature: 0,
+                  missing: 0
+                },
+                {
+                  id: 'node-peer',
+                  apiUrl: 'http://127.0.0.1:36672',
+                  ok: true,
+                  accepted: 1000,
+                  confirmed: 1000,
+                  unconfirmed: 0,
+                  queued: 0,
+                  multisignature: 0,
+                  missing: 0
+                }
+              ]
+            },
+            blockchainTps: {
+              available: true,
+              nodeId: 'node-recipient',
+              firstHeight: 101,
+              lastHeight: 140,
+              observedSeconds: 200,
+              blocks: 40,
+              confirmationComplete: true,
+              acceptedTransactions: 1000,
+              confirmedTransactions: 1000,
+              missingTransactions: 0,
+              confirmationCoveragePercent: 100,
+              confirmedStressTransactions: 1000,
+              acceptedStressTransactions: 1000,
+              blockchainTransactions: 1000,
+              acceptedStressTps: 5,
+              blockchainTps: 5,
+              averageTransactionsPerBlock: 25,
+              peakTransactionsPerBlock: 25,
+              maxTransactionsPerBlock: 25,
+              observedBlockCapacityPercent: 100
+            },
             publicPoolCategories: ['confirmed', 'queued', 'unconfirmed', 'multisignature'],
             unavailablePoolCategories: ['bundled'],
             snapshots: [
@@ -649,6 +875,10 @@ describe('live scenario runner utilities', () => {
                       queued: 0,
                       unconfirmed: 0,
                       multisignature: 0
+                    },
+                    progress: {
+                      confirmed: 0,
+                      accepted: 1000
                     }
                   }
                 ]
@@ -676,6 +906,41 @@ describe('live scenario runner utilities', () => {
                       queued: 975,
                       unconfirmed: 25,
                       multisignature: 0
+                    },
+                    progress: {
+                      confirmed: 50,
+                      accepted: 1000
+                    }
+                  }
+                ]
+              },
+              {
+                phase: 'after-confirmed',
+                offsetMs: 205000,
+                nodes: [
+                  {
+                    id: 'node-peer',
+                    ok: true,
+                    status: {
+                      version: '0.9.0, commit def',
+                      loaded: true,
+                      syncing: false,
+                      consensus: 100,
+                      height: 140,
+                      nethash: 'nethash',
+                      broadhash: 'confirmed-broadhash',
+                      feeAdm: '0.5',
+                      rewardAdm: '0'
+                    },
+                    transactions: {
+                      confirmed: 1015,
+                      queued: 0,
+                      unconfirmed: 0,
+                      multisignature: 0
+                    },
+                    progress: {
+                      confirmed: 1000,
+                      accepted: 1000
                     }
                   }
                 ]
@@ -684,19 +949,182 @@ describe('live scenario runner utilities', () => {
           }
         }
       ],
+      finalNodeStates: [
+        {
+          id: 'node-recipient',
+          height: 140,
+          blockId: 'recipient-block',
+          broadhash: 'final-broadhash'
+        },
+        {
+          id: 'node-peer',
+          height: 140,
+          blockId: 'peer-block',
+          broadhash: 'final-broadhash'
+        }
+      ],
       metrics: {}
     });
 
     expect(markdown).to.include('### load.txqueue-type0');
-    expect(markdown).to.include('valid SEND (0) transactions');
+    expect(markdown).to.include(
+        'valid SEND (0) transactions to node-1 at http://127.0.0.1:36670 and ' +
+        'confirmed on node-peer at http://127.0.0.1:36672'
+    );
     expect(markdown).to.include('amount 1 ADM; fee 0.5 ADM');
     expect(markdown).to.include('configured generation window 16000 ms');
     expect(markdown).to.include('generated 1200; accepted 1000; rejected 200');
     expect(markdown).to.include('Transaction pool is full=200');
     expect(markdown).to.include('unavailable through the public count API bundled');
+    expect(markdown).to.include('pool counters are node-wide and include unrelated network traffic');
+    expect(markdown).to.include('complete on every observation node true');
+    expect(markdown).to.include(
+        'Confirmation outcome: all accepted transactions are included in blocks on every observation node'
+    );
+    expect(markdown).to.include(
+        'Confirmation on node-peer: confirmed 1000/1000; unconfirmed 0; queued 0; multisignature 0; missing from public states 0'
+    );
+    expect(markdown).to.include('#### Blockchain TPS');
+    expect(markdown).to.include('confirmed 1000/1000 accepted stress transactions (100%); missing 0; complete true');
+    expect(markdown).to.include('confirmed stress transactions 5; all blockchain transactions in the same blocks 5');
     expect(markdown).to.include('#### Transaction Pool Snapshots');
-    expect(markdown).to.include('| immediate | 0 ms | node-1 | ok | 101 | true | false | 100% | 35 | 975 | 25 | 0 |');
+    expect(markdown).to.include(
+        '| immediate | 0 ms | node-1 | ok | 101 | 50/1000 | true | false | 100% | 35 | 975 | 25 | 0 |'
+    );
+    expect(markdown).to.include(
+        '| after-confirmed | 205000 ms | node-peer | ok | 140 | 1000/1000 | true | false | 100% | 1015 | 0 | 0 | 0 |'
+    );
     expect(markdown).to.include('immediate, node-1: version 0.9.0, commit abc');
+    expect(markdown).to.include('- node-peer: height 140, block peer-block, broadhash final-broadhash');
+  });
+
+  it('should render type 8 queue payload ranges without message contents', () => {
+    const markdown = report.renderMarkdownReport({
+      status: 'passed',
+      target: {
+        mode: 'testnet',
+        nodes: []
+      },
+      run: {
+        id: 'testnet-txqueue-type8',
+        startedAt: '2026-06-11T00:00:00.000Z',
+        finishedAt: '2026-06-11T00:01:00.000Z'
+      },
+      scenarios: [
+        {
+          id: 'load.txqueue-type8',
+          suite: 'load',
+          status: 'passed',
+          durationMs: 46000,
+          result: {
+            kind: 'transaction queue stress',
+            target: {
+              nodeId: 'node-recipient',
+              apiUrl: 'http://127.0.0.1:36667'
+            },
+            sourceAccount: {
+              address: 'U1',
+              publicKey: 'public-key'
+            },
+            transaction: {
+              type: 8,
+              typeName: 'CHAT_MESSAGE',
+              subtype: 1,
+              subtypeName: 'ORDINARY_MESSAGE',
+              amountAdm: '0',
+              feeMinAdm: '0.001',
+              feeMaxAdm: '0.002',
+              uniqueRecipientPerTransaction: true,
+              randomMessage: true,
+              configuredMessageLengthMin: 1,
+              configuredMessageLengthMax: 1000,
+              observedMessageLengthMin: 2,
+              observedMessageLengthMax: 999,
+              observedAverageMessageLength: 501.25,
+              messageEncoding: 'printable ASCII encoded as hex',
+              payloadIncludedInReport: false
+            },
+            workload: {
+              configuredDurationMs: 16000,
+              actualDurationMs: 16010,
+              concurrency: 20,
+              artificialDelayMs: 0,
+              generated: 900,
+              accepted: 900,
+              rejected: 0,
+              transportFailures: 0,
+              httpFailures: 0,
+              generationRatePerSecond: 56.21,
+              acceptedRatePerSecond: 56.21,
+              statusCodes: { 200: 900 },
+              rejectionReasons: {}
+            },
+            confirmation: {
+              complete: true,
+              outcome: 'confirmed',
+              accepted: 900,
+              waitedMs: 180000,
+              timeoutMs: 240000,
+              fromHeight: 100,
+              nodes: []
+            },
+            blockchainTps: {
+              available: false,
+              error: 'test fixture omits blocks'
+            },
+            publicPoolCategories: ['confirmed', 'queued', 'unconfirmed', 'multisignature'],
+            unavailablePoolCategories: ['bundled'],
+            snapshots: []
+          }
+        }
+      ],
+      finalNodeStates: [],
+      metrics: {}
+    });
+
+    expect(markdown).to.include('### load.txqueue-type8');
+    expect(markdown).to.include('valid CHAT_MESSAGE (8) transactions to node-recipient');
+    expect(markdown).to.include('observed fee range 0.001..0.002 ADM');
+    expect(markdown).to.include('subtype ORDINARY_MESSAGE (1)');
+    expect(markdown).to.include('random message length 1..1000 characters');
+    expect(markdown).to.include('observed length 2..999, average 501.25');
+    expect(markdown).to.include('payload contents omitted from reports');
+    expect(markdown).not.to.include('own_message');
+  });
+
+  it('should classify drained pools with missing accepted transactions as settled loss', () => {
+    const outcome = scenarios.summarizeConfirmationOutcome({
+      complete: false,
+      nodes: [
+        {
+          ok: true,
+          confirmed: 956,
+          unconfirmed: 0,
+          queued: 0,
+          multisignature: 0,
+          missing: 60
+        },
+        {
+          ok: true,
+          confirmed: 956,
+          unconfirmed: 0,
+          queued: 0,
+          multisignature: 0,
+          missing: 60
+        }
+      ]
+    });
+
+    expect(outcome).to.deep.equal({
+      outcome: 'missing-after-settlement',
+      poolsDrained: true,
+      maxPending: 0,
+      maxMissing: 60,
+      missingAfterSettlement: 60
+    });
+    expect(report.formatConfirmationOutcome(outcome)).to.include(
+        '60 accepted transactions are absent from both the final chain and public pools'
+    );
   });
 
   it('should render security abuse rejection details and overload summary', () => {
@@ -821,6 +1249,7 @@ describe('live scenario runner utilities', () => {
       mode: 'testnet',
       node: ['127.0.0.1:36667', '127.0.0.1:36668'],
       httpStress: true,
+      txqueueType8Stress: true,
       txqueueAllStress: true,
       transactionOverloadCount: '60',
       transactionOverloadConcurrency: '10'
@@ -836,6 +1265,7 @@ describe('live scenario runner utilities', () => {
     expect(testnet.transactionOverloadConcurrency).to.equal(10);
     expect(testnet.httpStress).to.equal(true);
     expect(testnet.txqueueType0Stress).to.equal(false);
+    expect(testnet.txqueueType8Stress).to.equal(true);
     expect(testnet.txqueueAllStress).to.equal(true);
     expect(localnet.node).to.equal(null);
     expect(localnet.nodes).to.deep.equal(['127.0.0.1:36670', '127.0.0.1:36671']);

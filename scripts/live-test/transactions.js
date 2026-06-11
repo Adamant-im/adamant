@@ -144,24 +144,44 @@ function createVoteTransaction (account, votes) {
  * @param {object} account - Sender account.
  * @param {string} recipientId - Recipient address.
  * @param {number} [messageType] - Chat message asset subtype.
+ * @param {object} [payload] - Optional hex-encoded message fields.
+ * @param {string} [payload.message] - Recipient message encoded as hex.
+ * @param {string} [payload.ownMessage] - Sender message copy encoded as hex.
  */
-function createChatTransaction (account, recipientId, messageType) {
+function createChatTransaction (account, recipientId, messageType, payload) {
   const transaction = createBasicTransaction(transactionTypes.CHAT_MESSAGE, account);
+  const chatPayload = payload || {};
+  const message = chatPayload.message || crypto.randomBytes(16).toString('hex');
 
   transaction.recipientId = recipientId;
-  transaction.fee = messageType === transactionTypes.CHAT_MESSAGE_TYPES.LEGACY_MESSAGE ?
-    FEES.old_chat_message :
-    FEES.chat_message;
+  transaction.fee = calculateChatFee(message, messageType);
   transaction.asset = {
     chat: {
-      message: crypto.randomBytes(16).toString('hex'),
-      own_message: crypto.randomBytes(16).toString('hex'),
+      message,
+      own_message: chatPayload.ownMessage === undefined ?
+        crypto.randomBytes(16).toString('hex') :
+        chatPayload.ownMessage,
       type: messageType === undefined ? transactionTypes.CHAT_MESSAGE_TYPES.ORDINARY_MESSAGE : messageType
     }
   };
   signAndId(transaction, account);
 
   return transaction;
+}
+
+/**
+ * Calculates the protocol chat fee from the decoded message byte length.
+ * @param {string} message - Hex-encoded recipient message.
+ * @param {number} [messageType] - Chat message asset subtype.
+ */
+function calculateChatFee (message, messageType) {
+  const messageBytes = Buffer.from(message, 'hex').length;
+  const feeMultiplier = Math.max(Math.floor((messageBytes * 100 / 150) / 255), 1);
+  const fee = messageType === transactionTypes.CHAT_MESSAGE_TYPES.LEGACY_MESSAGE ?
+    FEES.old_chat_message :
+    FEES.chat_message;
+
+  return feeMultiplier * fee;
 }
 
 /**

@@ -30,10 +30,10 @@ async function resolveTestnetTarget (options) {
   let selected;
 
   if (options.node) {
-    selected = normalizeEndpoint(options.node, { id: 'testnet-node' });
+    selected = normalizeEndpoint(options.node, { id: 'node-recipient' });
   } else {
     const local = normalizeEndpoint(config.address + ':' + config.port, {
-      id: 'local-testnet',
+      id: 'node-recipient',
       host: config.address === '0.0.0.0' ? '127.0.0.1' : config.address,
       port: config.port
     });
@@ -49,19 +49,55 @@ async function resolveTestnetTarget (options) {
       }
 
       selected = normalizeEndpoint(firstPeer.ip + ':' + firstPeer.port, {
-        id: 'configured-testnet-peer'
+        id: 'node-recipient'
       });
     }
   }
 
-  selected = await enrichNodeFromStatus(selected, options.timeoutMs);
+  const peer = resolveTestnetObservationPeer(config, selected, configPath);
+  const observationNodes = await Promise.all([
+    enrichNodeFromStatus(selected, options.timeoutMs),
+    enrichNodeFromStatus(peer, options.timeoutMs)
+  ]);
 
   return {
     mode: 'testnet',
-    source: options.node ? 'explicit-node' : selected.id,
+    source: options.node ? 'explicit-node' : 'testnet-config',
     configPath,
-    nodes: [selected]
+    nodes: [observationNodes[0]],
+    transactionObservationNodes: observationNodes
   };
+}
+
+/**
+ * Resolves the third configured testnet peer used to observe transaction propagation.
+ * @param {object} config - Parsed testnet configuration.
+ * @param {object} recipientNode - Node that receives submitted transactions.
+ * @param {string} configPath - Configuration path used in error messages.
+ */
+function resolveTestnetObservationPeer (config, recipientNode, configPath) {
+  const configuredPeers = config.peers && config.peers.list;
+
+  if (!configuredPeers || configuredPeers.length < 3) {
+    throw Error('No third fallback peer found in ' + configPath + ' for node-peer observation.');
+  }
+
+  const preferredPeers = [configuredPeers[2]].concat(configuredPeers.filter(function (peer, index) {
+    return index !== 2;
+  }));
+  const peer = preferredPeers.map(function (configuredPeer) {
+    return normalizeEndpoint(configuredPeer.ip + ':' + configuredPeer.port, {
+      id: 'node-peer'
+    });
+  }).find(function (candidate) {
+    return candidate.apiUrl !== recipientNode.apiUrl;
+  });
+
+  if (!peer) {
+    throw Error('No configured peer differs from node-recipient in ' + configPath + '.');
+  }
+
+  return peer;
 }
 
 /**
@@ -230,5 +266,6 @@ module.exports = {
   parsePort,
   resolveLocalnetTarget,
   resolveTarget,
+  resolveTestnetObservationPeer,
   resolveTestnetTarget
 };
