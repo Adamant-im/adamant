@@ -722,6 +722,155 @@ describe('live scenario runner utilities', () => {
     });
   });
 
+  it('should select recipient and peer roles for consensus checks in both modes', () => {
+    /**
+     * Mirrors the runner assertion helper for node-selection unit tests.
+     * @param {boolean} condition - Assertion result.
+     * @param {string} message - Failure message.
+     */
+    const assert = function (condition, message) {
+      if (!condition) {
+        throw Error(message);
+      }
+    };
+    const testnetNodes = scenarios.getConsensusObservationNodes({
+      target: {
+        mode: 'testnet',
+        transactionObservationNodes: [
+          { id: 'selected', apiUrl: 'http://node-1' },
+          { id: 'third-config-peer', apiUrl: 'http://node-3' }
+        ]
+      },
+      assert
+    });
+    const localnetNodes = scenarios.getConsensusObservationNodes({
+      target: {
+        mode: 'localnet',
+        nodes: [
+          { id: 'node-1', apiUrl: 'http://node-1' },
+          { id: 'node-2', apiUrl: 'http://node-2' },
+          { id: 'node-3', apiUrl: 'http://node-3' }
+        ]
+      },
+      assert
+    });
+
+    expect(testnetNodes.map((node) => node.id)).to.deep.equal(['selected', 'third-config-peer']);
+    expect(testnetNodes.map((node) => node.consensusRole)).to.deep.equal(['node-recipient', 'node-peer']);
+    expect(localnetNodes.map((node) => node.id)).to.deep.equal(['node-1', 'node-2']);
+    expect(localnetNodes.map((node) => node.consensusRole)).to.deep.equal(['node-recipient', 'node-peer']);
+  });
+
+  it('should verify fairSystem ranking and spaceship timestamp evidence', () => {
+    const definitions = scenarios.buildConsensusActivationDefinitions();
+    const fairSystem = scenarios.buildConsensusActivationObservation(
+        definitions.find((definition) => definition.name === 'fairSystem'),
+        {
+          name: 'fairSystem',
+          activationHeight: 10,
+          state: 'active',
+          distance: -10
+        },
+        [
+          {
+            publicKey: 'a',
+            votesWeight: '500',
+            vote: '800',
+            approval: 50
+          },
+          {
+            publicKey: 'b',
+            votesWeight: '300',
+            vote: '100',
+            approval: 30
+          }
+        ],
+        [],
+        1000
+    );
+    const spaceship = scenarios.buildConsensusActivationObservation(
+        definitions.find((definition) => definition.name === 'spaceship'),
+        {
+          name: 'spaceship',
+          activationHeight: 20,
+          state: 'active',
+          distance: -1
+        },
+        [],
+        [
+          {
+            timestamp: 100,
+            timestampMs: 100999
+          }
+        ],
+        1000
+    );
+
+    expect(fairSystem).to.include({
+      state: 'active',
+      passed: true
+    });
+    expect(fairSystem.evidence).to.include({
+      rankingField: 'votesWeight',
+      sorted: true,
+      approvalChecked: 2,
+      approvalMismatches: 0
+    });
+    expect(spaceship).to.include({
+      state: 'active',
+      passed: true
+    });
+    expect(spaceship.evidence).to.include({
+      timestampMsPresent: 1,
+      timestampMsMissing: 0,
+      invalidTimestampMs: 0,
+      expectedPresence: true
+    });
+  });
+
+  it('should compare equal-height consensus observations strictly', () => {
+    const nodes = [
+      {
+        role: 'node-recipient',
+        height: 100,
+        nethash: 'network',
+        broadhash: 'head',
+        latestBlock: { id: 'block' },
+        delegates: { orderChecksum: 'delegates' },
+        activations: [{ state: 'active' }, { state: 'inactive' }]
+      },
+      {
+        role: 'node-peer',
+        height: 100,
+        nethash: 'network',
+        broadhash: 'head',
+        latestBlock: { id: 'block' },
+        delegates: { orderChecksum: 'delegates' },
+        activations: [{ state: 'active' }, { state: 'inactive' }]
+      }
+    ];
+    const agreement = scenarios.buildConsensusAgreement(nodes, 2);
+
+    expect(agreement).to.include({
+      heightDrift: 0,
+      sameHeight: true,
+      passed: true
+    });
+    expect(agreement.checks).to.deep.equal({
+      nethash: true,
+      heightDrift: true,
+      broadhash: true,
+      latestBlock: true,
+      delegateOrder: true,
+      activationState: true
+    });
+
+    nodes[1].latestBlock.id = 'fork-block';
+    expect(scenarios.buildConsensusAgreement(nodes, 2).failures).to.include(
+        'equal-height nodes report different latest blocks'
+    );
+  });
+
   it('should keep safe secret-related counters visible in reports', () => {
     const sanitized = report.redactSensitive({
       delegateSecretsCount: 34,
@@ -1211,6 +1360,116 @@ describe('live scenario runner utilities', () => {
     expect(markdown).to.include('| Accounts | docs.accounts.address-and-public-key |');
     expect(markdown).to.include('#### Transactions Query Language');
     expect(markdown).to.include('| /api/transactions | query.transactions.height-types |');
+  });
+
+  it('should render detailed consensus methodology, agreement, and activation evidence', () => {
+    const definitions = scenarios.buildConsensusActivationDefinitions();
+    const activations = [
+      {
+        name: 'fairSystem',
+        activationHeight: 4359465,
+        state: 'active',
+        distance: -100,
+        passed: true,
+        evidence: {
+          summary: '101 delegates; order by votesWeight descending with publicKey tie-breaker=true; approval matches votesWeight/supply for 101/101 delegates.'
+        }
+      },
+      {
+        name: 'spaceship',
+        activationHeight: 100000000,
+        state: 'inactive',
+        distance: 90000000,
+        passed: true,
+        evidence: {
+          summary: '100 transactions sampled; timestampMs present=0, missing=100, outside the timestamp second=0; expected presence=false.'
+        }
+      }
+    ];
+    const nodes = ['node-recipient', 'node-peer'].map(function (role, index) {
+      return {
+        id: index === 0 ? 'node-1' : 'node-3',
+        role,
+        apiUrl: 'http://node-' + (index === 0 ? '1' : '3'),
+        version: '0.9.0',
+        height: 10000000,
+        loaded: true,
+        syncing: false,
+        cachedConsensus: 100,
+        nethash: 'network',
+        broadhash: 'head',
+        latestBlock: {
+          height: 10000000,
+          id: 'block'
+        },
+        liveConsensus: {
+          livePercent: 100,
+          matchingPeers: 2,
+          connectedPeers: 2
+        },
+        delegates: {
+          count: 101
+        },
+        activations
+      };
+    });
+    const markdown = report.renderMarkdownReport({
+      status: 'passed',
+      target: {
+        mode: 'testnet',
+        nodes: []
+      },
+      run: {
+        id: 'testnet-consensus',
+        startedAt: '2026-06-12T00:00:00.000Z',
+        finishedAt: '2026-06-12T00:00:01.000Z'
+      },
+      scenarios: [
+        {
+          id: 'consensus.activation',
+          suite: 'consensus',
+          status: 'passed',
+          durationMs: 1000,
+          result: {
+            test: {
+              nodeSelection: 'node-recipient and node-peer.',
+              requests: ['GET /api/node/status', 'GET /api/delegates?limit=101'],
+              agreement: 'Compare both nodes.',
+              maxHeightDrift: 2
+            },
+            definitions,
+            nodes,
+            agreement: {
+              heightDrift: 0,
+              passed: true,
+              checks: {
+                nethash: true,
+                heightDrift: true,
+                broadhash: true,
+                latestBlock: true,
+                delegateOrder: true,
+                activationState: true
+              },
+              failures: []
+            },
+            passed: true
+          }
+        }
+      ],
+      finalNodeStates: [],
+      metrics: {}
+    });
+
+    expect(markdown).to.include('## Consensus Details');
+    expect(markdown).to.include('#### Node Summary');
+    expect(markdown).to.include('| node-recipient | node-1 | http://node-1 |');
+    expect(markdown).to.include('#### Node Agreement');
+    expect(markdown).to.include('| latestBlock | passed |');
+    expect(markdown).to.include('#### fairSystem: Fair System');
+    expect(markdown).to.include('Activated consensus changes:');
+    expect(markdown).to.include('order by votesWeight descending');
+    expect(markdown).to.include('#### spaceship: Spaceship');
+    expect(markdown).to.include('timestampMs present=0, missing=100');
   });
 
   it('should render accepted and expected-failed transaction summaries in Markdown reports', () => {

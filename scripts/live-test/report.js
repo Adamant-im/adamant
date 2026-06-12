@@ -104,6 +104,12 @@ function renderMarkdownReport (report) {
     appendApiDetails(lines, apiScenarios);
   }
 
+  const consensusScenarios = collectConsensusScenarios(report.scenarios);
+
+  if (consensusScenarios.length) {
+    appendConsensusDetails(lines, consensusScenarios);
+  }
+
   const transactionRows = collectTransactionRows(report.scenarios);
 
   if (transactionRows.length) {
@@ -389,6 +395,253 @@ function collectApiScenarios (scenarios) {
   return scenarios.filter(function (scenario) {
     return scenario.suite === 'api' && scenario.result;
   });
+}
+
+/**
+ * Collects consensus suite scenarios with activation evidence.
+ * @param {Array<object>} scenarios - Scenario report entries.
+ */
+function collectConsensusScenarios (scenarios) {
+  return scenarios.filter(function (scenario) {
+    return scenario.suite === 'consensus' && scenario.result;
+  });
+}
+
+/**
+ * Appends consensus methodology, node agreement, and activation evidence.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {Array<object>} scenarios - Consensus scenario report entries.
+ */
+function appendConsensusDetails (lines, scenarios) {
+  lines.push('');
+  lines.push('## Consensus Details');
+  lines.push('');
+  lines.push(
+      'The consensus suite observes the configured activation height and the corresponding public behavior ' +
+      'on both node-recipient and node-peer. It does not mutate chain state. Equal-height nodes must expose ' +
+      'the same chain head and delegate order; nodes at nearby heights are compared only on invariants that ' +
+      'remain meaningful during normal block propagation.'
+  );
+
+  scenarios.forEach(function (scenario) {
+    const result = scenario.result || {};
+    const test = result.test || {};
+    const nodes = result.nodes || [];
+    const agreement = result.agreement || {};
+
+    lines.push('');
+    lines.push('### ' + scenario.id);
+    lines.push('- Scenario status: ' + scenario.status + '; duration ' + formatDuration(scenario.durationMs) + '.');
+    lines.push('- Nodes: ' + formatReportSentence(test.nodeSelection));
+    lines.push('- Requests: ' + formatList(test.requests) + '.');
+    lines.push(
+        '- Agreement rule: ' +
+        formatReportSentence(test.agreement) +
+        ' Maximum height drift: ' +
+        formatReportValue(test.maxHeightDrift) +
+        '.'
+    );
+    lines.push(
+        '- Result: height drift ' +
+        formatReportValue(agreement.heightDrift) +
+        '; agreement passed ' +
+        formatReportValue(agreement.passed) +
+        '; scenario passed ' +
+        formatReportValue(result.passed) +
+        '.'
+    );
+    lines.push('');
+    lines.push('#### Node Summary');
+    lines.push('');
+    lines.push(
+        '| Role | Node | API | ADM version | Height | Latest block | Loaded | Syncing | Cached consensus | ' +
+        'Live peer consensus | Nethash | Broadhash | Delegates | Activations |'
+    );
+    lines.push(
+        '| --- | --- | --- | --- | ---: | --- | --- | --- | ---: | --- | --- | --- | ---: | --- |'
+    );
+
+    nodes.forEach(function (node) {
+      const liveConsensus = node.liveConsensus || {};
+      const activationSummary = (node.activations || []).map(function (activation) {
+        return activation.name +
+          '=' +
+          activation.state +
+          ' @ ' +
+          formatReportValue(activation.activationHeight);
+      }).join('; ');
+
+      lines.push(
+          '| ' +
+          formatMarkdownTableValue(node.role) +
+          ' | ' +
+          formatMarkdownTableValue(node.id) +
+          ' | ' +
+          formatMarkdownTableValue(node.apiUrl) +
+          ' | ' +
+          formatMarkdownTableValue(node.version) +
+          ' | ' +
+          formatMarkdownTableValue(node.height) +
+          ' | ' +
+          formatMarkdownTableValue(formatConsensusBlock(node.latestBlock)) +
+          ' | ' +
+          formatMarkdownTableValue(node.loaded) +
+          ' | ' +
+          formatMarkdownTableValue(node.syncing) +
+          ' | ' +
+          formatMarkdownTableValue(formatPercent(node.cachedConsensus)) +
+          ' | ' +
+          formatMarkdownTableValue(
+              formatPercent(liveConsensus.livePercent) +
+              ' (' +
+              formatReportValue(liveConsensus.matchingPeers) +
+              '/' +
+              formatReportValue(liveConsensus.connectedPeers) +
+              ')'
+          ) +
+          ' | ' +
+          formatMarkdownTableValue(node.nethash) +
+          ' | ' +
+          formatMarkdownTableValue(node.broadhash) +
+          ' | ' +
+          formatMarkdownTableValue(node.delegates && node.delegates.count) +
+          ' | ' +
+          formatMarkdownTableValue(activationSummary) +
+          ' |'
+      );
+    });
+
+    appendConsensusAgreement(lines, agreement);
+    appendConsensusActivations(lines, result.definitions || [], nodes);
+  });
+}
+
+/**
+ * Appends the recipient-to-peer comparison table.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {object} agreement - Cross-node agreement result.
+ */
+function appendConsensusAgreement (lines, agreement) {
+  const checks = agreement.checks || {};
+  const descriptions = {
+    nethash: 'Both nodes belong to the same network.',
+    heightDrift: 'Height difference stays within the configured tolerance.',
+    broadhash: 'Equal-height nodes expose the same broadhash.',
+    latestBlock: 'Equal-height nodes expose the same latest block id.',
+    delegateOrder: 'Equal-height nodes expose the same ordered delegate public keys.',
+    activationState: 'Equal-height nodes derive the same activation state.'
+  };
+
+  lines.push('');
+  lines.push('#### Node Agreement');
+  lines.push('');
+  lines.push('| Check | Result | Meaning |');
+  lines.push('| --- | --- | --- |');
+
+  Object.keys(descriptions).forEach(function (name) {
+    lines.push(
+        '| ' +
+        formatMarkdownTableValue(name) +
+        ' | ' +
+        formatMarkdownTableValue(formatConsensusCheck(checks[name])) +
+        ' | ' +
+        formatMarkdownTableValue(descriptions[name]) +
+        ' |'
+    );
+  });
+
+  if (agreement.failures && agreement.failures.length) {
+    lines.push('');
+    lines.push('- Agreement failures: ' + agreement.failures.join('; ') + '.');
+  }
+}
+
+/**
+ * Appends behavior, purpose, and per-node evidence for every activation.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {Array<object>} definitions - Activation definitions.
+ * @param {Array<object>} nodes - Per-node consensus observations.
+ */
+function appendConsensusActivations (lines, definitions, nodes) {
+  definitions.forEach(function (definition) {
+    const observations = nodes.map(function (node) {
+      return {
+        node,
+        activation: (node.activations || []).find(function (activation) {
+          return activation.name === definition.name;
+        }) || {}
+      };
+    });
+    const activationHeight = observations.length ?
+      observations[0].activation.activationHeight :
+      null;
+
+    lines.push('');
+    lines.push('#### ' + definition.name + ': ' + definition.title);
+    lines.push('');
+    lines.push('- Purpose: ' + formatReportSentence(definition.purpose));
+    lines.push('- Activation height: ' + formatReportValue(activationHeight) + '.');
+    lines.push('- Before activation: ' + formatConsensusStatements(definition.before) + '.');
+    lines.push('- Activated consensus changes: ' + formatConsensusStatements(definition.changes) + '.');
+    lines.push('- Live probe: ' + formatReportSentence(definition.probe));
+    lines.push('');
+    lines.push('| Role | Node | Height | State | Distance | Evidence | Status |');
+    lines.push('| --- | --- | ---: | --- | ---: | --- | --- |');
+
+    observations.forEach(function (observation) {
+      const activation = observation.activation;
+
+      lines.push(
+          '| ' +
+          formatMarkdownTableValue(observation.node.role) +
+          ' | ' +
+          formatMarkdownTableValue(observation.node.id) +
+          ' | ' +
+          formatMarkdownTableValue(observation.node.height) +
+          ' | ' +
+          formatMarkdownTableValue(activation.state) +
+          ' | ' +
+          formatMarkdownTableValue(activation.distance) +
+          ' | ' +
+          formatMarkdownTableValue(activation.evidence && activation.evidence.summary) +
+          ' | ' +
+          formatMarkdownTableValue(activation.passed ? 'passed' : 'failed') +
+          ' |'
+      );
+    });
+  });
+}
+
+/**
+ * Formats the latest block identity for the consensus summary.
+ * @param {object} block - Latest block metadata.
+ */
+function formatConsensusBlock (block) {
+  block = block || {};
+
+  return 'height ' + formatReportValue(block.height) + ', id ' + formatReportValue(block.id);
+}
+
+/**
+ * Formats a three-state agreement check.
+ * @param {?boolean} value - True, false, or null when heights differ.
+ */
+function formatConsensusCheck (value) {
+  if (value === null || value === undefined) {
+    return 'not compared at different heights';
+  }
+
+  return value ? 'passed' : 'failed';
+}
+
+/**
+ * Joins full-sentence activation statements without duplicated punctuation.
+ * @param {Array<string>} statements - Consensus behavior statements.
+ */
+function formatConsensusStatements (statements) {
+  return (statements || []).map(function (statement) {
+    return statement.replace(/[.;]+$/, '');
+  }).join('; ');
 }
 
 /**
@@ -1599,12 +1852,16 @@ function formatAbuseRow (check) {
 
 module.exports = {
   appendApiDetails,
+  appendConsensusActivations,
+  appendConsensusAgreement,
+  appendConsensusDetails,
   appendForgingDetails,
   appendLoadDetails,
   appendTargetDetails,
   appendTxQueueLoadDetails,
   collectAbuseRows,
   collectApiScenarios,
+  collectConsensusScenarios,
   collectForgingNodes,
   collectLoadScenarios,
   collectTargetScenarios,
@@ -1613,6 +1870,9 @@ module.exports = {
   formatAdmValue,
   formatConfirmationOutcome,
   formatConfirmationTargets,
+  formatConsensusBlock,
+  formatConsensusCheck,
+  formatConsensusStatements,
   formatDuration,
   formatHeightRange,
   formatList,

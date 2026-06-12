@@ -1541,39 +1541,489 @@ async function runWebSocketScenario (context) {
 }
 
 /**
- * Reports observed pre/post activation state for configured consensus switches.
+ * Verifies configured consensus activations on the recipient and peer nodes.
  * @param {object} context - Runner context.
  */
 async function runConsensusActivationScenario (context) {
-  const status = await context.clientFor(context.primaryNode).get('/api/node/status');
-
-  context.assert(status.ok && status.body && status.body.success, 'Unable to read /api/node/status');
-
-  const height = status.body.network.height;
+  const definitions = buildConsensusActivationDefinitions();
+  const nodes = getConsensusObservationNodes(context);
   const activationHeights = context.configMetadata.consensusActivationHeights || {};
-  const switches = ['fairSystem', 'spaceship'].map(function (name) {
-    const activationHeight = activationHeights[name];
 
-    return {
-      name,
-      activationHeight,
-      state: activationHeight === undefined ? 'unknown' :
-        height >= activationHeight ? 'post-activation-observed' : 'pre-activation-observed',
-      distance: activationHeight === undefined ? null : activationHeight - height
-    };
+  context.assert(definitions.every(function (definition) {
+    return Number.isFinite(Number(activationHeights[definition.name]));
+  }), 'Consensus activation metadata is missing fairSystem or spaceship.');
+
+  const observations = await Promise.all(nodes.map(function (node) {
+    return collectConsensusNodeObservation(context, node, definitions, activationHeights);
+  }));
+  const agreement = buildConsensusAgreement(observations, context.options.maxHeightDrift);
+  const result = {
+    kind: 'consensus activation',
+    test: {
+      nodeSelection: context.target.mode === 'testnet' ?
+        'node-recipient and node-peer, where node-peer defaults to the third peer in the testnet config.' :
+        'node-recipient and node-peer, using the first two available localnet nodes.',
+      requests: [
+        'GET /api/node/status',
+        'GET /api/blocks/getStatus',
+        'GET /api/blocks?limit=1&orderBy=height:desc',
+        'GET /api/delegates?limit=101',
+        'GET /api/transactions with a bounded activation-aware range',
+        'GET /api/peers?state=2&limit=100'
+      ],
+      agreement: 'Compare nethash and height drift; at equal heights also compare broadhash, latest block, delegate order, and activation state.',
+      maxHeightDrift: context.options.maxHeightDrift
+    },
+    definitions,
+    nodes: observations,
+    agreement,
+    passed: agreement.passed && observations.every(function (observation) {
+      return observation.ready && observation.activations.every(function (activation) {
+        return activation.passed !== false;
+      });
+    })
+  };
+
+  if (!result.passed) {
+    const failures = agreement.failures.concat(observations.reduce(function (items, observation) {
+      if (!observation.ready) {
+        items.push(observation.role + ' is not loaded or is still syncing');
+      }
+      observation.activations.forEach(function (activation) {
+        if (activation.passed === false) {
+          items.push(observation.role + ' ' + activation.name + ': ' + activation.evidence.summary);
+        }
+      });
+
+      return items;
+    }, []));
+    const error = Error('Consensus activation checks failed: ' + failures.join('; ') + '.');
+
+    error.result = result;
+    throw error;
+  }
+
+  return result;
+}
+
+/**
+ * Selects the two nodes used by the consensus scenario and assigns stable roles.
+ * @param {object} context - Runner context.
+ */
+function getConsensusObservationNodes (context) {
+  const candidates = context.target.mode === 'testnet' ?
+    context.target.transactionObservationNodes :
+    context.target.nodes;
+
+  context.assert(
+      candidates && candidates.length >= 2,
+      'Consensus suite requires both node-recipient and node-peer.'
+  );
+
+  return candidates.slice(0, 2).map(function (node, index) {
+    return Object.assign({}, node, {
+      consensusRole: index === 0 ? 'node-recipient' : 'node-peer'
+    });
+  });
+}
+
+/**
+ * Describes the behavior and purpose of every consensus activation covered by the scenario.
+ */
+function buildConsensusActivationDefinitions () {
+  return [
+    {
+      name: 'fairSystem',
+      title: 'Fair System',
+      purpose: 'Make delegate ranking reflect distributed voter weight and delegate productivity while preserving deterministic ordering.',
+      before: [
+        'Rank delegates and select the active forging set by raw vote balance descending.',
+        'Calculate delegate approval from raw vote balance divided by total supply.'
+      ],
+      changes: [
+        'Rank delegates and select the active forging set by votesWeight descending, with publicKey ascending as the tie-breaker.',
+        'Split each voter balance across selected delegates and adjust delegate votesWeight by productivity.',
+        'Calculate delegate approval from votesWeight divided by total supply.'
+      ],
+      probe: 'Verify the delegate API ranking field, deterministic public-key tie-breaker, and approval formula selected for the observed height.'
+    },
+    {
+      name: 'spaceship',
+      title: 'Spaceship',
+      purpose: 'Add millisecond transaction ordering precision without changing transaction signatures, hashes, IDs, or pre-activation history.',
+      before: [
+        'Remove timestampMs during transaction normalization so historical transactions remain compatible.',
+        'Use the second-resolution ADAMANT timestamp field.'
+      ],
+      changes: [
+        'Preserve timestampMs in normalized transactions at and after the activation height.',
+        'Require timestampMs to remain in the same ADAMANT second as timestamp, with a delta from 0 through 999 milliseconds.',
+        'Derive timestamp from timestampMs with Math.floor(timestampMs / 1000); timestampMs remains outside signed and hashed transaction bytes.'
+      ],
+      probe: 'Inspect bounded transaction samples at the relevant heights for timestampMs presence and same-second validity.'
+    }
+  ];
+}
+
+/**
+ * Collects consensus and activation evidence from one node.
+ * @param {object} context - Runner context.
+ * @param {object} node - Node endpoint and assigned consensus role.
+ * @param {Array<object>} definitions - Consensus activation definitions.
+ * @param {object} activationHeights - Configured activation heights.
+ */
+async function collectConsensusNodeObservation (context, node, definitions, activationHeights) {
+  const client = context.clientFor(node);
+  const statusResult = await client.get('/api/node/status');
+
+  assertSuccessfulConsensusResponse(context, statusResult, node, '/api/node/status');
+
+  const status = statusResult.body;
+  const network = status.network || {};
+  const height = Number(network.height);
+
+  context.assert(Number.isFinite(height), 'Invalid network height from ' + node.consensusRole + '.');
+
+  const switches = buildConsensusSwitches(height, activationHeights);
+  const spaceship = switches.find(function (item) {
+    return item.name === 'spaceship';
+  });
+  const transactionPath = spaceship && spaceship.state === 'active' ?
+    '/api/transactions?fromHeight=' + spaceship.activationHeight + '&limit=100&orderBy=timestamp:desc' :
+    '/api/transactions?limit=100&orderBy=timestamp:desc';
+  const results = await Promise.all([
+    client.get('/api/blocks/getStatus'),
+    client.get('/api/blocks?limit=1&orderBy=height:desc'),
+    client.get('/api/delegates?limit=101'),
+    client.get(transactionPath),
+    client.get('/api/peers?state=2&limit=100')
+  ]);
+  const paths = [
+    '/api/blocks/getStatus',
+    '/api/blocks?limit=1&orderBy=height:desc',
+    '/api/delegates?limit=101',
+    transactionPath,
+    '/api/peers?state=2&limit=100'
+  ];
+
+  results.forEach(function (result, index) {
+    assertSuccessfulConsensusResponse(context, result, node, paths[index]);
   });
 
-  context.assert(switches.some(function (item) {
-    return item.activationHeight !== undefined;
-  }), 'No consensusActivationHeights metadata available for activation scenario.');
+  const blockStatus = results[0].body;
+  const latestBlock = results[1].body.blocks && results[1].body.blocks[0] || {};
+  const delegates = results[2].body.delegates || [];
+  const transactions = results[3].body.transactions || [];
+  const peers = results[4].body.peers || [];
+  const supply = blockStatus.supply === undefined ? network.supply : blockStatus.supply;
 
-  if (context.target.nodes.length > 1) {
-    await assertNodeAgreement(context);
+  return {
+    id: node.id,
+    role: node.consensusRole,
+    apiUrl: node.apiUrl,
+    version: formatObservedNodeVersion(status.version),
+    height,
+    loaded: status.loader && status.loader.loaded,
+    syncing: status.loader && status.loader.syncing,
+    ready: Boolean(status.loader && status.loader.loaded && !status.loader.syncing),
+    cachedConsensus: status.loader && status.loader.consensus,
+    nethash: network.nethash,
+    broadhash: network.broadhash,
+    latestBlock: {
+      id: latestBlock.id,
+      height: latestBlock.height,
+      generatorPublicKey: latestBlock.generatorPublicKey
+    },
+    liveConsensus: calculateLiveBroadhashConsensus(network.broadhash, peers),
+    delegates: summarizeConsensusDelegates(delegates),
+    transactions: summarizeConsensusTransactions(transactions, transactionPath),
+    activations: definitions.map(function (definition) {
+      const consensusSwitch = switches.find(function (item) {
+        return item.name === definition.name;
+      });
+
+      return buildConsensusActivationObservation(
+          definition,
+          consensusSwitch,
+          delegates,
+          transactions,
+          supply
+      );
+    })
+  };
+}
+
+/**
+ * Requires a successful JSON response for one consensus probe.
+ * @param {object} context - Runner context.
+ * @param {object} result - HTTP client result.
+ * @param {object} node - Node being inspected.
+ * @param {string} path - Requested API path.
+ */
+function assertSuccessfulConsensusResponse (context, result, node, path) {
+  context.assert(
+      result.ok && result.body && result.body.success,
+      'Unable to read ' + path + ' from ' + node.consensusRole + ' at ' + node.apiUrl +
+      ': ' + formatApiError(result.body)
+  );
+}
+
+/**
+ * Builds height state and behavioral evidence for one activation.
+ * @param {object} definition - Activation behavior definition.
+ * @param {?object} consensusSwitch - Height-derived activation state.
+ * @param {Array<object>} delegates - Delegates returned by the node.
+ * @param {Array<object>} transactions - Transactions returned by the node.
+ * @param {string|number} supply - Current token supply in atomic units.
+ */
+function buildConsensusActivationObservation (
+    definition,
+    consensusSwitch,
+    delegates,
+    transactions,
+    supply
+) {
+  const activation = consensusSwitch || {
+    name: definition.name,
+    activationHeight: null,
+    state: 'unknown',
+    distance: null
+  };
+  let evidence;
+
+  if (definition.name === 'fairSystem') {
+    const rankingField = activation.state === 'active' ? 'votesWeight' : 'vote';
+    const sorted = isDelegateListSorted(delegates, rankingField);
+    const approval = validateDelegateApproval(delegates, rankingField, supply);
+
+    evidence = {
+      kind: 'delegate ranking and approval',
+      rankingField,
+      delegateCount: delegates.length,
+      sorted,
+      approvalChecked: approval.checked,
+      approvalMismatches: approval.mismatches,
+      summary: delegates.length +
+        ' delegates; order by ' +
+        rankingField +
+        ' descending with publicKey tie-breaker=' +
+        sorted +
+        '; approval matches ' +
+        rankingField +
+        '/supply for ' +
+        (approval.checked - approval.mismatches) +
+        '/' +
+        approval.checked +
+        ' delegates.'
+    };
+
+    return Object.assign({}, activation, {
+      purpose: definition.purpose,
+      evidence,
+      passed: delegates.length > 0 &&
+        sorted &&
+        approval.checked === delegates.length &&
+        approval.mismatches === 0
+    });
+  }
+
+  const timestampEvidence = inspectTimestampMs(transactions);
+  const expectedPresence = activation.state === 'active';
+  const contradictory = expectedPresence ?
+    timestampEvidence.sampled === 0 || timestampEvidence.present !== timestampEvidence.sampled :
+    timestampEvidence.present > 0;
+
+  evidence = {
+    kind: 'transaction timestamp precision',
+    transactionCount: timestampEvidence.sampled,
+    timestampMsPresent: timestampEvidence.present,
+    timestampMsMissing: timestampEvidence.missing,
+    invalidTimestampMs: timestampEvidence.invalid,
+    expectedPresence,
+    summary: timestampEvidence.sampled +
+      ' transactions sampled; timestampMs present=' +
+      timestampEvidence.present +
+      ', missing=' +
+      timestampEvidence.missing +
+      ', outside the timestamp second=' +
+      timestampEvidence.invalid +
+      '; expected presence=' +
+      expectedPresence +
+      '.'
+  };
+
+  return Object.assign({}, activation, {
+    purpose: definition.purpose,
+    evidence,
+    passed: !contradictory && timestampEvidence.invalid === 0
+  });
+}
+
+/**
+ * Summarizes delegate data needed for cross-node agreement.
+ * @param {Array<object>} delegates - Delegate API rows.
+ */
+function summarizeConsensusDelegates (delegates) {
+  const publicKeys = delegates.map(function (delegate) {
+    return delegate.publicKey;
+  });
+
+  return {
+    count: delegates.length,
+    firstPublicKey: publicKeys[0] || null,
+    orderChecksum: crypto.createHash('sha256').update(publicKeys.join(',')).digest('hex')
+  };
+}
+
+/**
+ * Summarizes the bounded transaction sample used for spaceship evidence.
+ * @param {Array<object>} transactions - Transaction API rows.
+ * @param {string} path - Exact API path used for the sample.
+ */
+function summarizeConsensusTransactions (transactions, path) {
+  const timestampMs = inspectTimestampMs(transactions);
+
+  return Object.assign({
+    path
+  }, timestampMs);
+}
+
+/**
+ * Checks deterministic descending numeric order with public-key tie-breaking.
+ * @param {Array<object>} delegates - Delegate API rows.
+ * @param {string} rankingField - Numeric delegate ranking field.
+ */
+function isDelegateListSorted (delegates, rankingField) {
+  return delegates.every(function (delegate, index) {
+    if (index === 0) {
+      return true;
+    }
+
+    const previous = delegates[index - 1];
+    const previousValue = Number(previous[rankingField] || 0);
+    const value = Number(delegate[rankingField] || 0);
+
+    if (previousValue !== value) {
+      return previousValue > value;
+    }
+
+    return String(previous.publicKey) <= String(delegate.publicKey);
+  });
+}
+
+/**
+ * Validates delegate approval percentages against the activation-selected balance field.
+ * @param {Array<object>} delegates - Delegate API rows.
+ * @param {string} rankingField - `vote` or `votesWeight`.
+ * @param {string|number} supply - Current token supply in atomic units.
+ */
+function validateDelegateApproval (delegates, rankingField, supply) {
+  const numericSupply = Number(supply);
+  let checked = 0;
+  let mismatches = 0;
+
+  delegates.forEach(function (delegate) {
+    if (!Number.isFinite(numericSupply) || numericSupply <= 0 || !Number.isFinite(Number(delegate.approval))) {
+      return;
+    }
+
+    const expected = Math.round(Number(delegate[rankingField]) / numericSupply * 100 * 1e2) / 1e2;
+
+    checked++;
+    if (expected !== Number(delegate.approval)) {
+      mismatches++;
+    }
+  });
+
+  return {
+    checked,
+    mismatches
+  };
+}
+
+/**
+ * Counts present, missing, and invalid millisecond timestamps in transaction rows.
+ * @param {Array<object>} transactions - Transaction API rows.
+ */
+function inspectTimestampMs (transactions) {
+  return transactions.reduce(function (summary, transaction) {
+    const timestampMs = transaction.timestampMs;
+
+    summary.sampled++;
+    if (typeof timestampMs !== 'number') {
+      summary.missing++;
+      return summary;
+    }
+
+    summary.present++;
+    if (timestampMs - Number(transaction.timestamp) * 1000 < 0 ||
+        timestampMs - Number(transaction.timestamp) * 1000 >= constants.maxTimestampMsDelta) {
+      summary.invalid++;
+    }
+
+    return summary;
+  }, {
+    sampled: 0,
+    present: 0,
+    missing: 0,
+    invalid: 0
+  });
+}
+
+/**
+ * Compares the recipient and peer observations without treating normal height drift as a fork.
+ * @param {Array<object>} nodes - Recipient and peer consensus observations.
+ * @param {number} maxHeightDrift - Maximum accepted height difference.
+ */
+function buildConsensusAgreement (nodes, maxHeightDrift) {
+  const recipient = nodes[0];
+  const peer = nodes[1];
+  const heightDrift = Math.abs(recipient.height - peer.height);
+  const sameHeight = heightDrift === 0;
+  const checks = {
+    nethash: recipient.nethash === peer.nethash,
+    heightDrift: heightDrift <= maxHeightDrift,
+    broadhash: sameHeight ? recipient.broadhash === peer.broadhash : null,
+    latestBlock: sameHeight ? recipient.latestBlock.id === peer.latestBlock.id : null,
+    delegateOrder: sameHeight ?
+      recipient.delegates.orderChecksum === peer.delegates.orderChecksum :
+      null,
+    activationState: sameHeight ?
+      recipient.activations.every(function (activation, index) {
+        return activation.state === peer.activations[index].state;
+      }) :
+      null
+  };
+  const failures = [];
+
+  if (!checks.nethash) {
+    failures.push('node-recipient and node-peer report different nethashes');
+  }
+  if (!checks.heightDrift) {
+    failures.push('height drift ' + heightDrift + ' exceeds allowed drift ' + maxHeightDrift);
+  }
+  if (checks.broadhash === false) {
+    failures.push('equal-height nodes report different broadhashes');
+  }
+  if (checks.latestBlock === false) {
+    failures.push('equal-height nodes report different latest blocks');
+  }
+  if (checks.delegateOrder === false) {
+    failures.push('equal-height nodes report different delegate ordering');
+  }
+  if (checks.activationState === false) {
+    failures.push('equal-height nodes report different activation states');
   }
 
   return {
-    height,
-    switches
+    recipient: recipient.role,
+    peer: peer.role,
+    heightDrift,
+    maxHeightDrift,
+    sameHeight,
+    checks,
+    failures,
+    passed: failures.length === 0
   };
 }
 
@@ -4179,39 +4629,6 @@ function cloneTransaction (transaction) {
 }
 
 /**
- * Checks basic localnet chain agreement across target nodes.
- * @param {object} context - Runner context.
- */
-async function assertNodeAgreement (context) {
-  const statuses = [];
-
-  for (const node of context.target.nodes) {
-    const status = await context.clientFor(node).get('/api/node/status');
-
-    context.assert(status.ok && status.body && status.body.success, 'Unable to read status from ' + node.id);
-    statuses.push({
-      id: node.id,
-      height: status.body.network.height,
-      broadhash: status.body.network.broadhash,
-      nethash: status.body.network.nethash
-    });
-  }
-
-  const minHeight = Math.min.apply(null, statuses.map(function (status) {
-    return status.height;
-  }));
-  const maxHeight = Math.max.apply(null, statuses.map(function (status) {
-    return status.height;
-  }));
-  const nethashes = new Set(statuses.map(function (status) {
-    return status.nethash;
-  }));
-
-  context.assert(nethashes.size === 1, 'Localnet nodes disagree on nethash.');
-  context.assert(maxHeight - minHeight <= context.options.maxHeightDrift, 'Localnet nodes exceed allowed height drift.');
-}
-
-/**
  * Opens a client WebSocket, emits subscription messages, and closes it.
  * @param {string} wsClientUrl - WebSocket URL.
  * @param {number} timeoutMs - Connection timeout.
@@ -4355,6 +4772,9 @@ module.exports = {
   TXBURST_TYPE0_COUNT,
   TXBURST_REQUEST_TIMEOUT_MS,
   buildApiDiscovery,
+  buildConsensusActivationDefinitions,
+  buildConsensusActivationObservation,
+  buildConsensusAgreement,
   buildDynamicRestApiChecks,
   buildConsensusSwitches,
   buildDocumentedComplexApiChecks,
@@ -4365,6 +4785,7 @@ module.exports = {
   collectAcceptedPoolStates,
   collectAcceptedTransactionStates,
   collectBlockchainTps,
+  collectConsensusNodeObservation,
   collectFinalAcceptedTransactionStates,
   collectTargetNodeDetails,
   collectTransactionPoolSnapshot,
@@ -4374,7 +4795,10 @@ module.exports = {
   executeRestApiCheck,
   formatAdamantAmount,
   formatObservedNodeVersion,
+  getConsensusObservationNodes,
   getTransactionObservationNodes,
+  inspectTimestampMs,
+  isDelegateListSorted,
   isScenarioEnabledByOptions,
   publicBlockForgingResult,
   publicConfirmationResult,
