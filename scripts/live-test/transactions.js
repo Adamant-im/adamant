@@ -73,10 +73,13 @@ function publicFixtureAccount (fixture) {
  * @param {object} account - Sender account.
  */
 function createBasicTransaction (type, account) {
+  const timestampMs = Date.now() - constants.epochTime.getTime();
+
   return {
     type,
     amount: 0,
-    timestamp: Math.floor((Date.now() - constants.epochTime.getTime()) / 1000),
+    timestamp: Math.floor(timestampMs / 1000),
+    timestampMs,
     asset: {},
     senderPublicKey: account.publicKey,
     senderId: account.address

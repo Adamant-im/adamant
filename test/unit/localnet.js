@@ -177,6 +177,30 @@ describe('localnet scripts', () => {
         .to.equal('redis://127.0.0.1:6379/15');
   });
 
+  it('should flush only Redis databases assigned by the localnet manifest', () => {
+    const spawnSync = sinon.stub(childProcess, 'spawnSync').returns({
+      status: 0,
+      stdout: 'OK\n',
+      stderr: ''
+    });
+    const options = localnet.normalizeOptions({
+      cwd: tempDir,
+      nodes: 3
+    });
+    const result = localnet.clearLocalnetRedis(options, {
+      nodes: [
+        { redis: { url: 'redis://127.0.0.1:6379/20' } },
+        { redis: { url: 'redis://127.0.0.1:6379/21' } }
+      ]
+    });
+
+    expect(result.flushed).to.deep.equal([
+      'redis://127.0.0.1:6379/20',
+      'redis://127.0.0.1:6379/21'
+    ]);
+    expect(spawnSync.callCount).to.equal(2);
+  });
+
   it('should read delegate count and last forging time for localnet status', () => {
     const nodeDir = path.join(tempDir, '.localnet-test', 'node-1');
     const logDir = path.join(tempDir, 'logs-localnet-test', 'node-1');
@@ -373,6 +397,11 @@ describe('localnet scripts', () => {
       stdout: '',
       stderr: ''
     });
+    spawnSync.withArgs('redis-cli').returns({
+      status: 0,
+      stdout: 'OK\n',
+      stderr: ''
+    });
 
     fs.mkdirSync(path.dirname(manifestPath), { recursive: true });
     fs.writeFileSync(manifestPath, JSON.stringify({
@@ -417,6 +446,11 @@ describe('localnet scripts', () => {
       stdout: '',
       stderr: ''
     });
+    spawnSync.withArgs('redis-cli').returns({
+      status: 0,
+      stdout: 'OK\n',
+      stderr: ''
+    });
 
     const result = await localnet.dropLocalnet({
       cwd: tempDir,
@@ -426,6 +460,11 @@ describe('localnet scripts', () => {
 
     expect(result.stopResult.message).to.equal('No localnet manifest found.');
     expect(result.dropResult.dropped).to.deep.equal(['adamant_localnet_node_1']);
+    expect(result.redisResult.flushed).to.deep.equal([
+      'redis://127.0.0.1:6379/10',
+      'redis://127.0.0.1:6379/11',
+      'redis://127.0.0.1:6379/12'
+    ]);
     expect(spawnSync.withArgs('dropdb').firstCall.args[1]).to.deep.equal([
       '-h',
       'localhost',
@@ -433,6 +472,15 @@ describe('localnet scripts', () => {
       '5432',
       '--if-exists',
       'adamant_localnet_node_1'
+    ]);
+    expect(spawnSync.withArgs('redis-cli').firstCall.args[1]).to.deep.equal([
+      '-h',
+      '127.0.0.1',
+      '-p',
+      '6379',
+      '-n',
+      '10',
+      'FLUSHDB'
     ]);
   });
 

@@ -11,8 +11,11 @@ const { MetricsCollector } = require('./metrics.js');
 const { redactSensitive, writeReports } = require('./report.js');
 const { resolveTarget } = require('./target.js');
 const { selectScenarios } = require('./scenarios.js');
+const localnet = require('../localnet/localnet.js');
 
 const BASE_CONFIG_PATH = 'test/config.default.json';
+const LIVE_CONSENSUS_LOCALNET_OVERRIDE = 'scripts/live-test/config.test-consensus-localnet.overrides';
+const LIVE_CONSENSUS_TESTNET_OVERRIDE = 'scripts/live-test/config.test-consensus-testnet.overrides';
 
 const DEFAULTS = {
   timeoutMs: 5000,
@@ -29,6 +32,7 @@ const DEFAULTS = {
   repeatedInvalidCount: 3,
   transactionOverloadCount: 30,
   transactionOverloadConcurrency: 6,
+  liveTimeoutMs: 2 * 60 * 60 * 1000,
   genesisPasses: 'test/genesisPasses.json',
   testnetConfig: 'test/config.default.json'
 };
@@ -63,6 +67,8 @@ function configureProgram (program) {
       .option('--repeated-invalid-count <count>', 'bounded repeated invalid transaction submissions', String(DEFAULTS.repeatedInvalidCount))
       .option('--transaction-overload-count <count>', 'bounded invalid transaction overload submissions', String(DEFAULTS.transactionOverloadCount))
       .option('--transaction-overload-concurrency <count>', 'bounded invalid transaction overload concurrency', String(DEFAULTS.transactionOverloadConcurrency))
+      .option('--live', 'run a real consensus activation lifecycle')
+      .option('--live-timeout-ms <ms>', 'overall timeout for live consensus height waits', String(DEFAULTS.liveTimeoutMs))
       .option('--genesis-passes <path>', 'test genesis passphrase fixture path', DEFAULTS.genesisPasses)
       .option('--testnet-config <path>', 'testnet config path for fallback peer resolution', DEFAULTS.testnetConfig)
       .option('--config-overrides <path>', 'config override file to include in report metadata; repeatable', collectOption, [])
@@ -136,7 +142,8 @@ async function runLiveTests (input) {
       txqueueType8Stress: options.txqueueType8Stress,
       txqueueAllStress: options.txqueueAllStress,
       txburstType0Stress: options.txburstType0Stress,
-      txburstAllStress: options.txburstAllStress
+      txburstAllStress: options.txburstAllStress,
+      live: options.live
     },
     configMetadata: context.configMetadata,
     finalNodeStates,
@@ -196,6 +203,7 @@ function buildContext (options, target, metrics) {
   const clients = {};
   const fixtureAccounts = loadGenesisPasses(options.genesisPasses);
   const configMetadata = collectConfigMetadata(options, target);
+  const liveLog = options.live ? createLiveConsoleLogger() : function () {};
 
   return {
     options,
@@ -204,6 +212,7 @@ function buildContext (options, target, metrics) {
     fixtureAccounts,
     configMetadata,
     metrics,
+    liveLog,
     clientFor: function (node) {
       if (!clients[node.id]) {
         clients[node.id] = new HttpClient({
@@ -264,6 +273,8 @@ function normalizeOptions (input) {
     repeatedInvalidCount: parseNonNegativeInteger(input.repeatedInvalidCount, 'repeatedInvalidCount', DEFAULTS.repeatedInvalidCount),
     transactionOverloadCount: parseNonNegativeInteger(input.transactionOverloadCount, 'transactionOverloadCount', DEFAULTS.transactionOverloadCount),
     transactionOverloadConcurrency: parseNonNegativeInteger(input.transactionOverloadConcurrency, 'transactionOverloadConcurrency', DEFAULTS.transactionOverloadConcurrency),
+    live: !!input.live,
+    liveTimeoutMs: parseNonNegativeInteger(input.liveTimeoutMs, 'liveTimeoutMs', DEFAULTS.liveTimeoutMs),
     genesisPasses: input.genesisPasses || DEFAULTS.genesisPasses,
     testnetConfig: input.testnetConfig || DEFAULTS.testnetConfig,
     configOverrides: normalizeList(input.configOverrides),
@@ -536,7 +547,14 @@ async function runCli (mode, description) {
   const options = program.opts();
   options.mode = mode;
 
-  const result = await runLiveTests(options);
+  if (options.live && mode === 'testnet') {
+    printTestnetLiveConsensusCommand(options);
+    return;
+  }
+
+  const result = options.live ?
+    await runManagedLocalnetLiveConsensus(options) :
+    await runLiveTests(options);
 
   console.log('Live scenarios ' + result.report.status + '.');
   console.log('JSON report: ' + result.paths.jsonPath);
@@ -547,15 +565,168 @@ async function runCli (mode, description) {
   }
 }
 
+/**
+ * Drops, starts, tests, and gracefully stops the managed consensus localnet.
+ * @param {object} options - Raw localnet live-test CLI options.
+ * @param {object} [dependencies] - Injectable lifecycle and runner dependencies for tests.
+ */
+async function runManagedLocalnetLiveConsensus (options, dependencies) {
+  assertLiveConsensusSelection(options);
+
+  dependencies = dependencies || {};
+  const localnetManager = dependencies.localnet || localnet;
+  const executeLiveTests = dependencies.runLiveTests || runLiveTests;
+  const log = dependencies.log || createLiveConsoleLogger();
+  const lifecycleOptions = {
+    nodes: 3,
+    configOverrides: [
+      'test/config.localnet.json',
+      LIVE_CONSENSUS_LOCALNET_OVERRIDE
+    ],
+    force: true
+  };
+  log('Lifecycle 1/4: gracefully stopping any managed localnet and dropping its databases.');
+  const dropped = await localnetManager.dropLocalnet(lifecycleOptions);
+
+  if (dropped.stopResult.timedOut.length ||
+      dropped.dropResult.failed.length ||
+      (dropped.redisResult && dropped.redisResult.failed.length)) {
+    throw Error('Unable to reset localnet before live consensus testing.');
+  }
+  log(
+      'Lifecycle 1/4 complete: dropped ' +
+      (dropped.dropResult.dropped || []).length +
+      ' database(s), skipped ' +
+      (dropped.dropResult.skipped || []).length +
+      ', and flushed ' +
+      (dropped.redisResult && dropped.redisResult.flushed || []).length +
+      ' Redis database(s).'
+  );
+
+  let started = false;
+
+  try {
+    started = true;
+    log(
+        'Lifecycle 2/4: starting 3 localnet nodes with fairSystem=203, spaceship=405, ' +
+        'and PostgreSQL poolSize=20.'
+    );
+    localnetManager.startLocalnet(lifecycleOptions);
+    log('Lifecycle 2/4 complete: node processes started; waiting for APIs, genesis loading, and forging readiness.');
+
+    const result = await executeLiveTests(Object.assign({}, options, {
+      configOverrides: [LIVE_CONSENSUS_LOCALNET_OVERRIDE]
+    }));
+
+    log('Lifecycle 3/4 complete: live consensus scenario finished with status ' + result.report.status + '.');
+    return result;
+  } finally {
+    if (started) {
+      log('Lifecycle 4/4: gracefully stopping all managed localnet nodes.');
+      const stopped = await localnetManager.stopLocalnet(lifecycleOptions);
+
+      if (stopped.timedOut.length) {
+        throw Error('Live consensus localnet did not stop gracefully.');
+      }
+      log(
+          'Lifecycle 4/4 complete: stopped ' +
+          (stopped.stopped || []).length +
+          ' node(s); already missing ' +
+          (stopped.missing || []).length +
+          '.'
+      );
+    }
+  }
+}
+
+/**
+ * Creates the timestamped console logger used by long-running live consensus tests.
+ * @param {Function} [output] - Output sink compatible with `console.log`.
+ */
+function createLiveConsoleLogger (output) {
+  const write = output || console.log;
+
+  return function (message) {
+    write('[live consensus][' + new Date().toISOString() + '] ' + message);
+  };
+}
+
+/**
+ * Validates that --live is used only for the dedicated consensus suite.
+ * @param {object} options - Raw CLI options.
+ */
+function assertLiveConsensusSelection (options) {
+  const suites = normalizeList(options.suite || options.suites);
+  const scenarios = normalizeList(options.scenario || options.scenarios);
+  const validSuite = suites.length === 1 && suites[0] === 'consensus';
+  const validScenario = scenarios.length === 1 && scenarios[0] === 'consensus.activation';
+
+  if (!validSuite && !validScenario) {
+    throw Error('--live requires --suite consensus or --scenario consensus.activation.');
+  }
+}
+
+/**
+ * Writes a fresh testnet activation override and prints the coordinated startup command.
+ * The public testnet must be reset and started consistently on every participating node.
+ * @param {object} options - Raw testnet live-test CLI options.
+ */
+function printTestnetLiveConsensusCommand (options) {
+  assertLiveConsensusSelection(options);
+
+  const plan = buildTestnetLiveConsensusPlan(Math.random);
+  const overridePath = path.resolve(process.cwd(), LIVE_CONSENSUS_TESTNET_OVERRIDE);
+  const content = [
+    '# Generated by scenario:testnet -- --suite consensus --live.',
+    '# All participating testnet nodes must start from the same clean chain state.',
+    'consensusActivationHeights.fairSystem=' + plan.fairSystem,
+    'consensusActivationHeights.spaceship=' + plan.spaceship,
+    ''
+  ].join('\n');
+
+  fs.writeFileSync(overridePath, content);
+
+  console.log('Prepared testnet consensus activation plan:');
+  console.log('- fairSystem: height ' + plan.fairSystem + ' after ' + plan.roundsBeforeFairSystem + ' full rounds');
+  console.log('- spaceship: height ' + plan.spaceship + ' after another ' + plan.roundsBeforeSpaceship + ' full rounds');
+  console.log('');
+  console.log('Start every reset testnet node with the same override:');
+  console.log('npm run start:testnet -- --config-overrides ' + LIVE_CONSENSUS_TESTNET_OVERRIDE);
+  console.log('');
+  console.log('Do not apply this override to an existing public testnet database: moving fairSystem back into the future changes historical replay.');
+}
+
+/**
+ * Builds randomized round-aligned testnet activation heights near ten rounds apart.
+ * @param {Function} random - Random number source returning a value in [0, 1).
+ */
+function buildTestnetLiveConsensusPlan (random) {
+  const roundsBeforeFairSystem = 8 + Math.floor(random() * 5);
+  const roundsBeforeSpaceship = 8 + Math.floor(random() * 5);
+
+  return {
+    roundsBeforeFairSystem,
+    roundsBeforeSpaceship,
+    fairSystem: roundsBeforeFairSystem * 101 + 1,
+    spaceship: (roundsBeforeFairSystem + roundsBeforeSpaceship) * 101 + 1
+  };
+}
+
 module.exports = {
   BASE_CONFIG_PATH,
   DEFAULTS,
+  LIVE_CONSENSUS_LOCALNET_OVERRIDE,
+  LIVE_CONSENSUS_TESTNET_OVERRIDE,
+  assertLiveConsensusSelection,
+  buildTestnetLiveConsensusPlan,
   buildContext,
   collectConfigMetadata,
   configureProgram,
   collectFinalNodeStates,
+  createLiveConsoleLogger,
   isStressScenarioEnabled,
   normalizeOptions,
+  runManagedLocalnetLiveConsensus,
   runCli,
   runLiveTests
 };

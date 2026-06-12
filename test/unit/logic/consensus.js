@@ -8,10 +8,21 @@ const defaultConfig = require('../../../config.default.json');
 const consensusActivationHeights = defaultConfig.consensusActivationHeights;
 
 describe('consensus', () => {
-  function createConsensus (activationHeights, loaderHeight) {
+  /**
+   * Creates a bound consensus instance with independently controlled height sources.
+   * @param {?object} activationHeights - Activation overrides.
+   * @param {number} loaderHeight - Loader-reported height.
+   * @param {number} [blockHeight] - Applied block height.
+   */
+  function createConsensus (activationHeights, loaderHeight, blockHeight) {
     const consensus = new Consensus(activationHeights);
 
     consensus.bindModules({
+      blocks: blockHeight === undefined ? null : {
+        lastBlock: {
+          get: () => ({ height: blockHeight })
+        }
+      },
       loader: {
         getHeight: () => loaderHeight
       }
@@ -33,6 +44,13 @@ describe('consensus', () => {
 
       expect(consensus.isActivated('spaceship')).to.be.false;
       expect(consensus.isActivated('spaceship', 10)).to.be.true;
+    });
+
+    it('should prefer the applied block height over stale loader height', () => {
+      const consensus = createConsensus({ spaceship: 10 }, 1, 10);
+
+      expect(consensus.getCurrentHeight()).to.equal(10);
+      expect(consensus.isActivated('spaceship')).to.be.true;
     });
 
     it('should preserve fairSystem first active height', () => {

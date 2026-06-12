@@ -34,6 +34,8 @@ const TXQUEUE_AFTER_LOAD_DELAY_MS = 30000;
 const TXQUEUE_CONFIRMATION_GRACE_MS = 60000;
 const TXQUEUE_CONFIRMATION_PAGE_SIZE = 1000;
 const TXQUEUE_BLOCK_QUERY_CONCURRENCY = 10;
+const LIVE_CONSENSUS_TRANSITION_TRANSACTION_COUNT = 20;
+const LIVE_CONSENSUS_HEIGHT_LOG_INTERVAL = 5;
 
 const SCENARIOS = [
   {
@@ -1545,6 +1547,10 @@ async function runWebSocketScenario (context) {
  * @param {object} context - Runner context.
  */
 async function runConsensusActivationScenario (context) {
+  if (context.options.live) {
+    return runLiveConsensusActivationScenario(context);
+  }
+
   const definitions = buildConsensusActivationDefinitions();
   const nodes = getConsensusObservationNodes(context);
   const activationHeights = context.configMetadata.consensusActivationHeights || {};
@@ -1604,6 +1610,653 @@ async function runConsensusActivationScenario (context) {
   }
 
   return result;
+}
+
+/**
+ * Runs a six-round localnet activation test with workloads and transition blocks.
+ * @param {object} context - Runner context.
+ */
+async function runLiveConsensusActivationScenario (context) {
+  context.assert(context.target.mode === 'localnet', '--live consensus execution is supported only in localnet mode.');
+
+  const definitions = buildConsensusActivationDefinitions();
+  const activationHeights = context.configMetadata.consensusActivationHeights || {};
+  const plan = buildLiveConsensusPlan(activationHeights);
+  const checkpoints = [];
+  const transitions = [];
+  const startedAt = Date.now();
+  context.liveConsensusPlan = plan;
+  context.liveConsensusProgress = {
+    lastLoggedHeight: null
+  };
+  const result = {
+    kind: 'consensus live activation',
+    test: {
+      nodeSelection: 'Every managed localnet node is captured; node-recipient and node-peer are compared explicitly.',
+      lifecycle: 'Drop localnet databases, start three nodes with the consensus override, run six full rounds, then stop every node gracefully.',
+      workload: 'Run transactions, security, and forging at every checkpoint; submit an additional SEND batch into each last pre-activation block.',
+      requests: [
+        'Complete node, block, delegate, peer, transaction-pool, and forging state from every localnet node.',
+        'transactions.happy-path, transactions.abuse, and delegates.forging at every checkpoint.',
+        'Twenty valid SEND transactions before each activation boundary.'
+      ],
+      agreement: 'Compare recipient and peer nethash and height drift; at equal heights compare broadhash, latest block, delegate order, and activation state.',
+      maxHeightDrift: context.options.maxHeightDrift
+    },
+    definitions,
+    live: {
+      plan,
+      startedAt: new Date(startedAt).toISOString(),
+      checkpoints,
+      transitions
+    },
+    nodes: [],
+    agreement: null,
+    passed: false
+  };
+
+  try {
+    logLiveConsensusProgress(
+        context,
+        'Starting six-round activation run: fairSystem at 203, spaceship at 405, final height 606.',
+        0
+    );
+    await waitForLiveConsensusReady(context);
+
+    logLiveConsensusProgress(context, 'Running baseline checkpoint before any activation.', 1);
+    checkpoints.push(await runLiveConsensusCheckpoint(context, definitions, activationHeights, plan.checkpoints[0]));
+
+    logLiveConsensusProgress(context, 'Forging two complete pre-fairSystem rounds.', 1);
+    await waitForLiveConsensusHeight(context, plan.fairSystem - 2);
+    transitions.push(await runLiveConsensusTransitionLoad(context, 'fairSystem', plan.fairSystem));
+    logLiveConsensusProgress(context, 'fairSystem activation height reached; running activation checkpoint.', plan.fairSystem);
+    checkpoints.push(await runLiveConsensusCheckpoint(context, definitions, activationHeights, plan.checkpoints[1]));
+
+    logLiveConsensusProgress(context, 'Forging two complete fairSystem rounds before spaceship.', plan.fairSystem);
+    await waitForLiveConsensusHeight(context, plan.spaceship - 2);
+    transitions.push(await runLiveConsensusTransitionLoad(context, 'spaceship', plan.spaceship));
+    logLiveConsensusProgress(context, 'spaceship activation height reached; running activation checkpoint.', plan.spaceship);
+    checkpoints.push(await runLiveConsensusCheckpoint(context, definitions, activationHeights, plan.checkpoints[2]));
+
+    logLiveConsensusProgress(context, 'Forging two complete post-spaceship rounds.', plan.spaceship);
+    checkpoints.push(await runLiveConsensusCheckpoint(context, definitions, activationHeights, plan.checkpoints[3]));
+
+    const finalCheckpoint = checkpoints[checkpoints.length - 1];
+    const finalRecipientPeer = finalCheckpoint.after.nodes.slice(0, 2);
+
+    result.nodes = finalRecipientPeer;
+    result.agreement = buildConsensusAgreement(finalRecipientPeer, context.options.maxHeightDrift);
+    result.live.finishedAt = new Date().toISOString();
+    result.live.durationMs = Date.now() - startedAt;
+    result.passed = result.agreement.passed &&
+      checkpoints.every(function (checkpoint) {
+        return checkpoint.passed;
+      }) &&
+      transitions.every(function (transition) {
+        return transition.passed;
+      });
+
+    if (!result.passed) {
+      throw Error('One or more live consensus checkpoints or transition blocks failed.');
+    }
+
+    logLiveConsensusProgress(context, 'All checkpoints, workloads, transitions, and node agreements passed.', plan.finalHeight);
+    return result;
+  } catch (error) {
+    if (error.checkpoint && checkpoints.indexOf(error.checkpoint) === -1) {
+      checkpoints.push(error.checkpoint);
+    }
+    result.live.finishedAt = new Date().toISOString();
+    result.live.durationMs = Date.now() - startedAt;
+    logLiveConsensusProgress(context, 'FAILED: ' + error.message, null);
+    error.result = result;
+    throw error;
+  }
+}
+
+/**
+ * Prints one progress line for the long-running live consensus scenario.
+ * @param {object} context - Runner context with a live console logger.
+ * @param {string} message - Current operation or observed result.
+ * @param {?number} height - Current or relevant blockchain height.
+ */
+function logLiveConsensusProgress (context, message, height) {
+  const plan = context.liveConsensusPlan || {};
+  const finalHeight = Number(plan.finalHeight) || 0;
+  const numericHeight = Number(height);
+  const hasHeight = Number.isFinite(numericHeight);
+  const percent = hasHeight && finalHeight ?
+    Math.max(0, Math.min(100, numericHeight / finalHeight * 100)) :
+    null;
+  const prefix = percent === null ?
+    '[progress n/a] ' :
+    '[progress ' + percent.toFixed(1) + '%][height ' + numericHeight + '/' + finalHeight + '] ';
+
+  context.liveLog(prefix + message);
+}
+
+/**
+ * Builds the round-aligned six-round execution plan.
+ * @param {object} activationHeights - Effective consensus activation heights.
+ */
+function buildLiveConsensusPlan (activationHeights) {
+  const fairSystem = Number(activationHeights.fairSystem);
+  const spaceship = Number(activationHeights.spaceship);
+  const delegates = constants.activeDelegates;
+
+  if (!Number.isInteger(fairSystem) || !Number.isInteger(spaceship)) {
+    throw Error('Live consensus activation heights must be integers.');
+  }
+  if ((fairSystem - 1) % delegates !== 0 || (spaceship - 1) % delegates !== 0) {
+    throw Error('Live consensus activations must start at the first block of a 101-delegate round.');
+  }
+  if (fairSystem !== delegates * 2 + 1 || spaceship !== delegates * 4 + 1) {
+    throw Error('Localnet live consensus plan requires fairSystem=203 and spaceship=405.');
+  }
+
+  return {
+    delegatesPerRound: delegates,
+    totalRounds: 6,
+    fairSystem,
+    spaceship,
+    finalHeight: delegates * 6,
+    checkpoints: [
+      {
+        id: 'baseline',
+        targetHeight: 1,
+        description: 'Initial pre-activation network state.'
+      },
+      {
+        id: 'fairSystem-active',
+        targetHeight: fairSystem,
+        description: 'First block with fairSystem active.'
+      },
+      {
+        id: 'spaceship-active',
+        targetHeight: spaceship,
+        description: 'First block with spaceship active after two fairSystem rounds.'
+      },
+      {
+        id: 'post-spaceship-two-rounds',
+        targetHeight: delegates * 6,
+        description: 'End of the second complete round after spaceship activation.'
+      }
+    ]
+  };
+}
+
+/**
+ * Waits until every managed node exposes a loaded, non-syncing API.
+ * @param {object} context - Runner context.
+ */
+async function waitForLiveConsensusReady (context) {
+  const deadline = Date.now() + context.options.readyTimeoutMs;
+  let lastStates = [];
+  let attempt = 0;
+
+  while (Date.now() < deadline) {
+    attempt++;
+    lastStates = await Promise.all(context.target.nodes.map(async function (node) {
+      const response = await context.clientFor(node).get('/api/node/status');
+      const body = response.body || {};
+
+      return {
+        id: node.id,
+        ready: Boolean(response.ok && body.success && body.loader && body.loader.loaded && !body.loader.syncing),
+        height: body.network && body.network.height,
+        error: response.error || body.error
+      };
+    }));
+
+    if (lastStates.every(function (state) {
+      return state.ready;
+    })) {
+      logLiveConsensusProgress(
+          context,
+          'All nodes are ready: ' + formatLiveNodeStates(lastStates) + '.',
+          Math.min.apply(null, lastStates.map(function (state) {
+            return Number(state.height) || 0;
+          }))
+      );
+      return lastStates;
+    }
+
+    if (attempt === 1 || attempt % 5 === 0) {
+      logLiveConsensusProgress(
+          context,
+          'Waiting for node readiness, genesis application, and peer startup: ' + formatLiveNodeStates(lastStates) + '.',
+          Math.min.apply(null, lastStates.map(function (state) {
+            return Number(state.height) || 0;
+          }))
+      );
+    }
+
+    await sleep(context.options.pollIntervalMs);
+  }
+
+  throw Error('Live consensus localnet was not ready: ' + JSON.stringify(lastStates));
+}
+
+/**
+ * Waits for the primary node to reach a specific live-test height.
+ * @param {object} context - Runner context.
+ * @param {number} targetHeight - Required blockchain height.
+ */
+async function waitForLiveConsensusHeight (context, targetHeight) {
+  const deadline = Date.now() + context.options.liveTimeoutMs;
+  let lastHeight = null;
+  const progress = context.liveConsensusProgress || {
+    lastLoggedHeight: null
+  };
+
+  logLiveConsensusProgress(context, 'Waiting for target height ' + targetHeight + '.', lastHeight);
+
+  while (Date.now() < deadline) {
+    const response = await context.clientFor(context.primaryNode).get('/api/blocks/getHeight');
+
+    context.metrics.latency('consensus.live.height', response.latencyMs);
+    lastHeight = response.body && Number(response.body.height);
+    if (Number.isFinite(lastHeight) && (
+      progress.lastLoggedHeight === null ||
+      lastHeight >= progress.lastLoggedHeight + LIVE_CONSENSUS_HEIGHT_LOG_INTERVAL ||
+      lastHeight >= targetHeight
+    )) {
+      progress.lastLoggedHeight = lastHeight;
+      context.liveConsensusProgress = progress;
+      logLiveConsensusProgress(
+          context,
+          lastHeight >= targetHeight ?
+            'Reached target height ' + targetHeight + '.' :
+            'Forging blocks; next target height is ' + targetHeight + '.',
+          lastHeight
+      );
+    }
+    if (Number.isFinite(lastHeight) && lastHeight >= targetHeight) {
+      return lastHeight;
+    }
+
+    await sleep(context.options.pollIntervalMs);
+  }
+
+  throw Error('Timed out waiting for live consensus height ' + targetHeight + '; last height ' + lastHeight + '.');
+}
+
+/**
+ * Runs all workload suites and captures network state before and after one checkpoint.
+ * @param {object} context - Runner context.
+ * @param {Array<object>} definitions - Consensus activation definitions.
+ * @param {object} activationHeights - Effective activation heights.
+ * @param {object} checkpoint - Planned checkpoint metadata.
+ */
+async function runLiveConsensusCheckpoint (context, definitions, activationHeights, checkpoint) {
+  await waitForLiveConsensusHeight(context, checkpoint.targetHeight);
+
+  const startedAt = Date.now();
+  logLiveConsensusProgress(
+      context,
+      'Checkpoint "' + checkpoint.id + '": capturing complete network state before workloads.',
+      checkpoint.targetHeight
+  );
+  const result = {
+    id: checkpoint.id,
+    description: checkpoint.description,
+    targetHeight: checkpoint.targetHeight,
+    startedAt: new Date(startedAt).toISOString(),
+    before: await collectLiveConsensusNetworkState(context, definitions, activationHeights),
+    workloads: [],
+    after: null,
+    passed: false
+  };
+  logLiveConsensusNetworkSummary(context, checkpoint.id + ' before workloads', result.before);
+
+  for (const workloadId of ['transactions.happy-path', 'transactions.abuse', 'delegates.forging']) {
+    logLiveConsensusProgress(
+        context,
+        'Checkpoint "' + checkpoint.id + '": starting workload ' + workloadId + '.',
+        minimumLiveStateHeight(result.before)
+    );
+    const workload = await runLiveConsensusWorkload(context, workloadId);
+
+    result.workloads.push(workload);
+    logLiveConsensusProgress(
+        context,
+        'Checkpoint "' +
+        checkpoint.id +
+        '": workload ' +
+        workloadId +
+        ' finished with status ' +
+        workload.status +
+        ' in ' +
+        workload.durationMs +
+        ' ms.',
+        minimumLiveStateHeight(result.before)
+    );
+    if (!workload.passed) {
+      logLiveConsensusProgress(
+          context,
+          'Checkpoint "' + checkpoint.id + '": collecting failure state after ' + workloadId + '.',
+          minimumLiveStateHeight(result.before)
+      );
+      result.after = await collectLiveConsensusNetworkState(context, definitions, activationHeights);
+      logLiveConsensusNetworkSummary(context, checkpoint.id + ' failure state', result.after);
+      result.finishedAt = new Date().toISOString();
+      result.durationMs = Date.now() - startedAt;
+      const error = Error('Live consensus workload failed at ' + checkpoint.id + ': ' + workloadId + '.');
+
+      error.checkpoint = result;
+      throw error;
+    }
+  }
+
+  logLiveConsensusProgress(
+      context,
+      'Checkpoint "' + checkpoint.id + '": capturing complete network state after workloads.',
+      minimumLiveStateHeight(result.before)
+  );
+  result.after = await collectLiveConsensusNetworkState(context, definitions, activationHeights);
+  logLiveConsensusNetworkSummary(context, checkpoint.id + ' after workloads', result.after);
+  result.finishedAt = new Date().toISOString();
+  result.durationMs = Date.now() - startedAt;
+  result.passed = result.before.passed &&
+    result.after.passed &&
+    hasConclusiveActiveConsensusEvidence(result.after) &&
+    result.workloads.every(function (workload) {
+      return workload.passed;
+    });
+  logLiveConsensusProgress(
+      context,
+      'Checkpoint "' + checkpoint.id + '" ' + (result.passed ? 'passed' : 'failed') + '.',
+      minimumLiveStateHeight(result.after)
+  );
+
+  return result;
+}
+
+/**
+ * Requires every active consensus switch to have live behavioral evidence after workloads.
+ * @param {object} state - Captured all-node network state.
+ */
+function hasConclusiveActiveConsensusEvidence (state) {
+  return (state.nodes || []).every(function (node) {
+    return (node.activations || []).every(function (activation) {
+      return activation.state !== 'active' ||
+        !activation.evidence ||
+        activation.evidence.conclusive !== false;
+    });
+  });
+}
+
+/**
+ * Executes one existing scenario as a named live-consensus workload.
+ * @param {object} context - Runner context.
+ * @param {string} scenarioId - Existing scenario id.
+ */
+async function runLiveConsensusWorkload (context, scenarioId) {
+  const scenario = SCENARIOS.find(function (candidate) {
+    return candidate.id === scenarioId;
+  });
+  const startedAt = Date.now();
+
+  if (!scenario) {
+    throw Error('Unknown live consensus workload scenario: ' + scenarioId);
+  }
+
+  try {
+    const result = await scenario.run(context);
+
+    return {
+      id: scenario.id,
+      suite: scenario.suite,
+      status: result && result.__skipped ? 'skipped' : 'passed',
+      durationMs: Date.now() - startedAt,
+      result: result && result.__skipped ? { reason: result.reason } : result,
+      passed: !(result && result.__skipped)
+    };
+  } catch (error) {
+    return {
+      id: scenario.id,
+      suite: scenario.suite,
+      status: 'failed',
+      durationMs: Date.now() - startedAt,
+      error: error.message,
+      result: error.result,
+      passed: false
+    };
+  }
+}
+
+/**
+ * Captures status, pools, forging, activation evidence, and agreement for all localnet nodes.
+ * @param {object} context - Runner context.
+ * @param {Array<object>} definitions - Consensus activation definitions.
+ * @param {object} activationHeights - Effective activation heights.
+ */
+async function collectLiveConsensusNetworkState (context, definitions, activationHeights) {
+  const nodes = await Promise.all(context.target.nodes.map(async function (node, index) {
+    const observedNode = Object.assign({}, node, {
+      consensusRole: index === 0 ? 'node-recipient' : index === 1 ? 'node-peer' : 'node-observer'
+    });
+    const observation = await collectConsensusNodeObservation(
+        context,
+        observedNode,
+        definitions,
+        activationHeights
+    );
+    const client = context.clientFor(node);
+    const details = await Promise.all([
+      client.get('/api/transactions/count'),
+      client.get('/api/delegates/forging/status')
+    ]);
+
+    assertSuccessfulConsensusResponse(context, details[0], observedNode, '/api/transactions/count');
+    assertSuccessfulConsensusResponse(context, details[1], observedNode, '/api/delegates/forging/status');
+
+    observation.transactionPools = {
+      confirmed: details[0].body.confirmed,
+      queued: details[0].body.queued,
+      unconfirmed: details[0].body.unconfirmed,
+      multisignature: details[0].body.multisignature
+    };
+    observation.forging = {
+      enabled: details[1].body.enabled,
+      configuredDelegates: (details[1].body.delegates || []).length
+    };
+
+    return observation;
+  }));
+  const agreements = nodes.slice(1).map(function (node) {
+    return buildConsensusAgreement([nodes[0], node], context.options.maxHeightDrift);
+  });
+  const agreement = agreements[0];
+
+  return {
+    capturedAt: new Date().toISOString(),
+    nodes,
+    agreement,
+    agreements,
+    passed: agreements.every(function (candidate) {
+      return candidate.passed;
+    }) && nodes.every(function (node) {
+      return node.ready && node.activations.every(function (activation) {
+        return activation.passed;
+      });
+    })
+  };
+}
+
+/**
+ * Prints a compact all-node summary after one full network-state capture.
+ * @param {object} context - Runner context.
+ * @param {string} label - Capture phase label.
+ * @param {object} state - Captured network state.
+ */
+function logLiveConsensusNetworkSummary (context, label, state) {
+  const nodeSummary = (state.nodes || []).map(function (node) {
+    const pools = node.transactionPools || {};
+    const activations = (node.activations || []).map(function (activation) {
+      return activation.name + '=' + activation.state;
+    }).join(',');
+
+    return node.id +
+      ':h=' +
+      node.height +
+      ',ready=' +
+      node.ready +
+      ',pools=' +
+      [pools.queued, pools.unconfirmed, pools.multisignature].join('/') +
+      ',activations=' +
+      activations;
+  }).join(' | ');
+
+  logLiveConsensusProgress(
+      context,
+      'Network state "' +
+      label +
+      '": ' +
+      nodeSummary +
+      '; all-node agreement=' +
+      state.passed +
+      '.',
+      minimumLiveStateHeight(state)
+  );
+}
+
+/**
+ * Returns the minimum reported height from a captured live network state.
+ * @param {?object} state - Captured network state.
+ */
+function minimumLiveStateHeight (state) {
+  const heights = state && state.nodes ? state.nodes.map(function (node) {
+    return Number(node.height);
+  }).filter(Number.isFinite) : [];
+
+  return heights.length ? Math.min.apply(null, heights) : null;
+}
+
+/**
+ * Formats readiness polling state for console progress output.
+ * @param {Array<object>} states - Per-node readiness observations.
+ */
+function formatLiveNodeStates (states) {
+  return states.map(function (state) {
+    return state.id +
+      '(ready=' +
+      state.ready +
+      ', height=' +
+      (state.height === undefined ? 'n/a' : state.height) +
+      (state.error ? ', error=' + state.error : '') +
+      ')';
+  }).join(', ');
+}
+
+/**
+ * Loads valid SEND transactions into the final block before one activation.
+ * @param {object} context - Runner context.
+ * @param {string} activationName - Activation reached by the next block.
+ * @param {number} activationHeight - First active block height.
+ */
+async function runLiveConsensusTransitionLoad (context, activationName, activationHeight) {
+  const fixture = context.fixtureAccounts.transfer;
+
+  context.assert(fixture && fixture.secret, 'No funded transfer fixture account found for transition load.');
+
+  const observedHeight = await waitForLiveConsensusHeight(context, activationHeight - 2);
+
+  context.assert(
+      observedHeight === activationHeight - 2,
+      'Missed pre-activation transaction window for ' + activationName + '.'
+  );
+
+  const client = context.clientFor(context.primaryNode);
+  const sender = accountFromFixture(fixture);
+  logLiveConsensusProgress(
+      context,
+      'Transition "' +
+      activationName +
+      '": generating and signing ' +
+      LIVE_CONSENSUS_TRANSITION_TRANSACTION_COUNT +
+      ' SEND transactions for pre-activation block ' +
+      (activationHeight - 1) +
+      '.',
+      observedHeight
+  );
+  const transactions = Array.from({ length: LIVE_CONSENSUS_TRANSITION_TRANSACTION_COUNT }, function () {
+    const recipient = tx.createAccount();
+
+    return tx.createSendTransaction(sender, recipient.address, context.options.transferAmount);
+  });
+  const submissions = await Promise.all(transactions.map(function (transaction) {
+    return client.post('/api/transactions/process', { transaction });
+  }));
+  const acceptedIds = transactions.filter(function (transaction, index) {
+    return submissions[index].ok && submissions[index].body && submissions[index].body.success;
+  }).map(function (transaction) {
+    return transaction.id;
+  });
+  logLiveConsensusProgress(
+      context,
+      'Transition "' +
+      activationName +
+      '": node-recipient accepted ' +
+      acceptedIds.length +
+      '/' +
+      transactions.length +
+      ' transactions; waiting for activation height ' +
+      activationHeight +
+      '.',
+      observedHeight
+  );
+
+  context.assert(acceptedIds.length > 0, 'No transition transactions were accepted before ' + activationName + '.');
+
+  await waitForLiveConsensusHeight(context, activationHeight);
+
+  const confirmations = await Promise.all(acceptedIds.map(async function (transactionId) {
+    const response = await client.get('/api/transactions/get?id=' + encodeURIComponent(transactionId));
+    const transaction = response.body && response.body.transaction;
+
+    return {
+      id: transactionId,
+      confirmed: Boolean(response.ok && response.body && response.body.success && transaction),
+      height: transaction && Number(transaction.height),
+      confirmations: transaction && Number(transaction.confirmations || 0)
+    };
+  }));
+  const preActivationBlockHeight = activationHeight - 1;
+  const inPreActivationBlock = confirmations.filter(function (confirmation) {
+    return confirmation.height === preActivationBlockHeight;
+  }).length;
+  logLiveConsensusProgress(
+      context,
+      'Transition "' +
+      activationName +
+      '": confirmed ' +
+      confirmations.filter(function (confirmation) {
+        return confirmation.confirmed;
+      }).length +
+      '/' +
+      acceptedIds.length +
+      '; included in required block ' +
+      preActivationBlockHeight +
+      ': ' +
+      inPreActivationBlock +
+      '.',
+      activationHeight
+  );
+
+  return {
+    activation: activationName,
+    activationHeight,
+    preActivationBlockHeight,
+    generated: transactions.length,
+    accepted: acceptedIds.length,
+    confirmed: confirmations.filter(function (confirmation) {
+      return confirmation.confirmed;
+    }).length,
+    inPreActivationBlock,
+    confirmations,
+    passed: inPreActivationBlock > 0
+  };
 }
 
 /**
@@ -1830,7 +2483,7 @@ function buildConsensusActivationObservation (
   const timestampEvidence = inspectTimestampMs(transactions);
   const expectedPresence = activation.state === 'active';
   const contradictory = expectedPresence ?
-    timestampEvidence.sampled === 0 || timestampEvidence.present !== timestampEvidence.sampled :
+    timestampEvidence.sampled > 0 && timestampEvidence.present !== timestampEvidence.sampled :
     timestampEvidence.present > 0;
 
   evidence = {
@@ -1840,6 +2493,7 @@ function buildConsensusActivationObservation (
     timestampMsMissing: timestampEvidence.missing,
     invalidTimestampMs: timestampEvidence.invalid,
     expectedPresence,
+    conclusive: !expectedPresence || timestampEvidence.sampled > 0,
     summary: timestampEvidence.sampled +
       ' transactions sampled; timestampMs present=' +
       timestampEvidence.present +
@@ -1849,6 +2503,8 @@ function buildConsensusActivationObservation (
       timestampEvidence.invalid +
       '; expected presence=' +
       expectedPresence +
+      '; conclusive=' +
+      (!expectedPresence || timestampEvidence.sampled > 0) +
       '.'
   };
 
@@ -4775,6 +5431,7 @@ module.exports = {
   buildConsensusActivationDefinitions,
   buildConsensusActivationObservation,
   buildConsensusAgreement,
+  buildLiveConsensusPlan,
   buildDynamicRestApiChecks,
   buildConsensusSwitches,
   buildDocumentedComplexApiChecks,
@@ -4786,6 +5443,7 @@ module.exports = {
   collectAcceptedTransactionStates,
   collectBlockchainTps,
   collectConsensusNodeObservation,
+  collectLiveConsensusNetworkState,
   collectFinalAcceptedTransactionStates,
   collectTargetNodeDetails,
   collectTransactionPoolSnapshot,
@@ -4799,6 +5457,9 @@ module.exports = {
   getTransactionObservationNodes,
   inspectTimestampMs,
   isDelegateListSorted,
+  logLiveConsensusProgress,
+  runLiveConsensusTransitionLoad,
+  runLiveConsensusWorkload,
   isScenarioEnabledByOptions,
   publicBlockForgingResult,
   publicConfirmationResult,

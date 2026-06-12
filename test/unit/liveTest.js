@@ -722,6 +722,152 @@ describe('live scenario runner utilities', () => {
     });
   });
 
+  it('should build the fixed six-round localnet consensus plan', () => {
+    const plan = scenarios.buildLiveConsensusPlan({
+      fairSystem: 203,
+      spaceship: 405
+    });
+
+    expect(plan).to.include({
+      delegatesPerRound: 101,
+      totalRounds: 6,
+      fairSystem: 203,
+      spaceship: 405,
+      finalHeight: 606
+    });
+    expect(plan.checkpoints.map((checkpoint) => checkpoint.targetHeight)).to.deep.equal([
+      1,
+      203,
+      405,
+      606
+    ]);
+    expect(() => scenarios.buildLiveConsensusPlan({
+      fairSystem: 202,
+      spaceship: 405
+    })).to.throw(/first block/);
+  });
+
+  it('should build randomized round-aligned testnet consensus plans', () => {
+    const minimum = liveTest.buildTestnetLiveConsensusPlan(function () {
+      return 0;
+    });
+    const maximum = liveTest.buildTestnetLiveConsensusPlan(function () {
+      return 0.999;
+    });
+
+    expect(minimum).to.deep.equal({
+      roundsBeforeFairSystem: 8,
+      roundsBeforeSpaceship: 8,
+      fairSystem: 809,
+      spaceship: 1617
+    });
+    expect(maximum).to.deep.equal({
+      roundsBeforeFairSystem: 12,
+      roundsBeforeSpaceship: 12,
+      fairSystem: 1213,
+      spaceship: 2425
+    });
+  });
+
+  it('should require the dedicated consensus selection for live mode', () => {
+    expect(() => liveTest.assertLiveConsensusSelection({
+      suite: ['consensus']
+    })).not.to.throw();
+    expect(() => liveTest.assertLiveConsensusSelection({
+      scenario: ['consensus.activation']
+    })).not.to.throw();
+    expect(() => liveTest.assertLiveConsensusSelection({
+      suite: ['transactions']
+    })).to.throw(/requires --suite consensus/);
+  });
+
+  it('should reset, start, execute, and gracefully stop a live consensus localnet', async () => {
+    const calls = [];
+    const logs = [];
+    const result = await liveTest.runManagedLocalnetLiveConsensus({
+      suite: ['consensus'],
+      mode: 'localnet'
+    }, {
+      localnet: {
+        dropLocalnet: async function (options) {
+          calls.push(['drop', options]);
+          return {
+            stopResult: { timedOut: [] },
+            dropResult: { failed: [] },
+            redisResult: { failed: [], flushed: [] }
+          };
+        },
+        startLocalnet: function (options) {
+          calls.push(['start', options]);
+        },
+        stopLocalnet: async function (options) {
+          calls.push(['stop', options]);
+          return { timedOut: [] };
+        }
+      },
+      runLiveTests: async function (options) {
+        calls.push(['run', options]);
+        return {
+          report: { status: 'passed' },
+          paths: {}
+        };
+      },
+      log: function (message) {
+        logs.push(message);
+      }
+    });
+
+    expect(result.report.status).to.equal('passed');
+    expect(calls.map((call) => call[0])).to.deep.equal(['drop', 'start', 'run', 'stop']);
+    expect(calls[1][1].configOverrides).to.deep.equal([
+      'test/config.localnet.json',
+      'scripts/live-test/config.test-consensus-localnet.overrides'
+    ]);
+    expect(calls[2][1].configOverrides).to.deep.equal([
+      'scripts/live-test/config.test-consensus-localnet.overrides'
+    ]);
+    expect(logs).to.deep.equal([
+      'Lifecycle 1/4: gracefully stopping any managed localnet and dropping its databases.',
+      'Lifecycle 1/4 complete: dropped 0 database(s), skipped 0, and flushed 0 Redis database(s).',
+      'Lifecycle 2/4: starting 3 localnet nodes with fairSystem=203, spaceship=405, and PostgreSQL poolSize=20.',
+      'Lifecycle 2/4 complete: node processes started; waiting for APIs, genesis loading, and forging readiness.',
+      'Lifecycle 3/4 complete: live consensus scenario finished with status passed.',
+      'Lifecycle 4/4: gracefully stopping all managed localnet nodes.',
+      'Lifecycle 4/4 complete: stopped 0 node(s); already missing 0.'
+    ]);
+  });
+
+  it('should format live consensus console progress with percentage and height', () => {
+    const logs = [];
+
+    scenarios.logLiveConsensusProgress({
+      liveConsensusPlan: {
+        finalHeight: 606
+      },
+      liveLog: function (message) {
+        logs.push(message);
+      }
+    }, 'Forging blocks.', 303);
+
+    expect(logs).to.deep.equal([
+      '[progress 50.0%][height 303/606] Forging blocks.'
+    ]);
+  });
+
+  it('should create timestamped live consensus console lines', () => {
+    const logs = [];
+    const logger = liveTest.createLiveConsoleLogger(function (message) {
+      logs.push(message);
+    });
+
+    logger('Lifecycle started.');
+
+    expect(logs).to.have.length(1);
+    expect(logs[0]).to.match(
+        /^\[live consensus\]\[\d{4}-\d{2}-\d{2}T[\d:.]+Z\] Lifecycle started\.$/
+    );
+  });
+
   it('should select recipient and peer roles for consensus checks in both modes', () => {
     /**
      * Mirrors the runner assertion helper for node-selection unit tests.
@@ -824,7 +970,8 @@ describe('live scenario runner utilities', () => {
       timestampMsPresent: 1,
       timestampMsMissing: 0,
       invalidTimestampMs: 0,
-      expectedPresence: true
+      expectedPresence: true,
+      conclusive: true
     });
   });
 
@@ -954,6 +1101,8 @@ describe('live scenario runner utilities', () => {
       recipientId: recipient.address,
       amount: 100000000
     });
+    expect(transaction.timestampMs).to.be.a('number');
+    expect(transaction.timestamp).to.equal(Math.floor(transaction.timestampMs / 1000));
     expect(transaction.id).to.be.a('string');
     expect(transaction.signature).to.be.a('string');
     expect(chat).to.include({
@@ -1439,6 +1588,94 @@ describe('live scenario runner utilities', () => {
             },
             definitions,
             nodes,
+            live: {
+              plan: {
+                delegatesPerRound: 101,
+                totalRounds: 6,
+                fairSystem: 203,
+                spaceship: 405,
+                finalHeight: 606
+              },
+              startedAt: '2026-06-12T00:00:00.000Z',
+              finishedAt: '2026-06-12T00:50:00.000Z',
+              durationMs: 3000000,
+              transitions: [
+                {
+                  activation: 'fairSystem',
+                  activationHeight: 203,
+                  preActivationBlockHeight: 202,
+                  generated: 20,
+                  accepted: 20,
+                  confirmed: 20,
+                  inPreActivationBlock: 20,
+                  passed: true
+                }
+              ],
+              checkpoints: [
+                {
+                  id: 'baseline',
+                  description: 'Initial pre-activation network state.',
+                  targetHeight: 1,
+                  durationMs: 5000,
+                  workloads: [
+                    {
+                      id: 'transactions.happy-path',
+                      suite: 'transactions',
+                      status: 'passed',
+                      durationMs: 1000,
+                      result: {
+                        transactions: [{ id: 'transaction' }],
+                        rejections: []
+                      },
+                      passed: true
+                    }
+                  ],
+                  before: {
+                    nodes: nodes.map(function (node) {
+                      return Object.assign({}, node, {
+                        transactionPools: {
+                          confirmed: 10,
+                          queued: 0,
+                          unconfirmed: 0,
+                          multisignature: 0
+                        },
+                        forging: {
+                          enabled: true,
+                          configuredDelegates: 34
+                        }
+                      });
+                    }),
+                    agreement: {
+                      passed: true,
+                      heightDrift: 0
+                    },
+                    passed: true
+                  },
+                  after: {
+                    nodes: nodes.map(function (node) {
+                      return Object.assign({}, node, {
+                        transactionPools: {
+                          confirmed: 20,
+                          queued: 0,
+                          unconfirmed: 0,
+                          multisignature: 0
+                        },
+                        forging: {
+                          enabled: true,
+                          configuredDelegates: 34
+                        }
+                      });
+                    }),
+                    agreement: {
+                      passed: true,
+                      heightDrift: 0
+                    },
+                    passed: true
+                  },
+                  passed: true
+                }
+              ]
+            },
             agreement: {
               heightDrift: 0,
               passed: true,
@@ -1461,6 +1698,14 @@ describe('live scenario runner utilities', () => {
     });
 
     expect(markdown).to.include('## Consensus Details');
+    expect(markdown).to.include(
+        'Live activation mode deliberately submits test transactions to its disposable managed localnet.'
+    );
+    expect(markdown).to.include('#### Live Activation Run');
+    expect(markdown).to.include('| fairSystem | 203 | 202 | 20 | 20 | 20 | 20 | passed |');
+    expect(markdown).to.include('##### Checkpoint: baseline');
+    expect(markdown).to.include('transactions.happy-path=passed, accepted=1, rejected=0');
+    expect(markdown).to.include('Pools C/Q/U/M');
     expect(markdown).to.include('#### Node Summary');
     expect(markdown).to.include('| node-recipient | node-1 | http://node-1 |');
     expect(markdown).to.include('#### Node Agreement');

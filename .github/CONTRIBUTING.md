@@ -228,7 +228,7 @@ Localnet databases are not dropped by default. To stop localnet and drop its Pos
 npm run stop:localnet -- --drop-on-stop
 ```
 
-Use `drop:localnet` when you want a full localnet database cleanup even if no nodes are currently running:
+Use `drop:localnet` when you want a full localnet cleanup even if no nodes are currently running. It drops the isolated PostgreSQL databases and flushes only the logical Redis databases assigned to the managed localnet nodes:
 
 ```sh
 npm run drop:localnet
@@ -236,7 +236,7 @@ npm run drop:localnet
 
 ### Live scenario tests
 
-Live scenario tests complement unit and API tests by checking an already running node or localnet through public interfaces. Scenario scripts never start or stop nodes. Use `start:testnet` or `start:localnet` separately, then stop nodes through the graceful shutdown path.
+Live scenario tests complement unit and API tests by checking a node or localnet through public interfaces. Ordinary scenario runs never start or stop nodes. The only exception is `scenario:localnet -- --suite consensus --live`, which owns a disposable managed localnet lifecycle and always uses graceful shutdown.
 
 Run against a local testnet node if one is already listening, otherwise fall back to the first peer from `test/config.default.json`:
 
@@ -262,6 +262,7 @@ Useful selection flags:
 ```sh
 npm run scenario:testnet -- --suite api
 npm run scenario:localnet -- --suite consensus
+npm run scenario:localnet -- --suite consensus --live
 npm run scenario:localnet -- --suite load --profile high
 npm run scenario:localnet -- --suite load --http-stress
 npm run scenario:localnet -- --suite load --txqueue-type0-stress
@@ -308,6 +309,36 @@ The `fairSystem` activation replaces raw `vote` with productivity-adjusted `vote
 The `spaceship` activation preserves `timestampMs` during transaction normalization and requires it to remain within the same ADAMANT second as `timestamp`, from 0 through 999 milliseconds. Before activation, normalization removes `timestampMs` to preserve historical compatibility. The field adds millisecond ordering precision but remains outside transaction signatures, hashes, and ids. The live probe inspects up to 100 transactions from an activation-aware height range, checks expected field presence, and validates the same-second constraint.
 
 The Markdown consensus report includes the exact request set and pass conditions, a summary table for both nodes, a node-agreement table, and separate `fairSystem` and `spaceship` sections. Each activation section states its purpose, pre-activation behavior, activated consensus changes, activation height, and per-node evidence.
+
+#### Live consensus activation run
+
+Use the destructive, long-running localnet activation test only with the dedicated consensus selection:
+
+```sh
+npm run scenario:localnet -- --suite consensus --live
+```
+
+The command first performs the equivalent of `drop:localnet`, then starts three nodes with `test/config.localnet.json` and `scripts/live-test/config.test-consensus-localnet.overrides`. It sets `fairSystem` to height `203`, the first block after two complete 101-delegate rounds, and `spaceship` to height `405`, the first block after another two complete rounds. The override also limits each node to 20 PostgreSQL pool connections so three fresh nodes fit under the common 100-connection local PostgreSQL limit during genesis loading and migrations. It runs through height `606`, completing two additional rounds after `spaceship`, writes the report while the nodes are available, and stops every node through graceful shutdown even when a scenario fails. The default two-hour height-wait limit can be changed with `--live-timeout-ms`.
+
+Round alignment is required for this localnet plan. `fairSystem` changes delegate ranking and active-delegate selection, so activating it at the first block of a round avoids changing the delegate set partway through a round. `spaceship` could technically activate at an arbitrary block because it changes transaction timestamp normalization rather than delegate scheduling. It is also round-aligned so every phase contains complete, directly comparable rounds and the test remains deterministic.
+
+The live run captures four checkpoints: the initial pre-activation state, the first `fairSystem` block, the first `spaceship` block, and the end of the second complete post-`spaceship` round. At every checkpoint it captures all three nodes before and after workload execution, including chain head, loader state, cached and live peer consensus, pools, forging configuration, and activation evidence. It executes `transactions.happy-path`, `transactions.abuse`, and `delegates.forging` at every checkpoint. Twenty additional valid SEND transactions are submitted before each activation, and the report requires at least one to be confirmed in the final pre-activation block.
+
+The command prints timestamped `[live consensus]` progress lines throughout the run. Lifecycle messages identify database reset, node startup, scenario completion, and graceful shutdown. During the scenario, progress includes the current height and estimated percentage of the 606-block plan, normally updated every five blocks and at every target boundary. Additional lines identify readiness polling, checkpoint state capture, each workload start and result, transition transaction admission and confirmation, compact all-node pool and activation state, and any failure before the Markdown report is written.
+
+For testnet, `--live` does not start, stop, reset, or test any node. It generates round-aligned activation heights with independently randomized intervals of 8-12 rounds, rewrites `scripts/live-test/config.test-consensus-testnet.overrides`, prints the coordinated startup command, and exits:
+
+```sh
+npm run scenario:testnet -- --suite consensus --live
+```
+
+The printed command has this form:
+
+```sh
+npm run start:testnet -- --config-overrides scripts/live-test/config.test-consensus-testnet.overrides
+```
+
+All participating testnet nodes must use the same generated override and start from the same clean chain state. Never apply this file to an existing public testnet database: `fairSystem` has already activated there, and moving its activation into the future changes historical replay and causes chain divergence.
 
 Stress and overload profiles are opt-in:
 

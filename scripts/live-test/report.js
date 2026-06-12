@@ -413,12 +413,20 @@ function collectConsensusScenarios (scenarios) {
  * @param {Array<object>} scenarios - Consensus scenario report entries.
  */
 function appendConsensusDetails (lines, scenarios) {
+  const includesLiveActivation = scenarios.some(function (scenario) {
+    return scenario.result && scenario.result.live;
+  });
+
   lines.push('');
   lines.push('## Consensus Details');
   lines.push('');
   lines.push(
       'The consensus suite observes the configured activation height and the corresponding public behavior ' +
-      'on both node-recipient and node-peer. It does not mutate chain state. Equal-height nodes must expose ' +
+      'on both node-recipient and node-peer. ' +
+      (includesLiveActivation ?
+        'Live activation mode deliberately submits test transactions to its disposable managed localnet. ' :
+        'Ordinary observation mode does not mutate chain state. ') +
+      'Equal-height nodes must expose ' +
       'the same chain head and delegate order; nodes at nearby heights are compared only on invariants that ' +
       'remain meaningful during normal block propagation.'
   );
@@ -450,6 +458,11 @@ function appendConsensusDetails (lines, scenarios) {
         formatReportValue(result.passed) +
         '.'
     );
+
+    if (result.live) {
+      appendLiveConsensusDetails(lines, result.live);
+    }
+
     lines.push('');
     lines.push('#### Node Summary');
     lines.push('');
@@ -514,6 +527,239 @@ function appendConsensusDetails (lines, scenarios) {
     appendConsensusAgreement(lines, agreement);
     appendConsensusActivations(lines, result.definitions || [], nodes);
   });
+}
+
+/**
+ * Appends the six-round lifecycle, transition blocks, and checkpoint network states.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {object} live - Live consensus execution result.
+ */
+function appendLiveConsensusDetails (lines, live) {
+  const plan = live.plan || {};
+  const checkpoints = live.checkpoints || [];
+  const transitions = live.transitions || [];
+
+  lines.push('');
+  lines.push('#### Live Activation Run');
+  lines.push('');
+  lines.push(
+      '- Plan: ' +
+      formatReportValue(plan.totalRounds) +
+      ' rounds of ' +
+      formatReportValue(plan.delegatesPerRound) +
+      ' blocks; fairSystem at height ' +
+      formatReportValue(plan.fairSystem) +
+      '; spaceship at height ' +
+      formatReportValue(plan.spaceship) +
+      '; final height ' +
+      formatReportValue(plan.finalHeight) +
+      '.'
+  );
+  lines.push(
+      '- Runtime: ' +
+      formatReportValue(live.startedAt) +
+      ' to ' +
+      formatReportValue(live.finishedAt) +
+      '; duration ' +
+      formatDuration(live.durationMs) +
+      '.'
+  );
+  lines.push('');
+  lines.push('| Checkpoint | Target height | Before heights | After heights | Workloads | Status |');
+  lines.push('| --- | ---: | --- | --- | --- | --- |');
+
+  checkpoints.forEach(function (checkpoint) {
+    lines.push(
+        '| ' +
+        formatMarkdownTableValue(checkpoint.id) +
+        ' | ' +
+        formatMarkdownTableValue(checkpoint.targetHeight) +
+        ' | ' +
+        formatMarkdownTableValue(formatLiveNetworkHeights(checkpoint.before)) +
+        ' | ' +
+        formatMarkdownTableValue(formatLiveNetworkHeights(checkpoint.after)) +
+        ' | ' +
+        formatMarkdownTableValue((checkpoint.workloads || []).map(function (workload) {
+          return workload.id + '=' + workload.status;
+        }).join('; ')) +
+        ' | ' +
+        formatMarkdownTableValue(checkpoint.passed ? 'passed' : 'failed') +
+        ' |'
+    );
+  });
+
+  lines.push('');
+  lines.push('##### Pre-activation Transaction Blocks');
+  lines.push('');
+  lines.push('| Activation | Activation height | Pre-activation block | Generated | Accepted | Confirmed | In target block | Status |');
+  lines.push('| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |');
+
+  transitions.forEach(function (transition) {
+    lines.push(
+        '| ' +
+        formatMarkdownTableValue(transition.activation) +
+        ' | ' +
+        formatMarkdownTableValue(transition.activationHeight) +
+        ' | ' +
+        formatMarkdownTableValue(transition.preActivationBlockHeight) +
+        ' | ' +
+        formatMarkdownTableValue(transition.generated) +
+        ' | ' +
+        formatMarkdownTableValue(transition.accepted) +
+        ' | ' +
+        formatMarkdownTableValue(transition.confirmed) +
+        ' | ' +
+        formatMarkdownTableValue(transition.inPreActivationBlock) +
+        ' | ' +
+        formatMarkdownTableValue(transition.passed ? 'passed' : 'failed') +
+        ' |'
+    );
+  });
+
+  checkpoints.forEach(function (checkpoint) {
+    lines.push('');
+    lines.push('##### Checkpoint: ' + checkpoint.id);
+    lines.push('');
+    lines.push('- Target: height ' + formatReportValue(checkpoint.targetHeight) + '; ' + checkpoint.description);
+    lines.push('- Duration: ' + formatDuration(checkpoint.durationMs) + '.');
+    lines.push('- Workloads: ' + (checkpoint.workloads || []).map(formatLiveConsensusWorkload).join('; ') + '.');
+    appendLiveConsensusNetworkState(lines, 'Before workloads', checkpoint.before);
+    appendLiveConsensusNetworkState(lines, 'After workloads', checkpoint.after);
+  });
+}
+
+/**
+ * Appends one all-node state table captured during a live consensus checkpoint.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {string} title - State phase title.
+ * @param {?object} state - Captured network state.
+ */
+function appendLiveConsensusNetworkState (lines, title, state) {
+  if (!state) {
+    lines.push('');
+    lines.push('###### ' + title);
+    lines.push('');
+    lines.push('State was not captured.');
+    return;
+  }
+
+  lines.push('');
+  lines.push('###### ' + title);
+  lines.push('');
+  lines.push(
+      '| Role | Node | Height | Block | Loaded | Syncing | Cached / live consensus | Pools C/Q/U/M | ' +
+      'Forging | Activations | Status |'
+  );
+  lines.push('| --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- |');
+
+  (state.nodes || []).forEach(function (node) {
+    const pools = node.transactionPools || {};
+    const forging = node.forging || {};
+    const liveConsensus = node.liveConsensus || {};
+    const activations = (node.activations || []).map(function (activation) {
+      return activation.name + '=' + activation.state + ' (' + (activation.passed ? 'ok' : 'failed') + ')';
+    }).join('; ');
+
+    lines.push(
+        '| ' +
+        formatMarkdownTableValue(node.role) +
+        ' | ' +
+        formatMarkdownTableValue(node.id) +
+        ' | ' +
+        formatMarkdownTableValue(node.height) +
+        ' | ' +
+        formatMarkdownTableValue(formatConsensusBlock(node.latestBlock)) +
+        ' | ' +
+        formatMarkdownTableValue(node.loaded) +
+        ' | ' +
+        formatMarkdownTableValue(node.syncing) +
+        ' | ' +
+        formatMarkdownTableValue(
+            formatPercent(node.cachedConsensus) +
+            ' / ' +
+            formatPercent(liveConsensus.livePercent) +
+            ' (' +
+            formatReportValue(liveConsensus.matchingPeers) +
+            '/' +
+            formatReportValue(liveConsensus.connectedPeers) +
+            ')'
+        ) +
+        ' | ' +
+        formatMarkdownTableValue(
+            [
+              pools.confirmed,
+              pools.queued,
+              pools.unconfirmed,
+              pools.multisignature
+            ].map(formatReportValue).join('/')
+        ) +
+        ' | ' +
+        formatMarkdownTableValue(
+            'enabled=' +
+            formatReportValue(forging.enabled) +
+            ', delegates=' +
+            formatReportValue(forging.configuredDelegates)
+        ) +
+        ' | ' +
+        formatMarkdownTableValue(activations) +
+        ' | ' +
+        formatMarkdownTableValue(node.ready ? 'ready' : 'not ready') +
+        ' |'
+    );
+  });
+
+  lines.push('');
+  lines.push(
+      '- Recipient-to-node agreement: ' +
+      (state.agreements || [state.agreement]).filter(Boolean).map(function (agreement) {
+        return formatReportValue(agreement.peer) +
+          '=' +
+          (agreement.passed ? 'passed' : 'failed') +
+          ' (height drift ' +
+          formatReportValue(agreement.heightDrift) +
+          ')';
+      }).join('; ') +
+      '.'
+  );
+}
+
+/**
+ * Formats the observed height set for a live checkpoint summary.
+ * @param {?object} state - Captured network state.
+ */
+function formatLiveNetworkHeights (state) {
+  if (!state || !state.nodes) {
+    return 'not captured';
+  }
+
+  return state.nodes.map(function (node) {
+    return node.id + '=' + node.height;
+  }).join(', ');
+}
+
+/**
+ * Formats one nested workload result without exposing transaction payloads.
+ * @param {object} workload - Nested scenario execution result.
+ */
+function formatLiveConsensusWorkload (workload) {
+  const result = workload.result || {};
+  let details = '';
+
+  if (workload.id === 'transactions.happy-path') {
+    details = ', accepted=' + (result.transactions || []).length + ', rejected=' + (result.rejections || []).length;
+  } else if (workload.id === 'transactions.abuse') {
+    details = ', abuse checks=' + (result.checks || []).length;
+  } else if (workload.id === 'delegates.forging') {
+    details = ', nodes=' + (result.nodes || []).length;
+  }
+
+  return workload.id +
+    '=' +
+    workload.status +
+    details +
+    ', duration=' +
+    formatDuration(workload.durationMs) +
+    (workload.error ? ', error=' + workload.error : '');
 }
 
 /**
@@ -1855,6 +2101,8 @@ module.exports = {
   appendConsensusActivations,
   appendConsensusAgreement,
   appendConsensusDetails,
+  appendLiveConsensusDetails,
+  appendLiveConsensusNetworkState,
   appendForgingDetails,
   appendLoadDetails,
   appendTargetDetails,
@@ -1877,6 +2125,8 @@ module.exports = {
   formatHeightRange,
   formatList,
   formatLoadFailure,
+  formatLiveConsensusWorkload,
+  formatLiveNetworkHeights,
   formatMilliseconds,
   formatObservedHeightRange,
   formatPercent,
