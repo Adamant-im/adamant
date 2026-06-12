@@ -168,7 +168,7 @@ function appendLoadDetails (lines, scenarios) {
   lines.push('');
   lines.push(
       'Load scenarios are opt-in according to their workload. HTTP load is read-only; ' +
-      'transaction queue load publishes real signed transactions and changes network state.'
+      'transaction load publishes real signed transactions and changes network state.'
   );
 
   scenarios.forEach(function (scenario) {
@@ -308,7 +308,9 @@ function appendTxQueueLoadDetails (lines, scenario) {
   lines.push('### ' + scenario.id);
   lines.push('- Scenario status: ' + scenario.status + '; duration ' + formatDuration(scenario.durationMs) + '.');
   lines.push(
-      '- Test: continuously generate, sign, and submit valid ' +
+      '- Test: ' +
+      formatTransactionLoadAction(workload) +
+      ' valid ' +
       formatReportValue(transaction.typeName) +
       ' (' +
       formatReportValue(transaction.type) +
@@ -320,17 +322,7 @@ function appendTxQueueLoadDetails (lines, scenario) {
       '.'
   );
   lines.push('- Transaction: ' + formatTxQueueTransactionDetails(transaction, sourceAccount) + '.');
-  lines.push(
-      '- Workload: configured generation window ' +
-      formatDuration(workload.configuredDurationMs) +
-      '; actual ' +
-      formatDuration(workload.actualDurationMs) +
-      '; concurrency ' +
-      formatReportValue(workload.concurrency) +
-      '; artificial delay ' +
-      formatDuration(workload.artificialDelayMs) +
-      '.'
-  );
+  lines.push('- Workload: ' + formatTransactionLoadWorkload(workload) + '.');
   lines.push(
       '- Admission results: generated ' +
       formatReportValue(workload.generated) +
@@ -354,6 +346,19 @@ function appendTxQueueLoadDetails (lines, scenario) {
       '.'
   );
   lines.push('- Rejection reasons: ' + formatReasonHistogram(workload.rejectionReasons) + '.');
+
+  if (workload.mode === 'burst' &&
+      Object.keys(workload.rejectionReasons || {}).some(function (reason) {
+        return reason.indexOf('timestamp is more than') !== -1 &&
+          reason.indexOf('in the past') !== -1;
+      })) {
+    lines.push(
+        '- Timestamp expiration: transactions were valid when signed, but the node validates freshness ' +
+        'when each request reaches balance-changing processing. Requests delayed in the balance queue ' +
+        'can therefore expire before admission.'
+    );
+  }
+
   lines.push(
       '- Pool visibility: public counters ' +
       formatList(result.publicPoolCategories) +
@@ -541,6 +546,54 @@ function appendTxQueueLoadDetails (lines, scenario) {
       );
     });
   });
+}
+
+/**
+ * Describes how a transaction load scenario creates and submits transactions.
+ * @param {object} workload - Transaction workload report data.
+ */
+function formatTransactionLoadAction (workload) {
+  if (workload.mode === 'burst') {
+    return 'pre-generate, sign, retain in memory, and concurrently submit';
+  }
+
+  return 'continuously generate, sign, and submit';
+}
+
+/**
+ * Formats continuous and burst transaction load parameters for Markdown reports.
+ * @param {object} workload - Transaction workload report data.
+ */
+function formatTransactionLoadWorkload (workload) {
+  if (workload.mode === 'burst') {
+    return 'pre-generated ' +
+      formatReportValue(workload.configuredTransactionCount) +
+      ' transactions in ' +
+      formatDuration(workload.generationDurationMs) +
+      '; all generated before submission ' +
+      formatReportValue(workload.allGeneratedBeforeSubmission) +
+      '; submitted in one ' +
+      formatReportValue(workload.submissionBatch) +
+      ' batch with ' +
+      formatReportValue(workload.concurrency) +
+      ' concurrent requests; submission completed in ' +
+      formatDuration(workload.submissionDurationMs) +
+      '; request timeout ' +
+      formatDuration(workload.requestTimeoutMs) +
+      '; total workload ' +
+      formatDuration(workload.actualDurationMs) +
+      '; artificial delay ' +
+      formatDuration(workload.artificialDelayMs);
+  }
+
+  return 'configured generation window ' +
+    formatDuration(workload.configuredDurationMs) +
+    '; actual ' +
+    formatDuration(workload.actualDurationMs) +
+    '; concurrency ' +
+    formatReportValue(workload.concurrency) +
+    '; artificial delay ' +
+    formatDuration(workload.artificialDelayMs);
 }
 
 /**

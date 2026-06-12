@@ -31,9 +31,10 @@ class HttpClient {
    * Performs a POST request.
    * @param {string} path - Absolute API path.
    * @param {object} body - JSON body.
+   * @param {object} [options] - Per-request HTTP options.
    */
-  post (path, body) {
-    return this.request('post', path, body);
+  post (path, body, options) {
+    return this.request('post', path, body, options);
   }
 
   /**
@@ -50,16 +51,20 @@ class HttpClient {
    * @param {string} method - HTTP method.
    * @param {string} path - Absolute API path.
    * @param {object} [body] - JSON body.
+   * @param {object} [options] - Per-request HTTP options.
    */
-  async request (method, path, body) {
+  async request (method, path, body, options) {
     const started = performance.now();
+    const timeoutMs = options && Number.isFinite(options.timeoutMs) ?
+      options.timeoutMs :
+      this.timeoutMs;
 
     try {
       const response = await axios({
         method,
         url: this.baseUrl + path,
         data: body,
-        timeout: this.timeoutMs,
+        timeout: timeoutMs,
         headers: this.headers,
         validateStatus: function () {
           return true;

@@ -2,9 +2,11 @@
 
 const { expect } = require('chai');
 const fs = require('fs');
+const http = require('http');
 const os = require('os');
 const path = require('path');
 
+const { HttpClient } = require('../../scripts/live-test/httpClient.js');
 const liveTest = require('../../scripts/live-test/liveTest.js');
 const report = require('../../scripts/live-test/report.js');
 const scenarios = require('../../scripts/live-test/scenarios.js');
@@ -53,6 +55,38 @@ describe('live scenario runner utilities', () => {
       apiUrl: 'https://example.test:36667'
     });
     expect(() => target.normalizeEndpoint('127.0.0.1')).to.throw(/expected host:port/);
+  });
+
+  it('should allow a request to override the default HTTP timeout', async () => {
+    const server = http.createServer(function (request, response) {
+      setTimeout(function () {
+        response.setHeader('content-type', 'application/json');
+        response.end(JSON.stringify({ success: true }));
+      }, 25);
+    });
+
+    await new Promise(function (resolve) {
+      server.listen(0, '127.0.0.1', resolve);
+    });
+
+    try {
+      const address = server.address();
+      const client = new HttpClient({
+        baseUrl: 'http://127.0.0.1:' + address.port,
+        timeoutMs: 5
+      });
+      const result = await client.post('/transactions', {}, {
+        timeoutMs: 1000
+      });
+
+      expect(result.ok).to.equal(true);
+      expect(result.status).to.equal(200);
+      expect(result.body).to.deep.equal({ success: true });
+    } finally {
+      await new Promise(function (resolve) {
+        server.close(resolve);
+      });
+    }
   });
 
   it('should use the third configured testnet peer for transaction observation', () => {
@@ -137,7 +171,9 @@ describe('live scenario runner utilities', () => {
       httpStress: false,
       txqueueType0Stress: false,
       txqueueType8Stress: false,
-      txqueueAllStress: false
+      txqueueAllStress: false,
+      txburstType0Stress: false,
+      txburstAllStress: false
     }, 'localnet');
     const httpStress = scenarios.selectScenarios({
       suites: ['load'],
@@ -146,7 +182,9 @@ describe('live scenario runner utilities', () => {
       httpStress: true,
       txqueueType0Stress: false,
       txqueueType8Stress: false,
-      txqueueAllStress: false
+      txqueueAllStress: false,
+      txburstType0Stress: false,
+      txburstAllStress: false
     }, 'localnet');
     const type0Stress = scenarios.selectScenarios({
       suites: ['load'],
@@ -155,7 +193,9 @@ describe('live scenario runner utilities', () => {
       httpStress: false,
       txqueueType0Stress: true,
       txqueueType8Stress: false,
-      txqueueAllStress: false
+      txqueueAllStress: false,
+      txburstType0Stress: false,
+      txburstAllStress: false
     }, 'localnet');
     const type8Stress = scenarios.selectScenarios({
       suites: ['load'],
@@ -164,7 +204,9 @@ describe('live scenario runner utilities', () => {
       httpStress: false,
       txqueueType0Stress: false,
       txqueueType8Stress: true,
-      txqueueAllStress: false
+      txqueueAllStress: false,
+      txburstType0Stress: false,
+      txburstAllStress: false
     }, 'localnet');
     const allTxQueueStress = scenarios.selectScenarios({
       suites: ['load'],
@@ -173,7 +215,31 @@ describe('live scenario runner utilities', () => {
       httpStress: false,
       txqueueType0Stress: false,
       txqueueType8Stress: false,
-      txqueueAllStress: true
+      txqueueAllStress: true,
+      txburstType0Stress: false,
+      txburstAllStress: false
+    }, 'localnet');
+    const type0BurstStress = scenarios.selectScenarios({
+      suites: ['load'],
+      scenarios: [],
+      all: false,
+      httpStress: false,
+      txqueueType0Stress: false,
+      txqueueType8Stress: false,
+      txqueueAllStress: false,
+      txburstType0Stress: true,
+      txburstAllStress: false
+    }, 'localnet');
+    const allTxBurstStress = scenarios.selectScenarios({
+      suites: ['load'],
+      scenarios: [],
+      all: false,
+      httpStress: false,
+      txqueueType0Stress: false,
+      txqueueType8Stress: false,
+      txqueueAllStress: false,
+      txburstType0Stress: false,
+      txburstAllStress: true
     }, 'localnet');
 
     expect(regular.map((scenario) => scenario.id)).to.deep.equal(['load.http']);
@@ -184,6 +250,14 @@ describe('live scenario runner utilities', () => {
       'load.http',
       'load.txqueue-type0',
       'load.txqueue-type8'
+    ]);
+    expect(type0BurstStress.map((scenario) => scenario.id)).to.deep.equal([
+      'load.http',
+      'load.txburst-type0'
+    ]);
+    expect(allTxBurstStress.map((scenario) => scenario.id)).to.deep.equal([
+      'load.http',
+      'load.txburst-type0'
     ]);
   });
 
@@ -438,6 +512,74 @@ describe('live scenario runner utilities', () => {
     expect(details.messageLengthTotal).to.equal(message.length);
     expect(details.feeMin).to.equal(transaction.fee);
     expect(details.feeMax).to.equal(transaction.fee);
+  });
+
+  it('should pre-generate exactly 2000 unique type 0 transactions for a burst', () => {
+    const account = transactions.createAccount();
+    const burst = scenarios.createTransactionBurst(
+        account,
+        0,
+        scenarios.TXBURST_TYPE0_COUNT,
+        {}
+    );
+
+    expect(scenarios.TXBURST_TYPE0_COUNT).to.equal(2000);
+    expect(burst).to.have.length(2000);
+    expect(new Set(burst.map((transaction) => transaction.id)).size).to.equal(2000);
+    expect(burst.every((transaction) => {
+      return transaction.type === 0 &&
+        transaction.amount === 100000000 &&
+        transaction.recipientId !== account.address;
+    })).to.equal(true);
+  });
+
+  it('should start every burst submission before waiting for responses', async () => {
+    const transactionsToSubmit = [
+      { id: 'transaction-1' },
+      { id: 'transaction-2' },
+      { id: 'transaction-3' }
+    ];
+    const pendingResponses = [];
+    const postedIds = [];
+    const requestOptions = [];
+    const submission = scenarios.submitTransactionBurst({
+      post: function (requestPath, payload, options) {
+        postedIds.push(payload.transaction.id);
+        requestOptions.push(options);
+
+        return new Promise(function (resolve) {
+          pendingResponses.push(resolve);
+        });
+      }
+    }, transactionsToSubmit, {
+      timeoutMs: scenarios.TXBURST_REQUEST_TIMEOUT_MS
+    });
+
+    expect(postedIds).to.deep.equal([
+      'transaction-1',
+      'transaction-2',
+      'transaction-3'
+    ]);
+    expect(pendingResponses).to.have.length(3);
+    expect(scenarios.TXBURST_REQUEST_TIMEOUT_MS).to.equal(120000);
+    expect(requestOptions).to.deep.equal([
+      { timeoutMs: 120000 },
+      { timeoutMs: 120000 },
+      { timeoutMs: 120000 }
+    ]);
+
+    pendingResponses.forEach(function (resolve) {
+      resolve({
+        ok: true,
+        status: 200,
+        body: { success: true },
+        latencyMs: 1
+      });
+    });
+
+    const results = await submission;
+
+    expect(results.map((result) => result.transaction.id)).to.deep.equal(postedIds);
   });
 
   it('should render accepted and expected-failed transaction summaries in Markdown reports', () => {
@@ -1092,6 +1234,118 @@ describe('live scenario runner utilities', () => {
     expect(markdown).not.to.include('own_message');
   });
 
+  it('should render type 0 burst generation and concurrent submission details', () => {
+    const markdown = report.renderMarkdownReport({
+      status: 'passed',
+      target: {
+        mode: 'testnet',
+        nodes: []
+      },
+      run: {
+        id: 'testnet-txburst-type0',
+        startedAt: '2026-06-11T00:00:00.000Z',
+        finishedAt: '2026-06-11T00:01:00.000Z'
+      },
+      scenarios: [
+        {
+          id: 'load.txburst-type0',
+          suite: 'load',
+          status: 'passed',
+          durationMs: 50000,
+          result: {
+            kind: 'transaction queue stress',
+            target: {
+              nodeId: 'node-recipient',
+              apiUrl: 'http://127.0.0.1:36667'
+            },
+            sourceAccount: {
+              address: 'U1',
+              publicKey: 'public-key'
+            },
+            transaction: {
+              type: 0,
+              typeName: 'SEND',
+              amountAdm: '1',
+              feeAdm: '0.5',
+              uniqueRecipientPerTransaction: true
+            },
+            workload: {
+              mode: 'burst',
+              configuredDurationMs: null,
+              configuredTransactionCount: 2000,
+              actualDurationMs: 9250,
+              generationDurationMs: 1250,
+              submissionDurationMs: 8000,
+              concurrency: 2000,
+              allGeneratedBeforeSubmission: true,
+              submissionBatch: 'Promise.all',
+              requestTimeoutMs: 120000,
+              artificialDelayMs: 0,
+              generated: 2000,
+              accepted: 1900,
+              rejected: 100,
+              transportFailures: 0,
+              httpFailures: 0,
+              generationRatePerSecond: 1600,
+              acceptedRatePerSecond: 237.5,
+              statusCodes: { 200: 2000 },
+              rejectionReasons: {
+                'Transaction pool is full': 50,
+                'Transaction timestamp is more than 5 seconds in the past': 50
+              }
+            },
+            confirmation: {
+              complete: true,
+              outcome: 'confirmed',
+              accepted: 1900,
+              waitedMs: 300000,
+              timeoutMs: 460000,
+              fromHeight: 100,
+              nodes: [
+                {
+                  id: 'node-peer',
+                  apiUrl: 'http://127.0.0.1:36669',
+                  ok: true,
+                  accepted: 1900,
+                  confirmed: 1900,
+                  unconfirmed: 0,
+                  queued: 0,
+                  multisignature: 0,
+                  missing: 0
+                }
+              ]
+            },
+            blockchainTps: {
+              available: false,
+              error: 'test fixture omits blocks'
+            },
+            publicPoolCategories: ['confirmed', 'queued', 'unconfirmed', 'multisignature'],
+            unavailablePoolCategories: ['bundled'],
+            snapshots: []
+          }
+        }
+      ],
+      finalNodeStates: [],
+      metrics: {}
+    });
+
+    expect(markdown).to.include('### load.txburst-type0');
+    expect(markdown).to.include(
+        'pre-generate, sign, retain in memory, and concurrently submit valid SEND (0) transactions'
+    );
+    expect(markdown).to.include(
+        'pre-generated 2000 transactions in 1250 ms; all generated before submission true'
+    );
+    expect(markdown).to.include(
+        'submitted in one Promise.all batch with 2000 concurrent requests; submission completed in 8000 ms; ' +
+        'request timeout 120000 ms'
+    );
+    expect(markdown).to.include('generated 2000; accepted 1900; rejected 100');
+    expect(markdown).to.include(
+        'Timestamp expiration: transactions were valid when signed, but the node validates freshness'
+    );
+  });
+
   it('should classify drained pools with missing accepted transactions as settled loss', () => {
     const outcome = scenarios.summarizeConfirmationOutcome({
       complete: false,
@@ -1251,6 +1505,8 @@ describe('live scenario runner utilities', () => {
       httpStress: true,
       txqueueType8Stress: true,
       txqueueAllStress: true,
+      txburstType0Stress: true,
+      txburstAllStress: true,
       transactionOverloadCount: '60',
       transactionOverloadConcurrency: '10'
     });
@@ -1267,6 +1523,10 @@ describe('live scenario runner utilities', () => {
     expect(testnet.txqueueType0Stress).to.equal(false);
     expect(testnet.txqueueType8Stress).to.equal(true);
     expect(testnet.txqueueAllStress).to.equal(true);
+    expect(testnet.txburstType0Stress).to.equal(true);
+    expect(testnet.txburstAllStress).to.equal(true);
+    expect(localnet.txburstType0Stress).to.equal(false);
+    expect(localnet.txburstAllStress).to.equal(false);
     expect(localnet.node).to.equal(null);
     expect(localnet.nodes).to.deep.equal(['127.0.0.1:36670', '127.0.0.1:36671']);
   });

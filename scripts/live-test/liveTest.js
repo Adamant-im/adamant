@@ -49,6 +49,8 @@ function configureProgram (program) {
       .option('--txqueue-type0-stress', 'enable the opt-in type 0 transaction queue stress scenario')
       .option('--txqueue-type8-stress', 'enable the opt-in type 8 transaction queue stress scenario')
       .option('--txqueue-all-stress', 'enable all opt-in transaction queue stress scenarios')
+      .option('--txburst-type0-stress', 'enable the opt-in type 0 transaction burst stress scenario')
+      .option('--txburst-all-stress', 'enable all opt-in transaction burst stress scenarios')
       .option('--timeout-ms <ms>', 'HTTP/WebSocket timeout', String(DEFAULTS.timeoutMs))
       .option('--ready-timeout-ms <ms>', 'node readiness timeout', String(DEFAULTS.readyTimeoutMs))
       .option('--block-wait-timeout-ms <ms>', 'block wait timeout', String(DEFAULTS.blockWaitTimeoutMs))
@@ -132,7 +134,9 @@ async function runLiveTests (input) {
       httpStress: options.httpStress,
       txqueueType0Stress: options.txqueueType0Stress,
       txqueueType8Stress: options.txqueueType8Stress,
-      txqueueAllStress: options.txqueueAllStress
+      txqueueAllStress: options.txqueueAllStress,
+      txburstType0Stress: options.txburstType0Stress,
+      txburstAllStress: options.txburstAllStress
     },
     configMetadata: context.configMetadata,
     finalNodeStates,
@@ -246,6 +250,8 @@ function normalizeOptions (input) {
     txqueueType0Stress: !!input.txqueueType0Stress,
     txqueueType8Stress: !!input.txqueueType8Stress,
     txqueueAllStress: !!input.txqueueAllStress,
+    txburstType0Stress: !!input.txburstType0Stress,
+    txburstAllStress: !!input.txburstAllStress,
     timeoutMs: parseNonNegativeInteger(input.timeoutMs, 'timeoutMs', DEFAULTS.timeoutMs),
     readyTimeoutMs: parseNonNegativeInteger(input.readyTimeoutMs, 'readyTimeoutMs', DEFAULTS.readyTimeoutMs),
     blockWaitTimeoutMs: parseNonNegativeInteger(input.blockWaitTimeoutMs, 'blockWaitTimeoutMs', DEFAULTS.blockWaitTimeoutMs),
@@ -419,6 +425,10 @@ function isStressScenarioEnabled (scenario, options) {
 
   if (scenario.stressFlag === '--txqueue-type8-stress') {
     return options.txqueueType8Stress || options.txqueueAllStress;
+  }
+
+  if (scenario.stressFlag === '--txburst-type0-stress') {
+    return options.txburstType0Stress || options.txburstAllStress;
   }
 
   return false;
