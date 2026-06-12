@@ -98,6 +98,12 @@ function renderMarkdownReport (report) {
     appendTargetDetails(lines, targetScenarios);
   }
 
+  const apiScenarios = collectApiScenarios(report.scenarios);
+
+  if (apiScenarios.length) {
+    appendApiDetails(lines, apiScenarios);
+  }
+
   const transactionRows = collectTransactionRows(report.scenarios);
 
   if (transactionRows.length) {
@@ -373,6 +379,236 @@ function formatMarkdownTableValue (value) {
   return String(formatReportValue(value))
       .replace(/\|/g, '\\|')
       .replace(/\r?\n/g, '<br>');
+}
+
+/**
+ * Collects API suite scenarios with structured REST or WebSocket results.
+ * @param {Array<object>} scenarios - Scenario report entries.
+ */
+function collectApiScenarios (scenarios) {
+  return scenarios.filter(function (scenario) {
+    return scenario.suite === 'api' && scenario.result;
+  });
+}
+
+/**
+ * Appends REST and WebSocket methodology plus exact observed results.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {Array<object>} scenarios - API scenario report entries.
+ */
+function appendApiDetails (lines, scenarios) {
+  lines.push('');
+  lines.push('## API Details');
+  lines.push('');
+  lines.push(
+      'The API suite performs read-only client and explorer requests. Successful cases verify response ' +
+      'shape and selected invariants; negative cases pass only when the node explicitly rejects malformed ' +
+      'input in JSON or returns the expected HTTP status for an unknown route.'
+  );
+
+  scenarios.forEach(function (scenario) {
+    const result = scenario.result || {};
+
+    lines.push('');
+    lines.push('### ' + scenario.id);
+    lines.push('- Scenario status: ' + scenario.status + '; duration ' + formatDuration(scenario.durationMs) + '.');
+
+    if (result.kind === 'api rest') {
+      appendRestApiDetails(lines, result);
+    } else if (result.kind === 'api websocket') {
+      appendWebSocketApiDetails(lines, result);
+    }
+  });
+}
+
+/**
+ * Appends REST API coverage, result totals, and a per-request table.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {object} result - REST API scenario result.
+ */
+function appendRestApiDetails (lines, result) {
+  const test = result.test || {};
+  const checks = result.checks || [];
+  const coreChecks = checks.filter(function (check) {
+    return !check.docsSection && !check.queryLanguageEndpoint;
+  });
+  const documentedChecks = checks.filter(function (check) {
+    return check.docsSection;
+  });
+  const queryLanguageChecks = checks.filter(function (check) {
+    return check.queryLanguageEndpoint;
+  });
+  const passed = checks.filter(function (check) {
+    return check.passed;
+  }).length;
+  const expectedRejections = checks.filter(function (check) {
+    return check.passed && check.expectedSuccess === false;
+  }).length;
+
+  lines.push('- Target: ' + formatReportValue(test.nodeId) + ' at ' + formatReportValue(test.apiUrl) + '.');
+  lines.push('- Safety: ' + formatReportSentence(test.safety));
+  lines.push('- Coverage: ' + formatReportSentence(test.coverage));
+  lines.push(
+      '- Result: ' +
+      passed +
+      '/' +
+      checks.length +
+      ' checks passed; ' +
+      expectedRejections +
+      ' expected rejections observed; passed ' +
+      formatReportValue(result.passed) +
+      '.'
+  );
+
+  appendRestApiChecksTable(lines, 'Core REST Checks', coreChecks, 'category');
+  appendRestApiChecksTable(lines, 'Official API Endpoint Sections', documentedChecks, 'docsSection');
+  appendQueryLanguageChecksTable(lines, queryLanguageChecks);
+}
+
+/**
+ * Appends one standard REST API result table.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {string} title - Table heading.
+ * @param {Array<object>} checks - REST checks to render.
+ * @param {string} sectionField - Check field used for the first column.
+ */
+function appendRestApiChecksTable (lines, title, checks, sectionField) {
+  if (!checks.length) {
+    return;
+  }
+
+  lines.push('');
+  lines.push('#### ' + title);
+  lines.push('');
+  lines.push('| Section | Check | Request | Expected | HTTP | Body success | Latency | Observed | Status |');
+  lines.push('| --- | --- | --- | --- | ---: | --- | ---: | --- | --- |');
+
+  checks.forEach(function (check) {
+    lines.push(
+        '| ' +
+        formatMarkdownTableValue(check[sectionField] || check.category) +
+        ' | ' +
+        formatMarkdownTableValue(check.id) +
+        ' | ' +
+        formatMarkdownTableValue(check.method + ' ' + check.path) +
+        ' | ' +
+        formatMarkdownTableValue(check.expectation) +
+        ' | ' +
+        formatMarkdownTableValue(check.status) +
+        ' | ' +
+        formatMarkdownTableValue(check.bodySuccess) +
+        ' | ' +
+        formatMarkdownTableValue(formatDuration(check.latencyMs)) +
+        ' | ' +
+        formatMarkdownTableValue(formatApiObservation(check.observed)) +
+        ' | ' +
+        formatMarkdownTableValue(check.passed ? 'passed' : 'failed: ' + check.failure) +
+        ' |'
+    );
+  });
+}
+
+/**
+ * Appends the dedicated transactions-query-language result table.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {Array<object>} checks - Query-language checks to render.
+ */
+function appendQueryLanguageChecksTable (lines, checks) {
+  if (!checks.length) {
+    return;
+  }
+
+  lines.push('');
+  lines.push('#### Transactions Query Language');
+  lines.push('');
+  lines.push(
+      'These checks combine multiple filters and options. `/api/transactions` uses explicit `and:` ' +
+      'prefixes where required; chats, chatrooms, and states use their documented default AND behavior.'
+  );
+  lines.push('');
+  lines.push('| Endpoint | Check | Combined request | HTTP | Body success | Returned | Latency | Status |');
+  lines.push('| --- | --- | --- | ---: | --- | --- | ---: | --- |');
+
+  checks.forEach(function (check) {
+    lines.push(
+        '| ' +
+        formatMarkdownTableValue(check.queryLanguageEndpoint) +
+        ' | ' +
+        formatMarkdownTableValue(check.id) +
+        ' | ' +
+        formatMarkdownTableValue(check.method + ' ' + check.path) +
+        ' | ' +
+        formatMarkdownTableValue(check.status) +
+        ' | ' +
+        formatMarkdownTableValue(check.bodySuccess) +
+        ' | ' +
+        formatMarkdownTableValue(formatApiObservation(check.observed)) +
+        ' | ' +
+        formatMarkdownTableValue(formatDuration(check.latencyMs)) +
+        ' | ' +
+        formatMarkdownTableValue(check.passed ? 'passed' : 'failed: ' + check.failure) +
+        ' |'
+    );
+  });
+}
+
+/**
+ * Appends WebSocket handshake and subscription emission results.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {object} result - WebSocket API scenario result.
+ */
+function appendWebSocketApiDetails (lines, result) {
+  const test = result.test || {};
+
+  lines.push('- Target: ' + formatReportValue(test.nodeId) + ' at ' + formatReportValue(result.wsClientUrl) + '.');
+  lines.push('- Coverage: ' + formatReportSentence(test.coverage));
+  lines.push('- Limitation: ' + formatReportSentence(test.limitation));
+  lines.push(
+      '- Result: connected=' +
+      formatReportValue(result.connected) +
+      ', disconnected=' +
+      formatReportValue(result.disconnected) +
+      ', handshake latency=' +
+      formatDuration(result.latencyMs) +
+      ', subscriptions emitted=' +
+      (result.subscriptions || []).length +
+      ', passed=' +
+      formatReportValue(result.passed) +
+      '.'
+  );
+  lines.push('');
+  lines.push('| Event | Value | Purpose |');
+  lines.push('| --- | --- | --- |');
+
+  (result.subscriptions || []).forEach(function (subscription) {
+    lines.push(
+        '| ' +
+        formatMarkdownTableValue(subscription.event) +
+        ' | ' +
+        formatMarkdownTableValue(JSON.stringify(subscription.value)) +
+        ' | ' +
+        formatMarkdownTableValue(subscription.purpose) +
+        ' |'
+    );
+  });
+}
+
+/**
+ * Formats a compact structured API observation for a Markdown table cell.
+ * @param {*} observed - Report-safe response summary.
+ */
+function formatApiObservation (observed) {
+  if (!observed || typeof observed !== 'object') {
+    return formatReportValue(observed);
+  }
+
+  return Object.keys(observed).map(function (key) {
+    const value = Array.isArray(observed[key]) ?
+      observed[key].join(', ') :
+      observed[key];
+
+    return key + '=' + formatReportValue(value);
+  }).join('; ');
 }
 
 /**
@@ -1236,6 +1472,10 @@ function collectAbuseRows (scenarios) {
   const rows = [];
 
   scenarios.forEach(function (scenario) {
+    if (scenario.suite !== 'security' && scenario.id !== 'transactions.abuse') {
+      return;
+    }
+
     const result = scenario.result || {};
 
     (result.checks || []).forEach(function (check) {
@@ -1358,11 +1598,13 @@ function formatAbuseRow (check) {
 }
 
 module.exports = {
+  appendApiDetails,
   appendForgingDetails,
   appendLoadDetails,
   appendTargetDetails,
   appendTxQueueLoadDetails,
   collectAbuseRows,
+  collectApiScenarios,
   collectForgingNodes,
   collectLoadScenarios,
   collectTargetScenarios,

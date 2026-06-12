@@ -394,42 +394,1086 @@ async function runRestApiScenario (context) {
   const node = context.primaryNode;
   const client = context.clientFor(node);
   const fixture = context.fixtureAccounts.transfer || context.fixtureAccounts.genesis;
-  const endpoints = [
-    ['/api/node/status'],
-    ['/api/loader/status/sync'],
-    ['/api/blocks/getHeight'],
-    ['/api/blocks/getStatus'],
-    ['/api/blocks?limit=1&orderBy=height:desc'],
-    ['/api/transactions?limit=1'],
-    ['/api/delegates?limit=5'],
-    ['/api/peers?limit=5']
+  const definitions = buildRestApiChecks(fixture);
+  const checks = [];
+  const responseBodies = {};
+
+  for (const definition of definitions) {
+    const execution = await executeRestApiCheck(context, client, definition);
+
+    checks.push(execution.check);
+    responseBodies[definition.id] = execution.body;
+  }
+
+  const dynamicDefinitions = buildDynamicRestApiChecks(responseBodies, fixture);
+
+  for (const definition of dynamicDefinitions) {
+    const execution = await executeRestApiCheck(context, client, definition);
+
+    checks.push(execution.check);
+  }
+
+  const result = {
+    kind: 'api rest',
+    test: {
+      nodeId: node.id,
+      apiUrl: node.apiUrl,
+      safety: 'Read-only requests only; no transactions, votes, forging changes, or state mutations.',
+      coverage: 'Success responses, pagination and sorting, resource lookup, pool inspection, validation rejection, and unknown-route handling.'
+    },
+    checks,
+    passed: checks.every(function (check) {
+      return check.passed;
+    })
+  };
+
+  if (!result.passed) {
+    const failedChecks = checks.filter(function (check) {
+      return !check.passed;
+    }).map(function (check) {
+      return check.id + ': ' + check.failure;
+    });
+    const error = Error('REST API checks failed: ' + failedChecks.join('; ') + '.');
+
+    error.result = result;
+    throw error;
+  }
+
+  return result;
+}
+
+/**
+ * Builds the read-only REST API coverage matrix.
+ * @param {?object} fixture - Optional fixture account metadata.
+ */
+function buildRestApiChecks (fixture) {
+  const checks = [
+    apiSuccessCheck('node.status', 'Node', '/api/node/status', 'Node exposes loader, network, version, and wsClient state.', function (body) {
+      return body.loader && body.network ? null : 'loader or network state is missing';
+    }),
+    apiSuccessCheck('loader.status', 'Loader', '/api/loader/status', 'Loader exposes loaded state and blockchain height.'),
+    apiSuccessCheck('loader.sync', 'Loader', '/api/loader/status/sync', 'Loader exposes synchronization state and height.'),
+    apiSuccessCheck('loader.ping', 'Loader', '/api/loader/status/ping', 'Loader health ping succeeds.'),
+    apiSuccessCheck('blocks.height', 'Blocks', '/api/blocks/getHeight', 'Current blockchain height is a positive number.', function (body) {
+      return Number(body.height) > 0 ? null : 'height is not positive';
+    }),
+    apiSuccessCheck('blocks.status', 'Blocks', '/api/blocks/getStatus', 'Block status exposes chain identifiers, reward stage, supply, and fee.'),
+    apiSuccessCheck('blocks.fees', 'Blocks', '/api/blocks/getFees', 'Fee schedule is available.', function (body) {
+      return body.fees && typeof body.fees === 'object' ? null : 'fee schedule is missing';
+    }),
+    apiSuccessCheck('blocks.list', 'Blocks', '/api/blocks?limit=2&orderBy=height:desc', 'Two latest blocks are returned in descending height order.', validateDescendingBlocks),
+    apiSuccessCheck('transactions.count', 'Transactions', '/api/transactions/count', 'Confirmed and transaction-pool counters are available.'),
+    apiSuccessCheck('transactions.list', 'Transactions', '/api/transactions?limit=2&orderBy=timestamp:desc', 'Latest transactions support bounded sorting and pagination.', function (body) {
+      return Array.isArray(body.transactions) ? null : 'transactions array is missing';
+    }),
+    apiSuccessCheck('transactions.queued', 'Transactions', '/api/transactions/queued', 'Queued transaction pool is readable.', function (body) {
+      return Array.isArray(body.transactions) ? null : 'queued transactions array is missing';
+    }),
+    apiSuccessCheck('transactions.unconfirmed', 'Transactions', '/api/transactions/unconfirmed', 'Unconfirmed transaction pool is readable.', function (body) {
+      return Array.isArray(body.transactions) ? null : 'unconfirmed transactions array is missing';
+    }),
+    apiSuccessCheck('delegates.count', 'Delegates', '/api/delegates/count', 'Registered delegate count is available.'),
+    apiSuccessCheck('delegates.list', 'Delegates', '/api/delegates?limit=3&orderBy=rank:asc', 'Delegate list supports bounded rank sorting.', function (body) {
+      return Array.isArray(body.delegates) ? null : 'delegates array is missing';
+    }),
+    apiSuccessCheck('delegates.next-forgers', 'Delegates', '/api/delegates/getNextForgers?limit=3', 'Next-forger projection returns up to three public keys.', function (body) {
+      return Array.isArray(body.delegates) && body.delegates.length <= 3 ?
+        null :
+        'next-forger list is missing or exceeds the requested limit';
+    }),
+    apiSuccessCheck('peers.version', 'Peers', '/api/peers/version', 'Node version metadata is available through the peers API.'),
+    apiSuccessCheck('peers.count', 'Peers', '/api/peers/count', 'Connected, disconnected, and banned peer counters are available.'),
+    apiSuccessCheck('peers.list', 'Peers', '/api/peers?limit=3&state=2', 'Connected peer list supports state filtering and pagination.', function (body) {
+      return Array.isArray(body.peers) && body.peers.length <= 3 ?
+        null :
+        'peer list is missing or exceeds the requested limit';
+    }),
+    apiRejectionCheck('validation.block-id-required', 'Validation', '/api/blocks/get', 'Missing block id is rejected.'),
+    apiRejectionCheck('validation.transaction-id-required', 'Validation', '/api/transactions/get', 'Missing transaction id is rejected.'),
+    apiRejectionCheck('validation.account-address', 'Validation', '/api/accounts/getBalance?address=not-an-adamant-address', 'Malformed account address is rejected.'),
+    apiRejectionCheck('validation.delegate-search', 'Validation', '/api/delegates/search', 'Delegate search without q is rejected.'),
+    apiRejectionCheck('validation.peer-port', 'Validation', '/api/peers?port=0', 'Peer port below the valid range is rejected.'),
+    apiRejectionCheck('validation.block-sort', 'Validation', '/api/blocks?orderBy=unknown:asc', 'Unknown block sort field is rejected.'),
+    apiRejectionCheck('validation.transaction-type', 'Validation', '/api/transactions?type=999', 'Out-of-range transaction type is rejected.'),
+    apiRejectionCheck(
+        'routing.unknown-endpoint',
+        'Routing',
+        '/api/live-test-endpoint-does-not-exist',
+        'Unknown API endpoint returns HTTP 404.',
+        404
+    )
   ];
 
   if (fixture && fixture.address) {
-    endpoints.push(['/api/accounts/getBalance?address=' + fixture.address]);
+    const address = encodeURIComponent(fixture.address);
+
+    checks.splice(18, 0,
+        apiSuccessCheck('accounts.balance', 'Accounts', '/api/accounts/getBalance?address=' + address, 'Known fixture balance and unconfirmed balance are available.'),
+        apiSuccessCheck('accounts.details', 'Accounts', '/api/accounts?address=' + address, 'Known fixture account details are available.')
+    );
   }
 
-  const results = [];
+  return checks;
+}
 
-  for (const endpoint of endpoints) {
-    const result = await client.get(endpoint[0]);
+/**
+ * Builds resource-detail checks from objects discovered by list endpoints.
+ * @param {object} responseBodies - Successful list response bodies keyed by check id.
+ * @param {?object} fixture - Optional fixture account metadata.
+ */
+function buildDynamicRestApiChecks (responseBodies, fixture) {
+  const checks = [];
+  const block = responseBodies['blocks.list'] && responseBodies['blocks.list'].blocks &&
+    responseBodies['blocks.list'].blocks[0];
+  const transaction = responseBodies['transactions.list'] && responseBodies['transactions.list'].transactions &&
+    responseBodies['transactions.list'].transactions[0];
+  const delegate = responseBodies['delegates.list'] && responseBodies['delegates.list'].delegates &&
+    responseBodies['delegates.list'].delegates[0];
+  const peer = responseBodies['peers.list'] && responseBodies['peers.list'].peers &&
+    responseBodies['peers.list'].peers[0];
 
-    context.metrics.latency('rest.get', result.latencyMs);
-    context.assert(result.ok, 'GET ' + endpoint[0] + ' returned HTTP ' + result.status);
-    context.assert(result.body && result.body.success !== false, 'GET ' + endpoint[0] + ' returned unsuccessful body');
-    results.push({
-      path: endpoint[0],
-      latencyMs: result.latencyMs
-    });
+  if (block && block.id) {
+    checks.push(apiSuccessCheck(
+        'blocks.get',
+        'Blocks',
+        '/api/blocks/get?id=' + encodeURIComponent(block.id),
+        'A block discovered in the list can be retrieved by id.'
+    ));
   }
+  if (transaction && transaction.id) {
+    checks.push(apiSuccessCheck(
+        'transactions.get',
+        'Transactions',
+        '/api/transactions/get?id=' + encodeURIComponent(transaction.id),
+        'A transaction discovered in the list can be retrieved by id.'
+    ));
+  }
+  if (delegate && delegate.publicKey) {
+    checks.push(apiSuccessCheck(
+        'delegates.get',
+        'Delegates',
+        '/api/delegates/get?publicKey=' + encodeURIComponent(delegate.publicKey),
+        'A delegate discovered in the list can be retrieved by public key.'
+    ));
+  }
+  if (peer && peer.ip && peer.port) {
+    checks.push(apiSuccessCheck(
+        'peers.get',
+        'Peers',
+        '/api/peers/get?ip=' + encodeURIComponent(peer.ip) + '&port=' + encodeURIComponent(peer.port),
+        'A connected peer discovered in the list can be retrieved by ip and port.'
+    ));
+  }
+
+  return checks.concat(
+      buildDocumentedComplexApiChecks(responseBodies, fixture),
+      buildQueryLanguageApiChecks(responseBodies, fixture)
+  );
+}
+
+/**
+ * Builds parameterized read-only checks for every API endpoint section in the docs.
+ * @param {object} responseBodies - Discovery response bodies keyed by check id.
+ * @param {?object} fixture - Optional fixture account metadata.
+ */
+function buildDocumentedComplexApiChecks (responseBodies, fixture) {
+  const discovery = buildApiDiscovery(responseBodies, fixture);
+  const checks = [];
+  const address = encodeURIComponent(discovery.primaryAddress);
+  const secondAddress = encodeURIComponent(discovery.secondaryAddress);
+  const publicKey = encodeURIComponent(discovery.primaryPublicKey);
+  const block = discovery.block;
+  const transaction = discovery.transaction;
+  const delegate = discovery.delegate;
+  const peer = discovery.peer;
+
+  checks.push(
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.accounts.address-and-public-key',
+              'Accounts',
+              '/api/accounts?address=' + address + '&publicKey=' + publicKey,
+              'Account lookup accepts matching address and public key parameters.',
+              validateAccount(discovery.primaryAddress, discovery.primaryPublicKey)
+          ),
+          'Accounts'
+      ),
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.accounts.public-key',
+              'Accounts',
+              '/api/accounts/getPublicKey?address=' + address,
+              'Public-key lookup resolves the parameterized account address.',
+              validateFieldEquals('publicKey', discovery.primaryPublicKey)
+          ),
+          'Accounts'
+      ),
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.accounts.votes',
+              'Accounts',
+              '/api/accounts/delegates?address=' + address,
+              'Vote lookup returns the delegate choices for the parameterized account.',
+              validateArrayField('delegates', 101)
+          ),
+          'Accounts'
+      )
+  );
+
+  checks.push(
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.transactions.block-type-asset',
+              'Transactions',
+              '/api/transactions?blockId=' +
+                encodeURIComponent(transaction.blockId) +
+                '&and:type=' +
+                transaction.type +
+                '&limit=3&orderBy=timestamp:desc&returnAsset=1',
+              'Transaction list combines block, type, sorting, limit, and asset options.',
+              validateArrayField('transactions', 3)
+          ),
+          'Transactions'
+      ),
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.transactions.sender-height-fee',
+              'Transactions',
+              '/api/transactions?senderPublicKey=' +
+                encodeURIComponent(transaction.senderPublicKey) +
+                '&and:fromHeight=' +
+                discovery.fromHeight +
+                '&and:maxFee=' +
+                Math.max(1, Number(transaction.fee)) +
+                '&limit=3&orderBy=height:desc&returnUnconfirmed=1',
+              'Transaction list combines sender, height, fee, ordering, paging, and unconfirmed options.',
+              validateArrayField('transactions', 3)
+          ),
+          'Transactions'
+      ),
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.transactions.detail-with-asset',
+              'Transactions',
+              '/api/transactions/get?id=' +
+                encodeURIComponent(transaction.id) +
+                '&returnAsset=1',
+              'Transaction detail returns the discovered transaction with its asset.',
+              validateNestedFieldEquals('transaction', 'id', transaction.id)
+          ),
+          'Transactions'
+      )
+  );
+
+  checks.push(
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.chats.account-messages',
+              'Chats and Chatrooms',
+              '/api/chats/get?inId=' +
+                address +
+                '&type=1&includeDirectTransfers=1&returnUnconfirmed=1&limit=3&orderBy=timestamp:desc',
+              'Chat transaction lookup combines participant, subtype, transfer, unconfirmed, paging, and ordering options.',
+              validateArrayField('transactions', 3)
+          ),
+          'Chats and Chatrooms'
+      ),
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.chatrooms.account-list',
+              'Chats and Chatrooms',
+              '/api/chatrooms/' +
+                address +
+                '?type=1&includeDirectTransfers=0&returnUnconfirmed=1&limit=3&offset=0&orderBy=timestamp:desc',
+              'Chatroom list combines message subtype, direct-transfer exclusion, unconfirmed data, paging, and ordering.',
+              validateArrayField('chats', 3)
+          ),
+          'Chats and Chatrooms'
+      ),
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.chatrooms.pair-messages',
+              'Chats and Chatrooms',
+              '/api/chatrooms/' +
+                address +
+                '/' +
+                secondAddress +
+                '?type=1&includeDirectTransfers=1&returnUnconfirmed=1&limit=3&offset=0&orderBy=timestamp:asc',
+              'Two-party chat lookup combines both path participants with subtype, transfer, unconfirmed, paging, and ordering options.',
+              validateArrayField('messages', 3)
+          ),
+          'Chats and Chatrooms'
+      )
+  );
+
+  checks.push(
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.blocks.height-generator',
+              'Blocks',
+              '/api/blocks?height=' +
+                block.height +
+                '&generatorPublicKey=' +
+                encodeURIComponent(block.generatorPublicKey) +
+                '&limit=2&orderBy=height:desc',
+              'Block list combines exact height, generator, limit, and ordering parameters.',
+              validateArrayField('blocks', 2)
+          ),
+          'Blocks'
+      ),
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.blocks.generator-page',
+              'Blocks',
+              '/api/blocks?generatorPublicKey=' +
+                encodeURIComponent(block.generatorPublicKey) +
+                '&limit=3&offset=0&orderBy=height:desc',
+              'Block list pages recent blocks forged by the discovered generator.',
+              validateArrayField('blocks', 3)
+          ),
+          'Blocks'
+      ),
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.blocks.previous-block',
+              'Blocks',
+              '/api/blocks?previousBlock=' +
+                encodeURIComponent(block.previousBlock) +
+                '&reward=' +
+                block.reward +
+                '&limit=2&orderBy=height:asc',
+              'Block list combines previous-block linkage, reward, limit, and ordering parameters.',
+              validateArrayField('blocks', 2)
+          ),
+          'Blocks'
+      )
+  );
+
+  checks.push(
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.delegates.rank-page',
+              'Delegates',
+              '/api/delegates?offset=1&limit=3&orderBy=productivity:desc',
+              'Delegate list combines offset, limit, and productivity ordering.',
+              validateArrayField('delegates', 3)
+          ),
+          'Delegates'
+      ),
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.delegates.identity',
+              'Delegates',
+              '/api/delegates/get?publicKey=' +
+                encodeURIComponent(delegate.publicKey) +
+                '&address=' +
+                encodeURIComponent(delegate.address),
+              'Delegate lookup verifies matching public-key and address parameters.',
+              validateNestedFieldEquals('delegate', 'publicKey', delegate.publicKey)
+          ),
+          'Delegates'
+      ),
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.delegates.forged-range',
+              'Delegates',
+              '/api/delegates/forging/getForgedByAccount?generatorPublicKey=' +
+                encodeURIComponent(delegate.publicKey) +
+                '&start=0&end=' +
+                Math.floor(Date.now() / 1000),
+              'Forging statistics combine delegate public key with an explicit time range.',
+              validateRequiredFields(['fees', 'rewards', 'forged'])
+          ),
+          'Delegates'
+      )
+  );
+
+  checks.push(
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.states.single-key',
+              'States: Key-Value Storage',
+              '/api/states/get?senderId=' +
+                address +
+                '&key=contact_list&fromHeight=' +
+                discovery.fromHeight +
+                '&type=0&returnUnconfirmed=1&limit=3&orderBy=timestamp:desc',
+              'KVS lookup combines sender, key, height, state subtype, unconfirmed, limit, and ordering parameters.',
+              validateArrayField('transactions', 3)
+          ),
+          'States: Key-Value Storage'
+      ),
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.states.multiple-keys',
+              'States: Key-Value Storage',
+              '/api/states/get?senderIds=' +
+                address +
+                ',' +
+                secondAddress +
+                '&keyIds=eth%3Aaddress,btc%3Aaddress,doge%3Aaddress&type=0&limit=3&offset=0&orderBy=timestamp:desc',
+              'KVS lookup combines multiple senders and keys with subtype, paging, and ordering parameters.',
+              validateArrayField('transactions', 3)
+          ),
+          'States: Key-Value Storage'
+      ),
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.states.height-window',
+              'States: Key-Value Storage',
+              '/api/states/get?fromHeight=' +
+                discovery.fromHeight +
+                '&toHeight=' +
+                discovery.height +
+                '&senderId=' +
+                address +
+                '&type=1&limit=3&orderBy=timestamp:asc',
+              'KVS lookup combines a bounded height window, sender, incremental subtype, limit, and ordering.',
+              validateArrayField('transactions', 3)
+          ),
+          'States: Key-Value Storage'
+      )
+  );
+
+  checks.push(
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.node.connected-version-page',
+              'Node and Blockchain',
+              '/api/peers?state=2&version=' +
+                encodeURIComponent(peer.version) +
+                '&limit=3&offset=0&orderBy=height:desc',
+              'Peer list combines connected state, version, paging, and height ordering.',
+              validateArrayField('peers', 3)
+          ),
+          'Node and Blockchain'
+      ),
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.node.peer-identity',
+              'Node and Blockchain',
+              '/api/peers/get?ip=' +
+                encodeURIComponent(peer.ip) +
+                '&port=' +
+                peer.port,
+              'Peer detail resolves the discovered IP and port pair.',
+              validatePeer(peer.ip, peer.port)
+          ),
+          'Node and Blockchain'
+      ),
+      documentedApiCheck(
+          apiSuccessCheck(
+              'docs.node.peer-filter',
+              'Node and Blockchain',
+              '/api/peers?ip=' +
+                encodeURIComponent(peer.ip) +
+                '&port=' +
+                peer.port +
+                '&state=2&limit=2&orderBy=updated:desc',
+              'Peer list combines identity, connected state, limit, and update-time ordering.',
+              validateArrayField('peers', 2)
+          ),
+          'Node and Blockchain'
+      )
+  );
+
+  return checks;
+}
+
+/**
+ * Builds three combined-filter query-language checks for each documented endpoint family.
+ * @param {object} responseBodies - Discovery response bodies keyed by check id.
+ * @param {?object} fixture - Optional fixture account metadata.
+ */
+function buildQueryLanguageApiChecks (responseBodies, fixture) {
+  const discovery = buildApiDiscovery(responseBodies, fixture);
+  const address = encodeURIComponent(discovery.primaryAddress);
+  const secondAddress = encodeURIComponent(discovery.secondaryAddress);
+  const senderPublicKey = encodeURIComponent(discovery.transaction.senderPublicKey);
+  const checks = [
+    queryLanguageApiCheck(
+        apiSuccessCheck(
+            'query.transactions.height-types',
+            'Transactions Query Language',
+            '/api/transactions?fromHeight=' +
+              discovery.fromHeight +
+              '&and:types=0,8&limit=3&offset=0&orderBy=timestamp:desc&returnAsset=1&returnUnconfirmed=1',
+            'AND-combine height and transaction types with paging, ordering, assets, and unconfirmed results.',
+            validateArrayField('transactions', 3)
+        ),
+        '/api/transactions'
+    ),
+    queryLanguageApiCheck(
+        apiSuccessCheck(
+            'query.transactions.participants',
+            'Transactions Query Language',
+            '/api/transactions?senderIds=' +
+              address +
+              ',' +
+              secondAddress +
+              '&and:recipientIds=' +
+              address +
+              ',' +
+              secondAddress +
+              '&limit=3&orderBy=height:desc&returnAsset=1',
+            'Combine sender and recipient sets with explicit AND, paging, ordering, and assets.',
+            validateArrayField('transactions', 3)
+        ),
+        '/api/transactions'
+    ),
+    queryLanguageApiCheck(
+        apiSuccessCheck(
+            'query.transactions.amount-fee',
+            'Transactions Query Language',
+            '/api/transactions?senderPublicKey=' +
+              senderPublicKey +
+              '&and:minAmount=0&and:maxAmount=' +
+              Math.max(1, Number(discovery.transaction.amount)) +
+              '&and:minFee=1&and:maxFee=' +
+              Math.max(1, Number(discovery.transaction.fee)) +
+              '&limit=3&orderBy=timestamp:asc',
+            'Combine sender public key, amount range, fee range, limit, and ascending timestamp order.',
+            validateArrayField('transactions', 3)
+        ),
+        '/api/transactions'
+    ),
+    queryLanguageApiCheck(
+        apiSuccessCheck(
+            'query.chats.participant-type',
+            'Transactions Query Language',
+            '/api/chats/get?inId=' +
+              address +
+              '&type=1&fromHeight=' +
+              discovery.fromHeight +
+              '&includeDirectTransfers=1&returnUnconfirmed=1&limit=3&orderBy=timestamp:desc',
+            'Combine chat participant, subtype, height, direct transfers, unconfirmed results, limit, and ordering.',
+            validateArrayField('transactions', 3)
+        ),
+        '/api/chats/get'
+    ),
+    queryLanguageApiCheck(
+        apiSuccessCheck(
+            'query.chats.direction-window',
+            'Transactions Query Language',
+            '/api/chats/get?senderId=' +
+              address +
+              '&recipientId=' +
+              secondAddress +
+              '&fromHeight=' +
+              discovery.fromHeight +
+              '&toHeight=' +
+              discovery.height +
+              '&includeDirectTransfers=0&limit=3&orderBy=timestamp:asc',
+            'Combine sender, recipient, height window, transfer exclusion, limit, and ascending height order.',
+            validateArrayField('transactions', 3)
+        ),
+        '/api/chats/get'
+    ),
+    queryLanguageApiCheck(
+        apiSuccessCheck(
+            'query.chats.signal-page',
+            'Transactions Query Language',
+            '/api/chats/get?inId=' +
+              secondAddress +
+              '&type=3&includeDirectTransfers=0&returnUnconfirmed=1&limit=2&offset=0&orderBy=timestamp:desc',
+            'Combine participant, signal subtype, transfer exclusion, unconfirmed results, paging, and ordering.',
+            validateArrayField('transactions', 2)
+        ),
+        '/api/chats/get'
+    ),
+    queryLanguageApiCheck(
+        apiSuccessCheck(
+            'query.chatrooms.ordinary',
+            'Transactions Query Language',
+            '/api/chatrooms/' +
+              address +
+              '?type=1&includeDirectTransfers=0&returnUnconfirmed=1&limit=3&offset=0&orderBy=timestamp:desc',
+            'Combine account chatrooms with ordinary subtype, transfer exclusion, unconfirmed results, paging, and ordering.',
+            validateArrayField('chats', 3)
+        ),
+        '/api/chatrooms'
+    ),
+    queryLanguageApiCheck(
+        apiSuccessCheck(
+            'query.chatrooms.rich',
+            'Transactions Query Language',
+            '/api/chatrooms/' +
+              address +
+              '?type=2&includeDirectTransfers=1&limit=3&offset=1&orderBy=timestamp:asc',
+            'Combine account chatrooms with rich subtype, direct transfers, nonzero offset, limit, and ascending order.',
+            validateArrayField('chats', 3)
+        ),
+        '/api/chatrooms'
+    ),
+    queryLanguageApiCheck(
+        apiSuccessCheck(
+            'query.chatrooms.pair',
+            'Transactions Query Language',
+            '/api/chatrooms/' +
+              address +
+              '/' +
+              secondAddress +
+              '?type=1&includeDirectTransfers=1&returnUnconfirmed=1&limit=3&offset=0&orderBy=timestamp:desc',
+            'Combine a two-party room with subtype, transfers, unconfirmed results, paging, and ordering.',
+            validateArrayField('messages', 3)
+        ),
+        '/api/chatrooms'
+    ),
+    queryLanguageApiCheck(
+        apiSuccessCheck(
+            'query.states.sender-key',
+            'Transactions Query Language',
+            '/api/states/get?senderId=' +
+              address +
+              '&key=contact_list&fromHeight=' +
+              discovery.fromHeight +
+              '&type=0&returnUnconfirmed=1&limit=3&orderBy=timestamp:desc',
+            'Combine KVS sender, key, height, full-rewrite subtype, unconfirmed results, limit, and ordering.',
+            validateArrayField('transactions', 3)
+        ),
+        '/api/states/get'
+    ),
+    queryLanguageApiCheck(
+        apiSuccessCheck(
+            'query.states.sender-key-sets',
+            'Transactions Query Language',
+            '/api/states/get?senderIds=' +
+              address +
+              ',' +
+              secondAddress +
+              '&keyIds=eth%3Aaddress,btc%3Aaddress,doge%3Aaddress&type=0&limit=3&offset=0&orderBy=timestamp:desc',
+            'Combine sender and KVS-key sets with subtype, paging, and descending timestamp order.',
+            validateArrayField('transactions', 3)
+        ),
+        '/api/states/get'
+    ),
+    queryLanguageApiCheck(
+        apiSuccessCheck(
+            'query.states.height-window',
+            'Transactions Query Language',
+            '/api/states/get?fromHeight=' +
+              discovery.fromHeight +
+              '&toHeight=' +
+              discovery.height +
+              '&senderId=' +
+              address +
+              '&type=1&returnUnconfirmed=0&limit=3&orderBy=timestamp:asc',
+            'Combine KVS height window, sender, incremental subtype, confirmed-only option, limit, and ordering.',
+            validateArrayField('transactions', 3)
+        ),
+        '/api/states/get'
+    )
+  ];
+
+  return checks;
+}
+
+/**
+ * Extracts stable identifiers used to build parameterized API requests.
+ * @param {object} responseBodies - Discovery response bodies keyed by check id.
+ * @param {?object} fixture - Optional fixture account metadata.
+ */
+function buildApiDiscovery (responseBodies, fixture) {
+  const transactions = responseBodies['transactions.list'] && responseBodies['transactions.list'].transactions || [];
+  const blocks = responseBodies['blocks.list'] && responseBodies['blocks.list'].blocks || [];
+  const delegates = responseBodies['delegates.list'] && responseBodies['delegates.list'].delegates || [];
+  const peers = responseBodies['peers.list'] && responseBodies['peers.list'].peers || [];
+  const transaction = transactions[0] || {};
+  const block = blocks[0] || {};
+  const delegate = delegates[0] || {};
+  const peer = peers[0] || {};
+  const fixtureAddress = fixture && fixture.address;
+  const fixturePublicKey = fixture && fixture.publicKey;
+  const addresses = uniqueDefinedValues([
+    fixtureAddress,
+    transaction.senderId,
+    transaction.recipientId
+  ]);
+  const publicKeys = uniqueDefinedValues([
+    fixturePublicKey,
+    transaction.senderPublicKey,
+    transaction.recipientPublicKey
+  ]);
+  const height = Number(block.height || transaction.height || 1);
 
   return {
-    endpoints: results
+    primaryAddress: addresses[0] || 'U1',
+    secondaryAddress: addresses[1] || addresses[0] || 'U1',
+    primaryPublicKey: publicKeys[0] || transaction.senderPublicKey,
+    height,
+    fromHeight: Math.max(1, height - 100000),
+    block,
+    transaction,
+    delegate,
+    peer
   };
 }
 
 /**
- * Verifies client WebSocket connectivity and a basic transaction type subscription.
+ * Adds the official documentation section to a REST API check.
+ * @param {object} check - REST API check definition.
+ * @param {string} docsSection - Official API endpoint section.
+ */
+function documentedApiCheck (check, docsSection) {
+  return Object.assign(check, {
+    complex: true,
+    docsSection
+  });
+}
+
+/**
+ * Marks a REST check for the dedicated transactions-query-language table.
+ * @param {object} check - REST API check definition.
+ * @param {string} endpoint - Documented query-language endpoint family.
+ */
+function queryLanguageApiCheck (check, endpoint) {
+  return Object.assign(check, {
+    complex: true,
+    queryLanguageEndpoint: endpoint
+  });
+}
+
+/**
+ * Creates a validator for an array response field and requested maximum length.
+ * @param {string} field - Array response field.
+ * @param {number} maximum - Maximum expected item count.
+ */
+function validateArrayField (field, maximum) {
+  return function (body) {
+    return Array.isArray(body[field]) && body[field].length <= maximum ?
+      null :
+      field + ' array is missing or exceeds the requested limit';
+  };
+}
+
+/**
+ * Creates a validator for a top-level scalar field.
+ * @param {string} field - Response field.
+ * @param {*} expected - Expected value.
+ */
+function validateFieldEquals (field, expected) {
+  return function (body) {
+    return body[field] === expected ?
+      null :
+      field + ' does not match the requested value';
+  };
+}
+
+/**
+ * Creates a validator for a nested response object field.
+ * @param {string} objectField - Parent object field.
+ * @param {string} field - Nested field.
+ * @param {*} expected - Expected value.
+ */
+function validateNestedFieldEquals (objectField, field, expected) {
+  return function (body) {
+    return body[objectField] && body[objectField][field] === expected ?
+      null :
+      objectField + '.' + field + ' does not match the requested value';
+  };
+}
+
+/**
+ * Validates that an account response matches both supplied identity parameters.
+ * @param {string} address - Expected account address.
+ * @param {string} publicKey - Expected account public key.
+ */
+function validateAccount (address, publicKey) {
+  return function (body) {
+    return body.account &&
+      body.account.address === address &&
+      body.account.publicKey === publicKey ?
+      null :
+      'account identity does not match the supplied address and public key';
+  };
+}
+
+/**
+ * Creates a validator requiring every named top-level response field.
+ * @param {Array<string>} fields - Required response fields.
+ */
+function validateRequiredFields (fields) {
+  return function (body) {
+    const missing = fields.filter(function (field) {
+      return body[field] === undefined;
+    });
+
+    return missing.length ? 'missing response fields: ' + missing.join(', ') : null;
+  };
+}
+
+/**
+ * Validates a peer detail response against its requested identity.
+ * @param {string} ip - Expected peer IP.
+ * @param {number} port - Expected peer port.
+ */
+function validatePeer (ip, port) {
+  return function (body) {
+    return body.peer && body.peer.ip === ip && Number(body.peer.port) === Number(port) ?
+      null :
+      'peer identity does not match the supplied ip and port';
+  };
+}
+
+/**
+ * Returns defined values without duplicates while preserving order.
+ * @param {Array<*>} values - Candidate values.
+ */
+function uniqueDefinedValues (values) {
+  return values.filter(function (value, index) {
+    return value !== undefined && value !== null && value !== '' && values.indexOf(value) === index;
+  });
+}
+
+/**
+ * Creates one expected-success REST API check definition.
+ * @param {string} id - Stable check id.
+ * @param {string} category - API area.
+ * @param {string} path - Request path.
+ * @param {string} expectation - Human-readable expected behavior.
+ * @param {Function} [validate] - Optional response validator returning an error string.
+ */
+function apiSuccessCheck (id, category, path, expectation, validate) {
+  return {
+    id,
+    category,
+    method: 'GET',
+    path,
+    expectation,
+    expectedSuccess: true,
+    validate
+  };
+}
+
+/**
+ * Creates one expected-rejection REST API check definition.
+ * @param {string} id - Stable check id.
+ * @param {string} category - API area.
+ * @param {string} path - Request path.
+ * @param {string} expectation - Human-readable expected behavior.
+ * @param {number} [expectedStatus] - Optional expected HTTP status instead of a JSON rejection.
+ */
+function apiRejectionCheck (id, category, path, expectation, expectedStatus) {
+  return {
+    id,
+    category,
+    method: 'GET',
+    path,
+    expectation,
+    expectedSuccess: false,
+    expectedStatus
+  };
+}
+
+/**
+ * Executes and classifies one REST API check without stopping the remaining matrix.
+ * @param {object} context - Runner context.
+ * @param {object} client - Target HTTP client.
+ * @param {object} definition - Check definition.
+ */
+async function executeRestApiCheck (context, client, definition) {
+  const response = await client.get(definition.path);
+  const bodySuccess = response.body && response.body.success;
+  const validationError = definition.expectedSuccess && !definition.validate ?
+    null :
+    definition.expectedSuccess && definition.validate ?
+      definition.validate(response.body || {}) :
+      null;
+  const responseReceived = response.status > 0;
+  const passed = definition.expectedSuccess ?
+    response.ok && response.body && bodySuccess !== false && !validationError :
+    responseReceived && (
+      definition.expectedStatus !== undefined ?
+        response.status === definition.expectedStatus :
+        response.body && bodySuccess === false
+    );
+  let failure = null;
+
+  context.metrics.latency('rest.get', response.latencyMs);
+
+  if (!passed) {
+    failure = validationError ||
+      response.error ||
+      'expected success=' + definition.expectedSuccess +
+      ', received HTTP ' + response.status +
+      ' and body success=' + formatApiScalar(bodySuccess);
+  }
+
+  return {
+    body: response.body,
+    check: {
+      id: definition.id,
+      category: definition.category,
+      method: definition.method,
+      path: definition.path,
+      expectation: definition.expectation,
+      expectedSuccess: definition.expectedSuccess,
+      complex: !!definition.complex,
+      docsSection: definition.docsSection || null,
+      queryLanguageEndpoint: definition.queryLanguageEndpoint || null,
+      status: response.status,
+      httpOk: response.ok,
+      bodySuccess,
+      latencyMs: response.latencyMs,
+      observed: summarizeApiResponse(response.body, response.error),
+      passed,
+      failure
+    }
+  };
+}
+
+/**
+ * Validates that a block list is bounded and ordered by descending height.
+ * @param {object} body - REST response body.
+ */
+function validateDescendingBlocks (body) {
+  if (!Array.isArray(body.blocks) || body.blocks.length > 2) {
+    return 'block list is missing or exceeds the requested limit';
+  }
+
+  for (let index = 1; index < body.blocks.length; index++) {
+    if (body.blocks[index - 1].height < body.blocks[index].height) {
+      return 'blocks are not sorted by descending height';
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Produces a report-safe summary of an API response body.
+ * @param {?object} body - Parsed response body.
+ * @param {string} [transportError] - Transport error when no body was received.
+ */
+function summarizeApiResponse (body, transportError) {
+  if (!body || typeof body !== 'object') {
+    return transportError || 'no JSON body';
+  }
+
+  const summary = {
+    success: body.success
+  };
+
+  if (body.error) {
+    summary.error = body.error;
+  }
+  if (body.height !== undefined) {
+    summary.height = body.height;
+  }
+  if (body.loaded !== undefined) {
+    summary.loaded = body.loaded;
+  }
+  if (body.syncing !== undefined) {
+    summary.syncing = body.syncing;
+  }
+  if (body.loader && typeof body.loader === 'object') {
+    summary.loaded = body.loader.loaded;
+    summary.syncing = body.loader.syncing;
+    summary.consensus = body.loader.consensus;
+    summary.blocksToSync = body.loader.blocks;
+  }
+  if (body.network && typeof body.network === 'object') {
+    summary.height = body.network.height;
+    summary.nethash = body.network.nethash;
+    summary.broadhash = body.network.broadhash;
+  }
+  if (body.version !== undefined) {
+    summary.version = typeof body.version === 'object' ? body.version.version : body.version;
+  }
+  if (body.milestone !== undefined) {
+    summary.milestone = body.milestone;
+    summary.reward = body.reward;
+    summary.supply = body.supply;
+    summary.fee = body.fee;
+  }
+  if (body.balance !== undefined) {
+    summary.balance = body.balance;
+    summary.unconfirmedBalance = body.unconfirmedBalance;
+  }
+  if (body.publicKey !== undefined) {
+    summary.publicKey = body.publicKey;
+  }
+  if (body.confirmed !== undefined) {
+    summary.confirmed = body.confirmed;
+    summary.queued = body.queued;
+    summary.unconfirmed = body.unconfirmed;
+    summary.multisignature = body.multisignature;
+  }
+  summarizeApiCollection(summary, body, 'blocks', 'height');
+  summarizeApiCollection(summary, body, 'transactions', 'id');
+  summarizeApiCollection(summary, body, 'delegates', 'publicKey');
+  summarizeApiCollection(summary, body, 'peers', 'ip');
+  summarizeApiCollection(summary, body, 'chats', 'lastTransaction');
+  summarizeApiCollection(summary, body, 'messages', 'id');
+
+  if (body.count !== undefined) {
+    summary.count = body.count;
+  }
+  if (body.totalCount !== undefined) {
+    summary.totalCount = body.totalCount;
+  }
+  if (body.account && body.account.address) {
+    summary.account = body.account.address;
+  }
+  if (body.block && body.block.id) {
+    summary.block = body.block.id;
+  }
+  if (body.transaction && body.transaction.id) {
+    summary.transaction = body.transaction.id;
+  }
+  if (body.delegate && body.delegate.publicKey) {
+    summary.delegate = body.delegate.publicKey;
+  }
+  if (body.peer) {
+    summary.peer = body.peer.ip + ':' + body.peer.port;
+  }
+  if (body.fees && typeof body.fees === 'object') {
+    summary.feeTypes = Object.keys(body.fees).sort();
+  }
+  if (body.connected !== undefined) {
+    summary.connected = body.connected;
+    summary.disconnected = body.disconnected;
+    summary.banned = body.banned;
+  }
+  if (body.forged !== undefined) {
+    summary.fees = body.fees;
+    summary.rewards = body.rewards;
+    summary.forged = body.forged;
+  }
+
+  return summary;
+}
+
+/**
+ * Adds collection size and a stable first-item field to an API response summary.
+ * @param {object} summary - Mutable response summary.
+ * @param {object} body - REST response body.
+ * @param {string} key - Collection property.
+ * @param {string} firstField - First-item field to expose.
+ */
+function summarizeApiCollection (summary, body, key, firstField) {
+  if (!Array.isArray(body[key])) {
+    return;
+  }
+
+  summary[key] = body[key].length;
+  const firstValue = body[key][0] && body[key][0][firstField];
+
+  if (firstValue !== undefined && (typeof firstValue !== 'object' || firstValue === null)) {
+    summary['first' + key.charAt(0).toUpperCase() + key.slice(1)] = firstValue;
+  }
+}
+
+/**
+ * Formats a scalar for internal API check failure messages.
+ * @param {*} value - Scalar value.
+ */
+function formatApiScalar (value) {
+  return value === undefined ? 'undefined' : String(value);
+}
+
+/**
+ * Verifies client WebSocket connectivity and supported subscription messages.
  * @param {object} context - Runner context.
  */
 async function runWebSocketScenario (context) {
@@ -439,15 +1483,61 @@ async function runWebSocketScenario (context) {
     return context.skip('Node does not advertise an enabled client WebSocket endpoint.');
   }
 
-  const result = await checkWebSocket(node.wsClientUrl, context.options.timeoutMs);
+  const fixture = context.fixtureAccounts.transfer || context.fixtureAccounts.genesis;
+  const subscriptions = [
+    {
+      event: 'types',
+      value: [transactionTypes.SEND, transactionTypes.CHAT_MESSAGE],
+      purpose: 'Subscribe to SEND (0) and CHAT_MESSAGE (8) transactions.'
+    },
+    {
+      event: 'assetChatTypes',
+      value: Object.values(transactionTypes.CHAT_MESSAGE_TYPES),
+      purpose: 'Subscribe to all chat message subtypes.'
+    }
+  ];
 
-  context.metrics.latency('ws.connect', result.latencyMs);
-  context.assert(result.connected, 'WebSocket connection failed: ' + (result.error || 'unknown error'));
+  if (fixture && fixture.address) {
+    subscriptions.push({
+      event: 'address',
+      value: fixture.address,
+      purpose: 'Subscribe to transactions involving the fixture account address.'
+    });
+  }
 
-  return {
+  const connection = await checkWebSocket(
+      node.wsClientUrl,
+      context.options.timeoutMs,
+      subscriptions
+  );
+
+  context.metrics.latency('ws.connect', connection.latencyMs);
+
+  const result = {
+    kind: 'api websocket',
+    test: {
+      nodeId: node.id,
+      wsClientUrl: node.wsClientUrl,
+      coverage: 'Socket.IO websocket handshake, SEND and CHAT_MESSAGE type subscriptions, all chat subtype subscriptions, optional address subscription, and clean client disconnect.',
+      limitation: 'Subscription events have no acknowledgement in the current protocol, so this read-only scenario verifies emission but not newTrans delivery.'
+    },
     wsClientUrl: node.wsClientUrl,
-    latencyMs: result.latencyMs
+    connected: connection.connected,
+    disconnected: connection.disconnected,
+    latencyMs: connection.latencyMs,
+    subscriptions: connection.subscriptions,
+    error: connection.error || null,
+    passed: connection.connected && connection.disconnected
   };
+
+  if (!result.passed) {
+    const error = Error('WebSocket API check failed: ' + (result.error || 'connection did not close cleanly') + '.');
+
+    error.result = result;
+    throw error;
+  }
+
+  return result;
 }
 
 /**
@@ -3122,43 +4212,72 @@ async function assertNodeAgreement (context) {
 }
 
 /**
- * Opens and closes a client WebSocket connection.
+ * Opens a client WebSocket, emits subscription messages, and closes it.
  * @param {string} wsClientUrl - WebSocket URL.
  * @param {number} timeoutMs - Connection timeout.
+ * @param {Array<object>} subscriptions - Subscription events to emit after connecting.
  */
-function checkWebSocket (wsClientUrl, timeoutMs) {
+function checkWebSocket (wsClientUrl, timeoutMs, subscriptions) {
   const started = Date.now();
 
   return new Promise(function (resolve) {
+    let settled = false;
     const socket = io(wsClientUrl, {
       timeout: timeoutMs,
       reconnection: false,
       transports: ['websocket']
     });
     const timer = setTimeout(function () {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
       socket.close();
       resolve({
         connected: false,
+        disconnected: true,
+        subscriptions: [],
         error: 'timeout',
         latencyMs: Date.now() - started
       });
     }, timeoutMs);
 
     socket.on('connect', function () {
-      socket.emit('types', transactionTypes.SEND);
-      clearTimeout(timer);
-      socket.close();
-      resolve({
-        connected: true,
-        latencyMs: Date.now() - started
+      const emitted = subscriptions.map(function (subscription) {
+        socket.emit(subscription.event, subscription.value);
+        return subscription;
       });
+
+      socket.once('disconnect', function () {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimeout(timer);
+        resolve({
+          connected: true,
+          disconnected: true,
+          subscriptions: emitted,
+          latencyMs: Date.now() - started
+        });
+      });
+      socket.close();
     });
 
     socket.on('connect_error', function (error) {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
       clearTimeout(timer);
       socket.close();
       resolve({
         connected: false,
+        disconnected: true,
+        subscriptions: [],
         error: error.message,
         latencyMs: Date.now() - started
       });
@@ -3235,7 +4354,12 @@ module.exports = {
   STRESS_LOAD_PROFILES,
   TXBURST_TYPE0_COUNT,
   TXBURST_REQUEST_TIMEOUT_MS,
+  buildApiDiscovery,
+  buildDynamicRestApiChecks,
   buildConsensusSwitches,
+  buildDocumentedComplexApiChecks,
+  buildQueryLanguageApiChecks,
+  buildRestApiChecks,
   buildRewardStage,
   calculateLiveBroadhashConsensus,
   collectAcceptedPoolStates,
@@ -3247,6 +4371,7 @@ module.exports = {
   createRandomChatMessage,
   createTransactionBurst,
   createTxQueueTransaction,
+  executeRestApiCheck,
   formatAdamantAmount,
   formatObservedNodeVersion,
   getTransactionObservationNodes,

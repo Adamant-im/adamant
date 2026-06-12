@@ -319,6 +319,148 @@ describe('live scenario runner utilities', () => {
     });
   });
 
+  it('should build broad read-only REST API coverage', () => {
+    const checks = scenarios.buildRestApiChecks({
+      address: 'U5338684603617333081'
+    });
+
+    expect(checks.length).to.be.greaterThan(25);
+    expect(checks.map((check) => check.id)).to.include.members([
+      'node.status',
+      'blocks.list',
+      'transactions.queued',
+      'accounts.details',
+      'delegates.next-forgers',
+      'peers.count',
+      'validation.account-address',
+      'routing.unknown-endpoint'
+    ]);
+    expect(checks.every((check) => check.method === 'GET')).to.equal(true);
+  });
+
+  it('should classify JSON validation and HTTP 404 as expected API rejections', async () => {
+    const definitions = scenarios.buildRestApiChecks(null);
+    const validationDefinition = definitions.find((check) => {
+      return check.id === 'validation.block-id-required';
+    });
+    const routingDefinition = definitions.find((check) => {
+      return check.id === 'routing.unknown-endpoint';
+    });
+    const context = {
+      metrics: {
+        latency: function () {}
+      }
+    };
+    const validation = await scenarios.executeRestApiCheck(context, {
+      get: async function () {
+        return {
+          ok: true,
+          status: 200,
+          body: {
+            success: false,
+            error: 'Missing required property: id'
+          },
+          latencyMs: 1
+        };
+      }
+    }, validationDefinition);
+    const routing = await scenarios.executeRestApiCheck(context, {
+      get: async function () {
+        return {
+          ok: false,
+          status: 404,
+          body: '<!doctype html>',
+          latencyMs: 1
+        };
+      }
+    }, routingDefinition);
+
+    expect(validation.check.passed).to.equal(true);
+    expect(validation.check.bodySuccess).to.equal(false);
+    expect(routing.check.passed).to.equal(true);
+    expect(routing.check.status).to.equal(404);
+  });
+
+  it('should build three complex checks per docs section and query-language endpoint', () => {
+    const responseBodies = {
+      'blocks.list': {
+        blocks: [
+          {
+            id: 'block-id',
+            height: 1000,
+            previousBlock: 'previous-block-id',
+            generatorPublicKey: 'a'.repeat(64),
+            reward: 45000000
+          }
+        ]
+      },
+      'transactions.list': {
+        transactions: [
+          {
+            id: 'transaction-id',
+            blockId: 'block-id',
+            height: 999,
+            type: 8,
+            senderId: 'U2',
+            recipientId: 'U3',
+            senderPublicKey: 'b'.repeat(64),
+            amount: 0,
+            fee: 100000
+          }
+        ]
+      },
+      'delegates.list': {
+        delegates: [
+          {
+            publicKey: 'c'.repeat(64),
+            address: 'U4'
+          }
+        ]
+      },
+      'peers.list': {
+        peers: [
+          {
+            ip: '127.0.0.1',
+            port: 36667,
+            version: '0.9.0'
+          }
+        ]
+      }
+    };
+    const checks = scenarios.buildDynamicRestApiChecks(responseBodies, {
+      address: 'U1',
+      publicKey: 'd'.repeat(64)
+    });
+    const docsChecks = checks.filter((check) => check.docsSection);
+    const queryChecks = checks.filter((check) => check.queryLanguageEndpoint);
+    const docsSections = [
+      'Accounts',
+      'Transactions',
+      'Chats and Chatrooms',
+      'Blocks',
+      'Delegates',
+      'States: Key-Value Storage',
+      'Node and Blockchain'
+    ];
+    const queryEndpoints = [
+      '/api/transactions',
+      '/api/chats/get',
+      '/api/chatrooms',
+      '/api/states/get'
+    ];
+
+    expect(docsChecks).to.have.length(21);
+    docsSections.forEach((section) => {
+      expect(docsChecks.filter((check) => check.docsSection === section)).to.have.length(3);
+    });
+    expect(queryChecks).to.have.length(12);
+    queryEndpoints.forEach((endpoint) => {
+      expect(queryChecks.filter((check) => check.queryLanguageEndpoint === endpoint)).to.have.length(3);
+    });
+    expect(queryChecks.every((check) => check.path.includes('limit='))).to.equal(true);
+    expect(queryChecks.every((check) => check.path.includes('orderBy='))).to.equal(true);
+  });
+
   it('should collect final state from every transaction observation node', async () => {
     const nodes = [
       { id: 'node-recipient', apiUrl: 'http://recipient.test' },
@@ -893,6 +1035,182 @@ describe('live scenario runner utilities', () => {
     );
     expect(markdown).to.include('ready=true, loaded=true, syncing=false, consensus=100%');
     expect(markdown).to.include('| 15000 | 2 | 3 | 0 |');
+  });
+
+  it('should render detailed REST and WebSocket API results without security rows', () => {
+    const markdown = report.renderMarkdownReport({
+      status: 'passed',
+      target: {
+        mode: 'testnet',
+        nodes: []
+      },
+      run: {
+        id: 'testnet-api',
+        startedAt: '2026-06-12T00:00:00.000Z',
+        finishedAt: '2026-06-12T00:00:01.000Z'
+      },
+      scenarios: [
+        {
+          id: 'api.rest',
+          suite: 'api',
+          status: 'passed',
+          durationMs: 500,
+          result: {
+            kind: 'api rest',
+            test: {
+              nodeId: 'node-recipient',
+              apiUrl: 'http://127.0.0.1:36667',
+              safety: 'Read-only requests only.',
+              coverage: 'Success and rejection cases.'
+            },
+            checks: [
+              {
+                id: 'blocks.height',
+                category: 'Blocks',
+                method: 'GET',
+                path: '/api/blocks/getHeight',
+                expectation: 'Current height is returned.',
+                expectedSuccess: true,
+                status: 200,
+                bodySuccess: true,
+                latencyMs: 10,
+                observed: {
+                  success: true,
+                  height: 100
+                },
+                passed: true
+              },
+              {
+                id: 'validation.block-id-required',
+                category: 'Validation',
+                method: 'GET',
+                path: '/api/blocks/get',
+                expectation: 'Missing id is rejected.',
+                expectedSuccess: false,
+                status: 200,
+                bodySuccess: false,
+                latencyMs: 11,
+                observed: {
+                  success: false,
+                  error: 'Missing required property: id'
+                },
+                passed: true
+              }
+            ],
+            passed: true
+          }
+        },
+        {
+          id: 'api.websocket',
+          suite: 'api',
+          status: 'passed',
+          durationMs: 20,
+          result: {
+            kind: 'api websocket',
+            test: {
+              nodeId: 'node-recipient',
+              coverage: 'Handshake and subscriptions.',
+              limitation: 'No delivery acknowledgement.'
+            },
+            wsClientUrl: 'ws://127.0.0.1:36665',
+            connected: true,
+            disconnected: true,
+            latencyMs: 20,
+            subscriptions: [
+              {
+                event: 'types',
+                value: [0, 8],
+                purpose: 'Subscribe to transaction types.'
+              }
+            ],
+            passed: true
+          }
+        }
+      ],
+      finalNodeStates: [],
+      metrics: {}
+    });
+
+    expect(markdown).to.include('## API Details');
+    expect(markdown).to.include('2/2 checks passed; 1 expected rejections observed');
+    expect(markdown).to.include('GET /api/blocks/getHeight');
+    expect(markdown).to.include('success=true; height=100');
+    expect(markdown).to.include('| types | [0,8] | Subscribe to transaction types. |');
+    expect(markdown).not.to.include('## Security Abuse Details');
+  });
+
+  it('should render docs sections and query-language checks in separate tables', () => {
+    const markdown = report.renderMarkdownReport({
+      status: 'passed',
+      target: {
+        mode: 'testnet',
+        nodes: []
+      },
+      run: {
+        id: 'testnet-api-query-language',
+        startedAt: '2026-06-12T00:00:00.000Z',
+        finishedAt: '2026-06-12T00:00:01.000Z'
+      },
+      scenarios: [
+        {
+          id: 'api.rest',
+          suite: 'api',
+          status: 'passed',
+          durationMs: 100,
+          result: {
+            kind: 'api rest',
+            test: {
+              nodeId: 'node-recipient',
+              apiUrl: 'http://127.0.0.1:36667',
+              safety: 'Read-only.',
+              coverage: 'Documented complex queries.'
+            },
+            checks: [
+              {
+                id: 'docs.accounts.address-and-public-key',
+                category: 'Accounts',
+                docsSection: 'Accounts',
+                method: 'GET',
+                path: '/api/accounts?address=U1&publicKey=abc',
+                expectation: 'Match both account identifiers.',
+                status: 200,
+                bodySuccess: true,
+                latencyMs: 10,
+                observed: {
+                  success: true,
+                  account: 'U1'
+                },
+                passed: true
+              },
+              {
+                id: 'query.transactions.height-types',
+                category: 'Transactions Query Language',
+                queryLanguageEndpoint: '/api/transactions',
+                method: 'GET',
+                path: '/api/transactions?fromHeight=1&and:types=0,8&limit=3&orderBy=timestamp:desc',
+                expectation: 'Combine filters and options.',
+                status: 200,
+                bodySuccess: true,
+                latencyMs: 11,
+                observed: {
+                  success: true,
+                  transactions: 3
+                },
+                passed: true
+              }
+            ],
+            passed: true
+          }
+        }
+      ],
+      finalNodeStates: [],
+      metrics: {}
+    });
+
+    expect(markdown).to.include('#### Official API Endpoint Sections');
+    expect(markdown).to.include('| Accounts | docs.accounts.address-and-public-key |');
+    expect(markdown).to.include('#### Transactions Query Language');
+    expect(markdown).to.include('| /api/transactions | query.transactions.height-types |');
   });
 
   it('should render accepted and expected-failed transaction summaries in Markdown reports', () => {
