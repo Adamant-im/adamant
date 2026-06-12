@@ -193,22 +193,197 @@ function isScenarioEnabledByOptions (scenario, options) {
 }
 
 /**
- * Waits until every target node is loaded, not syncing, and above min height.
+ * Verifies every inspectable target node is ready and accepts closed public APIs.
  * @param {object} context - Runner context.
  */
 async function runReadinessScenario (context) {
-  await Promise.all(context.target.nodes.map(function (node) {
-    return waitForReady(context, node);
+  const inventory = context.target.readinessNodes || context.target.nodes;
+  const nodes = await Promise.all(inventory.map(function (node) {
+    return collectTargetNodeDetails(context, node);
   }));
+  const passed = nodes.every(function (node) {
+    return node.publicApiClosed || node.ready && node.detailsComplete;
+  });
+  const result = {
+    kind: 'target readiness',
+    test: {
+      nodeSelection: context.target.mode === 'testnet' ?
+        'Every unique node endpoint from the testnet config, plus an explicit recipient when outside that config.' :
+        'Every node supplied explicitly or listed in the managed localnet manifest.',
+      readinessRequirement: 'An accessible node reports loaded=true, syncing=false, and the configured minimum height; API access denied is an accepted closed-public-API state.',
+      details: [
+        '/api/node/status',
+        '/api/delegates/count',
+        '/api/transactions/count'
+      ],
+      minimumHeight: context.options.minHeight,
+      readyTimeoutMs: context.options.readyTimeoutMs,
+      pollIntervalMs: context.options.pollIntervalMs
+    },
+    nodes,
+    passed
+  };
+
+  if (!passed) {
+    const failedNodes = nodes.filter(function (node) {
+      return !node.publicApiClosed && (!node.ready || !node.detailsComplete);
+    }).map(function (node) {
+      return node.id + ': ' + (node.error || 'target detail request failed');
+    });
+    const error = Error('Target readiness failed: ' + failedNodes.join('; ') + '.');
+
+    error.result = result;
+    throw error;
+  }
+
+  return result;
+}
+
+/**
+ * Waits for one target node and collects its public status, delegate, and pool data.
+ * @param {object} context - Runner context.
+ * @param {object} node - Target inventory node.
+ */
+async function collectTargetNodeDetails (context, node) {
+  const client = context.clientFor(node);
+  let readyResponse;
+  let readinessError = null;
+
+  try {
+    readyResponse = await waitForReady(context, node);
+  } catch (error) {
+    readinessError = error.message;
+    readyResponse = error.lastResult;
+  }
+
+  // A denied public API cannot expose the remaining details, so avoid two
+  // redundant requests and keep the report focused on the original failure.
+  const publicApiClosed = isPermanentReadinessFailure(readyResponse);
+  const detailResponses = publicApiClosed ?
+    [
+      { ok: false, error: readinessError },
+      { ok: false, error: readinessError }
+    ] :
+    await Promise.all([
+      client.get('/api/delegates/count'),
+      client.get('/api/transactions/count')
+    ]);
+  const delegates = detailResponses[0];
+  const transactions = detailResponses[1];
+  const statusBody = readyResponse && readyResponse.body || {};
+  const loader = statusBody.loader || {};
+  const network = statusBody.network || {};
+  const configured = node.configuration || {};
+  const configuredApi = configured.api || {};
+  const configuredWsClient = configured.wsClient || {};
+  const configuredWsServer = configured.wsServer || {};
+  const observedWsClient = statusBody.wsClient || {};
+  const statusOk = !!(
+    readyResponse &&
+    readyResponse.ok &&
+    statusBody.success !== false &&
+    statusBody.loader &&
+    statusBody.network
+  );
+  const delegatesOk = !!(delegates.ok && delegates.body && delegates.body.success !== false);
+  const transactionsOk = !!(
+    transactions.ok &&
+    transactions.body &&
+    transactions.body.success !== false
+  );
+  const ready = !!(
+    statusOk &&
+    loader.loaded &&
+    !loader.syncing &&
+    network.height >= context.options.minHeight
+  );
+  const features = [];
+
+  if (Array.isArray(node.roles) && node.roles.length) {
+    features.push('roles: ' + node.roles.join(', '));
+  }
+  if (node.delegateSecretsCount !== undefined) {
+    features.push('configured forging delegates: ' + node.delegateSecretsCount);
+  }
+  if (node.pid) {
+    features.push('pid: ' + node.pid);
+  }
+  if (node.generalLogFile) {
+    features.push('log: ' + node.generalLogFile);
+  }
+  if (network.nethash) {
+    features.push('nethash: ' + network.nethash);
+  }
+  if (network.broadhash) {
+    features.push('broadhash: ' + network.broadhash);
+  }
+  if (configured.source) {
+    features.push('config: ' + configured.source);
+  }
+
+  const errors = uniqueTargetErrors([
+    readinessError,
+    delegatesOk ? null : delegates.error || delegates.body && delegates.body.error || 'delegate count unavailable',
+    transactionsOk ?
+      null :
+      transactions.error || transactions.body && transactions.body.error || 'transaction counts unavailable'
+  ]);
 
   return {
-    nodes: context.target.nodes.map(function (node) {
-      return {
-        id: node.id,
-        ready: true
-      };
-    })
+    id: node.id,
+    apiUrl: node.apiUrl,
+    ready,
+    publicApiClosed,
+    detailsComplete: statusOk && delegatesOk && transactionsOk,
+    error: errors.length ? errors.join('; ') : null,
+    version: formatObservedNodeVersion(statusBody.version),
+    height: network.height,
+    delegates: delegatesOk ? delegates.body.count : null,
+    publicApi: {
+      configuredEnabled: configuredApi.enabled,
+      configuredPublic: configuredApi.public,
+      observedReachable: statusOk,
+      observedDenied: publicApiClosed,
+      limits: configuredApi.limits || null
+    },
+    wsClient: {
+      configuredEnabled: configuredWsClient.enabled,
+      configuredPort: configuredWsClient.port,
+      observedEnabled: observedWsClient.enabled,
+      observedPort: observedWsClient.port
+    },
+    wsServer: {
+      configuredEnabled: configuredWsServer.enabled,
+      maxBroadcastConnections: configuredWsServer.maxBroadcastConnections,
+      maxReceiveConnections: configuredWsServer.maxReceiveConnections
+    },
+    state: {
+      loaded: loader.loaded,
+      syncing: loader.syncing,
+      consensus: loader.consensus,
+      blocksToSync: loader.blocks,
+      height: network.height,
+      nethash: network.nethash,
+      broadhash: network.broadhash
+    },
+    transactions: {
+      confirmed: transactionsOk ? transactions.body.confirmed : null,
+      queued: transactionsOk ? transactions.body.queued : null,
+      unconfirmed: transactionsOk ? transactions.body.unconfirmed : null,
+      multisignature: transactionsOk ? transactions.body.multisignature : null
+    },
+    features
   };
+}
+
+/**
+ * Removes empty and duplicate node inspection errors while preserving their order.
+ * @param {Array<string|null|undefined>} errors - Errors returned by target API requests.
+ */
+function uniqueTargetErrors (errors) {
+  return errors.filter(function (error, index) {
+    return error && errors.indexOf(error) === index;
+  });
 }
 
 /**
@@ -2654,6 +2829,18 @@ async function waitForReady (context, node) {
     lastResult = await client.get('/api/node/status');
     context.metrics.latency('readiness.status', lastResult.latencyMs);
 
+    if (isPermanentReadinessFailure(lastResult)) {
+      const error = Error(
+          'Node ' +
+          node.id +
+          ' cannot be inspected: ' +
+          (lastResult.body && lastResult.body.error || lastResult.error)
+      );
+
+      error.lastResult = lastResult;
+      throw error;
+    }
+
     if (
       lastResult.ok &&
       lastResult.body &&
@@ -2670,7 +2857,28 @@ async function waitForReady (context, node) {
     await sleep(context.options.pollIntervalMs);
   }
 
-  throw Error('Node ' + node.id + ' was not ready before timeout. Last response: ' + JSON.stringify(lastResult && lastResult.body));
+  const error = Error(
+      'Node ' +
+      node.id +
+      ' was not ready before timeout. Last response: ' +
+      JSON.stringify(lastResult && lastResult.body)
+  );
+
+  error.lastResult = lastResult;
+  throw error;
+}
+
+/**
+ * Detects readiness responses that cannot become successful through polling.
+ * @param {object} result - HTTP client result.
+ */
+function isPermanentReadinessFailure (result) {
+  const error = result && (
+    result.error ||
+    result.body && result.body.error
+  );
+
+  return typeof error === 'string' && /api access denied/i.test(error);
 }
 
 /**
@@ -3034,6 +3242,7 @@ module.exports = {
   collectAcceptedTransactionStates,
   collectBlockchainTps,
   collectFinalAcceptedTransactionStates,
+  collectTargetNodeDetails,
   collectTransactionPoolSnapshot,
   createRandomChatMessage,
   createTransactionBurst,

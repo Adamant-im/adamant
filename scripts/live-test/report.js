@@ -92,6 +92,12 @@ function renderMarkdownReport (report) {
   lines.push(JSON.stringify(report.metrics, null, 2));
   lines.push('```');
 
+  const targetScenarios = collectTargetScenarios(report.scenarios);
+
+  if (targetScenarios.length) {
+    appendTargetDetails(lines, targetScenarios);
+  }
+
   const transactionRows = collectTransactionRows(report.scenarios);
 
   if (transactionRows.length) {
@@ -145,6 +151,228 @@ function renderMarkdownReport (report) {
   }
 
   return lines.join('\n') + '\n';
+}
+
+/**
+ * Collects target suite scenarios with detailed readiness results.
+ * @param {Array<object>} scenarios - Scenario report entries.
+ */
+function collectTargetScenarios (scenarios) {
+  return scenarios.filter(function (scenario) {
+    return scenario.suite === 'target' && scenario.result;
+  });
+}
+
+/**
+ * Appends target methodology and a detailed per-node state table.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {Array<object>} scenarios - Target scenario report entries.
+ */
+function appendTargetDetails (lines, scenarios) {
+  lines.push('');
+  lines.push('## Target Details');
+  lines.push('');
+  lines.push(
+      'The target suite verifies every selected node whose public API is accessible, then reads node status, ' +
+      'registered delegate count, and node-wide transaction pool counters. A node that explicitly denies ' +
+      'public API access is reported as closed and does not fail the scenario. Testnet inventory comes from ' +
+      'the configured peer list; localnet inventory comes from explicit nodes or the managed manifest.'
+  );
+
+  scenarios.forEach(function (scenario) {
+    const result = scenario.result || {};
+    const test = result.test || {};
+    const nodes = result.nodes || [];
+    const readyNodeCount = nodes.filter(function (node) {
+      return node.ready && node.detailsComplete;
+    }).length;
+    const closedApiNodeCount = nodes.filter(function (node) {
+      return node.publicApiClosed;
+    }).length;
+
+    lines.push('');
+    lines.push('### ' + scenario.id);
+    lines.push('- Scenario status: ' + scenario.status + '; duration ' + formatDuration(scenario.durationMs) + '.');
+    lines.push('- Nodes selected: ' + formatReportSentence(test.nodeSelection));
+    lines.push('- Readiness condition: ' + formatReportSentence(test.readinessRequirement));
+    lines.push(
+        '- Requests: ' +
+        formatList(test.details) +
+        '; minimum height ' +
+        formatReportValue(test.minimumHeight) +
+        '; timeout ' +
+        formatDuration(test.readyTimeoutMs) +
+        '; poll interval ' +
+        formatDuration(test.pollIntervalMs) +
+        '.'
+    );
+    lines.push(
+        '- Result: ' +
+        readyNodeCount +
+        '/' +
+        nodes.length +
+        ' nodes ready with complete details; ' +
+        closedApiNodeCount +
+        (closedApiNodeCount === 1 ? ' node has' : ' nodes have') +
+        ' closed public APIs; passed ' +
+        formatReportValue(result.passed) +
+        '.'
+    );
+    lines.push('');
+    lines.push('#### Node Inventory');
+    lines.push('');
+    lines.push(
+        '| Node | API | ADM version | Height | Registered delegates | Public API | wsClient | wsServer / wsNode | ' +
+        'State | Confirmed | Queued | Unconfirmed | Multisignature | Features |'
+    );
+    lines.push(
+        '| --- | --- | --- | ---: | ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |'
+    );
+
+    nodes.forEach(function (node) {
+      const transactions = node.transactions || {};
+
+      lines.push(
+          '| ' +
+          formatMarkdownTableValue(node.id) +
+          ' | ' +
+          formatMarkdownTableValue(node.apiUrl) +
+          ' | ' +
+          formatMarkdownTableValue(node.version) +
+          ' | ' +
+          formatMarkdownTableValue(node.height) +
+          ' | ' +
+          formatMarkdownTableValue(node.delegates) +
+          ' | ' +
+          formatMarkdownTableValue(formatTargetPublicApi(node.publicApi)) +
+          ' | ' +
+          formatMarkdownTableValue(formatTargetWsClient(node.wsClient)) +
+          ' | ' +
+          formatMarkdownTableValue(formatTargetWsServer(node.wsServer)) +
+          ' | ' +
+          formatMarkdownTableValue(formatTargetState(node)) +
+          ' | ' +
+          formatMarkdownTableValue(transactions.confirmed) +
+          ' | ' +
+          formatMarkdownTableValue(transactions.queued) +
+          ' | ' +
+          formatMarkdownTableValue(transactions.unconfirmed) +
+          ' | ' +
+          formatMarkdownTableValue(transactions.multisignature) +
+          ' | ' +
+          formatMarkdownTableValue(formatTargetFeatures(node)) +
+          ' |'
+      );
+    });
+  });
+}
+
+/**
+ * Formats configured and observed public API state.
+ * @param {object} publicApi - Public API report data.
+ */
+function formatTargetPublicApi (publicApi) {
+  publicApi = publicApi || {};
+
+  return 'runner config enabled=' +
+    formatReportValue(publicApi.configuredEnabled) +
+    ', public=' +
+    formatReportValue(publicApi.configuredPublic) +
+    '; observed reachable=' +
+    formatReportValue(publicApi.observedReachable) +
+    ', denied=' +
+    formatReportValue(publicApi.observedDenied);
+}
+
+/**
+ * Formats one prose value with exactly one trailing period.
+ * @param {*} value - Sentence value.
+ */
+function formatReportSentence (value) {
+  return formatReportValue(value).replace(/\.*$/, '') + '.';
+}
+
+/**
+ * Formats configured and advertised client WebSocket state.
+ * @param {object} wsClient - Client WebSocket report data.
+ */
+function formatTargetWsClient (wsClient) {
+  wsClient = wsClient || {};
+
+  return 'configured enabled=' +
+    formatReportValue(wsClient.configuredEnabled) +
+    ', port=' +
+    formatReportValue(wsClient.configuredPort) +
+    '; advertised enabled=' +
+    formatReportValue(wsClient.observedEnabled) +
+    ', port=' +
+    formatReportValue(wsClient.observedPort);
+}
+
+/**
+ * Formats configured node-to-node WebSocket server limits.
+ * @param {object} wsServer - Node WebSocket server report data.
+ */
+function formatTargetWsServer (wsServer) {
+  wsServer = wsServer || {};
+
+  return 'configured enabled=' +
+    formatReportValue(wsServer.configuredEnabled) +
+    ', broadcast max=' +
+    formatReportValue(wsServer.maxBroadcastConnections) +
+    ', receive max=' +
+    formatReportValue(wsServer.maxReceiveConnections);
+}
+
+/**
+ * Formats readiness and loader state for one target node.
+ * @param {object} node - Target node report data.
+ */
+function formatTargetState (node) {
+  const state = node.state || {};
+
+  if (node.publicApiClosed) {
+    return 'public API closed: ' + formatReportValue(node.error);
+  }
+
+  if (!node.detailsComplete) {
+    return 'unavailable: ' + formatReportValue(node.error);
+  }
+
+  return 'ready=' +
+    formatReportValue(node.ready) +
+    ', loaded=' +
+    formatReportValue(state.loaded) +
+    ', syncing=' +
+    formatReportValue(state.syncing) +
+    ', consensus=' +
+    formatPercent(state.consensus) +
+    ', blocks to sync=' +
+    formatReportValue(state.blocksToSync);
+}
+
+/**
+ * Formats report-safe node roles, identifiers, config source, and operational notes.
+ * @param {object} node - Target node report data.
+ */
+function formatTargetFeatures (node) {
+  const features = (node.features || []).slice();
+
+  if (node.error) {
+    features.push('error: ' + node.error);
+  }
+
+  return features.length ? features.join('; ') : 'none';
+}
+
+/**
+ * Escapes arbitrary values for one Markdown table cell.
+ * @param {*} value - Cell value.
+ */
+function formatMarkdownTableValue (value) {
+  return String(formatReportValue(value))
+      .replace(/\|/g, '\\|')
+      .replace(/\r?\n/g, '<br>');
 }
 
 /**
@@ -1132,10 +1360,12 @@ function formatAbuseRow (check) {
 module.exports = {
   appendForgingDetails,
   appendLoadDetails,
+  appendTargetDetails,
   appendTxQueueLoadDetails,
   collectAbuseRows,
   collectForgingNodes,
   collectLoadScenarios,
+  collectTargetScenarios,
   collectTransactionRows,
   formatAbuseRow,
   formatAdmValue,

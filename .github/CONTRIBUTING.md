@@ -274,7 +274,7 @@ Available scenarios:
 
 | Scenario id | Suite | Modes | Description |
 | --- | --- | --- | --- |
-| `target.readiness` | `target` | `testnet`, `localnet` | Waits until every target node is loaded, not syncing, and above the configured minimum height. |
+| `target.readiness` | `target` | `testnet`, `localnet` | Audits every unique node from the testnet peer config or every available localnet node, waits for readiness, and reports version, height, registered delegates, public API and WebSocket configuration, loader state, and transaction pool counters. |
 | `api.rest` | `api` | `testnet`, `localnet` | Exercises client/explorer REST endpoints including node status, loader sync, blocks, transactions, delegates, peers, and fixture account balance. |
 | `api.websocket` | `api` | `testnet`, `localnet` | Connects to the client WebSocket endpoint and verifies a basic transaction type subscription. |
 | `consensus.activation` | `consensus` | `testnet`, `localnet` | Reports observed pre/post activation state for `fairSystem` and `spaceship`; in localnet mode, also checks basic node agreement. |
@@ -288,6 +288,8 @@ Available scenarios:
 | `load.txburst-type0` | `load` | `testnet`, `localnet` | Generates and signs exactly 2000 valid type `0` transfers in memory before network submission, then starts all 2000 requests in one concurrent batch and observes confirmation and blockchain TPS. Requires `--txburst-type0-stress` or `--txburst-all-stress`. |
 
 Default scenario selection without `--all`, `--suite`, or `--scenario` runs only read-only target/API checks. `--all` and `--suite load` exclude opt-in stress scenarios unless their corresponding flags are passed.
+
+Running `--suite target` checks every unique endpoint in `peers.list` from the selected testnet config. When an explicit testnet recipient is outside that list, it is included as an additional node. In localnet mode, the scenario checks every explicit `--node` or every node in the managed manifest. For each node with an accessible public API, it waits for `/api/node/status` to report `loaded=true`, `syncing=false`, and the configured minimum height, then reads `/api/delegates/count` and `/api/transactions/count`. An explicit `API access denied` response is treated as a valid closed-public-API state and does not fail the scenario; unavailable runtime fields remain `n/a`. The Markdown report contains the observed ADAMANT version, height, registered delegate count, configured and observed public API state, configured and advertised `wsClient` parameters, configured node-to-node `wsServer`/`wsNode` limits, loader and consensus state, confirmed, queued, unconfirmed, and multisignature transaction counts, roles, nethash, broadhash, config source, and local operational metadata when available. `wsServer` values are configuration metadata because `/api/node/status` currently advertises only `wsClient`.
 
 Stress and overload profiles are opt-in:
 

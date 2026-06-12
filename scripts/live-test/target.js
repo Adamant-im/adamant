@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
+const configOverrides = require('../../helpers/configOverrides.js');
 const { HttpClient } = require('./httpClient.js');
 
 const DEFAULT_LOCALNET_MANIFEST = '.localnet/manifest.json';
@@ -55,9 +56,20 @@ async function resolveTestnetTarget (options) {
   }
 
   const peer = resolveTestnetObservationPeer(config, selected, configPath);
+  const nodeConfiguration = buildNodeConfiguration(config, configPath);
+  const readinessNodes = buildTestnetReadinessNodes(
+      config,
+      selected,
+      peer,
+      nodeConfiguration
+  );
   const observationNodes = await Promise.all([
-    enrichNodeFromStatus(selected, options.timeoutMs),
-    enrichNodeFromStatus(peer, options.timeoutMs)
+    enrichNodeFromStatus(Object.assign({}, selected, {
+      configuration: nodeConfiguration
+    }), options.timeoutMs),
+    enrichNodeFromStatus(Object.assign({}, peer, {
+      configuration: nodeConfiguration
+    }), options.timeoutMs)
   ]);
 
   return {
@@ -65,8 +77,49 @@ async function resolveTestnetTarget (options) {
     source: options.node ? 'explicit-node' : 'testnet-config',
     configPath,
     nodes: [observationNodes[0]],
+    readinessNodes,
     transactionObservationNodes: observationNodes
   };
+}
+
+/**
+ * Builds the complete testnet readiness inventory from the selected node and configured peers.
+ * @param {object} config - Parsed testnet configuration.
+ * @param {object} selectedNode - Primary node used by other scenarios.
+ * @param {object} observationPeer - Peer used for transaction confirmation.
+ * @param {object} configuration - Report-safe node configuration.
+ */
+function buildTestnetReadinessNodes (config, selectedNode, observationPeer, configuration) {
+  const configuredPeers = config.peers && config.peers.list || [];
+  const candidates = [selectedNode].concat(configuredPeers.map(function (peer, index) {
+    return normalizeEndpoint(peer.ip + ':' + peer.port, {
+      id: 'node-config-' + (index + 1)
+    });
+  }));
+  const seen = new Set();
+
+  return candidates.filter(function (candidate) {
+    if (seen.has(candidate.apiUrl)) {
+      return false;
+    }
+
+    seen.add(candidate.apiUrl);
+    return true;
+  }).map(function (candidate) {
+    const roles = [];
+
+    if (candidate.apiUrl === selectedNode.apiUrl) {
+      roles.push('node-recipient');
+    }
+    if (candidate.apiUrl === observationPeer.apiUrl) {
+      roles.push('node-peer');
+    }
+
+    return Object.assign({}, candidate, {
+      roles,
+      configuration
+    });
+  });
 }
 
 /**
@@ -106,13 +159,23 @@ function resolveTestnetObservationPeer (config, recipientNode, configPath) {
  */
 function resolveLocalnetTarget (options) {
   if (options.nodes && options.nodes.length) {
+    const configuration = buildNodeConfiguration(
+        readJsonFileIfExists(path.resolve(process.cwd(), 'test/config.default.json')),
+        'test/config.default.json'
+    );
+    const nodes = options.nodes.map(function (node, index) {
+      return Object.assign(normalizeEndpoint(node, { id: 'node-' + (index + 1) }), {
+        roles: index === 0 ? ['node-recipient'] : [],
+        configuration
+      });
+    });
+
     return {
       mode: 'localnet',
       source: 'explicit-nodes',
       manifestPath: null,
-      nodes: options.nodes.map(function (node, index) {
-        return normalizeEndpoint(node, { id: 'node-' + (index + 1) });
-      })
+      nodes,
+      readinessNodes: nodes
     };
   }
 
@@ -127,7 +190,9 @@ function resolveLocalnetTarget (options) {
   }
 
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-  const nodes = (manifest.nodes || []).map(function (node) {
+  const nodes = (manifest.nodes || []).map(function (node, index) {
+    const configuration = resolveLocalnetNodeConfiguration(manifest, node);
+
     return {
       id: node.id,
       host: node.host,
@@ -141,6 +206,9 @@ function resolveLocalnetTarget (options) {
       generalLogFile: node.generalLogFile,
       debugLogFile: node.debugLogFile,
       delegateSecretsCount: node.delegateSecretsCount,
+      overrideFile: node.overrideFile,
+      roles: index === 0 ? ['node-recipient'] : [],
+      configuration,
       db: node.db,
       redis: node.redis
     };
@@ -155,8 +223,100 @@ function resolveLocalnetTarget (options) {
     source: 'manifest',
     manifestPath,
     manifest,
-    nodes
+    nodes,
+    readinessNodes: nodes
   };
+}
+
+/**
+ * Resolves report-safe configuration for one managed localnet node.
+ * @param {object} manifest - Localnet manifest.
+ * @param {object} node - Manifest node entry.
+ */
+function resolveLocalnetNodeConfiguration (manifest, node) {
+  const cwd = manifest.cwd || process.cwd();
+  const baseConfigPath = path.resolve(cwd, manifest.baseConfig || 'test/config.default.json');
+  const config = readJsonFileIfExists(baseConfigPath);
+  const overrideFiles = (manifest.configOverrides || []).concat(node.overrideFile || []);
+
+  overrideFiles.forEach(function (overrideFile) {
+    const resolvedPath = path.resolve(cwd, overrideFile);
+
+    if (!fs.existsSync(resolvedPath)) {
+      return;
+    }
+
+    const entries = configOverrides.parseOverrideFile(resolvedPath);
+
+    entries.forEach(function (entry) {
+      setNestedConfigValue(config, entry.path, entry.value);
+    });
+  });
+
+  return buildNodeConfiguration(config, baseConfigPath);
+}
+
+/**
+ * Builds the non-sensitive API and WebSocket configuration included in target reports.
+ * @param {object} config - Parsed effective node configuration.
+ * @param {string} source - Configuration source description.
+ */
+function buildNodeConfiguration (config, source) {
+  config = config || {};
+
+  const api = config.api || {};
+  const apiAccess = api.access || {};
+  const wsClient = config.wsClient || {};
+  const wsServer = config.wsNode || {};
+
+  return {
+    source,
+    api: {
+      enabled: api.enabled,
+      public: apiAccess.public,
+      limits: api.options && api.options.limits
+    },
+    wsClient: {
+      enabled: wsClient.enabled,
+      port: wsClient.portWS
+    },
+    wsServer: {
+      enabled: wsServer.enabled,
+      maxBroadcastConnections: wsServer.maxBroadcastConnections,
+      maxReceiveConnections: wsServer.maxReceiveConnections
+    }
+  };
+}
+
+/**
+ * Reads a JSON object when the file exists.
+ * @param {string} filePath - JSON file path.
+ */
+function readJsonFileIfExists (filePath) {
+  if (!fs.existsSync(filePath)) {
+    return {};
+  }
+
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+/**
+ * Applies one parsed config override without copying unrelated or sensitive values to reports.
+ * @param {object} config - Config object to mutate.
+ * @param {Array<string>} configPath - Parsed override path.
+ * @param {*} value - Override value.
+ */
+function setNestedConfigValue (config, configPath, value) {
+  let cursor = config;
+
+  configPath.slice(0, -1).forEach(function (segment) {
+    if (!cursor[segment] || typeof cursor[segment] !== 'object') {
+      cursor[segment] = {};
+    }
+    cursor = cursor[segment];
+  });
+
+  cursor[configPath[configPath.length - 1]] = value;
 }
 
 /**
@@ -264,7 +424,10 @@ module.exports = {
   enrichNodeFromStatus,
   normalizeEndpoint,
   parsePort,
+  buildNodeConfiguration,
+  buildTestnetReadinessNodes,
   resolveLocalnetTarget,
+  resolveLocalnetNodeConfiguration,
   resolveTarget,
   resolveTestnetObservationPeer,
   resolveTestnetTarget

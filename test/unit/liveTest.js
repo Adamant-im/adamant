@@ -112,6 +112,213 @@ describe('live scenario runner utilities', () => {
     expect(distinctPeer.apiUrl).not.to.equal(explicitThirdPeer.apiUrl);
   });
 
+  it('should build target inventory from every unique configured testnet node', () => {
+    const recipient = target.normalizeEndpoint(
+        testDefaultConfig.peers.list[0].ip + ':' + testDefaultConfig.peers.list[0].port,
+        { id: 'node-recipient' }
+    );
+    const peer = target.resolveTestnetObservationPeer(
+        testDefaultConfig,
+        recipient,
+        'test/config.default.json'
+    );
+    const configuration = target.buildNodeConfiguration(
+        testDefaultConfig,
+        'test/config.default.json'
+    );
+    const inventory = target.buildTestnetReadinessNodes(
+        testDefaultConfig,
+        recipient,
+        peer,
+        configuration
+    );
+
+    expect(inventory).to.have.length(testDefaultConfig.peers.list.length);
+    expect(inventory.map((node) => node.apiUrl)).to.deep.equal(
+        testDefaultConfig.peers.list.map((configuredPeer) => {
+          return 'http://' + configuredPeer.ip + ':' + configuredPeer.port;
+        })
+    );
+    expect(inventory[0].roles).to.include('node-recipient');
+    expect(inventory[2].roles).to.include('node-peer');
+    expect(inventory[0].configuration).to.deep.include({
+      api: {
+        enabled: true,
+        public: true,
+        limits: testDefaultConfig.api.options.limits
+      },
+      wsClient: {
+        enabled: true,
+        port: 36665
+      },
+      wsServer: testDefaultConfig.wsNode
+    });
+  });
+
+  it('should collect detailed readiness state for one target node', async () => {
+    const requestedPaths = [];
+    const details = await scenarios.collectTargetNodeDetails({
+      options: {
+        minHeight: 1,
+        readyTimeoutMs: 100,
+        pollIntervalMs: 1
+      },
+      metrics: {
+        latency: function () {}
+      },
+      clientFor: function () {
+        return {
+          get: async function (requestPath) {
+            requestedPaths.push(requestPath);
+
+            if (requestPath === '/api/node/status') {
+              return {
+                ok: true,
+                status: 200,
+                latencyMs: 1,
+                body: {
+                  success: true,
+                  version: {
+                    version: '0.9.0',
+                    commit: 'abc',
+                    build: ''
+                  },
+                  loader: {
+                    loaded: true,
+                    syncing: false,
+                    consensus: 100,
+                    blocks: 0
+                  },
+                  network: {
+                    height: 123,
+                    nethash: 'nethash',
+                    broadhash: 'broadhash'
+                  },
+                  wsClient: {
+                    enabled: true,
+                    port: 36665
+                  }
+                }
+              };
+            }
+
+            if (requestPath === '/api/delegates/count') {
+              return {
+                ok: true,
+                status: 200,
+                body: {
+                  success: true,
+                  count: 101
+                }
+              };
+            }
+
+            return {
+              ok: true,
+              status: 200,
+              body: {
+                success: true,
+                confirmed: 1000,
+                queued: 2,
+                unconfirmed: 3,
+                multisignature: 4
+              }
+            };
+          }
+        };
+      }
+    }, {
+      id: 'node-1',
+      apiUrl: 'http://127.0.0.1:36667',
+      roles: ['node-recipient'],
+      delegateSecretsCount: 34,
+      configuration: target.buildNodeConfiguration(
+          testDefaultConfig,
+          'test/config.default.json'
+      )
+    });
+
+    expect(requestedPaths).to.deep.equal([
+      '/api/node/status',
+      '/api/delegates/count',
+      '/api/transactions/count'
+    ]);
+    expect(details).to.deep.include({
+      id: 'node-1',
+      ready: true,
+      detailsComplete: true,
+      height: 123,
+      delegates: 101
+    });
+    expect(details.transactions).to.deep.equal({
+      confirmed: 1000,
+      queued: 2,
+      unconfirmed: 3,
+      multisignature: 4
+    });
+    expect(details.features).to.include('configured forging delegates: 34');
+  });
+
+  it('should accept a node with a closed public API in the target suite', async () => {
+    const requestedPaths = [];
+    const readinessScenario = scenarios.SCENARIOS.find((scenario) => {
+      return scenario.id === 'target.readiness';
+    });
+    const result = await readinessScenario.run({
+      target: {
+        mode: 'testnet',
+        readinessNodes: [
+          {
+            id: 'node-private',
+            apiUrl: 'http://private.test',
+            configuration: target.buildNodeConfiguration(
+                testDefaultConfig,
+                'test/config.default.json'
+            )
+          }
+        ]
+      },
+      options: {
+        minHeight: 1,
+        readyTimeoutMs: 100,
+        pollIntervalMs: 1
+      },
+      metrics: {
+        latency: function () {}
+      },
+      clientFor: function () {
+        return {
+          get: async function (requestPath) {
+            requestedPaths.push(requestPath);
+
+            return {
+              ok: true,
+              status: 200,
+              latencyMs: 1,
+              body: {
+                success: false,
+                error: 'API access denied'
+              }
+            };
+          }
+        };
+      }
+    });
+
+    expect(requestedPaths).to.deep.equal(['/api/node/status']);
+    expect(result.passed).to.equal(true);
+    expect(result.nodes[0]).to.deep.include({
+      ready: false,
+      publicApiClosed: true,
+      detailsComplete: false,
+      error: 'Node node-private cannot be inspected: API access denied'
+    });
+    expect(result.nodes[0].publicApi).to.include({
+      observedReachable: false,
+      observedDenied: true
+    });
+  });
+
   it('should collect final state from every transaction observation node', async () => {
     const nodes = [
       { id: 'node-recipient', apiUrl: 'http://recipient.test' },
@@ -580,6 +787,112 @@ describe('live scenario runner utilities', () => {
     const results = await submission;
 
     expect(results.map((result) => result.transaction.id)).to.deep.equal(postedIds);
+  });
+
+  it('should render detailed target methodology and per-node state', () => {
+    const markdown = report.renderMarkdownReport({
+      status: 'passed',
+      target: {
+        mode: 'testnet',
+        nodes: []
+      },
+      run: {
+        id: 'testnet-target',
+        startedAt: '2026-06-12T00:00:00.000Z',
+        finishedAt: '2026-06-12T00:00:01.000Z'
+      },
+      scenarios: [
+        {
+          id: 'target.readiness',
+          suite: 'target',
+          status: 'passed',
+          durationMs: 1000,
+          result: {
+            kind: 'target readiness',
+            test: {
+              nodeSelection: 'Every unique node endpoint from the testnet config.',
+              readinessRequirement: 'loaded=true, syncing=false, minimum height reached',
+              details: [
+                '/api/node/status',
+                '/api/delegates/count',
+                '/api/transactions/count'
+              ],
+              minimumHeight: 1,
+              readyTimeoutMs: 120000,
+              pollIntervalMs: 2000
+            },
+            nodes: [
+              {
+                id: 'node-recipient',
+                apiUrl: 'http://162.55.32.80:36667',
+                ready: true,
+                detailsComplete: true,
+                error: null,
+                version: '0.9.0, commit abc',
+                height: 10288000,
+                delegates: 101,
+                publicApi: {
+                  configuredEnabled: true,
+                  configuredPublic: true,
+                  observedReachable: true,
+                  observedDenied: false
+                },
+                wsClient: {
+                  configuredEnabled: true,
+                  configuredPort: 36665,
+                  observedEnabled: true,
+                  observedPort: 36665
+                },
+                wsServer: {
+                  configuredEnabled: true,
+                  maxBroadcastConnections: 15,
+                  maxReceiveConnections: 25
+                },
+                state: {
+                  loaded: true,
+                  syncing: false,
+                  consensus: 100,
+                  blocksToSync: 0
+                },
+                transactions: {
+                  confirmed: 15000,
+                  queued: 2,
+                  unconfirmed: 3,
+                  multisignature: 0
+                },
+                features: [
+                  'roles: node-recipient',
+                  'nethash: testnet',
+                  'config: test/config.default.json'
+                ]
+              }
+            ],
+            passed: true
+          }
+        }
+      ],
+      finalNodeStates: [],
+      metrics: {}
+    });
+
+    expect(markdown).to.include('## Target Details');
+    expect(markdown).to.include(
+        'The target suite verifies every selected node whose public API is accessible'
+    );
+    expect(markdown).to.include(
+        '/api/node/status, /api/delegates/count, /api/transactions/count'
+    );
+    expect(markdown).to.include(
+        '| Node | API | ADM version | Height | Registered delegates | Public API | wsClient | wsServer / wsNode |'
+    );
+    expect(markdown).to.include(
+        '| node-recipient | http://162.55.32.80:36667 | 0.9.0, commit abc | 10288000 | 101 |'
+    );
+    expect(markdown).to.include(
+        'runner config enabled=true, public=true; observed reachable=true, denied=false'
+    );
+    expect(markdown).to.include('ready=true, loaded=true, syncing=false, consensus=100%');
+    expect(markdown).to.include('| 15000 | 2 | 3 | 0 |');
   });
 
   it('should render accepted and expected-failed transaction summaries in Markdown reports', () => {

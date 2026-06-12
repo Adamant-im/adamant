@@ -445,6 +445,7 @@ function redactTarget (target) {
     manifestPath: target.manifestPath,
     configPath: target.configPath,
     nodes: target.nodes,
+    readinessNodes: target.readinessNodes,
     transactionObservationNodes: target.transactionObservationNodes
   });
 }
