@@ -19,18 +19,18 @@ var ed = {};
  * @param {string} passphrase passhraase to test
  * @returns {boolean}
  */
-ed.isValidPassphrase = function(passphrase) {
+ed.isValidPassphrase = function (passphrase) {
   return mnemonic.isValid(passphrase, mnemonic.Words.ENGLISH);
-}
+};
 
 /**
  * Generates a new passphrase
  * @returns {string} passphrase
  */
-ed.generatePassphrase = function() {
+ed.generatePassphrase = function () {
   const secretMnemonic = new mnemonic(mnemonic.Words.ENGLISH);
   return secretMnemonic.phrase;
-}
+};
 
 /**
  * Creates a hash based on a passphrase.
@@ -82,7 +82,15 @@ ed.sign = function (hash, keypair) {
  * @return {Boolean} true id verified
  */
 ed.verify = function (hash, signatureBuffer, publicKeyBuffer) {
-  return sodium.crypto_sign_verify_detached(signatureBuffer, hash, publicKeyBuffer)
+  if (!Buffer.isBuffer(signatureBuffer) || signatureBuffer.length !== sodium.crypto_sign_BYTES) {
+    throw new Error('Signature must be a 64-byte buffer');
+  }
+
+  if (!Buffer.isBuffer(publicKeyBuffer) || publicKeyBuffer.length !== sodium.crypto_sign_PUBLICKEYBYTES) {
+    throw new Error('Public key must be a 32-byte buffer');
+  }
+
+  return sodium.crypto_sign_verify_detached(signatureBuffer, hash, publicKeyBuffer);
 };
 
 module.exports = ed;
