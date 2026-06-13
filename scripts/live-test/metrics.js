@@ -62,6 +62,17 @@ function summarizeNumbers (values) {
   const sorted = values.slice().sort(function (a, b) {
     return a - b;
   });
+
+  if (!sorted.length) {
+    return {
+      count: 0,
+      min: null,
+      max: null,
+      avg: null,
+      p95: null
+    };
+  }
+
   const total = sorted.reduce(function (sum, value) {
     return sum + value;
   }, 0);

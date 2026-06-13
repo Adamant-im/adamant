@@ -8,6 +8,7 @@ const path = require('path');
 
 const { HttpClient } = require('../../scripts/live-test/httpClient.js');
 const liveTest = require('../../scripts/live-test/liveTest.js');
+const { summarizeNumbers } = require('../../scripts/live-test/metrics.js');
 const report = require('../../scripts/live-test/report.js');
 const scenarios = require('../../scripts/live-test/scenarios.js');
 const target = require('../../scripts/live-test/target.js');
@@ -87,6 +88,16 @@ describe('live scenario runner utilities', () => {
         server.close(resolve);
       });
     }
+  });
+
+  it('should summarize an empty numeric sample set without invalid JSON values', () => {
+    expect(summarizeNumbers([])).to.deep.equal({
+      count: 0,
+      min: null,
+      max: null,
+      avg: null,
+      p95: null
+    });
   });
 
   it('should use the third configured testnet peer for transaction observation', () => {

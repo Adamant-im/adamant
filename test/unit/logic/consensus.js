@@ -53,6 +53,19 @@ describe('consensus', () => {
       expect(consensus.isActivated('spaceship')).to.be.true;
     });
 
+    it('should fall back to loader height when the applied block height is unavailable', () => {
+      const consensus = createConsensus({ spaceship: 10 }, 10);
+
+      consensus.blocks = {
+        lastBlock: {
+          get: () => ({})
+        }
+      };
+
+      expect(consensus.getCurrentHeight()).to.equal(10);
+      expect(consensus.isActivated('spaceship')).to.be.true;
+    });
+
     it('should preserve fairSystem first active height', () => {
       const consensus = createConsensus(null, consensusActivationHeights.fairSystem);
 

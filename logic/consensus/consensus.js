@@ -37,14 +37,22 @@ class Consensus {
    */
   getCurrentHeight () {
     if (this.blocks && this.blocks.lastBlock && typeof this.blocks.lastBlock.get === 'function') {
-      return this.blocks.lastBlock.get().height;
+      const lastBlock = this.blocks.lastBlock.get();
+
+      if (lastBlock && Number.isFinite(lastBlock.height)) {
+        return lastBlock.height;
+      }
     }
 
     if (this.loader && typeof this.loader.getHeight === 'function') {
-      return this.loader.getHeight();
+      const loaderHeight = this.loader.getHeight();
+
+      if (Number.isFinite(loaderHeight)) {
+        return loaderHeight;
+      }
     }
 
-    throw new Error('Consensus height source is not bound');
+    throw new Error('Consensus height source is unavailable');
   }
 
   /**
