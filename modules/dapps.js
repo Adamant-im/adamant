@@ -10,7 +10,6 @@ var extend = require('extend');
 var fs = require('fs');
 var ip = require('neoip');
 var InTransfer = require('../logic/inTransfer.js');
-var execa = require('execa');
 var OrderBy = require('../helpers/orderBy.js');
 var OutTransfer = require('../logic/outTransfer.js');
 var path = require('path');
@@ -287,7 +286,10 @@ __private.createBasePaths = function (cb) {
 __private.installDependencies = function (dapp, cb) {
   var dappPath = path.join(__private.dappsPath, dapp.transactionId);
 
-  execa('npm', ['install', `-g --prefix ${dappPath}`])
+  import('execa')
+      .then(function (execaModule) {
+        return execaModule.execa('npm', ['install', `-g --prefix ${dappPath}`]);
+      })
       .then(function () {
         return setImmediate(cb, null);
       })
