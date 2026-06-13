@@ -375,6 +375,7 @@ d.run(function () {
       scope.network.app.use(require('express-domain-middleware'));
       scope.network.app.set('view engine', 'ejs');
       scope.network.app.set('views', path.join(__dirname, 'public'));
+      scope.network.app.set('query parser', 'extended');
       scope.network.app.use(scope.network.express.static(path.join(__dirname, 'public')));
       scope.network.app.use(bodyParser.raw({
         limit: '2mb'
