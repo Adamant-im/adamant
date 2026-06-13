@@ -3,11 +3,11 @@
 const crypto = require('crypto');
 const ByteBuffer = require('bytebuffer');
 const Mnemonic = require('bitcore-mnemonic');
-const sodium = require('sodium-browserify-tweetnacl');
 
 const accounts = require('../../helpers/accounts.js');
 const bignum = require('../../helpers/bignum.js');
 const constants = require('../../helpers/constants.js');
+const ed = require('../../helpers/ed.js');
 const transactionTypes = require('../../helpers/transactionTypes.js');
 
 const FEES = constants.fees;
@@ -362,7 +362,7 @@ function signAndId (transaction, account) {
 function sign (transaction, keypair) {
   const hash = crypto.createHash('sha256').update(getBytes(transaction, true, true)).digest();
 
-  return sodium.crypto_sign_detached(hash, Buffer.from(keypair.privateKey, 'hex')).toString('hex');
+  return ed.sign(hash, keypair).toString('hex');
 }
 
 /**
@@ -373,7 +373,7 @@ function sign (transaction, keypair) {
 function multisign (transaction, keypair) {
   const hash = crypto.createHash('sha256').update(getBytes(transaction, true, true)).digest();
 
-  return sodium.crypto_sign_detached(hash, Buffer.from(keypair.privateKey, 'hex')).toString('hex');
+  return ed.sign(hash, keypair).toString('hex');
 }
 
 /**

@@ -6,7 +6,6 @@
 var node = {};
 var slots = require('../helpers/slots.js');
 const _ = require('lodash');
-const sodium = require('sodium-browserify-tweetnacl');
 const crypto = require('crypto');
 const bignum = require('../helpers/bignum.js');
 const ByteBuffer = require('bytebuffer');
@@ -19,6 +18,7 @@ var packageJson = require('../package.json');
 node.bignum = require('../helpers/bignum.js');
 node.config = require('./config.json'); // use Testnet config
 node.constants = require('../helpers/constants.js');
+node.ed = require('../helpers/ed.js');
 node.txTypes = require('../helpers/transactionTypes.js');
 node.accounts = require('../helpers/accounts.js');
 
@@ -173,7 +173,7 @@ node.createAddressFromPublicKey = function (publicKey) {
 // sign transaction
 node.transactionSign = function (trs, keypair) {
   const hash = this.getHash(trs);
-  return sodium.crypto_sign_detached(hash, Buffer.from(keypair.privateKey, 'hex')).toString('hex');
+  return node.ed.sign(hash, keypair).toString('hex');
 };
 
 // return a basic transaction
