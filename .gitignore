@@ -16,6 +16,8 @@ logs-mainnet/*.log
 logs-testnet/*.log
 logs-localnet/*.log
 logs-localnet/
+reports/
+reports/live-test/
 stacktrace*
 
 # Code Editors

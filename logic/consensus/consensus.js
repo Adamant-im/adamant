@@ -5,7 +5,12 @@ const defaultConfig = require('../../config.default.json');
  * Determines whether specific protocol upgrades have been activated
  */
 class Consensus {
+  /**
+   * Creates a consensus activation registry.
+   * @param {object} [activationHeights] - Per-upgrade activation height overrides.
+   */
   constructor (activationHeights) {
+    this.blocks = null;
     this.loader = null;
     this.activationHeights = {
       ...defaultConfig.consensusActivationHeights,
@@ -16,10 +21,38 @@ class Consensus {
   /**
    * Binds required modules to the Consensus instance
    * @param {object} modules - The modules to bind
-   * @param {object} modules.loader - The loader module providing blockchain height
+   * @param {object} [modules.blocks] - Blocks module providing the authoritative chain head.
+   * @param {object} [modules.loader] - Loader module used as a compatibility fallback.
    */
   bindModules (modules) {
-    this.loader = modules.loader;
+    this.blocks = modules.blocks || null;
+    this.loader = modules.loader || null;
+  }
+
+  /**
+   * Returns the authoritative current blockchain height.
+   * The blocks module advances on every applied block, while loader height can lag
+   * between synchronization cycles on a locally forging node.
+   * @returns {number} Current blockchain height.
+   */
+  getCurrentHeight () {
+    if (this.blocks && this.blocks.lastBlock && typeof this.blocks.lastBlock.get === 'function') {
+      const lastBlock = this.blocks.lastBlock.get();
+
+      if (lastBlock && Number.isFinite(lastBlock.height)) {
+        return lastBlock.height;
+      }
+    }
+
+    if (this.loader && typeof this.loader.getHeight === 'function') {
+      const loaderHeight = this.loader.getHeight();
+
+      if (Number.isFinite(loaderHeight)) {
+        return loaderHeight;
+      }
+    }
+
+    throw new Error('Consensus height source is unavailable');
   }
 
   /**
@@ -27,8 +60,6 @@ class Consensus {
    * Uses the current blockchain height when `height` is omitted.
    * @param {string} codeName - The name of the consensus upgrade
    * @param {number} [height] - Block height to check
-   * @throws {Error} If `codeName` is not a string
-   * @return {boolean} `true` if the upgrade is activated, otherwise `false`
    */
   isActivated (codeName, height) {
     if (typeof codeName !== 'string') {
@@ -45,7 +76,7 @@ class Consensus {
       return false;
     }
 
-    const currentHeight = height === undefined ? this.loader.getHeight() : height;
+    const currentHeight = height === undefined ? this.getCurrentHeight() : height;
 
     return currentHeight >= activationHeight;
   }

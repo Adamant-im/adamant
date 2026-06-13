@@ -524,8 +524,15 @@ d.run(function () {
         clientWs: function (cb) {
           cb(null, scope.clientWs);
         },
+        /**
+         * Builds consensus logic from the fully merged and overridden node config.
+         * @param {Function} cb - Async task callback.
+         */
         consensus: function (cb) {
-          cb(null, new Consensus(config.consensusActivationHeights));
+          const consensus = new Consensus(appConfig.consensusActivationHeights);
+
+          logger.info('consensus', 'Configured activation heights', consensus.activationHeights);
+          cb(null, consensus);
         },
         account: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'logger', function (scope, cb) {
           new Account(scope.db, scope.schema, scope.logger, cb);

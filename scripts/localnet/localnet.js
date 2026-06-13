@@ -478,6 +478,11 @@ async function dropLocalnet (input) {
         skipped: [],
         failed: [],
         message: 'Database drop skipped because some nodes did not stop gracefully.'
+      },
+      redisResult: {
+        flushed: [],
+        failed: [],
+        message: 'Redis cleanup skipped because some nodes did not stop gracefully.'
       }
     };
   }
@@ -486,10 +491,12 @@ async function dropLocalnet (input) {
     JSON.parse(fs.readFileSync(stopResult.manifestPath, 'utf8')) :
     null;
   const dropResult = dropLocalnetDatabases(options, manifest);
+  const redisResult = clearLocalnetRedis(options, manifest);
 
   return {
     stopResult,
-    dropResult
+    dropResult,
+    redisResult
   };
 }
 
@@ -520,6 +527,47 @@ function dropLocalnetDatabases (options, manifest) {
     } else {
       result.failed.push({
         database: databaseName,
+        error: output
+      });
+    }
+  });
+
+  return result;
+}
+
+/**
+ * Flushes only the logical Redis databases assigned to managed localnet nodes.
+ * @param {object} options - Normalized localnet options.
+ * @param {?object} manifest - Localnet manifest, when available.
+ */
+function clearLocalnetRedis (options, manifest) {
+  const urls = new Set();
+  const result = {
+    flushed: [],
+    failed: []
+  };
+
+  (manifest && manifest.nodes || []).forEach(function (node) {
+    if (node.redis && node.redis.url) {
+      urls.add(node.redis.url);
+    }
+  });
+
+  if (!urls.size) {
+    for (let index = 0; index < options.nodes; index++) {
+      urls.add(withRedisDatabase(options.redisUrl, options.redisDbBase + index));
+    }
+  }
+
+  urls.forEach(function (redisUrl) {
+    const flushResult = runRedisCommand(redisUrl, ['FLUSHDB'], options);
+    const output = formatCommandOutput(flushResult);
+
+    if (flushResult.status === 0) {
+      result.flushed.push(redisUrl);
+    } else {
+      result.failed.push({
+        redisUrl,
         error: output
       });
     }
@@ -619,6 +667,43 @@ function runPostgresCommand (command, args, options) {
   }
 
   return childProcess.spawnSync(command, commandArgs.concat(args), {
+    cwd: options.cwd,
+    env,
+    encoding: 'utf8'
+  });
+}
+
+/**
+ * Runs redis-cli against one logical localnet database without exposing passwords in argv.
+ * @param {string} redisUrl - Redis connection URL.
+ * @param {Array<string>} args - Redis command and arguments.
+ * @param {object} options - Normalized localnet options.
+ */
+function runRedisCommand (redisUrl, args, options) {
+  const url = new URL(redisUrl);
+  const env = Object.assign({}, process.env);
+  const commandArgs = [
+    '-h',
+    url.hostname,
+    '-p',
+    url.port || '6379',
+    '-n',
+    url.pathname.replace(/^\//, '') || '0'
+  ];
+
+  if (url.protocol === 'rediss:') {
+    commandArgs.push('--tls');
+  }
+
+  if (url.username) {
+    commandArgs.push('--user', decodeURIComponent(url.username));
+  }
+
+  if (url.password) {
+    env.REDISCLI_AUTH = decodeURIComponent(url.password);
+  }
+
+  return childProcess.spawnSync('redis-cli', commandArgs.concat(args), {
     cwd: options.cwd,
     env,
     encoding: 'utf8'
@@ -871,6 +956,7 @@ module.exports = {
   stopLocalnet,
   dropLocalnet,
   dropLocalnetDatabases,
+  clearLocalnetRedis,
   getLocalnetDatabaseNames,
   listLocalnetDatabases,
   isProcessRunning,

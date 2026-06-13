@@ -18,6 +18,8 @@ program
     .option('--db-admin-user <user>', 'PostgreSQL user for dropping localnet databases')
     .option('--db-admin-password <password>', 'PostgreSQL password for --db-admin-user')
     .option('--db-name-prefix <prefix>', 'PostgreSQL database name prefix', localnet.DEFAULTS.dbNamePrefix)
+    .option('--redis-url <url>', 'base Redis URL', localnet.DEFAULTS.redisUrl)
+    .option('--redis-db-base <index>', 'first Redis database index', String(localnet.DEFAULTS.redisDbBase))
     .parse(process.argv);
 
 /**
@@ -32,8 +34,11 @@ async function main () {
 
   reportStopResult(result.stopResult);
   reportDropResult(result.dropResult);
+  reportRedisResult(result.redisResult);
 
-  if (result.stopResult.timedOut.length || result.dropResult.failed.length) {
+  if (result.stopResult.timedOut.length ||
+      result.dropResult.failed.length ||
+      result.redisResult.failed.length) {
     process.exit(1);
   }
 }
@@ -80,6 +85,24 @@ function reportDropResult (result) {
 
   result.failed.forEach(function (failure) {
     console.error('Failed to drop database ' + failure.database + ': ' + failure.error);
+  });
+}
+
+/**
+ * Prints Redis cleanup status for the isolated localnet databases.
+ * @param {object} result - Localnet Redis cleanup result.
+ */
+function reportRedisResult (result) {
+  if (result.message) {
+    console.error(result.message);
+  }
+
+  result.flushed.forEach(function (redisUrl) {
+    console.log('Flushed Redis database ' + redisUrl + '.');
+  });
+
+  result.failed.forEach(function (failure) {
+    console.error('Failed to flush Redis database ' + failure.redisUrl + ': ' + failure.error);
   });
 }
 
