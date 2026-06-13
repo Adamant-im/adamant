@@ -33,7 +33,7 @@ class WebSocketServer {
       return;
     }
 
-    self.logger.info('ws-node-server', `WebSocketServer is listening for inbound peers on ${this.address}:${this.port}…`);
+    self.logger.info('ws-node-server', `WebSocketServer enabled; awaiting inbound peers on ${this.address}:${this.port}…`);
 
     this.io.on('connection', (socket) => {
       const peerIp = socket.handshake.address || socket.request.socket.remoteAddress;
