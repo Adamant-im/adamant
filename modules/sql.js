@@ -153,7 +153,7 @@ __private.query = function (action, config, cb) {
           break;
       }
 
-      library.logger.trace('sql.query:', sql);
+      library.logger.trace('sql', 'sql.query:', sql);
     } catch (e) {
       return done(e);
     }
@@ -161,7 +161,7 @@ __private.query = function (action, config, cb) {
     library.db.query(sql.toString() + ';').then(function (rows) {
       return done(null, rows);
     }).catch(function (err) {
-      library.logger.error(err.stack);
+      library.logger.error('sql', err.stack);
       return done('Sql#query error');
     });
   } else {
@@ -183,7 +183,7 @@ __private.query = function (action, config, cb) {
         library.db.none(sql).then(function () {
           return setImmediate(cb);
         }).catch(function (err) {
-          library.logger.error(err.stack);
+          library.logger.error('sql', err.stack);
           return setImmediate(cb, 'Sql#query error');
         });
       }, done);
@@ -272,14 +272,14 @@ Sql.prototype.dropTables = function (dappid, config, cb) {
       library.db.none('DROP TABLE IF EXISTS ' + table.name + ' CASCADE').then(function () {
         return setImmediate(cb, null);
       }).catch(function (err) {
-        library.logger.error(err.stack);
+        library.logger.error('sql', err.stack);
         return setImmediate(cb, 'Sql#dropTables error');
       });
     } else if (table.type === 'index') {
       library.db.none('DROP INDEX IF EXISTS ' + table.name).then(function () {
         return setImmediate(cb, null);
       }).catch(function (err) {
-        library.logger.error(err.stack);
+        library.logger.error('sql', err.stack);
         return setImmediate(cb, 'Sql#dropTables error');
       });
     } else {

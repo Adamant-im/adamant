@@ -14,6 +14,92 @@ module.exports = {
         type: 'string',
         format: 'ip'
       },
+      generalLog: {
+        type: 'object',
+        properties: {
+          enabled: {
+            type: 'boolean'
+          },
+          fileName: {
+            type: 'string'
+          },
+          level: {
+            type: 'string'
+          },
+          rotate: {
+            type: 'object',
+            properties: {
+              enabled: {
+                type: 'boolean'
+              },
+              maxSize: {
+                type: 'string'
+              },
+              retain: {
+                type: 'integer',
+                minimum: 1
+              },
+              rotateInterval: {
+                type: 'string'
+              },
+              rotateOnRestart: {
+                type: 'boolean'
+              }
+            },
+            required: ['enabled', 'maxSize', 'retain', 'rotateInterval', 'rotateOnRestart']
+          }
+        },
+        required: ['enabled', 'fileName', 'level', 'rotate']
+      },
+      debugLog: {
+        type: 'object',
+        properties: {
+          enabled: {
+            type: 'boolean'
+          },
+          fileName: {
+            type: 'string'
+          },
+          level: {
+            type: 'string'
+          },
+          rotate: {
+            type: 'object',
+            properties: {
+              enabled: {
+                type: 'boolean'
+              },
+              maxSize: {
+                type: 'string'
+              },
+              retain: {
+                type: 'integer',
+                minimum: 1
+              },
+              rotateInterval: {
+                type: 'string'
+              },
+              rotateOnRestart: {
+                type: 'boolean'
+              }
+            },
+            required: ['enabled', 'maxSize', 'retain', 'rotateInterval', 'rotateOnRestart']
+          }
+        },
+        required: ['enabled', 'fileName', 'level', 'rotate']
+      },
+      consoleLog: {
+        type: 'object',
+        properties: {
+          enabled: {
+            type: 'boolean'
+          },
+          level: {
+            type: 'string'
+          }
+        },
+        required: ['enabled', 'level']
+      },
       fileLogLevel: {
         type: 'string'
       },
@@ -175,6 +261,9 @@ module.exports = {
               },
               timeout: {
                 type: 'integer'
+              },
+              allowPrivatePeers: {
+                type: 'boolean'
               }
             },
             required: ['limits', 'timeout']
@@ -224,6 +313,20 @@ module.exports = {
         },
         required: ['maxTxsPerQueue']
       },
+      consensusActivationHeights: {
+        type: 'object',
+        properties: {
+          fairSystem: {
+            type: 'integer',
+            minimum: 1
+          },
+          spaceship: {
+            type: 'integer',
+            minimum: 1
+          }
+        },
+        required: ['fairSystem', 'spaceship']
+      },
       forging: {
         type: 'object',
         properties: {
@@ -252,6 +355,10 @@ module.exports = {
             type: 'integer',
             minimum: 1,
             maximum: 5000
+          },
+          snapshot: {
+            type: 'integer',
+            minimum: 1
           }
         },
         required: ['loadPerIteration']
@@ -318,11 +425,11 @@ module.exports = {
         properties: {
           maxBroadcastConnections: {
             type: 'integer',
-            minimum: 0,
+            minimum: 0
           },
           maxReceiveConnections: {
             type: 'integer',
-            minimum: 0,
+            minimum: 0
           },
           enabled: {
             type: 'boolean'
@@ -335,6 +442,6 @@ module.exports = {
         format: 'hex'
       }
     },
-    required: ['port', 'address', 'fileLogLevel', 'logFileName', 'consoleLogLevel', 'trustProxy', 'topAccounts', 'cacheEnabled', 'db', 'redis', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'dapp', 'wsClient', 'wsNode', 'nethash']
+    required: ['port', 'address', 'generalLog', 'debugLog', 'consoleLog', 'trustProxy', 'topAccounts', 'cacheEnabled', 'db', 'redis', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'dapp', 'wsClient', 'wsNode', 'nethash']
   }
 };

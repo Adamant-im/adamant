@@ -256,6 +256,7 @@ __private.list = function (filter, cb) {
     library.db.query(sql[sql_method]({
       where: where,
       owner: owner,
+      originalField: orderBy.originalField,
       sortField: orderBy.sortField,
       sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {
@@ -287,11 +288,11 @@ __private.list = function (filter, cb) {
 
       return setImmediate(cb, null, data);
     }).catch(function (err) {
-      library.logger.error(err.stack);
+      library.logger.error('api-transactions', `An error occurred while trying to get list of transactions: ${err?.message || err}`, err.stack);
       return setImmediate(cb, 'Transactions#list error');
     });
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-transactions', `An error occurred while trying to get transactions count: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Transactions#list error');
   });
 };
@@ -309,11 +310,11 @@ __private.getById = function (id, cb) {
       return setImmediate(cb, 'Transaction not found: ' + id);
     }
 
-    var transacton = library.logic.transaction.dbRead(rows[0]);
+    var transaction = library.logic.transaction.dbRead(rows[0]);
 
-    return setImmediate(cb, null, transacton);
+    return setImmediate(cb, null, transaction);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-transactions', `An error occurred while trying to get transaction ${id}: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Transactions#getById error');
   });
 };
@@ -331,11 +332,11 @@ __private.getByIdFullAsset = function (id, cb) {
       return setImmediate(cb, 'Transaction not found: ' + id);
     }
 
-    var transacton = library.logic.transaction.dbRead(rows[0]);
+    var transaction = library.logic.transaction.dbRead(rows[0]);
 
-    return setImmediate(cb, null, transacton);
+    return setImmediate(cb, null, transaction);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-transactions', `An error occurred while trying to get transaction ${id} from 'trs_list_full' table: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Transactions#getById error');
   });
 };
@@ -368,7 +369,7 @@ __private.getVotesById = function (transaction, cb) {
 
     return setImmediate(cb, null, transaction);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-transactions', `An error occurred while trying to get votes for a transaction ${transaction.id}: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Transactions#getVotesById error');
   });
 };
@@ -487,9 +488,17 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
   } = options;
   const { originalField: sortField, sortMethod } = orderBy;
 
+  const getSortValue = (transaction) => {
+    if (sortField === 'timestamp') {
+      return transaction.timestampMs ?? transaction.timestamp * 1000;
+    }
+
+    return transaction[sortField];
+  };
+
   const compare = (a, b) => {
-    const aField = a[sortField] ? a[sortField] : Infinity;
-    const bField = b[sortField] ? b[sortField] : Infinity;
+    const aField = getSortValue(a) ?? Infinity;
+    const bField = getSortValue(b) ?? Infinity;
 
     if (aField > bField) {
       return sortMethod.toUpperCase() === 'DESC' ? -1 : 1;
@@ -764,12 +773,19 @@ Transactions.prototype.undoUnconfirmedList = function (cb) {
  * Applies confirmed transaction.
  * @implements {logic.transaction.apply}
  * @param {transaction} transaction
- * @param {block} block
- * @param {account} sender
- * @param {function} cb - Callback function
+ * @param {block} block - Confirmed block that includes the transaction.
+ * @param {account} sender - Sender account state at apply time.
+ * @param {Function} cb - Callback function.
  */
 Transactions.prototype.apply = function (transaction, block, sender, cb) {
-  library.logger.debug('Applying confirmed transaction', transaction.id);
+  library.logger.debug('transactions', 'Applying confirmed transaction', {
+    id: transaction.id,
+    blockId: block.id,
+    height: block.height,
+    round: modules.rounds.calc(block.height),
+    senderId: transaction.senderId,
+    type: transaction.type
+  });
   library.logic.transaction.apply(transaction, block, sender, cb);
 };
 
@@ -777,12 +793,19 @@ Transactions.prototype.apply = function (transaction, block, sender, cb) {
  * Undoes confirmed transaction.
  * @implements {logic.transaction.undo}
  * @param {transaction} transaction
- * @param {block} block
- * @param {account} sender
- * @param {function} cb - Callback function
+ * @param {block} block - Confirmed block that includes the transaction.
+ * @param {account} sender - Sender account state at undo time.
+ * @param {Function} cb - Callback function.
  */
 Transactions.prototype.undo = function (transaction, block, sender, cb) {
-  library.logger.debug('Undoing confirmed transaction', transaction.id);
+  library.logger.debug('transactions', 'Undoing confirmed transaction', {
+    id: transaction.id,
+    blockId: block.id,
+    height: block.height,
+    round: modules.rounds.calc(block.height),
+    senderId: transaction.senderId,
+    type: transaction.type
+  });
   library.logic.transaction.undo(transaction, block, sender, cb);
 };
 
@@ -790,13 +813,23 @@ Transactions.prototype.undo = function (transaction, block, sender, cb) {
  * Gets requester if requesterPublicKey and calls applyUnconfirmed.
  * @implements {modules.accounts.getAccount}
  * @implements {logic.transaction.applyUnconfirmed}
- * @param {transaction} transaction
- * @param {account} sender
- * @param {function} cb - Callback function
+ * @param {transaction} transaction - Unconfirmed transaction from the pool or public API.
+ * @param {account} sender - Sender account state at admission time.
+ * @param {Function} cb - Callback function.
  * @return {setImmediateCallback} for errors
  */
 Transactions.prototype.applyUnconfirmed = function (transaction, sender, cb) {
-  library.logger.debug('Applying unconfirmed transaction', transaction.id);
+  var lastBlock = modules.blocks.lastBlock.get();
+
+  // Unconfirmed transactions do not have an inclusion height yet; log chain context at admission time.
+  library.logger.debug('transactions', 'Applying unconfirmed transaction', {
+    id: transaction.id,
+    blockId: transaction.blockId || null,
+    currentHeight: lastBlock.height,
+    currentRound: modules.rounds.calc(lastBlock.height),
+    senderId: transaction.senderId,
+    type: transaction.type
+  });
 
   if (!sender && transaction.blockId !== library.genesisblock.block.id) {
     return setImmediate(cb, 'Invalid block id');
@@ -828,7 +861,7 @@ Transactions.prototype.applyUnconfirmed = function (transaction, sender, cb) {
  * @return {setImmediateCallback} For error
  */
 Transactions.prototype.undoUnconfirmed = function (transaction, cb) {
-  library.logger.debug('Undoing unconfirmed transaction', transaction.id);
+  library.logger.debug('transactions', 'Undoing unconfirmed transaction', transaction.id);
 
   modules.accounts.getAccount({ publicKey: transaction.senderPublicKey }, function (err, sender) {
     if (err) {
@@ -887,10 +920,12 @@ Transactions.prototype.isLoaded = function () {
 Transactions.prototype.onBind = function (scope) {
   modules = {
     accounts: scope.accounts,
+    blocks: scope.blocks,
     transactions: scope.transactions,
     delegates: scope.delegates,
     chats: scope.chats,
-    states: scope.states
+    states: scope.states,
+    rounds: scope.rounds
   };
 
   __private.transactionPool.bind(

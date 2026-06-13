@@ -181,7 +181,7 @@ System.prototype.getBroadhash = function (cb) {
       return setImmediate(cb, null, hash.toString('hex'));
     }
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('system', `Failed to get broadhash from database: ${err?.message || err}`, err.stack);
     return setImmediate(cb, err);
   });
 };
@@ -211,7 +211,7 @@ System.prototype.update = function (cb) {
       return setImmediate(seriesCb);
     }
   }, function (err) {
-    library.logger.debug('System headers', __private);
+    library.logger.debug('system', 'System headers', __private);
     modules.transport.headers(__private);
     return setImmediate(cb, err);
   });

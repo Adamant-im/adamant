@@ -2,6 +2,12 @@
 
 const { formatSQLSorting } = require('../helpers/orderBy.js');
 
+const formatTransactionSorting = (params) => formatSQLSorting({
+  ...params,
+  timestampField: '"t_timestamp"',
+  timestampMsField: '"t_timestampMs"'
+});
+
 var ChatsSql = {
   sortFields: ['type', 'timestamp'],
   chatroomsSortDefaults: {
@@ -51,7 +57,7 @@ var ChatsSql = {
     return [
       'SELECT *, t_timestamp as timestamp FROM full_blocks_list',
         (params.where?.length ? 'WHERE ' + params.where.join(' AND ') : ''),
-        (params.sortField ? 'ORDER BY ' + formatSQLSorting(params) : ''),
+        (params.sortField ? 'ORDER BY ' + formatTransactionSorting(params) : ''),
       'LIMIT ${limit} OFFSET ${offset}'
     ].filter(Boolean).join(' ');
   },
@@ -66,7 +72,7 @@ var ChatsSql = {
       'FROM filtered',
       'LEFT OUTER JOIN mem_accounts ON address = filtered."t_recipientId"',
 
-      (params.sortField ? 'ORDER BY ' + formatSQLSorting(params) : ''),
+      (params.sortField ? 'ORDER BY ' + formatTransactionSorting(params) : ''),
       'LIMIT ${limit} OFFSET ${offset}'
     ].filter(Boolean).join(' ');
     return x;
@@ -91,6 +97,7 @@ var ChatsSql = {
       '    "t_senderId",',
       '    "t_recipientId",',
       '    "t_timestamp",',
+      '    "t_timestampMs",',
       '    "t_timestamp"                                            AS "timestamp",',
       '    "b_timestamp"                                            AS "block_timestamp",',
       '    "t_amount",',
@@ -118,6 +125,7 @@ var ChatsSql = {
       '  "t_senderId",',
       '  "t_recipientId",',
       '  "t_timestamp",',
+      '  "t_timestampMs",',
       '  "timestamp",',
       '  "block_timestamp",',
       '  "t_amount",',
@@ -131,7 +139,7 @@ var ChatsSql = {
       '  "b_id"',
       'FROM ranked',
       'WHERE rn = 1',
-          (params.sortField ? 'ORDER BY ' + formatSQLSorting(params) : ''),
+          (params.sortField ? 'ORDER BY ' + formatTransactionSorting(params) : ''),
       'LIMIT ${limit} OFFSET ${offset}'
     ].filter(Boolean).join(' ');
     return y;

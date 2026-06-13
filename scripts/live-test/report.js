@@ -1,0 +1,2143 @@
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+
+const SENSITIVE_KEY_PATTERN = /(secret|password|passphrase|privatekey|private_key|token|apikey|api_key|authorization|auth)/i;
+
+/**
+ * Redacts sensitive values from report payloads.
+ * @param {*} value - Value to sanitize.
+ */
+function redactSensitive (value) {
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(redactSensitive);
+  }
+
+  return Object.keys(value).reduce(function (result, key) {
+    result[key] = shouldRedactKey(key) ? 'XXXXXXXXXX' : redactSensitive(value[key]);
+    return result;
+  }, {});
+}
+
+/**
+ * Checks whether a report key should be redacted.
+ * @param {string} key - Object key.
+ */
+function shouldRedactKey (key) {
+  // Counts reveal only localnet topology, not the underlying passphrases.
+  if (/count$/i.test(key)) {
+    return false;
+  }
+
+  return SENSITIVE_KEY_PATTERN.test(key);
+}
+
+/**
+ * Writes JSON and Markdown reports for one scenario run.
+ * @param {object} report - Report object.
+ * @param {string} reportDir - Output directory.
+ */
+function writeReports (report, reportDir) {
+  const safeReport = redactSensitive(report);
+  const runId = safeReport.run.id;
+  const resolvedDir = path.resolve(process.cwd(), reportDir);
+
+  fs.mkdirSync(resolvedDir, { recursive: true });
+
+  const jsonPath = path.join(resolvedDir, runId + '.json');
+  const markdownPath = path.join(resolvedDir, runId + '.md');
+
+  fs.writeFileSync(jsonPath, JSON.stringify(safeReport, null, 2) + '\n');
+  fs.writeFileSync(markdownPath, renderMarkdownReport(safeReport));
+
+  return {
+    jsonPath,
+    markdownPath
+  };
+}
+
+/**
+ * Renders a concise human-readable report.
+ * @param {object} report - Sanitized report object.
+ */
+function renderMarkdownReport (report) {
+  const lines = [];
+
+  lines.push('# ADAMANT live scenario report');
+  lines.push('');
+  lines.push('- Status: ' + report.status);
+  lines.push('- Mode: ' + report.target.mode);
+  lines.push('- Run ID: ' + report.run.id);
+  lines.push('- Started: ' + report.run.startedAt);
+  lines.push('- Finished: ' + report.run.finishedAt);
+  lines.push('- Scenarios: ' + report.scenarios.map(function (scenario) {
+    return scenario.id + '=' + scenario.status;
+  }).join(', '));
+  lines.push('');
+  lines.push('## Targets');
+  report.target.nodes.forEach(function (node) {
+    lines.push('- ' + node.id + ': ' + node.apiUrl + (node.wsClientUrl ? ', WS ' + node.wsClientUrl : ''));
+    if (node.generalLogFile) {
+      lines.push('  - Log: ' + node.generalLogFile);
+    }
+  });
+  lines.push('');
+  lines.push('## Metrics');
+  lines.push('```json');
+  lines.push(JSON.stringify(report.metrics, null, 2));
+  lines.push('```');
+
+  const targetScenarios = collectTargetScenarios(report.scenarios);
+
+  if (targetScenarios.length) {
+    appendTargetDetails(lines, targetScenarios);
+  }
+
+  const apiScenarios = collectApiScenarios(report.scenarios);
+
+  if (apiScenarios.length) {
+    appendApiDetails(lines, apiScenarios);
+  }
+
+  const consensusScenarios = collectConsensusScenarios(report.scenarios);
+
+  if (consensusScenarios.length) {
+    appendConsensusDetails(lines, consensusScenarios);
+  }
+
+  const transactionRows = collectTransactionRows(report.scenarios);
+
+  if (transactionRows.length) {
+    lines.push('');
+    lines.push('## Transactions');
+    transactionRows.forEach(function (transaction) {
+      lines.push('- ' + formatTransactionRow(transaction));
+    });
+  }
+
+  const abuseRows = collectAbuseRows(report.scenarios);
+
+  if (abuseRows.length) {
+    lines.push('');
+    lines.push('## Security Abuse Details');
+    abuseRows.forEach(function (check) {
+      lines.push('- ' + formatAbuseRow(check));
+    });
+  }
+
+  const forgingNodes = collectForgingNodes(report.scenarios);
+
+  if (forgingNodes.length) {
+    appendForgingDetails(lines, forgingNodes);
+  }
+
+  const loadScenarios = collectLoadScenarios(report.scenarios);
+
+  if (loadScenarios.length) {
+    appendLoadDetails(lines, loadScenarios);
+  }
+
+  if (report.finalNodeStates && report.finalNodeStates.length) {
+    lines.push('');
+    lines.push('## Final Node State');
+    report.finalNodeStates.forEach(function (node) {
+      lines.push('- ' + node.id + ': height ' + node.height + ', block ' + node.blockId + ', broadhash ' + node.broadhash);
+    });
+  }
+
+  const failures = report.scenarios.filter(function (scenario) {
+    return scenario.status === 'failed';
+  });
+
+  if (failures.length) {
+    lines.push('');
+    lines.push('## Failures');
+    failures.forEach(function (failure) {
+      lines.push('- ' + failure.id + ': ' + failure.error);
+    });
+  }
+
+  return lines.join('\n') + '\n';
+}
+
+/**
+ * Collects target suite scenarios with detailed readiness results.
+ * @param {Array<object>} scenarios - Scenario report entries.
+ */
+function collectTargetScenarios (scenarios) {
+  return scenarios.filter(function (scenario) {
+    return scenario.suite === 'target' && scenario.result;
+  });
+}
+
+/**
+ * Appends target methodology and a detailed per-node state table.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {Array<object>} scenarios - Target scenario report entries.
+ */
+function appendTargetDetails (lines, scenarios) {
+  lines.push('');
+  lines.push('## Target Details');
+  lines.push('');
+  lines.push(
+      'The target suite verifies every selected node whose public API is accessible, then reads node status, ' +
+      'registered delegate count, and node-wide transaction pool counters. A node that explicitly denies ' +
+      'public API access is reported as closed and does not fail the scenario. Testnet inventory comes from ' +
+      'the configured peer list; localnet inventory comes from explicit nodes or the managed manifest.'
+  );
+
+  scenarios.forEach(function (scenario) {
+    const result = scenario.result || {};
+    const test = result.test || {};
+    const nodes = result.nodes || [];
+    const readyNodeCount = nodes.filter(function (node) {
+      return node.ready && node.detailsComplete;
+    }).length;
+    const closedApiNodeCount = nodes.filter(function (node) {
+      return node.publicApiClosed;
+    }).length;
+
+    lines.push('');
+    lines.push('### ' + scenario.id);
+    lines.push('- Scenario status: ' + scenario.status + '; duration ' + formatDuration(scenario.durationMs) + '.');
+    lines.push('- Nodes selected: ' + formatReportSentence(test.nodeSelection));
+    lines.push('- Readiness condition: ' + formatReportSentence(test.readinessRequirement));
+    lines.push(
+        '- Requests: ' +
+        formatList(test.details) +
+        '; minimum height ' +
+        formatReportValue(test.minimumHeight) +
+        '; timeout ' +
+        formatDuration(test.readyTimeoutMs) +
+        '; poll interval ' +
+        formatDuration(test.pollIntervalMs) +
+        '.'
+    );
+    lines.push(
+        '- Result: ' +
+        readyNodeCount +
+        '/' +
+        nodes.length +
+        ' nodes ready with complete details; ' +
+        closedApiNodeCount +
+        (closedApiNodeCount === 1 ? ' node has' : ' nodes have') +
+        ' closed public APIs; passed ' +
+        formatReportValue(result.passed) +
+        '.'
+    );
+    lines.push('');
+    lines.push('#### Node Inventory');
+    lines.push('');
+    lines.push(
+        '| Node | API | ADM version | Height | Registered delegates | Public API | wsClient | wsServer / wsNode | ' +
+        'State | Confirmed | Queued | Unconfirmed | Multisignature | Features |'
+    );
+    lines.push(
+        '| --- | --- | --- | ---: | ---: | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |'
+    );
+
+    nodes.forEach(function (node) {
+      const transactions = node.transactions || {};
+
+      lines.push(
+          '| ' +
+          formatMarkdownTableValue(node.id) +
+          ' | ' +
+          formatMarkdownTableValue(node.apiUrl) +
+          ' | ' +
+          formatMarkdownTableValue(node.version) +
+          ' | ' +
+          formatMarkdownTableValue(node.height) +
+          ' | ' +
+          formatMarkdownTableValue(node.delegates) +
+          ' | ' +
+          formatMarkdownTableValue(formatTargetPublicApi(node.publicApi)) +
+          ' | ' +
+          formatMarkdownTableValue(formatTargetWsClient(node.wsClient)) +
+          ' | ' +
+          formatMarkdownTableValue(formatTargetWsServer(node.wsServer)) +
+          ' | ' +
+          formatMarkdownTableValue(formatTargetState(node)) +
+          ' | ' +
+          formatMarkdownTableValue(transactions.confirmed) +
+          ' | ' +
+          formatMarkdownTableValue(transactions.queued) +
+          ' | ' +
+          formatMarkdownTableValue(transactions.unconfirmed) +
+          ' | ' +
+          formatMarkdownTableValue(transactions.multisignature) +
+          ' | ' +
+          formatMarkdownTableValue(formatTargetFeatures(node)) +
+          ' |'
+      );
+    });
+  });
+}
+
+/**
+ * Formats configured and observed public API state.
+ * @param {object} publicApi - Public API report data.
+ */
+function formatTargetPublicApi (publicApi) {
+  publicApi = publicApi || {};
+
+  return 'runner config enabled=' +
+    formatReportValue(publicApi.configuredEnabled) +
+    ', public=' +
+    formatReportValue(publicApi.configuredPublic) +
+    '; observed reachable=' +
+    formatReportValue(publicApi.observedReachable) +
+    ', denied=' +
+    formatReportValue(publicApi.observedDenied);
+}
+
+/**
+ * Formats one prose value with exactly one trailing period.
+ * @param {*} value - Sentence value.
+ */
+function formatReportSentence (value) {
+  return formatReportValue(value).replace(/\.*$/, '') + '.';
+}
+
+/**
+ * Formats configured and advertised client WebSocket state.
+ * @param {object} wsClient - Client WebSocket report data.
+ */
+function formatTargetWsClient (wsClient) {
+  wsClient = wsClient || {};
+
+  return 'configured enabled=' +
+    formatReportValue(wsClient.configuredEnabled) +
+    ', port=' +
+    formatReportValue(wsClient.configuredPort) +
+    '; advertised enabled=' +
+    formatReportValue(wsClient.observedEnabled) +
+    ', port=' +
+    formatReportValue(wsClient.observedPort);
+}
+
+/**
+ * Formats configured node-to-node WebSocket server limits.
+ * @param {object} wsServer - Node WebSocket server report data.
+ */
+function formatTargetWsServer (wsServer) {
+  wsServer = wsServer || {};
+
+  return 'configured enabled=' +
+    formatReportValue(wsServer.configuredEnabled) +
+    ', broadcast max=' +
+    formatReportValue(wsServer.maxBroadcastConnections) +
+    ', receive max=' +
+    formatReportValue(wsServer.maxReceiveConnections);
+}
+
+/**
+ * Formats readiness and loader state for one target node.
+ * @param {object} node - Target node report data.
+ */
+function formatTargetState (node) {
+  const state = node.state || {};
+
+  if (node.publicApiClosed) {
+    return 'public API closed: ' + formatReportValue(node.error);
+  }
+
+  if (!node.detailsComplete) {
+    return 'unavailable: ' + formatReportValue(node.error);
+  }
+
+  return 'ready=' +
+    formatReportValue(node.ready) +
+    ', loaded=' +
+    formatReportValue(state.loaded) +
+    ', syncing=' +
+    formatReportValue(state.syncing) +
+    ', consensus=' +
+    formatPercent(state.consensus) +
+    ', blocks to sync=' +
+    formatReportValue(state.blocksToSync);
+}
+
+/**
+ * Formats report-safe node roles, identifiers, config source, and operational notes.
+ * @param {object} node - Target node report data.
+ */
+function formatTargetFeatures (node) {
+  const features = (node.features || []).slice();
+
+  if (node.error) {
+    features.push('error: ' + node.error);
+  }
+
+  return features.length ? features.join('; ') : 'none';
+}
+
+/**
+ * Escapes arbitrary values for one Markdown table cell.
+ * @param {*} value - Cell value.
+ */
+function formatMarkdownTableValue (value) {
+  return String(formatReportValue(value))
+      .replace(/\|/g, '\\|')
+      .replace(/\r?\n/g, '<br>');
+}
+
+/**
+ * Collects API suite scenarios with structured REST or WebSocket results.
+ * @param {Array<object>} scenarios - Scenario report entries.
+ */
+function collectApiScenarios (scenarios) {
+  return scenarios.filter(function (scenario) {
+    return scenario.suite === 'api' && scenario.result;
+  });
+}
+
+/**
+ * Collects consensus suite scenarios with activation evidence.
+ * @param {Array<object>} scenarios - Scenario report entries.
+ */
+function collectConsensusScenarios (scenarios) {
+  return scenarios.filter(function (scenario) {
+    return scenario.suite === 'consensus' && scenario.result;
+  });
+}
+
+/**
+ * Appends consensus methodology, node agreement, and activation evidence.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {Array<object>} scenarios - Consensus scenario report entries.
+ */
+function appendConsensusDetails (lines, scenarios) {
+  const includesLiveActivation = scenarios.some(function (scenario) {
+    return scenario.result && scenario.result.live;
+  });
+
+  lines.push('');
+  lines.push('## Consensus Details');
+  lines.push('');
+  lines.push(
+      'The consensus suite observes the configured activation height and the corresponding public behavior ' +
+      'on both node-recipient and node-peer. ' +
+      (includesLiveActivation ?
+        'Live activation mode deliberately submits test transactions to its disposable managed localnet. ' :
+        'Ordinary observation mode does not mutate chain state. ') +
+      'Equal-height nodes must expose ' +
+      'the same chain head and delegate order; nodes at nearby heights are compared only on invariants that ' +
+      'remain meaningful during normal block propagation.'
+  );
+
+  scenarios.forEach(function (scenario) {
+    const result = scenario.result || {};
+    const test = result.test || {};
+    const nodes = result.nodes || [];
+    const agreement = result.agreement || {};
+
+    lines.push('');
+    lines.push('### ' + scenario.id);
+    lines.push('- Scenario status: ' + scenario.status + '; duration ' + formatDuration(scenario.durationMs) + '.');
+    lines.push('- Nodes: ' + formatReportSentence(test.nodeSelection));
+    lines.push('- Requests: ' + formatList(test.requests) + '.');
+    lines.push(
+        '- Agreement rule: ' +
+        formatReportSentence(test.agreement) +
+        ' Maximum height drift: ' +
+        formatReportValue(test.maxHeightDrift) +
+        '.'
+    );
+    lines.push(
+        '- Result: height drift ' +
+        formatReportValue(agreement.heightDrift) +
+        '; agreement passed ' +
+        formatReportValue(agreement.passed) +
+        '; scenario passed ' +
+        formatReportValue(result.passed) +
+        '.'
+    );
+
+    if (result.live) {
+      appendLiveConsensusDetails(lines, result.live);
+    }
+
+    lines.push('');
+    lines.push('#### Node Summary');
+    lines.push('');
+    lines.push(
+        '| Role | Node | API | ADM version | Height | Latest block | Loaded | Syncing | Cached consensus | ' +
+        'Live peer consensus | Nethash | Broadhash | Delegates | Activations |'
+    );
+    lines.push(
+        '| --- | --- | --- | --- | ---: | --- | --- | --- | ---: | --- | --- | --- | ---: | --- |'
+    );
+
+    nodes.forEach(function (node) {
+      const liveConsensus = node.liveConsensus || {};
+      const activationSummary = (node.activations || []).map(function (activation) {
+        return activation.name +
+          '=' +
+          activation.state +
+          ' @ ' +
+          formatReportValue(activation.activationHeight);
+      }).join('; ');
+
+      lines.push(
+          '| ' +
+          formatMarkdownTableValue(node.role) +
+          ' | ' +
+          formatMarkdownTableValue(node.id) +
+          ' | ' +
+          formatMarkdownTableValue(node.apiUrl) +
+          ' | ' +
+          formatMarkdownTableValue(node.version) +
+          ' | ' +
+          formatMarkdownTableValue(node.height) +
+          ' | ' +
+          formatMarkdownTableValue(formatConsensusBlock(node.latestBlock)) +
+          ' | ' +
+          formatMarkdownTableValue(node.loaded) +
+          ' | ' +
+          formatMarkdownTableValue(node.syncing) +
+          ' | ' +
+          formatMarkdownTableValue(formatPercent(node.cachedConsensus)) +
+          ' | ' +
+          formatMarkdownTableValue(
+              formatPercent(liveConsensus.livePercent) +
+              ' (' +
+              formatReportValue(liveConsensus.matchingPeers) +
+              '/' +
+              formatReportValue(liveConsensus.connectedPeers) +
+              ')'
+          ) +
+          ' | ' +
+          formatMarkdownTableValue(node.nethash) +
+          ' | ' +
+          formatMarkdownTableValue(node.broadhash) +
+          ' | ' +
+          formatMarkdownTableValue(node.delegates && node.delegates.count) +
+          ' | ' +
+          formatMarkdownTableValue(activationSummary) +
+          ' |'
+      );
+    });
+
+    appendConsensusAgreement(lines, agreement);
+    appendConsensusActivations(lines, result.definitions || [], nodes);
+  });
+}
+
+/**
+ * Appends the six-round lifecycle, transition blocks, and checkpoint network states.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {object} live - Live consensus execution result.
+ */
+function appendLiveConsensusDetails (lines, live) {
+  const plan = live.plan || {};
+  const checkpoints = live.checkpoints || [];
+  const transitions = live.transitions || [];
+
+  lines.push('');
+  lines.push('#### Live Activation Run');
+  lines.push('');
+  lines.push(
+      '- Plan: ' +
+      formatReportValue(plan.totalRounds) +
+      ' rounds of ' +
+      formatReportValue(plan.delegatesPerRound) +
+      ' blocks; fairSystem at height ' +
+      formatReportValue(plan.fairSystem) +
+      '; spaceship at height ' +
+      formatReportValue(plan.spaceship) +
+      '; final height ' +
+      formatReportValue(plan.finalHeight) +
+      '.'
+  );
+  lines.push(
+      '- Runtime: ' +
+      formatReportValue(live.startedAt) +
+      ' to ' +
+      formatReportValue(live.finishedAt) +
+      '; duration ' +
+      formatDuration(live.durationMs) +
+      '.'
+  );
+  lines.push('');
+  lines.push('| Checkpoint | Target height | Before heights | After heights | Workloads | Status |');
+  lines.push('| --- | ---: | --- | --- | --- | --- |');
+
+  checkpoints.forEach(function (checkpoint) {
+    lines.push(
+        '| ' +
+        formatMarkdownTableValue(checkpoint.id) +
+        ' | ' +
+        formatMarkdownTableValue(checkpoint.targetHeight) +
+        ' | ' +
+        formatMarkdownTableValue(formatLiveNetworkHeights(checkpoint.before)) +
+        ' | ' +
+        formatMarkdownTableValue(formatLiveNetworkHeights(checkpoint.after)) +
+        ' | ' +
+        formatMarkdownTableValue((checkpoint.workloads || []).map(function (workload) {
+          return workload.id + '=' + workload.status;
+        }).join('; ')) +
+        ' | ' +
+        formatMarkdownTableValue(checkpoint.passed ? 'passed' : 'failed') +
+        ' |'
+    );
+  });
+
+  lines.push('');
+  lines.push('##### Pre-activation Transaction Blocks');
+  lines.push('');
+  lines.push('| Activation | Activation height | Pre-activation block | Generated | Accepted | Confirmed | In target block | Status |');
+  lines.push('| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |');
+
+  transitions.forEach(function (transition) {
+    lines.push(
+        '| ' +
+        formatMarkdownTableValue(transition.activation) +
+        ' | ' +
+        formatMarkdownTableValue(transition.activationHeight) +
+        ' | ' +
+        formatMarkdownTableValue(transition.preActivationBlockHeight) +
+        ' | ' +
+        formatMarkdownTableValue(transition.generated) +
+        ' | ' +
+        formatMarkdownTableValue(transition.accepted) +
+        ' | ' +
+        formatMarkdownTableValue(transition.confirmed) +
+        ' | ' +
+        formatMarkdownTableValue(transition.inPreActivationBlock) +
+        ' | ' +
+        formatMarkdownTableValue(transition.passed ? 'passed' : 'failed') +
+        ' |'
+    );
+  });
+
+  checkpoints.forEach(function (checkpoint) {
+    lines.push('');
+    lines.push('##### Checkpoint: ' + checkpoint.id);
+    lines.push('');
+    lines.push('- Target: height ' + formatReportValue(checkpoint.targetHeight) + '; ' + checkpoint.description);
+    lines.push('- Duration: ' + formatDuration(checkpoint.durationMs) + '.');
+    lines.push('- Workloads: ' + (checkpoint.workloads || []).map(formatLiveConsensusWorkload).join('; ') + '.');
+    appendLiveConsensusNetworkState(lines, 'Before workloads', checkpoint.before);
+    appendLiveConsensusNetworkState(lines, 'After workloads', checkpoint.after);
+  });
+}
+
+/**
+ * Appends one all-node state table captured during a live consensus checkpoint.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {string} title - State phase title.
+ * @param {?object} state - Captured network state.
+ */
+function appendLiveConsensusNetworkState (lines, title, state) {
+  if (!state) {
+    lines.push('');
+    lines.push('###### ' + title);
+    lines.push('');
+    lines.push('State was not captured.');
+    return;
+  }
+
+  lines.push('');
+  lines.push('###### ' + title);
+  lines.push('');
+  lines.push(
+      '| Role | Node | Height | Block | Loaded | Syncing | Cached / live consensus | Pools C/Q/U/M | ' +
+      'Forging | Activations | Status |'
+  );
+  lines.push('| --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- |');
+
+  (state.nodes || []).forEach(function (node) {
+    const pools = node.transactionPools || {};
+    const forging = node.forging || {};
+    const liveConsensus = node.liveConsensus || {};
+    const activations = (node.activations || []).map(function (activation) {
+      return activation.name + '=' + activation.state + ' (' + (activation.passed ? 'ok' : 'failed') + ')';
+    }).join('; ');
+
+    lines.push(
+        '| ' +
+        formatMarkdownTableValue(node.role) +
+        ' | ' +
+        formatMarkdownTableValue(node.id) +
+        ' | ' +
+        formatMarkdownTableValue(node.height) +
+        ' | ' +
+        formatMarkdownTableValue(formatConsensusBlock(node.latestBlock)) +
+        ' | ' +
+        formatMarkdownTableValue(node.loaded) +
+        ' | ' +
+        formatMarkdownTableValue(node.syncing) +
+        ' | ' +
+        formatMarkdownTableValue(
+            formatPercent(node.cachedConsensus) +
+            ' / ' +
+            formatPercent(liveConsensus.livePercent) +
+            ' (' +
+            formatReportValue(liveConsensus.matchingPeers) +
+            '/' +
+            formatReportValue(liveConsensus.connectedPeers) +
+            ')'
+        ) +
+        ' | ' +
+        formatMarkdownTableValue(
+            [
+              pools.confirmed,
+              pools.queued,
+              pools.unconfirmed,
+              pools.multisignature
+            ].map(formatReportValue).join('/')
+        ) +
+        ' | ' +
+        formatMarkdownTableValue(
+            'enabled=' +
+            formatReportValue(forging.enabled) +
+            ', delegates=' +
+            formatReportValue(forging.configuredDelegates)
+        ) +
+        ' | ' +
+        formatMarkdownTableValue(activations) +
+        ' | ' +
+        formatMarkdownTableValue(node.ready ? 'ready' : 'not ready') +
+        ' |'
+    );
+  });
+
+  lines.push('');
+  lines.push(
+      '- Recipient-to-node agreement: ' +
+      (state.agreements || [state.agreement]).filter(Boolean).map(function (agreement) {
+        return formatReportValue(agreement.peer) +
+          '=' +
+          (agreement.passed ? 'passed' : 'failed') +
+          ' (height drift ' +
+          formatReportValue(agreement.heightDrift) +
+          ')';
+      }).join('; ') +
+      '.'
+  );
+}
+
+/**
+ * Formats the observed height set for a live checkpoint summary.
+ * @param {?object} state - Captured network state.
+ */
+function formatLiveNetworkHeights (state) {
+  if (!state || !state.nodes) {
+    return 'not captured';
+  }
+
+  return state.nodes.map(function (node) {
+    return node.id + '=' + node.height;
+  }).join(', ');
+}
+
+/**
+ * Formats one nested workload result without exposing transaction payloads.
+ * @param {object} workload - Nested scenario execution result.
+ */
+function formatLiveConsensusWorkload (workload) {
+  const result = workload.result || {};
+  let details = '';
+
+  if (workload.id === 'transactions.happy-path') {
+    details = ', accepted=' + (result.transactions || []).length + ', rejected=' + (result.rejections || []).length;
+  } else if (workload.id === 'transactions.abuse') {
+    details = ', abuse checks=' + (result.checks || []).length;
+  } else if (workload.id === 'delegates.forging') {
+    details = ', nodes=' + (result.nodes || []).length;
+  }
+
+  return workload.id +
+    '=' +
+    workload.status +
+    details +
+    ', duration=' +
+    formatDuration(workload.durationMs) +
+    (workload.error ? ', error=' + workload.error : '');
+}
+
+/**
+ * Appends the recipient-to-peer comparison table.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {object} agreement - Cross-node agreement result.
+ */
+function appendConsensusAgreement (lines, agreement) {
+  const checks = agreement.checks || {};
+  const descriptions = {
+    nethash: 'Both nodes belong to the same network.',
+    heightDrift: 'Height difference stays within the configured tolerance.',
+    broadhash: 'Equal-height nodes expose the same broadhash.',
+    latestBlock: 'Equal-height nodes expose the same latest block id.',
+    delegateOrder: 'Equal-height nodes expose the same ordered delegate public keys.',
+    activationState: 'Equal-height nodes derive the same activation state.'
+  };
+
+  lines.push('');
+  lines.push('#### Node Agreement');
+  lines.push('');
+  lines.push('| Check | Result | Meaning |');
+  lines.push('| --- | --- | --- |');
+
+  Object.keys(descriptions).forEach(function (name) {
+    lines.push(
+        '| ' +
+        formatMarkdownTableValue(name) +
+        ' | ' +
+        formatMarkdownTableValue(formatConsensusCheck(checks[name])) +
+        ' | ' +
+        formatMarkdownTableValue(descriptions[name]) +
+        ' |'
+    );
+  });
+
+  if (agreement.failures && agreement.failures.length) {
+    lines.push('');
+    lines.push('- Agreement failures: ' + agreement.failures.join('; ') + '.');
+  }
+}
+
+/**
+ * Appends behavior, purpose, and per-node evidence for every activation.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {Array<object>} definitions - Activation definitions.
+ * @param {Array<object>} nodes - Per-node consensus observations.
+ */
+function appendConsensusActivations (lines, definitions, nodes) {
+  definitions.forEach(function (definition) {
+    const observations = nodes.map(function (node) {
+      return {
+        node,
+        activation: (node.activations || []).find(function (activation) {
+          return activation.name === definition.name;
+        }) || {}
+      };
+    });
+    const activationHeight = observations.length ?
+      observations[0].activation.activationHeight :
+      null;
+
+    lines.push('');
+    lines.push('#### ' + definition.name + ': ' + definition.title);
+    lines.push('');
+    lines.push('- Purpose: ' + formatReportSentence(definition.purpose));
+    lines.push('- Activation height: ' + formatReportValue(activationHeight) + '.');
+    lines.push('- Before activation: ' + formatConsensusStatements(definition.before) + '.');
+    lines.push('- Activated consensus changes: ' + formatConsensusStatements(definition.changes) + '.');
+    lines.push('- Live probe: ' + formatReportSentence(definition.probe));
+    lines.push('');
+    lines.push('| Role | Node | Height | State | Distance | Evidence | Status |');
+    lines.push('| --- | --- | ---: | --- | ---: | --- | --- |');
+
+    observations.forEach(function (observation) {
+      const activation = observation.activation;
+
+      lines.push(
+          '| ' +
+          formatMarkdownTableValue(observation.node.role) +
+          ' | ' +
+          formatMarkdownTableValue(observation.node.id) +
+          ' | ' +
+          formatMarkdownTableValue(observation.node.height) +
+          ' | ' +
+          formatMarkdownTableValue(activation.state) +
+          ' | ' +
+          formatMarkdownTableValue(activation.distance) +
+          ' | ' +
+          formatMarkdownTableValue(activation.evidence && activation.evidence.summary) +
+          ' | ' +
+          formatMarkdownTableValue(activation.passed ? 'passed' : 'failed') +
+          ' |'
+      );
+    });
+  });
+}
+
+/**
+ * Formats the latest block identity for the consensus summary.
+ * @param {object} block - Latest block metadata.
+ */
+function formatConsensusBlock (block) {
+  block = block || {};
+
+  return 'height ' + formatReportValue(block.height) + ', id ' + formatReportValue(block.id);
+}
+
+/**
+ * Formats a three-state agreement check.
+ * @param {?boolean} value - True, false, or null when heights differ.
+ */
+function formatConsensusCheck (value) {
+  if (value === null || value === undefined) {
+    return 'not compared at different heights';
+  }
+
+  return value ? 'passed' : 'failed';
+}
+
+/**
+ * Joins full-sentence activation statements without duplicated punctuation.
+ * @param {Array<string>} statements - Consensus behavior statements.
+ */
+function formatConsensusStatements (statements) {
+  return (statements || []).map(function (statement) {
+    return statement.replace(/[.;]+$/, '');
+  }).join('; ');
+}
+
+/**
+ * Appends REST and WebSocket methodology plus exact observed results.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {Array<object>} scenarios - API scenario report entries.
+ */
+function appendApiDetails (lines, scenarios) {
+  lines.push('');
+  lines.push('## API Details');
+  lines.push('');
+  lines.push(
+      'The API suite performs read-only client and explorer requests. Successful cases verify response ' +
+      'shape and selected invariants; negative cases pass only when the node explicitly rejects malformed ' +
+      'input in JSON or returns the expected HTTP status for an unknown route.'
+  );
+
+  scenarios.forEach(function (scenario) {
+    const result = scenario.result || {};
+
+    lines.push('');
+    lines.push('### ' + scenario.id);
+    lines.push('- Scenario status: ' + scenario.status + '; duration ' + formatDuration(scenario.durationMs) + '.');
+
+    if (result.kind === 'api rest') {
+      appendRestApiDetails(lines, result);
+    } else if (result.kind === 'api websocket') {
+      appendWebSocketApiDetails(lines, result);
+    }
+  });
+}
+
+/**
+ * Appends REST API coverage, result totals, and a per-request table.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {object} result - REST API scenario result.
+ */
+function appendRestApiDetails (lines, result) {
+  const test = result.test || {};
+  const checks = result.checks || [];
+  const coreChecks = checks.filter(function (check) {
+    return !check.docsSection && !check.queryLanguageEndpoint;
+  });
+  const documentedChecks = checks.filter(function (check) {
+    return check.docsSection;
+  });
+  const queryLanguageChecks = checks.filter(function (check) {
+    return check.queryLanguageEndpoint;
+  });
+  const passed = checks.filter(function (check) {
+    return check.passed;
+  }).length;
+  const expectedRejections = checks.filter(function (check) {
+    return check.passed && check.expectedSuccess === false;
+  }).length;
+
+  lines.push('- Target: ' + formatReportValue(test.nodeId) + ' at ' + formatReportValue(test.apiUrl) + '.');
+  lines.push('- Safety: ' + formatReportSentence(test.safety));
+  lines.push('- Coverage: ' + formatReportSentence(test.coverage));
+  lines.push(
+      '- Result: ' +
+      passed +
+      '/' +
+      checks.length +
+      ' checks passed; ' +
+      expectedRejections +
+      ' expected rejections observed; passed ' +
+      formatReportValue(result.passed) +
+      '.'
+  );
+
+  appendRestApiChecksTable(lines, 'Core REST Checks', coreChecks, 'category');
+  appendRestApiChecksTable(lines, 'Official API Endpoint Sections', documentedChecks, 'docsSection');
+  appendQueryLanguageChecksTable(lines, queryLanguageChecks);
+}
+
+/**
+ * Appends one standard REST API result table.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {string} title - Table heading.
+ * @param {Array<object>} checks - REST checks to render.
+ * @param {string} sectionField - Check field used for the first column.
+ */
+function appendRestApiChecksTable (lines, title, checks, sectionField) {
+  if (!checks.length) {
+    return;
+  }
+
+  lines.push('');
+  lines.push('#### ' + title);
+  lines.push('');
+  lines.push('| Section | Check | Request | Expected | HTTP | Body success | Latency | Observed | Status |');
+  lines.push('| --- | --- | --- | --- | ---: | --- | ---: | --- | --- |');
+
+  checks.forEach(function (check) {
+    lines.push(
+        '| ' +
+        formatMarkdownTableValue(check[sectionField] || check.category) +
+        ' | ' +
+        formatMarkdownTableValue(check.id) +
+        ' | ' +
+        formatMarkdownTableValue(check.method + ' ' + check.path) +
+        ' | ' +
+        formatMarkdownTableValue(check.expectation) +
+        ' | ' +
+        formatMarkdownTableValue(check.status) +
+        ' | ' +
+        formatMarkdownTableValue(check.bodySuccess) +
+        ' | ' +
+        formatMarkdownTableValue(formatDuration(check.latencyMs)) +
+        ' | ' +
+        formatMarkdownTableValue(formatApiObservation(check.observed)) +
+        ' | ' +
+        formatMarkdownTableValue(check.passed ? 'passed' : 'failed: ' + check.failure) +
+        ' |'
+    );
+  });
+}
+
+/**
+ * Appends the dedicated transactions-query-language result table.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {Array<object>} checks - Query-language checks to render.
+ */
+function appendQueryLanguageChecksTable (lines, checks) {
+  if (!checks.length) {
+    return;
+  }
+
+  lines.push('');
+  lines.push('#### Transactions Query Language');
+  lines.push('');
+  lines.push(
+      'These checks combine multiple filters and options. `/api/transactions` uses explicit `and:` ' +
+      'prefixes where required; chats, chatrooms, and states use their documented default AND behavior.'
+  );
+  lines.push('');
+  lines.push('| Endpoint | Check | Combined request | HTTP | Body success | Returned | Latency | Status |');
+  lines.push('| --- | --- | --- | ---: | --- | --- | ---: | --- |');
+
+  checks.forEach(function (check) {
+    lines.push(
+        '| ' +
+        formatMarkdownTableValue(check.queryLanguageEndpoint) +
+        ' | ' +
+        formatMarkdownTableValue(check.id) +
+        ' | ' +
+        formatMarkdownTableValue(check.method + ' ' + check.path) +
+        ' | ' +
+        formatMarkdownTableValue(check.status) +
+        ' | ' +
+        formatMarkdownTableValue(check.bodySuccess) +
+        ' | ' +
+        formatMarkdownTableValue(formatApiObservation(check.observed)) +
+        ' | ' +
+        formatMarkdownTableValue(formatDuration(check.latencyMs)) +
+        ' | ' +
+        formatMarkdownTableValue(check.passed ? 'passed' : 'failed: ' + check.failure) +
+        ' |'
+    );
+  });
+}
+
+/**
+ * Appends WebSocket handshake and subscription emission results.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {object} result - WebSocket API scenario result.
+ */
+function appendWebSocketApiDetails (lines, result) {
+  const test = result.test || {};
+
+  lines.push('- Target: ' + formatReportValue(test.nodeId) + ' at ' + formatReportValue(result.wsClientUrl) + '.');
+  lines.push('- Coverage: ' + formatReportSentence(test.coverage));
+  lines.push('- Limitation: ' + formatReportSentence(test.limitation));
+  lines.push(
+      '- Result: connected=' +
+      formatReportValue(result.connected) +
+      ', disconnected=' +
+      formatReportValue(result.disconnected) +
+      ', handshake latency=' +
+      formatDuration(result.latencyMs) +
+      ', subscriptions emitted=' +
+      (result.subscriptions || []).length +
+      ', passed=' +
+      formatReportValue(result.passed) +
+      '.'
+  );
+  lines.push('');
+  lines.push('| Event | Value | Purpose |');
+  lines.push('| --- | --- | --- |');
+
+  (result.subscriptions || []).forEach(function (subscription) {
+    lines.push(
+        '| ' +
+        formatMarkdownTableValue(subscription.event) +
+        ' | ' +
+        formatMarkdownTableValue(JSON.stringify(subscription.value)) +
+        ' | ' +
+        formatMarkdownTableValue(subscription.purpose) +
+        ' |'
+    );
+  });
+}
+
+/**
+ * Formats a compact structured API observation for a Markdown table cell.
+ * @param {*} observed - Report-safe response summary.
+ */
+function formatApiObservation (observed) {
+  if (!observed || typeof observed !== 'object') {
+    return formatReportValue(observed);
+  }
+
+  return Object.keys(observed).map(function (key) {
+    const value = Array.isArray(observed[key]) ?
+      observed[key].join(', ') :
+      observed[key];
+
+    return key + '=' + formatReportValue(value);
+  }).join('; ');
+}
+
+/**
+ * Collects load scenario entries that contain detailed result payloads.
+ * @param {Array<object>} scenarios - Scenario report entries.
+ */
+function collectLoadScenarios (scenarios) {
+  return scenarios.filter(function (scenario) {
+    return scenario.suite === 'load';
+  });
+}
+
+/**
+ * Appends exact workload, acceptance criteria, and observed load results.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {Array<object>} scenarios - Load scenario report entries.
+ */
+function appendLoadDetails (lines, scenarios) {
+  lines.push('');
+  lines.push('## Load Details');
+  lines.push('');
+  lines.push(
+      'Load scenarios are opt-in according to their workload. HTTP load is read-only; ' +
+      'transaction load publishes real signed transactions and changes network state.'
+  );
+
+  scenarios.forEach(function (scenario) {
+    const result = scenario.result || {};
+
+    if (result.kind === 'transaction queue stress' ||
+        result.kind === 'type 0 transaction queue stress') {
+      appendTxQueueLoadDetails(lines, scenario);
+      return;
+    }
+
+    const target = result.target || {};
+    const request = result.request || {};
+    const profile = result.profile || {};
+    const acceptance = result.acceptance || {};
+    const observed = result.results || {};
+    const nodeState = observed.observedNodeState || {};
+    const latency = observed.latencyMs || {};
+
+    lines.push('');
+    lines.push('### ' + scenario.id);
+    lines.push('- Scenario status: ' + scenario.status + '; duration ' + formatDuration(scenario.durationMs) + '.');
+    lines.push(
+        '- Test: ' +
+        formatReportValue(result.kind) +
+        ' against ' +
+        formatReportValue(target.nodeId) +
+        ' at ' +
+        formatReportValue(target.apiUrl) +
+        '.'
+    );
+    lines.push(
+        '- Request: ' +
+        formatReportValue(request.method) +
+        ' ' +
+        formatReportValue(request.path) +
+        '; request body ' +
+        (request.body === null ? 'none' : formatReportValue(request.body)) +
+        '.'
+    );
+    lines.push(
+        '- Profile: requested ' +
+        formatReportValue(profile.requestedName) +
+        '; applied ' +
+        formatReportValue(profile.appliedName) +
+        '; requests ' +
+        formatReportValue(profile.requests) +
+        '; concurrency ' +
+        formatReportValue(profile.concurrency) +
+        '.'
+    );
+    lines.push('- Pass condition: ' + formatReportValue(acceptance.requirement));
+    lines.push(
+        '- Performance thresholds: latency ' +
+        formatThreshold(acceptance.latencyThresholdMs, 'ms') +
+        '; throughput ' +
+        formatThreshold(acceptance.throughputThresholdRps, 'rps') +
+        '. Measurements are informational.'
+    );
+    lines.push(
+        '- Result: ' +
+        formatReportValue(observed.completed) +
+        '/' +
+        formatReportValue(observed.totalRequests) +
+        ' successful; ' +
+        formatReportValue(observed.failed) +
+        ' failed; passed ' +
+        formatReportValue(result.passed) +
+        '.'
+    );
+    lines.push(
+        '- Failure classes: transport ' +
+        formatReportValue(observed.transportFailures) +
+        '; HTTP ' +
+        formatReportValue(observed.httpFailures) +
+        '; API payload ' +
+        formatReportValue(observed.apiFailures) +
+        '.'
+    );
+    lines.push('- HTTP status codes: ' + formatStatusCodes(observed.statusCodes) + '.');
+    lines.push(
+        '- Timing: elapsed ' +
+        formatDuration(observed.elapsedMs) +
+        '; successful throughput ' +
+        formatReportValue(observed.throughputRps) +
+        ' requests/second.'
+    );
+    lines.push(
+        '- Latency: min ' +
+        formatMilliseconds(latency.min) +
+        '; average ' +
+        formatMilliseconds(latency.avg) +
+        '; p95 ' +
+        formatMilliseconds(latency.p95) +
+        '; max ' +
+        formatMilliseconds(latency.max) +
+        '; samples ' +
+        formatReportValue(latency.count) +
+        '.'
+    );
+    lines.push(
+        '- Observed node state: height ' +
+        formatObservedHeightRange(nodeState.minHeight, nodeState.maxHeight) +
+        '; nethashes ' +
+        formatList(nodeState.nethashes) +
+        '; versions ' +
+        formatList(nodeState.versions) +
+        '; distinct broadhashes ' +
+        formatReportValue(nodeState.broadhashChanges) +
+        '.'
+    );
+
+    if (Array.isArray(observed.failureExamples) && observed.failureExamples.length) {
+      lines.push('- Failure examples: ' + observed.failureExamples.map(formatLoadFailure).join('; ') + '.');
+    }
+  });
+}
+
+/**
+ * Appends a transaction queue workload summary and per-node snapshots.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {object} scenario - Transaction queue scenario report entry.
+ */
+function appendTxQueueLoadDetails (lines, scenario) {
+  const result = scenario.result || {};
+  const target = result.target || {};
+  const transaction = result.transaction || {};
+  const workload = result.workload || {};
+  const sourceAccount = result.sourceAccount || {};
+  const confirmation = result.confirmation || {};
+  const blockchainTps = result.blockchainTps || {};
+  const confirmationNodes = (confirmation.nodes || []).filter(function (node) {
+    return node.id !== target.nodeId;
+  });
+
+  lines.push('');
+  lines.push('### ' + scenario.id);
+  lines.push('- Scenario status: ' + scenario.status + '; duration ' + formatDuration(scenario.durationMs) + '.');
+  lines.push(
+      '- Test: ' +
+      formatTransactionLoadAction(workload) +
+      ' valid ' +
+      formatReportValue(transaction.typeName) +
+      ' (' +
+      formatReportValue(transaction.type) +
+      ') transactions to ' +
+      formatReportValue(target.nodeId) +
+      ' at ' +
+      formatReportValue(target.apiUrl) +
+      formatConfirmationTargets(confirmationNodes) +
+      '.'
+  );
+  lines.push('- Transaction: ' + formatTxQueueTransactionDetails(transaction, sourceAccount) + '.');
+  lines.push('- Workload: ' + formatTransactionLoadWorkload(workload) + '.');
+  lines.push(
+      '- Admission results: generated ' +
+      formatReportValue(workload.generated) +
+      '; accepted ' +
+      formatReportValue(workload.accepted) +
+      '; rejected ' +
+      formatReportValue(workload.rejected) +
+      '; transport failures ' +
+      formatReportValue(workload.transportFailures) +
+      '; HTTP failures ' +
+      formatReportValue(workload.httpFailures) +
+      '.'
+  );
+  lines.push(
+      '- Rates: generated ' +
+      formatReportValue(workload.generationRatePerSecond) +
+      '/s; accepted ' +
+      formatReportValue(workload.acceptedRatePerSecond) +
+      '/s; HTTP statuses ' +
+      formatStatusCodes(workload.statusCodes) +
+      '.'
+  );
+  lines.push('- Rejection reasons: ' + formatReasonHistogram(workload.rejectionReasons) + '.');
+
+  if (workload.mode === 'burst' &&
+      Object.keys(workload.rejectionReasons || {}).some(function (reason) {
+        return reason.indexOf('timestamp is more than') !== -1 &&
+          reason.indexOf('in the past') !== -1;
+      })) {
+    lines.push(
+        '- Timestamp expiration: transactions were valid when signed, but the node validates freshness ' +
+        'when each request reaches balance-changing processing. Requests delayed in the balance queue ' +
+        'can therefore expire before admission.'
+    );
+  }
+
+  lines.push(
+      '- Pool visibility: public counters ' +
+      formatList(result.publicPoolCategories) +
+      '; unavailable through the public count API ' +
+      formatList(result.unavailablePoolCategories) +
+      '.'
+  );
+  lines.push(
+      '- Snapshot scope: pool counters are node-wide and include unrelated network traffic; ' +
+      'the accepted transaction confirmation rows below are filtered to IDs from this scenario.'
+  );
+  lines.push(
+      '- Pool stages: queued transactions passed admission and wait for application; ' +
+      'unconfirmed transactions are applied to temporary account state and eligible for a block; ' +
+      'multisignature transactions wait for required signatures; confirmed is the total number persisted in blocks.'
+  );
+  lines.push(
+      '- Accepted transaction confirmation: ' +
+      formatReportValue(confirmation.accepted) +
+      ' accepted IDs; complete on every observation node ' +
+      formatReportValue(confirmation.complete) +
+      '; waited ' +
+      formatDuration(confirmation.waitedMs) +
+      '; timeout ' +
+      formatDuration(confirmation.timeoutMs) +
+      '; searched from height ' +
+      formatReportValue(confirmation.fromHeight) +
+      '.'
+  );
+  lines.push('- Confirmation outcome: ' + formatConfirmationOutcome(confirmation) + '.');
+
+  (confirmation.nodes || []).forEach(function (node) {
+    lines.push(
+        '- Confirmation on ' +
+        formatReportValue(node.id) +
+        ': confirmed ' +
+        formatReportValue(node.confirmed) +
+        '/' +
+        formatReportValue(node.accepted) +
+        '; unconfirmed ' +
+        formatReportValue(node.unconfirmed) +
+        '; queued ' +
+        formatReportValue(node.queued) +
+        '; multisignature ' +
+        formatReportValue(node.multisignature) +
+        '; missing from public states ' +
+        formatReportValue(node.missing) +
+        '; API status ' +
+        (node.ok ? 'ok' : 'failed: ' + formatReportValue(node.error)) +
+        '.'
+    );
+  });
+
+  if (blockchainTps.available) {
+    lines.push('');
+    lines.push('#### Blockchain TPS');
+    lines.push('');
+    lines.push(
+        '- Observation: ' +
+        formatReportValue(blockchainTps.nodeId) +
+        '; heights ' +
+        formatHeightRange(blockchainTps.firstHeight, blockchainTps.lastHeight) +
+        '; blocks ' +
+        formatReportValue(blockchainTps.blocks) +
+        '; real block-time window ' +
+        formatReportValue(blockchainTps.observedSeconds) +
+        ' seconds.'
+    );
+    lines.push(
+        '- Confirmation coverage: confirmed ' +
+        formatReportValue(blockchainTps.confirmedTransactions) +
+        '/' +
+        formatReportValue(blockchainTps.acceptedTransactions) +
+        ' accepted stress transactions (' +
+        formatPercent(blockchainTps.confirmationCoveragePercent) +
+        '); missing ' +
+        formatReportValue(blockchainTps.missingTransactions) +
+        '; complete ' +
+        formatReportValue(blockchainTps.confirmationComplete) +
+        '.'
+    );
+    lines.push(
+        '- TPS: confirmed stress transactions ' +
+        formatReportValue(blockchainTps.acceptedStressTps) +
+        '; all blockchain transactions in the same blocks ' +
+        formatReportValue(blockchainTps.blockchainTps) +
+        '.'
+    );
+    lines.push(
+        '- Block data: confirmed stress transactions ' +
+        formatReportValue(
+            blockchainTps.confirmedStressTransactions === undefined ?
+              blockchainTps.acceptedStressTransactions :
+              blockchainTps.confirmedStressTransactions
+        ) +
+        '; all transactions ' +
+        formatReportValue(blockchainTps.blockchainTransactions) +
+        '; average ' +
+        formatReportValue(blockchainTps.averageTransactionsPerBlock) +
+        ' transactions/block; peak ' +
+        formatReportValue(blockchainTps.peakTransactionsPerBlock) +
+        '/' +
+        formatReportValue(blockchainTps.maxTransactionsPerBlock) +
+        '; observed capacity ' +
+        formatPercent(blockchainTps.observedBlockCapacityPercent) +
+        '.'
+    );
+    lines.push(
+        '- Method: TPS uses actual block timestamps and transaction counts from every block in the inclusive confirmation range; ' +
+        'one slot is included for the final block. When confirmation is incomplete, stress TPS covers only accepted ' +
+        'transactions still present in the final observed chain.'
+    );
+  } else {
+    lines.push('- Blockchain TPS: unavailable; ' + formatReportValue(blockchainTps.error) + '.');
+  }
+
+  lines.push('');
+  lines.push('#### Transaction Pool Snapshots');
+  lines.push('');
+  lines.push(
+      '| Phase | Offset | Node | API status | Height | Progress | Loaded | Syncing | Consensus | Confirmed | Queued | Unconfirmed | Multisignature |'
+  );
+  lines.push('| --- | ---: | --- | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: |');
+
+  (result.snapshots || []).forEach(function (snapshot) {
+    (snapshot.nodes || []).forEach(function (node) {
+      const status = node.status || {};
+      const transactions = node.transactions || {};
+
+      lines.push(
+          '| ' +
+          formatReportValue(snapshot.phase) +
+          ' | ' +
+          formatDuration(snapshot.offsetMs) +
+          ' | ' +
+          formatReportValue(node.id) +
+          ' | ' +
+          (node.ok ? 'ok' : 'failed: ' + formatReportValue(node.error)) +
+          ' | ' +
+          formatReportValue(status.height) +
+          ' | ' +
+          formatTransactionProgress(node, snapshot, confirmation) +
+          ' | ' +
+          formatReportValue(status.loaded) +
+          ' | ' +
+          formatReportValue(status.syncing) +
+          ' | ' +
+          formatPercent(status.consensus) +
+          ' | ' +
+          formatReportValue(transactions.confirmed) +
+          ' | ' +
+          formatReportValue(transactions.queued) +
+          ' | ' +
+          formatReportValue(transactions.unconfirmed) +
+          ' | ' +
+          formatReportValue(transactions.multisignature) +
+          ' |'
+      );
+    });
+  });
+
+  lines.push('');
+  lines.push('#### Node Status Snapshots');
+
+  (result.snapshots || []).forEach(function (snapshot) {
+    (snapshot.nodes || []).forEach(function (node) {
+      const status = node.status || {};
+
+      lines.push(
+          '- ' +
+          formatReportValue(snapshot.phase) +
+          ', ' +
+          formatReportValue(node.id) +
+          ': version ' +
+          formatReportValue(status.version) +
+          '; nethash ' +
+          formatReportValue(status.nethash) +
+          '; broadhash ' +
+          formatReportValue(status.broadhash) +
+          '; fee ' +
+          formatAdmValue(status.feeAdm) +
+          '; reward ' +
+          formatAdmValue(status.rewardAdm) +
+          '.'
+      );
+    });
+  });
+}
+
+/**
+ * Describes how a transaction load scenario creates and submits transactions.
+ * @param {object} workload - Transaction workload report data.
+ */
+function formatTransactionLoadAction (workload) {
+  if (workload.mode === 'burst') {
+    return 'pre-generate, sign, retain in memory, and concurrently submit';
+  }
+
+  return 'continuously generate, sign, and submit';
+}
+
+/**
+ * Formats continuous and burst transaction load parameters for Markdown reports.
+ * @param {object} workload - Transaction workload report data.
+ */
+function formatTransactionLoadWorkload (workload) {
+  if (workload.mode === 'burst') {
+    return 'pre-generated ' +
+      formatReportValue(workload.configuredTransactionCount) +
+      ' transactions in ' +
+      formatDuration(workload.generationDurationMs) +
+      '; all generated before submission ' +
+      formatReportValue(workload.allGeneratedBeforeSubmission) +
+      '; submitted in one ' +
+      formatReportValue(workload.submissionBatch) +
+      ' batch with ' +
+      formatReportValue(workload.concurrency) +
+      ' concurrent requests; submission completed in ' +
+      formatDuration(workload.submissionDurationMs) +
+      '; request timeout ' +
+      formatDuration(workload.requestTimeoutMs) +
+      '; total workload ' +
+      formatDuration(workload.actualDurationMs) +
+      '; artificial delay ' +
+      formatDuration(workload.artificialDelayMs);
+  }
+
+  return 'configured generation window ' +
+    formatDuration(workload.configuredDurationMs) +
+    '; actual ' +
+    formatDuration(workload.actualDurationMs) +
+    '; concurrency ' +
+    formatReportValue(workload.concurrency) +
+    '; artificial delay ' +
+    formatDuration(workload.artificialDelayMs);
+}
+
+/**
+ * Formats transaction-type-specific queue workload metadata without payload contents.
+ * @param {object} transaction - Report-safe transaction metadata.
+ * @param {object} sourceAccount - Report-safe source account metadata.
+ */
+function formatTxQueueTransactionDetails (transaction, sourceAccount) {
+  const details = [
+    'amount ' + formatAdmValue(transaction.amountAdm)
+  ];
+
+  if (transaction.feeMinAdm !== undefined || transaction.feeMaxAdm !== undefined) {
+    details.push(
+        'observed fee range ' +
+        formatAdmValue(transaction.feeMinAdm).replace(/ ADM$/, '') +
+        '..' +
+        formatAdmValue(transaction.feeMaxAdm)
+    );
+  } else {
+    details.push('fee ' + formatAdmValue(transaction.feeAdm));
+  }
+
+  if (transaction.subtype !== undefined) {
+    details.push(
+        'subtype ' +
+        formatReportValue(transaction.subtypeName) +
+        ' (' +
+        formatReportValue(transaction.subtype) +
+        ')'
+    );
+  }
+
+  if (transaction.randomMessage) {
+    details.push(
+        'random message length ' +
+        formatReportValue(transaction.configuredMessageLengthMin) +
+        '..' +
+        formatReportValue(transaction.configuredMessageLengthMax) +
+        ' characters'
+    );
+    details.push(
+        'observed length ' +
+        formatReportValue(transaction.observedMessageLengthMin) +
+        '..' +
+        formatReportValue(transaction.observedMessageLengthMax) +
+        ', average ' +
+        formatReportValue(transaction.observedAverageMessageLength)
+    );
+    details.push('encoding ' + formatReportValue(transaction.messageEncoding));
+    details.push('payload contents omitted from reports');
+  }
+
+  details.push(
+      'unique valid recipient per transaction ' +
+      formatReportValue(transaction.uniqueRecipientPerTransaction)
+  );
+  details.push('sender ' + formatReportValue(sourceAccount.address));
+
+  return details.join('; ');
+}
+
+/**
+ * Formats confirmed scenario transaction IDs against recipient admission count.
+ * @param {object} node - Snapshot node result.
+ * @param {object} snapshot - Snapshot containing the observation phase.
+ * @param {object} confirmation - Final confirmation summary used for legacy report fallback.
+ */
+function formatTransactionProgress (node, snapshot, confirmation) {
+  const progress = node.progress || {};
+
+  if (progress.confirmed !== undefined &&
+      progress.confirmed !== null &&
+      progress.accepted !== undefined &&
+      progress.accepted !== null) {
+    return progress.confirmed + '/' + progress.accepted;
+  }
+
+  if (snapshot.phase === 'before' && confirmation.accepted !== undefined) {
+    return '0/' + confirmation.accepted;
+  }
+
+  if (['after-confirmed', 'after-settled-missing', 'confirmation-timeout'].includes(snapshot.phase)) {
+    const confirmationNode = (confirmation.nodes || []).find(function (candidate) {
+      return candidate.id === node.id;
+    });
+
+    if (confirmationNode) {
+      return confirmationNode.confirmed + '/' + confirmationNode.accepted;
+    }
+  }
+
+  return 'n/a/' + formatReportValue(confirmation.accepted);
+}
+
+/**
+ * Formats additional nodes used to verify block inclusion.
+ * @param {Array<object>} nodes - Confirmation node summaries.
+ */
+function formatConfirmationTargets (nodes) {
+  if (!nodes.length) {
+    return '';
+  }
+
+  return ' and confirmed on ' + nodes.map(function (node) {
+    return formatReportValue(node.id) + ' at ' + formatReportValue(node.apiUrl);
+  }).join(', ');
+}
+
+/**
+ * Formats the distinction between pending confirmation and settled missing transactions.
+ * @param {object} confirmation - Public confirmation summary.
+ */
+function formatConfirmationOutcome (confirmation) {
+  if (confirmation.outcome === 'confirmed') {
+    return 'all accepted transactions are included in blocks on every observation node';
+  }
+
+  if (confirmation.outcome === 'missing-after-settlement') {
+    return 'all observed public pools are empty, but ' +
+      formatReportValue(confirmation.missingAfterSettlement) +
+      ' accepted transactions are absent from both the final chain and public pools; ' +
+      'they are not pending and may have been orphaned or dropped';
+  }
+
+  return 'confirmation timed out with up to ' +
+    formatReportValue(confirmation.maxPending) +
+    ' accepted transactions still visible in public pools and up to ' +
+    formatReportValue(confirmation.maxMissing) +
+    ' not visible in the observed chain or public pools';
+}
+
+/**
+ * Formats a rejection reason histogram.
+ * @param {object} reasons - Rejection reason counts.
+ */
+function formatReasonHistogram (reasons) {
+  const labels = Object.keys(reasons || {}).sort();
+
+  return labels.length ? labels.map(function (label) {
+    return label + '=' + reasons[label];
+  }).join('; ') : 'none';
+}
+
+/**
+ * Formats a nullable performance threshold.
+ * @param {?number} value - Threshold value.
+ * @param {string} unit - Display unit.
+ */
+function formatThreshold (value, unit) {
+  return value === undefined || value === null ? 'not configured' : value + ' ' + unit;
+}
+
+/**
+ * Formats an elapsed duration in milliseconds.
+ * @param {?number} value - Duration in milliseconds.
+ */
+function formatDuration (value) {
+  return value === undefined || value === null ? 'n/a' : value + ' ms';
+}
+
+/**
+ * Formats a latency value in milliseconds.
+ * @param {?number} value - Latency in milliseconds.
+ */
+function formatMilliseconds (value) {
+  return value === undefined || value === null ? 'n/a' : value + ' ms';
+}
+
+/**
+ * Formats minimum and maximum heights observed in load responses.
+ * @param {?number} minHeight - Minimum observed height.
+ * @param {?number} maxHeight - Maximum observed height.
+ */
+function formatObservedHeightRange (minHeight, maxHeight) {
+  if (minHeight === undefined || minHeight === null || maxHeight === undefined || maxHeight === null) {
+    return 'n/a';
+  }
+
+  return minHeight === maxHeight ? String(minHeight) : minHeight + '..' + maxHeight;
+}
+
+/**
+ * Formats an HTTP status code histogram.
+ * @param {object} statusCodes - Status code counts.
+ */
+function formatStatusCodes (statusCodes) {
+  const codes = Object.keys(statusCodes || {}).sort(function (left, right) {
+    return Number(left) - Number(right);
+  });
+
+  return codes.length ? codes.map(function (code) {
+    return code + '=' + statusCodes[code];
+  }).join(', ') : 'none';
+}
+
+/**
+ * Formats one captured load failure without dumping response payloads.
+ * @param {object} failure - Captured failure metadata.
+ */
+function formatLoadFailure (failure) {
+  return 'status ' +
+    formatReportValue(failure.status) +
+    ', transport ' +
+    formatReportValue(failure.transportError) +
+    ', API ' +
+    formatReportValue(failure.apiError) +
+    ', success ' +
+    formatReportValue(failure.success);
+}
+
+/**
+ * Collects per-node forging observations from forging scenario results.
+ * @param {Array<object>} scenarios - Scenario report entries.
+ */
+function collectForgingNodes (scenarios) {
+  const forgingScenario = scenarios.find(function (scenario) {
+    return scenario.id === 'delegates.forging';
+  });
+
+  return forgingScenario && forgingScenario.result && Array.isArray(forgingScenario.result.nodes) ?
+    forgingScenario.result.nodes :
+    [];
+}
+
+/**
+ * Appends detailed per-node forging, consensus, and reward observations.
+ * @param {Array<string>} lines - Markdown output lines.
+ * @param {Array<object>} nodes - Per-node forging scenario results.
+ */
+function appendForgingDetails (lines, nodes) {
+  lines.push('');
+  lines.push('## Forging Details');
+
+  nodes.forEach(function (node) {
+    const forging = node.forging || {};
+    const delegates = node.delegates || {};
+    const nextForgers = node.nextForgers || {};
+    const network = node.network || {};
+    const consensus = node.consensus || {};
+    const rewardStage = node.rewardStage || {};
+    const latestBlock = node.latestBlock || {};
+    const generatorForged = node.latestGeneratorForged || {};
+    const switchSummary = (consensus.switches || []).map(function (item) {
+      return item.name +
+        '=' +
+        item.state +
+        ' (activation ' +
+        item.activationHeight +
+        ', distance ' +
+        item.distance +
+        ')';
+    }).join('; ') || 'none reported';
+
+    lines.push('');
+    lines.push('### ' + node.id);
+    lines.push('- API: ' + node.apiUrl);
+    lines.push(
+        '- Forging status: ' +
+        (forging.enabled ? 'enabled' : 'disabled') +
+        '; configured fixture passphrases ' +
+        formatReportValue(node.delegateSecretsCount) +
+        '; configured public keys ' +
+        formatReportValue(forging.configuredDelegateCount) +
+        '.'
+    );
+    lines.push(
+        '- Delegate API: returned ' +
+        formatReportValue(delegates.returnedCount) +
+        ' of ' +
+        formatReportValue(delegates.totalCount) +
+        ' delegates.'
+    );
+    lines.push(
+        '- Chain: height ' +
+        formatReportValue(network.height) +
+        '; nethash ' +
+        formatReportValue(network.nethash) +
+        '; broadhash ' +
+        formatReportValue(network.broadhash) +
+        '.'
+    );
+    lines.push(
+        '- Consensus: live ' +
+        formatPercent(consensus.livePercent) +
+        ' (' +
+        formatReportValue(consensus.matchingPeers) +
+        '/' +
+        formatReportValue(consensus.connectedPeers) +
+        ' connected peers match); cached ' +
+        formatPercent(consensus.cachedPercent) +
+        '; switches ' +
+        switchSummary +
+        '.'
+    );
+    lines.push(
+        '- Reward stage: ' +
+        formatReportValue(rewardStage.name) +
+        '; active ' +
+        formatReportValue(rewardStage.active) +
+        '; protocol milestone ' +
+        formatReportValue(rewardStage.protocolMilestone) +
+        '; height range ' +
+        formatHeightRange(rewardStage.startHeight, rewardStage.endHeight) +
+        '; current reward ' +
+        formatReportValue(rewardStage.currentRewardAdm) +
+        ' ADM; supply ' +
+        formatReportValue(rewardStage.supplyAdm) +
+        ' ADM.'
+    );
+    lines.push(
+        '- Next reward stage: height ' +
+        formatReportValue(rewardStage.nextStageHeight) +
+        '; reward ' +
+        formatAdmValue(rewardStage.nextRewardAdm) +
+        '.'
+    );
+    lines.push(
+        '- Latest block: height ' +
+        formatReportValue(latestBlock.height) +
+        '; id ' +
+        formatReportValue(latestBlock.id) +
+        '; generator ' +
+        formatReportValue(latestBlock.generatorPublicKey) +
+        ' (' +
+        formatReportValue(latestBlock.generatorId) +
+        '); configured on ' +
+        formatList(latestBlock.generatorNodeIds) +
+        '; confirmations ' +
+        formatReportValue(latestBlock.confirmations) +
+        '.'
+    );
+    lines.push(
+        '- Latest block rewards: reward ' +
+        formatAdmValue(latestBlock.rewardAdm) +
+        '; fees ' +
+        formatAdmValue(latestBlock.totalFeeAdm) +
+        '; total forged ' +
+        formatAdmValue(latestBlock.totalForgedAdm) +
+        '.'
+    );
+    lines.push(
+        '- Latest generator totals: rewards ' +
+        formatAdmValue(generatorForged.rewardsAdm) +
+        '; fees ' +
+        formatAdmValue(generatorForged.feesAdm) +
+        '; forged ' +
+        formatAdmValue(generatorForged.forgedAdm) +
+        '.'
+    );
+    lines.push(
+        '- Next forgers: current block ' +
+        formatReportValue(nextForgers.currentBlock) +
+        '; block slot ' +
+        formatReportValue(nextForgers.currentBlockSlot) +
+        '; current slot ' +
+        formatReportValue(nextForgers.currentSlot) +
+        '; public keys ' +
+        formatList(nextForgers.publicKeys) +
+        '.'
+    );
+    lines.push('- Configured forging public keys: ' + formatList(forging.configuredDelegatePublicKeys) + '.');
+  });
+}
+
+/**
+ * Formats a nullable report value without hiding zero or false.
+ * @param {*} value - Report value.
+ */
+function formatReportValue (value) {
+  return value === undefined || value === null ? 'n/a' : String(value);
+}
+
+/**
+ * Formats a nullable percentage.
+ * @param {?number} value - Percentage value.
+ */
+function formatPercent (value) {
+  return value === undefined || value === null ? 'n/a' : value + '%';
+}
+
+/**
+ * Formats a nullable ADM amount.
+ * @param {?string} value - ADM amount.
+ */
+function formatAdmValue (value) {
+  return value === undefined || value === null ? 'n/a' : value + ' ADM';
+}
+
+/**
+ * Formats an inclusive reward-stage height range.
+ * @param {?number} startHeight - First stage height.
+ * @param {?number} endHeight - Last stage height, or null for no upper bound.
+ */
+function formatHeightRange (startHeight, endHeight) {
+  return formatReportValue(startHeight) + '..' + (endHeight === null ? 'unbounded' : formatReportValue(endHeight));
+}
+
+/**
+ * Formats a list while preserving every observed value.
+ * @param {Array<*>} values - Values to join.
+ */
+function formatList (values) {
+  return Array.isArray(values) && values.length ? values.join(', ') : 'none';
+}
+
+/**
+ * Collects security abuse check summaries from scenario result payloads.
+ * @param {Array<object>} scenarios - Scenario report entries.
+ */
+function collectAbuseRows (scenarios) {
+  const rows = [];
+
+  scenarios.forEach(function (scenario) {
+    if (scenario.suite !== 'security' && scenario.id !== 'transactions.abuse') {
+      return;
+    }
+
+    const result = scenario.result || {};
+
+    (result.checks || []).forEach(function (check) {
+      rows.push(Object.assign({
+        scenarioId: scenario.id,
+        kind: 'check'
+      }, check));
+    });
+
+    if (result.overload) {
+      rows.push(Object.assign({
+        scenarioId: scenario.id,
+        kind: 'overload'
+      }, result.overload));
+    }
+  });
+
+  return rows;
+}
+
+/**
+ * Collects transaction summaries from scenario result payloads.
+ * @param {Array<object>} scenarios - Scenario report entries.
+ */
+function collectTransactionRows (scenarios) {
+  const rows = [];
+
+  scenarios.forEach(function (scenario) {
+    const result = scenario.result || {};
+
+    (result.transactions || []).forEach(function (transaction) {
+      rows.push(Object.assign({
+        scenarioId: scenario.id,
+        outcome: 'accepted'
+      }, transaction));
+    });
+
+    (result.expectedFailures || []).forEach(function (transaction) {
+      rows.push(Object.assign({
+        scenarioId: scenario.id,
+        outcome: 'expected failed'
+      }, transaction));
+    });
+  });
+
+  return rows;
+}
+
+/**
+ * Formats one report transaction row without exposing transaction payload details.
+ * @param {object} transaction - Public transaction metadata.
+ */
+function formatTransactionRow (transaction) {
+  const label = transaction.label ? transaction.label + ': ' : '';
+  const subtype = transaction.subtypeName === undefined ? '' :
+    ', subtype ' + transaction.subtypeName + ' (' + transaction.subtype + ')';
+
+  return transaction.scenarioId +
+    ' - ' +
+    label +
+    transaction.typeName +
+    ' (' +
+    transaction.type +
+    subtype +
+    ') - ' +
+    transaction.outcome;
+}
+
+/**
+ * Formats one abuse report row with the reason and rejection result.
+ * @param {object} check - Abuse check metadata.
+ */
+function formatAbuseRow (check) {
+  if (check.kind === 'overload') {
+    return check.scenarioId +
+      ' - ' +
+      check.id +
+      ': ' +
+      check.reason +
+      ' Rejected ' +
+      check.rejected +
+      '/' +
+      check.total +
+      ', failed ' +
+      check.failed +
+      ', concurrency ' +
+      check.concurrency +
+      ', throughput ' +
+      check.throughputRps +
+      ' rps.';
+  }
+
+  const type = check.typeName ? ' type ' + check.typeName + ' (' + check.type + ')' : ' malformed payload';
+  const subtype = check.subtype === undefined ? '' : ', subtype ' + check.subtype;
+  const transactionStates = Array.isArray(check.transactions) ?
+    ' Transactions: ' + check.transactions.map(function (transaction) {
+      return transaction.id +
+        '=' +
+        transaction.state +
+        ', confirmations ' +
+        transaction.confirmations +
+        (transaction.blockId ? ', block ' + transaction.blockId : '');
+    }).join('; ') +
+    '.' :
+    '';
+
+  return check.scenarioId +
+    ' - ' +
+    check.id +
+    ':' +
+    type +
+    subtype +
+    '. Why: ' +
+    check.reason +
+    ' Rejected by: ' +
+    check.rejectedBy +
+    '. How: ' +
+    (check.howRejected || check.error || 'no details') +
+    transactionStates;
+}
+
+module.exports = {
+  appendApiDetails,
+  appendConsensusActivations,
+  appendConsensusAgreement,
+  appendConsensusDetails,
+  appendLiveConsensusDetails,
+  appendLiveConsensusNetworkState,
+  appendForgingDetails,
+  appendLoadDetails,
+  appendTargetDetails,
+  appendTxQueueLoadDetails,
+  collectAbuseRows,
+  collectApiScenarios,
+  collectConsensusScenarios,
+  collectForgingNodes,
+  collectLoadScenarios,
+  collectTargetScenarios,
+  collectTransactionRows,
+  formatAbuseRow,
+  formatAdmValue,
+  formatConfirmationOutcome,
+  formatConfirmationTargets,
+  formatConsensusBlock,
+  formatConsensusCheck,
+  formatConsensusStatements,
+  formatDuration,
+  formatHeightRange,
+  formatList,
+  formatLoadFailure,
+  formatLiveConsensusWorkload,
+  formatLiveNetworkHeights,
+  formatMilliseconds,
+  formatObservedHeightRange,
+  formatPercent,
+  formatReasonHistogram,
+  formatReportValue,
+  formatStatusCodes,
+  formatThreshold,
+  formatTransactionProgress,
+  formatTransactionRow,
+  redactSensitive,
+  renderMarkdownReport,
+  shouldRedactKey,
+  writeReports
+};

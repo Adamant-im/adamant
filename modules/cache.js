@@ -182,9 +182,9 @@ Cache.prototype.onNewBlock = function (block, broadcast, cb) {
   async.map(['/api/blocks*', '/api/transactions*'], function (pattern, mapCb) {
     self.removeByPattern(pattern, function (err) {
       if (err) {
-        logger.error(['Error clearing keys with pattern:', pattern, ' on new block'].join(' '));
+        logger.error('cache', ['Error clearing keys with pattern:', pattern, ' on new block'].join(' '));
       } else {
-        logger.debug(['keys with pattern:', pattern, 'cleared from cache on new block'].join(' '));
+        logger.trace('cache', ['Keys with pattern:', pattern, 'cleared from cache on new block'].join(' '));
       }
       mapCb(err);
     });
@@ -203,9 +203,9 @@ Cache.prototype.onFinishRound = function (round, cb) {
   var pattern = '/api/delegates*';
   self.removeByPattern(pattern, function (err) {
     if (err) {
-      logger.error(['Error clearing keys with pattern:', pattern, ' round finish'].join(' '));
+      logger.error('cache', ['Error clearing keys with pattern:', pattern, ' round finish'].join(' '));
     } else {
-      logger.debug(['keys with pattern: ', pattern, 'cleared from cache new Round'].join(' '));
+      logger.trace('cache', ['Keys with pattern: ', pattern, 'cleared from cache new Round'].join(' '));
     }
     return cb(err);
   });
@@ -230,9 +230,9 @@ Cache.prototype.onTransactionsSaved = function (transactions, cb) {
   if (!!delegateTransaction) {
     self.removeByPattern(pattern, function (err) {
       if (err) {
-        logger.error(['Error clearing keys with pattern:', pattern, ' on delegate trs'].join(' '));
+        logger.error('cache', ['Error clearing keys with pattern:', pattern, ' on delegate trs'].join(' '));
       } else {
-        logger.debug(['keys with pattern:', pattern, 'cleared from cache on delegate trs'].join(' '));
+        logger.trace('cache', ['Keys with pattern:', pattern, 'cleared from cache on delegate trs'].join(' '));
       }
       return cb(err);
     });

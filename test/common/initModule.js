@@ -25,16 +25,38 @@ const { removeQueuedJobs } = require('../common/globalAfter.js');
 const Consensus = require('../../logic/consensus/consensus.js');
 
 var modulesLoader = new function () {
-  const consensus = new Consensus();
+  const consensus = new Consensus(config.consensusActivationHeights);
 
   consensus.bindModules({
     loader: {
-      getHeight: () => 2_000_000,
-    },
+      getHeight: () => 2_000_000
+    }
   });
 
   this.db = null;
-  this.logger = new Logger({ echo: null, errorLevel: config.fileLogLevel, filename: config.logFileName });
+
+  const generalLog = config.generalLog || {
+    enabled: true,
+    fileName: config.logFileName,
+    level: config.fileLogLevel
+  };
+  const debugLog = config.debugLog || {
+    enabled: false
+  };
+  const consoleLog = config.consoleLog || {
+    enabled: false,
+    level: config.consoleLogLevel
+  };
+
+  this.logger = new Logger({
+    generalLog,
+    debugLog,
+    consoleLog: {
+      enabled: false,
+      level: consoleLog.level
+    }
+  });
+
   this.scope = {
     config: config,
     packageJson: packageJson,
@@ -57,9 +79,8 @@ var modulesLoader = new function () {
 
   /**
    * Initializes Logic class with params
-   *
    * @param {Function} Logic
-   * @param {Object} scope
+   * @param {object} scope
    * @param {Function} cb
    */
   this.initLogic = function (Logic, scope, cb) {
@@ -109,9 +130,8 @@ var modulesLoader = new function () {
 
   /**
    * Initializes Module class with params
-   *
    * @param {Function} Module
-   * @param {Object} scope
+   * @param {object} scope
    * @param {Function} cb
    */
   this.initModule = function (Module, scope, cb) {
@@ -120,7 +140,6 @@ var modulesLoader = new function () {
 
   /**
    * Initializes multiple Modules
-   *
    * @param {Array<{name: Module}>} modules
    * @param {Array<{name: Logic}>} logic
    * @param {Object>} scope
@@ -168,7 +187,6 @@ var modulesLoader = new function () {
 
   /**
    * Initializes all created Modules in directory
-   *
    * @param {Function} cb
    * @param {object} [scope={}] scope
    */
@@ -187,7 +205,7 @@ var modulesLoader = new function () {
       { sql: require('../../modules/sql') },
       { system: require('../../modules/system') },
       { transactions: require('../../modules/transactions') },
-      { transport: require('../../modules/transport') },
+      { transport: require('../../modules/transport') }
     ], [
       { 'transaction': require('../../logic/transaction') },
       { 'account': require('../../logic/account') },
@@ -198,10 +216,9 @@ var modulesLoader = new function () {
 
   /**
    * Initializes Module class with basic conf
-   *
    * @param {Function} Module
    * @param {Function} cb
-   * @param {Object=} scope
+   * @param {object=} scope
    */
   this.initModuleWithDb = function (Module, cb, scope) {
     this.initWithDb(Module, this.initModule, cb, scope);
@@ -209,10 +226,9 @@ var modulesLoader = new function () {
 
   /**
    * Initializes Logic class with basic conf
-   *
    * @param {Function} Logic
    * @param {Function} cb
-   * @param {Object=} scope
+   * @param {object=} scope
    */
   this.initLogicWithDb = function (Logic, cb, scope) {
     this.initWithDb(Logic, this.initLogic, cb, scope);
@@ -220,11 +236,10 @@ var modulesLoader = new function () {
 
   /**
    * Accepts Class to invoke (Logic or Module) and fills the scope with basic conf
-   *
    * @param {Function} Klass
    * @param {Function} moduleConstructor
    * @param {Function} cb
-   * @param {Object=} scope
+   * @param {object=} scope
    */
   this.initWithDb = function (Klass, moduleConstructor, cb, scope) {
     this.getDbConnection(function (err, db) {
@@ -238,7 +253,6 @@ var modulesLoader = new function () {
 
   /**
    * Starts and returns db connection
-   *
    * @param {Function} cb
    */
   this.getDbConnection = function (cb) {
@@ -274,7 +288,7 @@ var modulesLoader = new function () {
 
 afterEach(() =>
   removeQueuedJobs()
-)
+);
 
 module.exports = {
   modulesLoader: modulesLoader

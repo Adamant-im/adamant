@@ -82,7 +82,7 @@ __private.get = function (id, cb) {
       return setImmediate(cb, null, rows[0]);
     }
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('states', `An error occurred while trying to get a state ${id}: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'STATE#get error');
   });
 };
@@ -99,7 +99,8 @@ __private.getByIds = function (ids, cb) {
   library.db.query(sql.getByIds, [ids]).then(function (rows) {
     return setImmediate(cb, null, rows);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('states', `An error occurred while trying to get states ${ids.join(', ')}: ${err?.message || err}`, err.stack);
+
     return setImmediate(cb, 'STATE#getByIds error');
   });
 };
@@ -210,6 +211,7 @@ __private.list = function (filter, cb) {
     var count = rows.length ? rows[0].count : 0;
     library.db.query(sql.list({
       where: where,
+      originalField: orderBy.originalField,
       sortField: orderBy.sortField,
       sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {
@@ -238,11 +240,11 @@ __private.list = function (filter, cb) {
 
       return setImmediate(cb, null, data);
     }).catch(function (err) {
-      library.logger.error(err.stack);
+      library.logger.error('states', `An error occurred while trying to get list of states: ${err?.message || err}`, err.stack);
       return setImmediate(cb, err);
     });
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('states', `An error occurred while trying to get states count: ${err?.message || err}`, err.stack);
     return setImmediate(cb, err);
   });
 };

@@ -1,19 +1,19 @@
 'use strict';
 /**
  * A node-style callback as used by {@link logic} and {@link modules}.
- * @see {@link https://nodejs.org/api/errors.html#errors_node_js_style_callbacks}
  * @callback nodeStyleCallback
  * @param {?Error} error - Error, if any, otherwise `null`.
  * @param {Data} data - Data, if there hasn't been an error.
+ * @see {@link https://nodejs.org/api/errors.html#errors_node_js_style_callbacks}
  */
 /**
  * A triggered by setImmediate callback as used by {@link logic}, {@link modules} and {@link helpers}.
  * Parameters formats: (cb, error, data), (cb, error), (cb).
- * @see {@link https://nodejs.org/api/timers.html#timers_setimmediate_callback_args}
  * @callback setImmediateCallback
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
  * @param {?Error} [error] - Error, if any, otherwise `null`.
  * @param {Data} [data] - Data, if there hasn't been an error and the function should return data.
+ * @see {@link https://nodejs.org/api/timers.html#timers_setimmediate_callback_args}
  */
 
 /**
@@ -66,6 +66,8 @@ program
     .version(packageJson.version)
     .option('-c, --config <path>', 'config.json file path')
     .option('-g, --genesis <path>', 'genesisBlock.json file path')
+    .option('--config-overrides <path>', 'env-style or JSON config override file path', collectOption, [])
+    .option('--config-set <key=value>', 'config override as dot.path=value', collectOption, [])
     .option('-p, --port <port>', 'listening port number')
     .option('-a, --address <ip>', 'listening host name or ip')
     .option('-x, --peers [peers...]', 'peers list')
@@ -79,40 +81,12 @@ var programOpts = program.opts();
  * @property {object} - The default list of configuration options. Can be updated by CLI.
  * @default 'config.json'
  */
-var appConfig = require('./helpers/config.js')(programOpts.config);
+var appConfig = require('./helpers/config.js')(programOpts.config, {
+  file: programOpts.configOverrides,
+  sets: programOpts.configSet,
+  overrides: getLegacyCliConfigOverrides(programOpts)
+});
 var genesisblock = require(path.resolve(process.cwd(), (programOpts.genesis || 'genesisBlock.json')));
-
-if (programOpts.port) {
-  appConfig.port = programOpts.port;
-}
-
-if (programOpts.address) {
-  appConfig.address = programOpts.address;
-}
-
-if (programOpts.peers) {
-  if (typeof programOpts.peers === 'string') {
-    appConfig.peers.list = programOpts.peers.split(',').map(function (peer) {
-      peer = peer.split(':');
-      return {
-        ip: peer.shift(),
-        port: peer.shift() || appConfig.port
-      };
-    });
-  } else {
-    appConfig.peers.list = [];
-  }
-}
-
-if (programOpts.log) {
-  appConfig.consoleLogLevel = programOpts.log;
-}
-
-if (programOpts.snapshot) {
-  appConfig.loading.snapshot = Math.abs(
-      Math.floor(programOpts.snapshot)
-  );
-}
 
 // Define top endpoint availability
 process.env.TOP = appConfig.topAccounts;
@@ -177,16 +151,18 @@ var config = {
  * @property {object} - Logger instance.
  */
 var logger = new Logger({
-  echo: appConfig.consoleLogLevel,
-  errorLevel: appConfig.fileLogLevel,
-  filename: appConfig.logFileName
+  generalLog: appConfig.generalLog,
+  debugLog: appConfig.debugLog,
+  consoleLog: appConfig.consoleLog
 });
+
+logConfigEvents(logger, appConfig.__configEvents);
 
 // Trying to get last git commit
 try {
   lastCommit = git.getLastCommit();
 } catch (err) {
-  logger.debug('Cannot get last git commit', err.message);
+  logger.debug('system', 'Cannot get last git commit', err.message);
 }
 
 /**
@@ -196,7 +172,7 @@ try {
 var d = require('domain').create();
 
 d.on('error', function (err) {
-  logger.fatal('Domain master', {
+  logger.fatal('runtime', 'Domain master', {
     message: err.message,
     stack: err.stack
   });
@@ -210,7 +186,7 @@ d.run(function () {
     /**
      * Loads `payloadHash` and generate dapp password if it is empty and required.
      * Then updates config.json with new random  password.
-     * @method config
+     * @function config
      * @param {nodeStyleCallback} cb - Callback function with the mutated `appConfig`.
      * @throws {Error} If failed to assign nethash from genesis block.
      */
@@ -218,7 +194,7 @@ d.run(function () {
       try {
         appConfig.nethash = Buffer.from(genesisblock.payloadHash, 'hex').toString('hex');
       } catch (e) {
-        logger.error('Failed to assign nethash from genesis block');
+        logger.error('genesis', 'Failed to assign nethash from genesis block');
         throw Error(e);
       }
 
@@ -257,7 +233,7 @@ d.run(function () {
 
     /**
      * Returns hash of last git commit.
-     * @method lastCommit
+     * @function lastCommit
      * @param {nodeStyleCallback} cb - Callback function with Hash of last git commit.
      */
     lastCommit: function (cb) {
@@ -282,8 +258,9 @@ d.run(function () {
 
     /**
      * ws client PWA,
-     * @method clientWs
+     * @function clientWs
      * @param {object} wsconfig - config from ws client PWA,
+     * @param scope
      * @param {nodeStyleCallback} cb - Callback function with created Method:
      * `emit`.
      */
@@ -291,15 +268,15 @@ d.run(function () {
       const ClientWs = require('./modules/clientWs');
 
       const clientWs = new ClientWs(
-        Object.assign(scope.config.wsClient, { cors: appConfig.cors }),
-        logger
+          Object.assign(scope.config.wsClient, { cors: appConfig.cors }),
+          logger
       );
 
       cb(null, clientWs);
     }],
     /**
      * Once config is completed, creates app, http & https servers & sockets with express.
-     * @method network
+     * @function network
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {nodeStyleCallback} cb - Callback function with created Object:
@@ -354,7 +331,7 @@ d.run(function () {
     dbSequence: ['logger', function (scope, cb) {
       var sequence = new Sequence({
         onWarning: function (current, limit) {
-          scope.logger.warn('DB queue', current);
+          scope.logger.warn('queue', 'Database queue size is too big. Tasks that queued database changes:', current);
         }
       });
       cb(null, sequence);
@@ -363,7 +340,7 @@ d.run(function () {
     sequence: ['logger', function (scope, cb) {
       var sequence = new Sequence({
         onWarning: function (current, limit) {
-          scope.logger.warn('Main queue', current);
+          scope.logger.warn('queue', 'Main queue size is too big. Jobs in the queue:', current);
         }
       });
       cb(null, sequence);
@@ -372,7 +349,7 @@ d.run(function () {
     balancesSequence: ['logger', function (scope, cb) {
       var sequence = new Sequence({
         onWarning: function (current, limit) {
-          scope.logger.warn('Balance queue', current);
+          scope.logger.warn('queue', 'Balance queue is overloaded. Tasks that require changing balance in the queue:', current);
         }
       });
       cb(null, sequence);
@@ -381,10 +358,10 @@ d.run(function () {
     /**
      * Once config, public, genesisblock, logger, build and network are completed,
      * adds configuration to `network.app`.
-     * @method connect
+     * @function connect
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
-     * @param {function} cb - Callback function.
+     * @param {Function} cb - Callback function.
      */
     connect: ['config', 'public', 'genesisblock', 'logger', 'build', 'network', function (scope, cb) {
       var path = require('path');
@@ -398,6 +375,7 @@ d.run(function () {
       scope.network.app.use(require('express-domain-middleware'));
       scope.network.app.set('view engine', 'ejs');
       scope.network.app.set('views', path.join(__dirname, 'public'));
+      scope.network.app.set('query parser', 'extended');
       scope.network.app.use(scope.network.express.static(path.join(__dirname, 'public')));
       scope.network.app.use(bodyParser.raw({
         limit: '2mb'
@@ -501,7 +479,7 @@ d.run(function () {
     },
     /**
      * It tries to connect with redis server based on config. provided in config.json file
-     * @param {function} cb
+     * @param {Function} cb
      */
     cache: function (cb) {
       var cache = require('./helpers/cache.js');
@@ -510,10 +488,10 @@ d.run(function () {
     /**
      * Once db, bus, schema and genesisblock are completed,
      * loads transaction, block, account and peers from logic folder.
-     * @method logic
+     * @function logic
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
-     * @param {function} cb - Callback function.
+     * @param {Function} cb - Callback function.
      */
     logic: ['db', 'bus', 'schema', 'genesisblock', function (scope, cb) {
       var Transaction = require('./logic/transaction.js');
@@ -547,8 +525,15 @@ d.run(function () {
         clientWs: function (cb) {
           cb(null, scope.clientWs);
         },
-        consensus(cb) {
-          cb(null, new Consensus());
+        /**
+         * Builds consensus logic from the fully merged and overridden node config.
+         * @param {Function} cb - Async task callback.
+         */
+        consensus: function (cb) {
+          const consensus = new Consensus(appConfig.consensusActivationHeights);
+
+          logger.info('consensus', 'Configured activation heights', consensus.activationHeights);
+          cb(null, consensus);
         },
         account: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'logger', function (scope, cb) {
           new Account(scope.db, scope.schema, scope.logger, cb);
@@ -574,7 +559,7 @@ d.run(function () {
      * Once network, connect, config, logger, bus, sequence,
      * dbSequence, balancesSequence, db and logic are completed,
      * loads modules from `modules` folder using `config.modules`.
-     * @method modules
+     * @function modules
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {nodeStyleCallback} cb - Callback function with resulted load.
@@ -587,14 +572,14 @@ d.run(function () {
           var d = require('domain').create();
 
           d.on('error', function (err) {
-            scope.logger.fatal('Domain ' + name, {
+            scope.logger.fatal('runtime', 'Domain ' + name, {
               message: err.message,
               stack: err.stack
             });
           });
 
           d.run(function () {
-            logger.debug('Loading module', name);
+            logger.debug('startup', 'Loading module', name);
             var Klass = require(config.modules[name]);
             var obj = new Klass(cb, scope);
             modules.push(obj);
@@ -608,16 +593,19 @@ d.run(function () {
     }],
 
     /**
-     * Listens for new transactions using websocket and links peers to the websocket server
+     * Listens for new transactions using websocket and links peers to the websocket server.
+     * @param {scope} scope - The results from current execution.
+     * @param {nodeStyleCallback} cb - Callback function.
      */
     transportWs: ['network', 'config', 'modules', 'logic', function (scope, cb) {
       const { wsNode } = appConfig;
       if (wsNode.maxReceiveConnections > 0) {
-        const transportWs = new TransportWsApi(scope.modules, scope.logic, appConfig.peers.options);
+        // TransportWsApi needs wsNode connection limits; peer API limits use a different config section.
+        const transportWs = new TransportWsApi(scope.modules, scope.logic, wsNode);
         transportWs.initialize();
       }
 
-      scope.network.wsServer.initialize(scope.logic)
+      scope.network.wsServer.initialize(scope.logic);
 
       cb();
     }],
@@ -625,10 +613,10 @@ d.run(function () {
     /**
      * Loads api from `api` folder using `config.api`, once modules, logger and
      * network are completed.
-     * @method api
+     * @function api
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
-     * @param {function} cb - Callback function.
+     * @param {Function} cb - Callback function.
      */
     api: ['modules', 'logger', 'network', function (scope, cb) {
       Object.keys(config.api).forEach(function (moduleName) {
@@ -638,7 +626,7 @@ d.run(function () {
             var ApiEndpoint = require(apiEndpointPath);
             new ApiEndpoint(scope.modules[moduleName], scope.network.app, scope.logger, scope.modules.cache);
           } catch (e) {
-            scope.logger.error('Unable to load API endpoint for ' + moduleName + ' of ' + protocol, e);
+            scope.logger.error('startup', 'Unable to load API endpoint for ' + moduleName + ' of ' + protocol, e);
           }
         });
       });
@@ -658,19 +646,19 @@ d.run(function () {
     /**
      * Once 'ready' is completed, binds and listens for connections on the
      * specified host and port for `scope.network.server`.
-     * @method listen
+     * @function listen
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {nodeStyleCallback} cb - Callback function with `scope.network`.
      */
     listen: ['ready', function (scope, cb) {
       scope.network.server.listen(scope.config.port, scope.config.address, function (err) {
-        scope.logger.info('ADAMANT started: ' + scope.config.address + ':' + scope.config.port);
+        scope.logger.info('startup', 'ADAMANT started: ' + scope.config.address + ':' + scope.config.port);
 
         if (!err) {
           if (scope.config.ssl.enabled) {
             scope.network.https.listen(scope.config.ssl.options.port, scope.config.ssl.options.address, function (err) {
-              scope.logger.info('ADAMANT https started: ' + scope.config.ssl.options.address + ':' + scope.config.ssl.options.port);
+              scope.logger.info('startup', 'ADAMANT https started: ' + scope.config.ssl.options.address + ':' + scope.config.ssl.options.port);
 
               cb(err, scope.network);
             });
@@ -684,13 +672,16 @@ d.run(function () {
     }]
   }, function (err, scope) {
     if (err) {
-      logger.fatal(err);
+      logger.fatal('startup', err);
     } else {
       /**
        * Handles app instance (acts as global variable, passed as parameter).
        * @global
-       * @typedef {Object} scope
-       * @property {Object} api - Undefined.
+       * @typedef {object} scope
+       * @todo logic repeats: bus, ed, genesisblock, logger, schema.
+       * @todo description for nonce and ready
+       *
+       * @property {object} api - Undefined.
        * @property {undefined} balancesSequence - Sequence function, sequence Array.
        * @property {string} build - Empty.
        * @property {Object} bus - Message function, bus constructor.
@@ -711,10 +702,62 @@ d.run(function () {
        * @property {undefined} ready
        * @property {Object} schema - ZSchema with objects.
        * @property {Object} sequence - Sequence function, sequence Array.
-       * @todo logic repeats: bus, ed, genesisblock, logger, schema.
-       * @todo description for nonce and ready
        */
-      scope.logger.info('Modules ready and launched');
+      scope.logger.info('startup', 'Modules ready and launched');
+      var cleanupStarted = false;
+      var cleanupSignalCount = 0;
+
+      /**
+       * Cleans all modules before shutdown.
+       *
+       * Loader cleanup runs first so an active rebuild/sync can stop before
+       * blocks cleanup starts rejecting additional block processing.
+       * @param {string} signal
+       * @param {number} exitCode
+       */
+      function requestShutdown (signal, exitCode) {
+        if (cleanupStarted) {
+          cleanupSignalCount += 1;
+          if (cleanupSignalCount > 1) {
+            scope.logger.warn('exit', signal + ' received again while cleanup is in progress. Forcing shutdown.');
+            return process.exit(exitCode);
+          } else {
+            scope.logger.warn('exit', signal + ' received while cleanup is in progress. Waiting for safe shutdown.');
+            return;
+          }
+        }
+
+        cleanupStarted = true;
+        cleanupSignalCount = 0;
+        scope.logger.info('exit', 'Cleaning up...');
+
+        var moduleMap = scope.modules || {};
+        var moduleNames = Object.keys(moduleMap);
+
+        if (moduleNames.indexOf('loader') !== -1) {
+          moduleNames = ['loader'].concat(moduleNames.filter(function (moduleName) {
+            return moduleName !== 'loader';
+          }));
+        }
+
+        async.eachSeries(moduleNames, function (moduleName, cb) {
+          var module = moduleMap[moduleName];
+          if (typeof (module.cleanup) === 'function') {
+            module.cleanup(cb);
+          } else {
+            setImmediate(cb);
+          }
+        }, function (err) {
+          if (err) {
+            scope.logger.error('exit', 'An error occurred while cleaning up modules:', err);
+          } else {
+            scope.logger.info('exit', 'Cleaned up successfully');
+          }
+
+          process.exit(exitCode);
+        });
+      }
+
       /**
        * Event reporting a cleanup.
        * @event cleanup
@@ -724,21 +767,7 @@ d.run(function () {
        * @listens cleanup
        */
       process.once('cleanup', function () {
-        scope.logger.info('Cleaning up...');
-        async.eachSeries(modules, function (module, cb) {
-          if (typeof (module.cleanup) === 'function') {
-            module.cleanup(cb);
-          } else {
-            setImmediate(cb);
-          }
-        }, function (err) {
-          if (err) {
-            scope.logger.error(err);
-          } else {
-            scope.logger.info('Cleaned up successfully');
-          }
-          process.exit(1);
-        });
+        requestShutdown('cleanup', 1);
       });
 
       /**
@@ -746,31 +775,11 @@ d.run(function () {
        * @event SIGTERM
        */
       /**
-       * Receives a 'SIGTERM' signal and emits a cleanup.
+       * Receives a 'SIGTERM' signal and cleans all modules.
        * @listens SIGTERM
        */
-      process.once('SIGTERM', function () {
-        /**
-         * emits cleanup once 'SIGTERM'.
-         * @emits cleanup
-         */
-        process.emit('cleanup');
-      });
-
-      /**
-       * Event reporting an exit.
-       * @event exit
-       */
-      /**
-       * Receives an 'exit' signal and emits a cleanup.
-       * @listens exit
-       */
-      process.once('exit', function () {
-        /**
-         * emits cleanup once 'exit'.
-         * @emits cleanup
-         */
-        process.emit('cleanup');
+      process.on('SIGTERM', function () {
+        requestShutdown('SIGTERM', 0);
       });
 
       /**
@@ -778,19 +787,145 @@ d.run(function () {
        * @event SIGINT
        */
       /**
-       * Receives a 'SIGINT' signal and emits a cleanup.
+       * Receives a 'SIGINT' signal and cleans all modules.
        * @listens SIGINT
        */
-      process.once('SIGINT', function () {
-        /**
-         * emits cleanup once 'SIGINT'.
-         * @emits cleanup
-         */
-        process.emit('cleanup');
+      process.on('SIGINT', function () {
+        requestShutdown('SIGINT', 0);
       });
     }
   });
 });
+
+/**
+ * Collects a repeatable Commander option.
+ * @param {string} value - Option value.
+ * @param {Array<string>} previous - Previously collected values.
+ */
+function collectOption (value, previous) {
+  previous.push(value);
+  return previous;
+}
+
+/**
+ * Converts legacy CLI shortcuts into config override entries.
+ * Generic overrides are applied first, and these shortcuts keep the historical
+ * highest precedence among startup config changes.
+ * @param {object} options - Commander options.
+ */
+function getLegacyCliConfigOverrides (options) {
+  var overrides = [];
+
+  if (options.port) {
+    overrides.push({
+      path: 'port',
+      value: Number(options.port),
+      source: '--port'
+    });
+  }
+
+  if (options.address) {
+    overrides.push({
+      path: 'address',
+      value: options.address,
+      source: '--address'
+    });
+  }
+
+  if (options.peers) {
+    overrides.push({
+      path: 'peers.list',
+      value: function (configData) {
+        return parsePeersOption(options.peers, configData.port);
+      },
+      source: '--peers'
+    });
+  }
+
+  if (options.log) {
+    overrides.push({
+      path: 'consoleLog.enabled',
+      value: true,
+      source: '--log'
+    });
+
+    overrides.push({
+      path: 'consoleLog.level',
+      value: options.log,
+      source: '--log'
+    });
+  }
+
+  if (options.snapshot) {
+    overrides.push({
+      path: 'loading.snapshot',
+      value: Math.abs(Math.floor(options.snapshot)),
+      source: '--snapshot'
+    });
+  }
+
+  return overrides;
+}
+
+/**
+ * Parses the legacy comma-separated peers option.
+ * @param {string|boolean} peers - Commander peers option.
+ * @param {string} port - Optional CLI port override.
+ */
+function parsePeersOption (peers, port) {
+  if (Array.isArray(peers)) {
+    if (!peers.length) {
+      return [];
+    }
+
+    peers = peers.join(',');
+  }
+
+  if (typeof peers !== 'string') {
+    return [];
+  }
+
+  return peers.split(',').map(function (peer) {
+    peer = peer.split(':');
+
+    return {
+      ip: peer.shift(),
+      port: Number(peer.shift() || port)
+    };
+  });
+}
+
+/**
+ * Logs config startup events after logger initialization.
+ * @param {Logger} logger - Logger instance.
+ * @param {Array<object>} events - Config events.
+ */
+function logConfigEvents (logger, events) {
+  (events || []).forEach(function (event) {
+    logger.info(
+        'config',
+        'Parameter ' +
+        event.path +
+        ' overridden by ' +
+        event.source +
+        ' with value: ' +
+        formatConfigLogValue(event.value),
+        { value: event.value }
+    );
+  });
+}
+
+/**
+ * Formats a config value for startup logs.
+ * @param {*} value - Redacted config value.
+ */
+function formatConfigLogValue (value) {
+  if (typeof value === 'string') {
+    return '\'' + value + '\'';
+  }
+
+  return JSON.stringify(value);
+}
 
 /**
  * Event reporting an uncaughtException.
@@ -802,13 +937,13 @@ d.run(function () {
  */
 process.on('uncaughtException', function (err) {
   // Handle error safely
-  logger.fatal('System error', {
+  logger.fatal('runtime', 'System error', {
     message: err.message,
     stack: err.stack
   });
   /**
    * emits cleanup once 'uncaughtException'.
-   * @emits cleanup
+   * @fires cleanup
    */
   process.emit('cleanup');
 });

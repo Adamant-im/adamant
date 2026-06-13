@@ -15,13 +15,14 @@ __private.unconfirmedAscii = {};
 
 /**
  * Initializes library.
+ * @param {Database} db
+ * @param {object} logger
+ * @param {ZSchema} schema
+ * @param {object} network
+ *
  * @memberof module:dapps
  * @class
  * @classdesc Main dapp logic.
- * @param {Database} db
- * @param {Object} logger
- * @param {ZSchema} schema
- * @param {Object} network
  */
 // Constructor
 function DApp (db, logger, schema, network) {
@@ -75,10 +76,10 @@ DApp.prototype.calculateFee = function (trs, sender) {
 /**
  * Verifies transaction and dapp fields. Checks dapp name and link in
  * `dapps` table.
- * @implements {library.db.query}
  * @param {transaction} trs
  * @param {account} sender
- * @param {function} cb
+ * @param {Function} cb
+ * @implements {library.db.query}
  * @return {setImmediateCallback} errors | trs
  */
 DApp.prototype.verify = function (trs, sender, cb) {
@@ -189,7 +190,7 @@ DApp.prototype.verify = function (trs, sender, cb) {
       return setImmediate(cb, null, trs);
     }
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('dapps', err.stack);
     return setImmediate(cb, 'DApp#verify error');
   });
 };
@@ -197,7 +198,8 @@ DApp.prototype.verify = function (trs, sender, cb) {
 /**
  * @param {transaction} trs
  * @param {account} sender
- * @param {function} cb
+ * @param {Function} cb
+ *
  * @return {setImmediateCallback} cb, null, trs
  */
 DApp.prototype.process = function (trs, sender, cb) {
@@ -214,8 +216,8 @@ DApp.prototype.process = function (trs, sender, cb) {
  * - type
  * - category
  * @param {transaction} trs
- * @return {Array} Buffer
  * @throws {e} error
+ * @returns {Array} Buffer
  */
 DApp.prototype.getBytes = function (trs) {
   var buf;
@@ -260,7 +262,8 @@ DApp.prototype.getBytes = function (trs) {
  * @param {transaction} trs
  * @param {block} block
  * @param {account} sender
- * @param {function} cb
+ * @param {Function} cb
+ *
  * @return {setImmediateCallback} cb
  */
 DApp.prototype.apply = function (trs, block, sender, cb) {
@@ -271,7 +274,8 @@ DApp.prototype.apply = function (trs, block, sender, cb) {
  * @param {transaction} trs
  * @param {block} block
  * @param {account} sender
- * @param {function} cb
+ * @param {Function} cb
+ *
  * @return {setImmediateCallback} cb
  */
 DApp.prototype.undo = function (trs, block, sender, cb) {
@@ -283,7 +287,8 @@ DApp.prototype.undo = function (trs, block, sender, cb) {
  * unconfirmed variables.
  * @param {transaction} trs
  * @param {account} sender
- * @param {function} cb
+ * @param {Function} cb
+ *
  * @return {setImmediateCallback} cb|errors
  */
 DApp.prototype.applyUnconfirmed = function (trs, sender, cb) {
@@ -305,7 +310,8 @@ DApp.prototype.applyUnconfirmed = function (trs, sender, cb) {
  * Deletes dapp name and link from private unconfirmed variables.
  * @param {transaction} trs
  * @param {account} sender
- * @param {function} cb
+ * @param {Function} cb
+ *
  * @return {setImmediateCallback} cb
  */
 DApp.prototype.undoUnconfirmed = function (trs, sender, cb) {
@@ -316,7 +322,8 @@ DApp.prototype.undoUnconfirmed = function (trs, sender, cb) {
 };
 
 /**
- * @typedef {Object} dapp
+ * @typedef {object} dapp
+ *
  * @property {dappCategory} category - Number between 0 and 8
  * @property {string} name - Between 1 and 32 chars
  * @property {string} description - Between 0 and 160 chars
@@ -370,10 +377,11 @@ DApp.prototype.schema = {
 
 /**
  * Deletes null or undefined dapp from transaction and validate dapp schema.
- * @implements {library.schema.validate}
  * @param {transaction} trs
- * @return {transaction}
  * @throws {string} Failed to validate dapp schema.
+ *
+ * @implements {library.schema.validate}
+ * @return {transaction}
  */
 DApp.prototype.objectNormalize = function (trs) {
   for (var i in trs.asset.dapp) {
@@ -395,7 +403,8 @@ DApp.prototype.objectNormalize = function (trs) {
 
 /**
  * Creates dapp object based on raw data.
- * @param {Object} raw
+ * @param {object} raw
+ *
  * @return {null|dapp} dapp object
  */
 DApp.prototype.dbRead = function (raw) {
@@ -431,8 +440,9 @@ DApp.prototype.dbFields = [
 
 /**
  * Creates db operation object based on dapp data.
- * @see privateTypes
  * @param {transaction} trs
+ * @see privateTypes
+ *
  * @return {Object[]} table, fields, values.
  */
 DApp.prototype.dbSave = function (trs) {
@@ -454,9 +464,9 @@ DApp.prototype.dbSave = function (trs) {
 
 /**
  * Emits 'dapps/change' signal.
- * @implements {library.network.wsServer}
  * @param {transaction} trs
- * @param {function} cb
+ * @param {Function} cb
+ * @implements {library.network.wsServer}
  * @return {setImmediateCallback} cb
  */
 DApp.prototype.afterSave = function (trs, cb) {

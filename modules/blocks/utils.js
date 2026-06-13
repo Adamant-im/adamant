@@ -33,7 +33,7 @@ function Utils (logger, block, transaction, db, dbSequence, genesisblock) {
   };
   self = this;
 
-  library.logger.trace('Blocks->Utils: Submodule initialized.');
+  library.logger.trace('blocks', 'Blocks->Utils: Submodule initialized.');
   return self;
 }
 
@@ -160,7 +160,7 @@ Utils.prototype.loadLastBlock = function (cb) {
       modules.blocks.lastBlock.set(block);
       return setImmediate(cb, null, block);
     }).catch(function (err) {
-      library.logger.error(err.stack);
+      library.logger.error('blocks', `Failed to get last block: ${err?.message || err}`, err.stack);
       return setImmediate(cb, 'Blocks#loadLastBlock error');
     });
   }, cb);
@@ -221,7 +221,7 @@ Utils.prototype.getIdSequence = function (height, cb) {
 
     return setImmediate(cb, null, { firstHeight: rows[0].height, ids: ids.join(',') });
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('blocks', `Failed to get id sequence ${height}: ${err?.message || err}`,err.stack);
     return setImmediate(cb, 'Blocks#getIdSequence error');
   });
 };
@@ -278,7 +278,7 @@ Utils.prototype.loadBlocksData = function (filter, options, cb) {
         return setImmediate(cb, null, rows);
       });
     }).catch(function (err ) {
-      library.logger.error(err.stack);
+      library.logger.error('blocks', `Failed to get height by last id ${filter.lastid}: ${err?.message || err}`,err.stack);
       return setImmediate(cb, 'Blocks#loadBlockData error');
     });
   }, cb);
@@ -325,7 +325,7 @@ Utils.prototype.getBlockProgressLogger = function (transactionsCount, logsFreque
      * Logs the progress
      */
     this.log = function () {
-      library.logger.info(msg, ((this.applied / this.target) * 100).toPrecision(4) + ' %' + ': applied ' + this.applied + ' of ' + this.target + ' transactions' );
+      library.logger.info('blocks', msg, ((this.applied / this.target) * 100).toPrecision(4) + ' %' + ': applied ' + this.applied + ' of ' + this.target + ' transactions' );
     };
   }
 
@@ -373,7 +373,7 @@ Utils.prototype.aggregateBlocksReward = function (filter, cb) {
     data = { fees: data.fees || '0', rewards: data.rewards || '0', count: data.count || 0 };
     return setImmediate(cb, null, data);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('blocks', `Failed to aggregate blocks reward: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Blocks#aggregateBlocksReward error');
   });
 };
@@ -384,7 +384,7 @@ Utils.prototype.aggregateBlocksReward = function (filter, cb) {
  * @param {modules} scope Exposed modules
  */
 Utils.prototype.onBind = function (scope) {
-  library.logger.trace('Blocks->Utils: Shared modules bind.');
+  library.logger.trace('blocks', 'Blocks->Utils: Shared modules bind.');
   modules = {
     blocks: scope.blocks
   };

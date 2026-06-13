@@ -23,7 +23,7 @@ function Verify (logger, block, transaction, db) {
   };
   self = this;
 
-  library.logger.trace('Blocks->Verify: Submodule initialized.');
+  library.logger.trace('blocks', 'Blocks->Verify: Submodule initialized.');
   return self;
 }
 
@@ -431,7 +431,7 @@ Verify.prototype.processBlock = function (block, broadcast, cb, saveBlock) {
       var check = self.verifyBlock(block);
 
       if (!check.verified) {
-        library.logger.error(['Block', block.id, 'verification failed'].join(' '), check.errors.join(', '));
+        library.logger.error('blocks', ['Block', block.id, 'verification failed'].join(' '), check.errors.join(', '));
         return setImmediate(seriesCb, check.errors[0]);
       }
 
@@ -492,7 +492,7 @@ Verify.prototype.processBlock = function (block, broadcast, cb, saveBlock) {
  * @param {modules} scope Exposed modules
  */
 Verify.prototype.onBind = function (scope) {
-  library.logger.trace('Blocks->Verify: Shared modules bind.');
+  library.logger.trace('blocks', 'Blocks->Verify: Shared modules bind.');
   modules = {
     accounts: scope.accounts,
     blocks: scope.blocks,

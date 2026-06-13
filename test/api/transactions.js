@@ -428,6 +428,22 @@ describe('GET /api/transactions', function () {
     });
   });
 
+  it('using bracket-style types should be ok', function (done) {
+    const types = [node.txTypes.VOTE, node.txTypes.DELEGATE];
+    const params = types.map((type) => 'types[]=' + type).join('&');
+
+    node.get('/api/transactions?' + params, function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('transactions').that.is.an('array');
+      for (var i = 0; i < res.body.transactions.length; i++) {
+        if (res.body.transactions[i]) {
+          node.expect(res.body.transactions[i].type).to.be.oneOf(types);
+        }
+      }
+      done();
+    });
+  });
+
   it('using noClutter param should be ok', function (done) {
     node.get('/api/transactions?noClutter=1', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;

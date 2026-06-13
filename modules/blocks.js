@@ -172,7 +172,8 @@ Blocks.prototype.onBind = function (scope) {
 };
 
 /**
- * Handle node shutdown request
+ * Handle node shutdown request.
+ * Logs active cleanup state while waiting for block processing to drain.
  *
  * @public
  * @method cleanup
@@ -191,7 +192,10 @@ Blocks.prototype.cleanup = function (cb) {
     // Module is not ready, repeat
     setImmediate(function nextWatch () {
       if (__private.isActive) {
-        library.logger.info('Waiting for block processing to finish...');
+        library.logger.info('cleanup', 'Waiting for block processing to finish...', {
+          active: __private.isActive,
+          cleanup: __private.cleanup
+        });
         setTimeout(nextWatch, 10000); // 10 sec
       } else {
         return setImmediate(cb);

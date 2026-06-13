@@ -101,11 +101,11 @@ function TransportHttpApi (transportModule, app, logger, cache) {
   function getCommonBlocksMiddleware (req, res, next) {
     req.sanitize(req.query, schema.commonBlock, function (err, report, query) {
       if (err) {
-        logger.debug('Common block request validation failed', { err: err.toString(), req: req.query });
+        logger.debug('transport-api', 'Common block request validation failed', { err: err.toString(), req: req.query });
         return next(err);
       }
       if (!report.isValid) {
-        logger.debug('Common block request validation failed', { err: report, req: req.query });
+        logger.debug('transport-api', 'Common block request validation failed', { err: report, req: req.query });
         return res.json({ success: false, error: report.issues });
       }
 

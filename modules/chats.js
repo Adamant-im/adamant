@@ -82,12 +82,12 @@ function Chats (cb, scope) {
 __private.get = function (id, cb) {
   library.db.query(sql.get, { id: id }).then(function (rows) {
     if (rows.length === 0) {
-      return setImmediate(cb, 'Application not found');
+      return setImmediate(cb, 'Message not found');
     } else {
       return setImmediate(cb, null, rows[0]);
     }
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-chats', `An error occurred while getting a message ${id}: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'CHAT#get error');
   });
 };
@@ -104,7 +104,7 @@ __private.getByIds = function (ids, cb) {
   library.db.query(sql.getByIds, [ids]).then(function (rows) {
     return setImmediate(cb, null, rows);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-chats', `An error occurred while getting messages ${ids.join(', ')}: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'CHAT#getByIds error');
   });
 };
@@ -225,6 +225,7 @@ __private.list = function (filter, cb) {
     const count = rows.length ? rows[0].count : 0;
     library.db.query(sql.list({
       where: where,
+      originalField: orderBy.originalField,
       sortField: orderBy.sortField,
       sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {
@@ -254,11 +255,11 @@ __private.list = function (filter, cb) {
 
       return setImmediate(cb, null, data);
     }).catch(function (err) {
-      library.logger.error(err.stack);
+      library.logger.error('api-chats', `An error occurred while getting messages: ${err?.message || err}`, err.stack);
       return setImmediate(cb, err);
     });
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-chats', `An error occurred while getting messages count: ${err?.message || err}`, err.stack);
     return setImmediate(cb, err);
   });
 };
