@@ -82,7 +82,7 @@ class TransportWsApi {
       return;
     }
 
-    self.logger.debug('ws-node-client', `Connecting to WebSocket peer ${peerUrl}…`);
+    self.logger.debug('ws-node-client', `Connecting to WebSocket peer ${peerUrl}…`, { direction: 'outbound' });
 
     const socket = io(peerUrl, {
       reconnection: false,
@@ -108,7 +108,9 @@ class TransportWsApi {
    * @param {Peer} peer target peer
    */
   handleConnect (socket, peer) {
-    this.logger.info('ws-node-client', `Connected to peer WebSocket at ${peer.ip}:${peer.port}`);
+    this.logger.info('ws-node-client', `Connected to WebSocket peer at ${peer.ip}:${peer.port}`, {
+      direction: 'outbound'
+    });
 
     this.peers.switchToWs(peer);
     this.peers.recordRequest(peer.ip, peer.port, null);

@@ -5,14 +5,16 @@ const Peer = require('../../logic/peer');
  * Creates a WebSocket server to broadcast transactions/blocks/signature changes
  */
 class WebSocketServer {
-  constructor(server, appConfig, logger) {
+  constructor (server, appConfig, logger) {
     this.io = new Server(server, {
       allowEIO3: true,
-      cors: appConfig.cors,
+      cors: appConfig.cors
     });
 
     this.enabled = appConfig.wsNode.enabled;
     this.max = appConfig.wsNode.maxBroadcastConnections;
+    this.address = appConfig.address;
+    this.port = appConfig.port;
 
     this.logger = logger;
 
@@ -24,17 +26,19 @@ class WebSocketServer {
    * Initializes the server and authorizes connections
    * @param {{ peers: Peers }} logic logic modules
    */
-  initialize(logic) {
+  initialize (logic) {
     const self = this;
 
     if (!this.enabled) {
       return;
     }
 
+    self.logger.info('ws-node-server', `WebSocketServer enabled; awaiting inbound peers on ${this.address}:${this.port}…`);
+
     this.io.on('connection', (socket) => {
       const peerIp = socket.handshake.address || socket.request.socket.remoteAddress;
 
-      self.logger.debug('ws-node-server', `WebSocket peer ${peerIp} is connecting…`);
+      self.logger.debug('ws-node-server', `WebSocket peer ${peerIp} is connecting…`, { direction: 'inbound' });
 
       const { nonce } = socket.handshake.auth;
 
@@ -73,7 +77,7 @@ class WebSocketServer {
 
       existingPeer.isBroadcastingViaSocket = true;
 
-      self.logger.info('ws-node-server', `WebSocket peer ${peerIp} is connected to the node`);
+      self.logger.info('ws-node-server', `WebSocket peer ${peerIp} is connected to the node`, { direction: 'inbound' });
 
       socket.on('disconnect', () => {
         const disconnectedPeer = logic.peers.getByNonce(nonce);
@@ -92,7 +96,7 @@ class WebSocketServer {
    * @param {string} eventName emitting event name
    * @param {any} data data to emit
    */
-  emit(eventName, data) {
+  emit (eventName, data) {
     if (this.enabled) {
       this.io.sockets.emit(eventName, data);
     }
