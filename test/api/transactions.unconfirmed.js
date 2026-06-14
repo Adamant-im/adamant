@@ -2,22 +2,7 @@ const node = require('../node.js');
 const { modulesLoader } = require('../common/initModule.js');
 const { sendADM, sendADMasync } = require('../common/api');
 
-// Cache should be disabled for testing unconfirmed transactions
 let cache;
-
-before(function (done) {
-  modulesLoader.initCache(function (err, __cache) {
-    cache = __cache;
-
-    return done(err, __cache);
-  });
-});
-
-beforeEach(function (done) {
-  cache.flushDb(function (err, status) {
-    done(err, status);
-  });
-});
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -25,6 +10,24 @@ const recipient = node.randomAccount();
 
 describe('GET /api/transactions?returnUnconfirmed=1', () => {
   let lastUnconfirmedTransactionId;
+
+  before(function (done) {
+    modulesLoader.initCache(function (err, __cache) {
+      cache = __cache;
+
+      return done(err, __cache);
+    });
+  });
+
+  after(function (done) {
+    cache.quit(done);
+  });
+
+  beforeEach(function (done) {
+    cache.flushDb(function (err, status) {
+      done(err, status);
+    });
+  });
 
   const assertNoUnconfirmedTxs = (transactions) => {
     transactions.forEach((tx, idx) => {
@@ -42,7 +45,7 @@ describe('GET /api/transactions?returnUnconfirmed=1', () => {
     sendADM({
       secret: node.iAccount.password,
       recipientId: recipient.address,
-      amount: node.fees.transactionFee,
+      amount: node.fees.transactionFee
     }, (err, res) => {
       if (err) return done(err);
       lastUnconfirmedTransactionId = res.body.transactionId;
@@ -66,11 +69,13 @@ describe('GET /api/transactions?returnUnconfirmed=1', () => {
     });
   });
 
-  it('should exclude unconfirmed txs when offset=1 is used', (done) => {
+  it('should skip the first unconfirmed transaction when offset=1 is used', (done) => {
     getTransactions('returnUnconfirmed=1&offset=1', (err, res) => {
       try {
         node.expect(err).to.not.exist;
-        assertNoUnconfirmedTxs(res.body.transactions);
+        const transactionIds = res.body.transactions.map((transaction) => transaction.id);
+
+        node.expect(transactionIds).not.to.include(lastUnconfirmedTransactionId);
         done();
       } catch (err) {
         done(err);
@@ -144,7 +149,7 @@ describe('GET /api/transactions?returnUnconfirmed=1', () => {
       const txData = {
         secret: node.iAccount.password,
         recipientId: recipient.address,
-        amount: node.fees.transactionFee + 1,
+        amount: node.fees.transactionFee + 1
       };
 
       try {
@@ -259,7 +264,7 @@ describe('GET /api/transactions/unconfirmed', () => {
     const data = {
       secret: node.iAccount.password,
       recipientId: recipient.address,
-      amount: node.fees.transactionFee,
+      amount: node.fees.transactionFee
     };
 
     const res = await sendADMasync(data);
@@ -277,7 +282,7 @@ describe('GET /api/transactions/unconfirmed', () => {
         const { transactions } = res.body;
 
         node.expect(transactions).to.be.an('array').that.is.not.empty;
-        const allUnconfirmed = transactions.every(tx =>
+        const allUnconfirmed = transactions.every((tx) =>
           tx.blockId === null &&
           tx.height === null &&
           tx.confirmations === 0

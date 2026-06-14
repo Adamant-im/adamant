@@ -47,6 +47,32 @@ var validTransaction = {
 describe('cache', function () {
   var cache;
 
+  it('should keep connection state isolated between instances', function (done) {
+    const connectedClient = { ready: true };
+
+    new Cache(function (err, connectedCache) {
+      expect(err).not.to.exist;
+
+      new Cache(function (err, disabledCache) {
+        expect(err).not.to.exist;
+        expect(connectedCache.isConnected()).to.equal(true);
+        expect(disabledCache.isConnected()).to.equal(false);
+
+        const syncStartedHandler = connectedCache.onSyncStarted;
+        syncStartedHandler.apply(syncStartedHandler);
+        expect(connectedCache.isReady()).to.equal(false);
+
+        done();
+      }, {
+        cache: { cacheEnabled: false, client: null },
+        logger: modulesLoader.logger
+      });
+    }, {
+      cache: { cacheEnabled: true, client: connectedClient },
+      logger: modulesLoader.logger
+    });
+  });
+
   before(function (done) {
     modulesLoader.scope.config.cacheEnabled = true;
     done();

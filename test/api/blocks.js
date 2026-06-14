@@ -196,7 +196,7 @@ describe('GET /blocks (cache)', function () {
     });
   });
 
-  it('should update entry from cache on new block', function (done) {
+  it('should invalidate blocks cache on new block', function (done) {
     var url, params;
     url = '/api/blocks?';
     params = 'height=' + block.blockHeight;
@@ -210,14 +210,16 @@ describe('GET /blocks (cache)', function () {
         }
 
         node.expect(cachedResponseBefore).to.eql(response);
-        node.onNewBlock(function (err) {
+        // Trigger the cache lifecycle hook directly. Waiting for public testnet
+        // blocks makes this cache test depend on external forging and sync timing.
+        cache.onNewBlock(null, null, function (err) {
           node.expect(err).to.not.exist;
           cache.getJsonForKey(url + params, function (err, cachedResponseAfter) {
             if (err) {
               return done(err);
             }
 
-            node.expect(cachedResponseAfter).not.to.eql(cachedResponseBefore);
+            node.expect(cachedResponseAfter).to.be.null;
             done();
           });
         });
