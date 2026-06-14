@@ -74,7 +74,7 @@ module.exports = function (grunt) {
 
       build: {
         command: 'cd ' + version_dir + '/ && touch build && echo "v' + today + '" > build'
-      },
+      }
     },
 
     compress: {
@@ -92,7 +92,6 @@ module.exports = function (grunt) {
 
     eslint: {
       options: {
-        overrideConfigFile: '.eslintrc.json',
         format: 'codeframe',
         fix: false
       },

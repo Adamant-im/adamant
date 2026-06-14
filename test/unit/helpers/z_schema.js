@@ -13,14 +13,57 @@ describe('Schema formats', () => {
     validator = new z_schema();
   });
 
-  function expectFormatToBeRegistered(formatName) {
+  it('should preserve the legacy boolean and callback validation API', (done) => {
+    const schema = {
+      type: 'object',
+      required: ['value']
+    };
+
+    expect(validator.validate({}, schema)).to.be.false;
+    expect(validator.getLastErrors()).to.be.an('array');
+
+    validator.validate({ value: true }, schema, (err, valid) => {
+      expect(err).to.equal(null);
+      expect(valid).to.equal(true);
+      expect(validator.getLastErrors()).to.equal(null);
+      done();
+    });
+  });
+
+  it('should preserve legacy custom format error messages', () => {
+    const schema = {
+      type: 'string',
+      format: 'address'
+    };
+
+    expect(validator.validate('invalid-address', schema)).to.be.false;
+    expect(validator.getLastErrors()[0].message).to.equal(
+        'Object didn\'t pass validation for format address: invalid-address'
+    );
+  });
+
+  it('should fail closed when a custom format receives undefined', () => {
+    const schema = {
+      format: 'address'
+    };
+
+    expect(validator.validate(undefined, schema)).to.be.false;
+    expect(validator.getLastErrors()).to.deep.equal([{
+      code: 'INVALID_FORMAT',
+      params: ['address', undefined],
+      message: 'Object didn\'t pass validation for format address: undefined',
+      path: '#/'
+    }]);
+  });
+
+  function expectFormatToBeRegistered (formatName) {
     const registeredFormats = z_schema.getRegisteredFormats();
     expect(registeredFormats).to.include(formatName);
   }
 
   describe('version', () => {
     it('should be registered', () =>
-      expectFormatToBeRegistered('version'),
+      expectFormatToBeRegistered('version')
     );
 
     const schema = {
@@ -29,10 +72,10 @@ describe('Schema formats', () => {
       properties: {
         version: {
           type: 'string',
-          format: 'version',
-        },
+          format: 'version'
+        }
       },
-      required: ['version'],
+      required: ['version']
     };
 
     describe('should pass for valid versions', () => {
@@ -46,7 +89,7 @@ describe('Schema formats', () => {
         '2.1.0-alpha.1',
         '3.3.3-rc.2',
         '4.0.0+build.123',
-        '1.0.0-alpha+001',
+        '1.0.0-alpha+001'
       ];
 
       validVersions.forEach((version) => {
@@ -68,7 +111,7 @@ describe('Schema formats', () => {
         '1.0',
         '01.2.3',
         '1.2.3+',
-        '1.2.3+build.@@@',
+        '1.2.3+build.@@@'
       ];
 
       invalidVersions.forEach((version) => {
@@ -88,7 +131,7 @@ describe('Schema formats', () => {
         true,
         false,
         {},
-        [],
+        []
       ];
 
       invalidTypes.forEach((type) => {

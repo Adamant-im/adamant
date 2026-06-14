@@ -21,6 +21,11 @@ module.exports.connect = function (cacheEnabled, config, logger, cb) {
     delete config.password;
   }
 
+  // node-redis v6 defaults to RESP3; keep the established RESP2 response semantics.
+  if (config.RESP === undefined) {
+    config.RESP = 2;
+  }
+
   var client = redis.createClient(config);
 
   client.connect()

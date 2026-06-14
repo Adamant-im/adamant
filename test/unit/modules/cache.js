@@ -84,6 +84,7 @@ describe('cache', function () {
       expect(err).to.not.exist;
       expect(__cache).to.be.an('object');
       cache = __cache;
+      expect(cache.client.options.RESP).to.equal(2);
       return done();
     });
   });

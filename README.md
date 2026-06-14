@@ -28,6 +28,8 @@ See also:
 
 ## Installation, Configuration and Running ADM node
 
+ADAMANT Node requires Node.js 22.13.0 or newer.
+
 Refer to [ADAMANT Node documentation](https://docs.adamant.im/own-node/installation.html) for complete installation instructions. It includes hardware requirements, installation scripts, and step-by-step guides for setting up an ADM blockchain node on various operating systems, including Linux, macOS, and Windows.
 
 ### Critical Shutdown Notice

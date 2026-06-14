@@ -88,8 +88,23 @@ describe('GET /api/delegates (cache)', function () {
 
         node.expect(beforeCachedResponse).to.eql(response);
         node.onNewRound(function (err) {
-          node.expect(err).to.not.exist;
-          cache.getJsonForKey(url, function (err, afterCachedResponse) {
+          if (err) {
+            return done(err);
+          }
+
+          node.async.retry({ times: 20, interval: 100 }, function (retryCb) {
+            cache.getJsonForKey(url, function (err, afterCachedResponse) {
+              if (err) {
+                return retryCb(err);
+              }
+
+              if (node._.isEqual(afterCachedResponse, beforeCachedResponse)) {
+                return retryCb(new Error('Delegate cache has not been invalidated yet'));
+              }
+
+              retryCb(null, afterCachedResponse);
+            });
+          }, function (err, afterCachedResponse) {
             if (err) {
               return done(err);
             }
@@ -440,7 +455,7 @@ describe('GET /api/delegates/voters', function () {
   before(function (done) {
     voteForDelegatesAndWaitUntilNextBlock({
       secret: account.password,
-      votes: [`+${node.eAccount.publicKey}`],
+      votes: [`+${node.eAccount.publicKey}`]
     }, done);
   });
 
