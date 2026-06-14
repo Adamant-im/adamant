@@ -9,17 +9,20 @@ class ClientWs {
    * @param {Function} cb - Callback function.
    */
   constructor (config, logger, cb) {
-    if (!config || !config.enabled) {
-      return false;
+    this.enabled = Boolean(config && config.enabled);
+    this.describes = {};
+    this.logger = logger;
+
+    if (!this.enabled) {
+      return;
     }
+
     const port = config.portWS;
     const io = new Server(port, {
       allowEIO3: true,
       cors: config.cors
     });
 
-    this.describes = {};
-    this.logger = logger;
     io.sockets.on('connection', (socket) => {
       try {
         const describe = new TransactionSubscription(socket);
@@ -69,6 +72,10 @@ class ClientWs {
    * @param {transaction} t - Transaction to emit.
    */
   emit (t) {
+    if (!this.enabled) {
+      return;
+    }
+
     if (lastTransactionsIds[t.id]) {
       return;
     }
@@ -86,13 +93,14 @@ class ClientWs {
 
 const lastTransactionsIds = {};
 
-setInterval(() => {
+const cleanupInterval = setInterval(() => {
   for (let id in lastTransactionsIds) {
     if (getUTime() - lastTransactionsIds[id] >= 60) {
       delete lastTransactionsIds[id];
     }
   }
 }, 60 * 1000);
+cleanupInterval.unref();
 
 /**
  * Returns the current Unix time in seconds.

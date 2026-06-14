@@ -391,13 +391,17 @@ Process.prototype.generateBlock = function (keypair, timestamp, cb) {
 Process.prototype.onReceiveBlock = function (block) {
   var lastBlock;
 
+  if (!__private.isReadyToReceiveBlock()) {
+    library.logger.debug('loader', 'Client not yet ready to receive block', block.id);
+    return;
+  }
+
   // Execute in sequence via sequence
   library.sequence.add(function (cb) {
     // When client is not loaded, is syncing or round is ticking
     // Do not receive new blocks as client is not ready
-    const syncPending = !modules.loader.isReadyToSync() || modules.loader.syncing();
-    if (!__private.loaded || syncPending || modules.rounds.ticking()) {
-      library.logger.debug('loader', 'Client not ready to receive block', block.id);
+    if (!__private.isReadyToReceiveBlock()) {
+      library.logger.debug('loader', 'Client not yet ready to receive block', block.id);
       return setImmediate(cb);
     }
 
@@ -442,6 +446,18 @@ Process.prototype.onReceiveBlock = function (block) {
       return setImmediate(cb);
     }
   });
+};
+
+/**
+ * Returns whether the node can process live blocks.
+ *
+ * @private
+ * @returns {boolean}
+ */
+__private.isReadyToReceiveBlock = function () {
+  const syncPending = !modules.loader.isReadyToSync() || modules.loader.syncing();
+
+  return __private.loaded && !syncPending && !modules.rounds.ticking();
 };
 
 /**
