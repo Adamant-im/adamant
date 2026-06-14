@@ -1,6 +1,6 @@
 'use strict';
 
-var sodium = require('sodium').api;
+var sodium = require('sodium-native');
 
 var mnemonic = require('bitcore-mnemonic');
 
@@ -16,21 +16,21 @@ var ed = {};
 
 /**
  * Returns whether the passphrase is valid mnemonic
- * @param {string} passphrase passhraase to test
+ * @param {string} passphrase passphrase to test
  * @returns {boolean}
  */
-ed.isValidPassphrase = function(passphrase) {
+ed.isValidPassphrase = function (passphrase) {
   return mnemonic.isValid(passphrase, mnemonic.Words.ENGLISH);
-}
+};
 
 /**
  * Generates a new passphrase
  * @returns {string} passphrase
  */
-ed.generatePassphrase = function() {
+ed.generatePassphrase = function () {
   const secretMnemonic = new mnemonic(mnemonic.Words.ENGLISH);
   return secretMnemonic.phrase;
-}
+};
 
 /**
  * Creates a hash based on a passphrase.
@@ -51,11 +51,13 @@ ed.createPassPhraseHash = function (passPhrase) {
  * @return {Object} publicKey, privateKey
  */
 ed.makeKeypair = function (hash) {
-  var keypair = sodium.crypto_sign_seed_keypair(hash);
+  const publicKey = Buffer.alloc(sodium.crypto_sign_PUBLICKEYBYTES);
+  const privateKey = Buffer.alloc(sodium.crypto_sign_SECRETKEYBYTES);
+  sodium.crypto_sign_seed_keypair(publicKey, privateKey, hash);
 
   return {
-    publicKey: keypair.publicKey,
-    privateKey: keypair.secretKey
+    publicKey,
+    privateKey
   };
 };
 
@@ -67,17 +69,28 @@ ed.makeKeypair = function (hash) {
  * @return {signature} signature
  */
 ed.sign = function (hash, keypair) {
-  return sodium.crypto_sign_detached(hash, Buffer.from(keypair.privateKey, 'hex'));
+  const signature = Buffer.alloc(sodium.crypto_sign_BYTES);
+  sodium.crypto_sign_detached(signature, hash, keypair.privateKey);
+  return signature;
 };
 
 /**
  * Verifies a signature based on a hash and a publicKey.
  * @implements {sodium}
  * @param {hash} hash
- * @param {keypair} keypair
- * @return {Boolean} true id verified
+ * @param {signature} signatureBuffer
+ * @param {publicKey} publicKeyBuffer
+ * @return {Boolean} true if verified
  */
 ed.verify = function (hash, signatureBuffer, publicKeyBuffer) {
+  if (!Buffer.isBuffer(signatureBuffer) || signatureBuffer.length !== sodium.crypto_sign_BYTES) {
+    throw new Error('Signature must be a 64-byte buffer');
+  }
+
+  if (!Buffer.isBuffer(publicKeyBuffer) || publicKeyBuffer.length !== sodium.crypto_sign_PUBLICKEYBYTES) {
+    throw new Error('Public key must be a 32-byte buffer');
+  }
+
   return sodium.crypto_sign_verify_detached(signatureBuffer, hash, publicKeyBuffer);
 };
 

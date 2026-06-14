@@ -448,30 +448,33 @@ d.run(function () {
       cb(null, require('./helpers/accounts.js'));
     },
     bus: ['ed', function (scope, cb) {
-      var changeCase = require('change-case');
-      var bus = function () {
-        this.message = function () {
-          var args = [];
-          Array.prototype.push.apply(args, arguments);
-          var topic = args.shift();
-          var eventName = 'on' + changeCase.pascalCase(topic);
+      import('change-case').then(function (changeCase) {
+        var bus = function () {
+          this.message = function () {
+            var args = [];
+            Array.prototype.push.apply(args, arguments);
+            var topic = args.shift();
+            var eventName = 'on' + changeCase.pascalCase(topic);
 
-          // executes the each module onBind function
-          modules.forEach(function (module) {
-            if (typeof (module[eventName]) === 'function') {
-              module[eventName].apply(module[eventName], args);
-            }
-            if (module.submodules) {
-              async.each(module.submodules, function (submodule) {
-                if (submodule && typeof (submodule[eventName]) === 'function') {
-                  submodule[eventName].apply(submodule[eventName], args);
-                }
-              });
-            }
-          });
+            // executes the each module onBind function
+            modules.forEach(function (module) {
+              if (typeof (module[eventName]) === 'function') {
+                module[eventName].apply(module[eventName], args);
+              }
+              if (module.submodules) {
+                async.each(module.submodules, function (submodule) {
+                  if (submodule && typeof (submodule[eventName]) === 'function') {
+                    submodule[eventName].apply(submodule[eventName], args);
+                  }
+                });
+              }
+            });
+          };
         };
-      };
-      cb(null, new bus());
+        cb(null, new bus());
+      }).catch(function (err) {
+        cb(err);
+      });
     }],
     db: function (cb) {
       var db = require('./helpers/database.js');
