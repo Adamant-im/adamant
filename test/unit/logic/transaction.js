@@ -882,7 +882,7 @@ describe('transaction', () => {
 
     it('should accept timestamp that is 16 seconds in the past for transfer transactions', () => {
       const trs = _.cloneDeep(validUnconfirmedTransaction);
-      trs.timestamp = slots.getTime() - 100;
+      trs.timestamp = slots.getTime() - 16;
       trs.timestampMs = trs.timestamp * 1000;
       delete trs.signature;
       trs.signature = transaction.sign(testSenderKeypair, trs);
@@ -902,7 +902,7 @@ describe('transaction', () => {
           type: 1,
         },
       };
-      trs.timestamp = slots.getTime() - 100;
+      trs.timestamp = slots.getTime() - 16;
       trs.timestampMs = trs.timestamp * 1000;
       delete trs.signature;
       trs.signature = transaction.sign(testSenderKeypair, trs);
@@ -924,7 +924,7 @@ describe('transaction', () => {
           type: 0,
         },
       };
-      trs.timestamp = slots.getTime() - 100;
+      trs.timestamp = slots.getTime() - 16;
       trs.timestampMs = trs.timestamp * 1000;
       delete trs.signature;
       trs.signature = transaction.sign(testSenderKeypair, trs);
