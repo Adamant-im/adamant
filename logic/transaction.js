@@ -9,6 +9,7 @@ var exceptions = require('../helpers/exceptions.js');
 var extend = require('extend');
 var slots = require('../helpers/slots.js');
 var sql = require('../sql/transactions.js');
+var transactionTypes = require('../helpers/transactionTypes.js');
 const Consensus = require('./consensus/consensus.js');
 // Private fields
 var self, modules, __private = {};
@@ -121,7 +122,8 @@ Transaction.prototype.create = function (data) {
 
 /**
  * Modifies a transaction by adding the calculated fee and transaction ID,
- * and validates that the timestamp is recent.
+ * and validates public-API admission timestamps.
+ * Chat and state transactions must not be more than `maxTransactionAgeSec` in the past.
  * This should be called for freshly created transactions received from the Public API
  * @param {object} data - The transaction object
  * @throws {Error} If an invalid transaction is passed
@@ -152,11 +154,13 @@ Transaction.prototype.publish = function (data) {
     throw 'Transaction timestamp is in the future';
   }
 
-  const earliestValidTime = currentTime - constants.maxTransactionAgeSec;
-  const earliestValidSlotNumber = slots.getSlotNumber(earliestValidTime);
+  if (data.type === transactionTypes.CHAT_MESSAGE || data.type === transactionTypes.STATE) {
+    const earliestValidTime = currentTime - constants.maxTransactionAgeSec;
+    const earliestValidSlotNumber = slots.getSlotNumber(earliestValidTime);
 
-  if (transactionSlotNumber < earliestValidSlotNumber) {
-    throw `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`;
+    if (transactionSlotNumber < earliestValidSlotNumber) {
+      throw `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`;
+    }
   }
 
   var trs = data;
