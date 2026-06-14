@@ -880,8 +880,50 @@ describe('transaction', () => {
       );
     });
 
-    it('should return error on timestamp that is 16 seconds in the past', () => {
+    it('should accept timestamp that is 16 seconds in the past for transfer transactions', () => {
       const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestamp = slots.getTime() - 100;
+      trs.timestampMs = trs.timestamp * 1000;
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+      expect(() => transaction.publish(trs)).to.not.throw();
+    });
+
+    it('should return error on timestamp that is 16 seconds in the past for chat messages', () => {
+      transaction.attachAssetType(transactionTypes.CHAT_MESSAGE, new Chat());
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.CHAT_MESSAGE;
+      trs.amount = 0;
+      trs.recipientId = 'U810656636599221322';
+      trs.asset = {
+        chat: {
+          message: '75582d940f2c4093929c99a6c1911b4753',
+          own_message: '58dceaa227b3fb1dd1c7d3fbf3eb5db6aeb6a03cb7e2ec91',
+          type: 1,
+        },
+      };
+      trs.timestamp = slots.getTime() - 100;
+      trs.timestampMs = trs.timestamp * 1000;
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+      expect(() => transaction.publish(trs)).to.throw(
+        'Transaction timestamp is more than 5 seconds in the past',
+      );
+    });
+
+    it('should return error on timestamp that is 16 seconds in the past for state transactions', () => {
+      transaction.attachAssetType(transactionTypes.STATE, new State());
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.STATE;
+      trs.amount = 0;
+      trs.recipientId = null;
+      trs.asset = {
+        state: {
+          key: 'test:key',
+          value: '74657374',
+          type: 0,
+        },
+      };
       trs.timestamp = slots.getTime() - 100;
       trs.timestampMs = trs.timestamp * 1000;
       delete trs.signature;
