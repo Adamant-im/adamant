@@ -78,8 +78,9 @@ ed.sign = function (hash, keypair) {
  * Verifies a signature based on a hash and a publicKey.
  * @implements {sodium}
  * @param {hash} hash
- * @param {keypair} keypair
- * @return {Boolean} true id verified
+ * @param {signature} signatureBuffer
+ * @param {publicKey} publicKeyBuffer
+ * @return {Boolean} true if verified
  */
 ed.verify = function (hash, signatureBuffer, publicKeyBuffer) {
   if (!Buffer.isBuffer(signatureBuffer) || signatureBuffer.length !== sodium.crypto_sign_BYTES) {

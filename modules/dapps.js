@@ -288,7 +288,7 @@ __private.installDependencies = function (dapp, cb) {
 
   import('execa')
       .then(function (execaModule) {
-        return execaModule.execa('npm', ['install', `-g --prefix ${dappPath}`]);
+        return execaModule.execa('npm', ['install', '-g', '--prefix', dappPath]);
       })
       .then(function () {
         return setImmediate(cb, null);
