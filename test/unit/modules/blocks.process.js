@@ -14,6 +14,8 @@ describe('blocks process', function () {
   let schema;
   let blocks;
   let loader;
+  let rounds;
+  let sequence;
   let transport;
   let lastBlock;
 
@@ -62,7 +64,15 @@ describe('blocks process', function () {
       }
     };
     loader = {
-      getBlocksToSync: sinon.stub().returns(4)
+      getBlocksToSync: sinon.stub().returns(4),
+      isReadyToSync: sinon.stub().returns(true),
+      syncing: sinon.stub().returns(false)
+    };
+    rounds = {
+      ticking: sinon.stub().returns(false)
+    };
+    sequence = {
+      add: sinon.spy()
     };
     transport = {
       getFromPeer: sinon.stub().callsArgWith(2, null, { body: { blocks: [{}] } })
@@ -76,14 +86,34 @@ describe('blocks process', function () {
         schema,
         db,
         dbSequence,
-        {},
+        sequence,
         { block: { id: '1' } }
     );
     process.onBind({
       blocks,
       loader,
+      rounds,
       transport
     });
+  });
+
+  it('should not queue live blocks while syncing', function () {
+    loader.syncing.returns(true);
+
+    process.onReceiveBlock({ id: '2' });
+
+    expect(sequence.add.called).to.equal(false);
+    expect(logger.debug.calledWith(
+        'loader',
+        'Client not yet ready to receive block',
+        '2'
+    )).to.equal(true);
+  });
+
+  it('should queue live blocks when ready', function () {
+    process.onReceiveBlock({ id: '2' });
+
+    expect(sequence.add.calledOnce).to.equal(true);
   });
 
   it('should stop loadBlocksOffset before applying the next block', function (done) {

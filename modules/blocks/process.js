@@ -381,23 +381,27 @@ Process.prototype.generateBlock = function (keypair, timestamp, cb) {
  */
 
 /**
- * Handle newly received block
- *
+ * Handles a newly received live block.
  * @public
- * @method  onReceiveBlock
+ * @param {block} block - Received block.
  * @listens module:transport~event:receiveBlock
- * @param   {block} block New block
+ * @returns {void}
  */
 Process.prototype.onReceiveBlock = function (block) {
   var lastBlock;
 
+  // Synchronization applies blocks through the loader. Queuing live notifications
+  // at the same time only creates a large backlog of stale callbacks.
+  if (!__private.isReadyToReceiveBlock()) {
+    library.logger.debug('loader', 'Client not yet ready to receive block', block.id);
+    return;
+  }
+
   // Execute in sequence via sequence
   library.sequence.add(function (cb) {
-    // When client is not loaded, is syncing or round is ticking
-    // Do not receive new blocks as client is not ready
-    const syncPending = !modules.loader.isReadyToSync() || modules.loader.syncing();
-    if (!__private.loaded || syncPending || modules.rounds.ticking()) {
-      library.logger.debug('loader', 'Client not ready to receive block', block.id);
+    // Readiness may change while this callback waits behind earlier sequence work.
+    if (!__private.isReadyToReceiveBlock()) {
+      library.logger.debug('loader', 'Client not yet ready to receive block', block.id);
       return setImmediate(cb);
     }
 
@@ -442,6 +446,17 @@ Process.prototype.onReceiveBlock = function (block) {
       return setImmediate(cb);
     }
   });
+};
+
+/**
+ * Returns whether the node can process live blocks.
+ * @private
+ * @returns {boolean} Whether live block processing is currently safe.
+ */
+__private.isReadyToReceiveBlock = function () {
+  const syncPending = !modules.loader.isReadyToSync() || modules.loader.syncing();
+
+  return __private.loaded && !syncPending && !modules.rounds.ticking();
 };
 
 /**

@@ -11,6 +11,7 @@ const Transfer = require('../../../logic/transfer.js');
 const Delegate = require('../../../logic/delegate.js');
 const Signature = require('../../../logic/signature.js');
 const Multisignature = require('../../../logic/multisignature.js');
+const DApp = require('../../../logic/dapp.js');
 const InTransfer = require('../../../logic/inTransfer.js');
 const OutTransfer = require('../../../logic/outTransfer.js');
 const Chat = require('../../../logic/chat.js');
@@ -66,6 +67,7 @@ describe('transactions', function () {
       transaction.attachAssetType(transactionTypes.DELEGATE, new Delegate());
       transaction.attachAssetType(transactionTypes.SIGNATURE, new Signature());
       transaction.attachAssetType(transactionTypes.MULTI, new Multisignature());
+      transaction.attachAssetType(transactionTypes.DAPP, new DApp());
       transaction.attachAssetType(
         transactionTypes.IN_TRANSFER,
         new InTransfer()
