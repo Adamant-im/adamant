@@ -16,7 +16,7 @@ var ed = {};
 
 /**
  * Returns whether the passphrase is valid mnemonic
- * @param {string} passphrase passhraase to test
+ * @param {string} passphrase passphrase to test
  * @returns {boolean}
  */
 ed.isValidPassphrase = function (passphrase) {
