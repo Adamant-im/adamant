@@ -29,7 +29,7 @@ const {
   nonExistingAddress
 } = require('../../common/stubs/account.js');
 const {
-  unconfirmedTransaction,
+  unconfirmedTransaction: unconfirmedTransactionFixture,
   nonExistingTransactionId,
   existingTransaction,
   existingTransactionWithAsset
@@ -1340,10 +1340,16 @@ describe('transactions', function () {
 
     describe('transactions in pool', () => {
       let unconfirmedTransactionId;
+      let unconfirmedTransaction;
 
       beforeEach((done) => {
-        unconfirmedTransaction.timestamp = slots.getTime();
-        unconfirmedTransaction.timestampMs = slots.getTimeMs();
+        const timestampMs = slots.getTimeMs();
+        unconfirmedTransaction = {
+          ...unconfirmedTransactionFixture,
+          asset: { ...unconfirmedTransactionFixture.asset },
+          timestamp: Math.floor(timestampMs / 1000),
+          timestampMs
+        };
 
         delete unconfirmedTransaction.signature;
         unconfirmedTransaction.signature = transaction.sign(validSenderKeyPair, unconfirmedTransaction);
