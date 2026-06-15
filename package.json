@@ -105,9 +105,11 @@
     "supertest": "^7.2.2"
   },
   "overrides": {
+    "bn.js": "4.12.3",
     "grunt-contrib-obfuscator": {
       "javascript-obfuscator": "^4.0.0"
-    }
+    },
+    "serialize-javascript": "7.0.5"
   },
   "config": {
     "minVersion": ">=0.6.0"
