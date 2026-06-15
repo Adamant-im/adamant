@@ -8,19 +8,19 @@ const SUCCESS_RATE_POOL_SIZE = 25;
 /**
  * Creates a peer.
  * @memberof module:peers
- * @class
+ * @constructor
  * @classdesc Main peer logic.
  * @implements {Peer.accept}
  * @param {peer} peer
- * @return calls accept method
+ * @return {Peer} Result of the accept method.
  */
 // Constructor
-function Peer(peer) {
+function Peer (peer) {
   return this.accept(peer || {});
 }
 
 /**
- * @typedef {Object} peer
+ * @typedef {object} peer
  * @property {string} ip
  * @property {number} port - Between 1 and 65535
  * @property {number} state - Between 0 and 2. (banned = 0, unbanned = 1, active = 2)
@@ -97,12 +97,12 @@ Peer.STATE = {
 // Public methods
 /**
  * Calculates requests success rate
- * @returns {number} Success percentage
+ * @return {number} Success percentage
  */
 Peer.prototype.calcSuccessRate = function () {
   const successRate = (this.successRequestCount / SUCCESS_RATE_POOL_SIZE) * 100;
   return Math.round(successRate * 100) / 100;
-}
+};
 
 /**
  * Updates success request count and state when more than 80% requests have failed
@@ -111,25 +111,25 @@ Peer.prototype.calcSuccessRate = function () {
 Peer.prototype.recordRequest = function (error) {
   if (error) {
     this.successRequestCount = Math.max(
-      this.successRequestCount - 1,
-      0,
-    )
+        this.successRequestCount - 1,
+        0
+    );
   } else {
     this.successRequestCount = Math.min(
-      this.successRequestCount + 1,
-      SUCCESS_RATE_POOL_SIZE,
-    )
+        this.successRequestCount + 1,
+        SUCCESS_RATE_POOL_SIZE
+    );
   }
 
   if (this.state === Peer.STATE.CONNECTED && this.calcSuccessRate() < 80) {
     this.state = Peer.STATE.DISCONNECTED;
   }
-}
+};
 
 /**
  * Checks peer properties and adjusts according rules.
  * @param {peer} peer
- * @return {Object} this
+ * @return {object} this
  */
 Peer.prototype.accept = function (peer) {
   // Normalize peer data
@@ -191,8 +191,8 @@ Peer.prototype.parseInt = function (integer, fallback) {
 
 /**
  * Normalizes headers
- * @param {Object} headers
- * @return {Object} headers normalized
+ * @param {object} headers
+ * @return {object} headers normalized
  */
 Peer.prototype.applyHeaders = function (headers) {
   headers = headers || {};
@@ -204,7 +204,7 @@ Peer.prototype.applyHeaders = function (headers) {
 /**
  * Updates peer values if mutable.
  * @param {peer} peer
- * @return {Object} this
+ * @return {object} this
  */
 Peer.prototype.update = function (peer) {
   peer = this.normalize(peer);

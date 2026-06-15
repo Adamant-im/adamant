@@ -44,16 +44,16 @@ describe('node', function () {
       };
 
       modulesLoader.initModuleWithDb(
-        Node,
-        (err, module) => {
-          if (err) {
-            return done(err);
-          }
+          Node,
+          (err, module) => {
+            if (err) {
+              return done(err);
+            }
 
-          nodeModule = module;
-          done();
-        },
-        scope
+            nodeModule = module;
+            done();
+          },
+          scope
       );
     });
   });

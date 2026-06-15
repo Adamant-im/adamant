@@ -50,7 +50,7 @@ function sendADM (account, amount, done) {
   });
 }
 
-function sendADM2voter(params, done) {
+function sendADM2voter (params, done) {
   return apiUtils.sendADM(params, done);
 }
 

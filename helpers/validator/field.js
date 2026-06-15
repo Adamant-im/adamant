@@ -40,7 +40,7 @@ Field.prototype.child = function (path, value, rules, thisArg) {
 
 /**
  * Validate field value and trigger callback on result
- * @param callback
+ * @param {Function} callback
  */
 Field.prototype.validate = function (callback) {
   var stack = this._stack;

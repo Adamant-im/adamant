@@ -6,13 +6,13 @@ var ip = require('neoip');
 /**
  * Checks if ip address is in list (e.g. whitelist, blacklist).
  * @memberof module:helpers
- * @function
- * @param {array} list - An array of ip addresses or ip subnets.
+ * @method
+ * @param {Array} list - An array of ip addresses or ip subnets.
  * @param {string} addr - The ip address to check if in array.
  * @param {boolean} returnListIsEmpty - The return value, if list is empty.
  * @return {boolean} True if ip is in the list, false otherwise.
  */
-function CheckIpInList(list, addr, returnListIsEmpty) {
+function CheckIpInList (list, addr, returnListIsEmpty) {
   // In express req.ip is an alias for req.socket.remoteAddress:
   // > Value may be undefined if the socket is destroyed (for example, if the client disconnected).
   // > https://nodejs.org/api/net.html#net_socket_remoteaddress

@@ -177,7 +177,7 @@ describe('peer', () => {
         dappid: ['test dappid'],
         broadhash: 'test broadhash',
         height: 3,
-        nonce: 'ABCD123',
+        nonce: 'ABCD123'
       };
       expect(_.isEqual(_.keys(updateData), peer.headers)).to.be.true;
       peer.update(updateData);
@@ -193,15 +193,15 @@ describe('peer', () => {
         port: validPeer.port,
         string: validPeer.ip + ':' + validPeer.port,
         isBroadcastingViaSocket: false,
-        syncProtocol: 'http',
+        syncProtocol: 'http'
       };
 
       expect(_.isEqual(_.keys(updateImmutableData), peer.immutable)).to.be.true;
       peer.update(updateImmutableData);
       peer.headers.forEach((header) => {
         expect(peer[header])
-          .to.equal(peerBeforeUpdate[header])
-          .and.not.equal(updateImmutableData);
+            .to.equal(peerBeforeUpdate[header])
+            .and.not.equal(updateImmutableData);
       });
     });
   });

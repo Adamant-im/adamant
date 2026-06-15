@@ -3,7 +3,7 @@
 /**
  * Applies methods from parameters.
  * @memberof module:helpers
- * @function
+ * @method
  * @param {function} shared - List of methods.
  * @param {function} call - Method to call.
  * @param {function} args - List of arguments.

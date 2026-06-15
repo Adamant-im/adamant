@@ -26,13 +26,13 @@ const { validSenderKeyPair } = require('../../common/stubs/transactions/common.j
 const {
   testAccount,
   genesisAccount,
-  nonExistingAddress,
+  nonExistingAddress
 } = require('../../common/stubs/account.js');
 const {
-  unconfirmedTransaction,
+  unconfirmedTransaction: unconfirmedTransactionFixture,
   nonExistingTransactionId,
   existingTransaction,
-  existingTransactionWithAsset,
+  existingTransactionWithAsset
 } = require('../../common/stubs/transactions.js');
 const { genesisBlockId } = require('../../common/stubs/blocks.js');
 const slots = require('../../../helpers/slots.js');
@@ -69,12 +69,12 @@ describe('transactions', function () {
       transaction.attachAssetType(transactionTypes.MULTI, new Multisignature());
       transaction.attachAssetType(transactionTypes.DAPP, new DApp());
       transaction.attachAssetType(
-        transactionTypes.IN_TRANSFER,
-        new InTransfer()
+          transactionTypes.IN_TRANSFER,
+          new InTransfer()
       );
       transaction.attachAssetType(
-        transactionTypes.OUT_TRANSFER,
-        new OutTransfer()
+          transactionTypes.OUT_TRANSFER,
+          new OutTransfer()
       );
       transaction.attachAssetType(transactionTypes.CHAT_MESSAGE, new Chat());
       transaction.attachAssetType(transactionTypes.STATE, new State());
@@ -82,22 +82,22 @@ describe('transactions', function () {
       transaction.checkBalance = sinon.fake.returns({
         exceeded: false,
         error: null
-      })
+      });
 
       modulesLoader.initAllModules(
-        (err, __modules) => {
-          if (err) {
-            return done(err);
-          }
+          (err, __modules) => {
+            if (err) {
+              return done(err);
+            }
 
-          modules = __modules;
-          transactions = __modules.transactions;
+            modules = __modules;
+            transactions = __modules.transactions;
 
-          transactions.getUnconfirmedTransactionList = sinon.fake.returns(testUnconfirmedTransactions);
+            transactions.getUnconfirmedTransactionList = sinon.fake.returns(testUnconfirmedTransactions);
 
-          done();
-        },
-        { logic: { transaction } }
+            done();
+          },
+          { logic: { transaction } }
       );
     });
   });
@@ -138,7 +138,7 @@ describe('transactions', function () {
         const body = { blockId: 'abc' };
 
         transactions.shared.getTransactions({ body }, (err, response) => {
-          expect(err).to.include("Object didn't pass validation for format id");
+          expect(err).to.include('Object didn\'t pass validation for format id');
           expect(response).not.to.exist;
 
           done();
@@ -155,8 +155,8 @@ describe('transactions', function () {
           expect(response.transactions).not.to.be.empty;
           response.transactions.forEach((transaction) =>
             expect(transaction.height).to.be.within(
-              body.fromHeight,
-              body['and:toHeight']
+                body.fromHeight,
+                body['and:toHeight']
             )
           );
 
@@ -200,7 +200,7 @@ describe('transactions', function () {
 
       it('should find transactions matching one of the "senderIds"', (done) => {
         const body = {
-          senderIds: [testAccount.address, genesisAccount.address],
+          senderIds: [testAccount.address, genesisAccount.address]
         };
 
         transactions.shared.getTransactions({ body }, (err, response) => {
@@ -233,7 +233,7 @@ describe('transactions', function () {
 
       it('should find transactions matching one of the "recipientIds"', (done) => {
         const body = {
-          recipientIds: [testAccount.address, 'U9781760580710719871'],
+          recipientIds: [testAccount.address, 'U9781760580710719871']
         };
 
         transactions.shared.getTransactions({ body }, (err, response) => {
@@ -275,7 +275,7 @@ describe('transactions', function () {
           expect(response.transactions).not.to.be.empty;
           response.transactions.forEach((transaction) =>
             expect(transaction.recipientPublicKey).to.equal(
-              body.recipientPublicKey
+                body.recipientPublicKey
             )
           );
 
@@ -303,7 +303,7 @@ describe('transactions', function () {
         const types = [transactionTypes.CHAT_MESSAGE, transactionTypes.VOTE];
 
         const body = {
-          types: types.join(','),
+          types: types.join(',')
         };
 
         transactions.shared.getTransactions({ body }, (err, response) => {
@@ -374,11 +374,11 @@ describe('transactions', function () {
 
           expect(response.transactions).not.to.be.empty;
           response.transactions.forEach(
-            (transaction) =>
-              expect(
-                transaction.blockId === body.blockId ||
+              (transaction) =>
+                expect(
+                    transaction.blockId === body.blockId ||
                   transaction.senderId === body.senderId
-              ).to.be.true
+                ).to.be.true
           );
 
           done();
@@ -388,7 +388,7 @@ describe('transactions', function () {
       it('should find transactions with AND logic (blockId AND senderId)', (done) => {
         const body = {
           blockId: genesisBlockId,
-          'and:senderId': testAccount.address,
+          'and:senderId': testAccount.address
         };
 
         transactions.shared.getTransactions({ body }, (err, response) => {
@@ -414,11 +414,11 @@ describe('transactions', function () {
 
           expect(response.transactions).not.to.be.empty;
           response.transactions.forEach(
-            (transaction) =>
-              expect(
-                transaction.height <= body.toHeight ||
+              (transaction) =>
+                expect(
+                    transaction.height <= body.toHeight ||
                   transaction.amount >= body.minAmount
-              ).to.be.true
+                ).to.be.true
           );
 
           done();
@@ -494,7 +494,7 @@ describe('transactions', function () {
         const body = {
           senderId: testAccount.address,
           'and:recipientId': testAccount.address,
-          type: transactionTypes.VOTE,
+          type: transactionTypes.VOTE
         };
 
         transactions.shared.getTransactions({ body }, (err, response) => {
@@ -504,7 +504,7 @@ describe('transactions', function () {
           expect(response.transactions).not.to.be.empty;
           response.transactions.forEach((transaction) => {
             expect(
-              (transaction.senderId === body.senderId &&
+                (transaction.senderId === body.senderId &&
                 transaction.recipientId === body['and:recipientId']) ||
                 transaction.type === body.type
             ).to.be.true;
@@ -518,7 +518,7 @@ describe('transactions', function () {
         const body = {
           minAmount: 100000000,
           'and:maxAmount': 500000000000000,
-          'and:type': transactionTypes.SEND,
+          'and:type': transactionTypes.SEND
         };
 
         transactions.shared.getTransactions({ body }, (err, response) => {
@@ -528,7 +528,7 @@ describe('transactions', function () {
           expect(response.transactions).not.to.be.empty;
           response.transactions.forEach((transaction) => {
             expect(
-              (transaction.amount >= body.minAmount &&
+                (transaction.amount >= body.minAmount &&
                 transaction.amount <= body['and:maxAmount']) ||
                 transaction.type === body.type
             ).to.be.true;
@@ -542,7 +542,7 @@ describe('transactions', function () {
         const body = {
           recipientPublicKey: testAccount.publicKey,
           'and:toHeight': 100,
-          'and:fromHeight': 1,
+          'and:fromHeight': 1
         };
 
         transactions.shared.getTransactions({ body }, (err, response) => {
@@ -552,7 +552,7 @@ describe('transactions', function () {
           expect(response.transactions).not.to.be.empty;
           response.transactions.forEach((transaction) => {
             expect(transaction.recipientPublicKey).to.equal(
-              body.recipientPublicKey
+                body.recipientPublicKey
             );
             expect(transaction.height).to.be.within(1, 100);
           });
@@ -564,7 +564,7 @@ describe('transactions', function () {
       it('should find transactions with OR logic for multiple recipientIds', (done) => {
         const body = {
           recipientIds: [testAccount.address, genesisAccount.address],
-          minAmount: 50000000,
+          minAmount: 50000000
         };
 
         transactions.shared.getTransactions({ body }, (err, response) => {
@@ -574,7 +574,7 @@ describe('transactions', function () {
           expect(response.transactions).not.to.be.empty;
           response.transactions.forEach((transaction) => {
             expect(
-              body.recipientIds.includes(transaction.recipientId) ||
+                body.recipientIds.includes(transaction.recipientId) ||
                 transaction.amount >= body.minAmount
             ).to.be.true;
           });
@@ -587,7 +587,7 @@ describe('transactions', function () {
         const body = {
           blockId: genesisBlockId,
           'and:senderId': nonExistingAddress,
-          'and:type': transactionTypes.VOTE,
+          'and:type': transactionTypes.VOTE
         };
 
         transactions.shared.getTransactions({ body }, (err, response) => {
@@ -608,7 +608,7 @@ describe('transactions', function () {
           expect(response.transactions).not.to.be.empty;
 
           const heights = response.transactions.map(
-            (transaction) => transaction.height
+              (transaction) => transaction.height
           );
           expect(heights).to.eql([...heights].sort((a, b) => b - a));
 
@@ -625,7 +625,7 @@ describe('transactions', function () {
           expect(response.transactions).not.to.be.empty;
 
           const heights = response.transactions.map(
-            (transaction) => transaction.height
+              (transaction) => transaction.height
           );
           expect(heights).to.eql([...heights].sort((a, b) => a - b));
 
@@ -642,7 +642,7 @@ describe('transactions', function () {
           expect(response.transactions).not.to.be.empty;
 
           const amounts = response.transactions.map(
-            (transaction) => transaction.amount
+              (transaction) => transaction.amount
           );
           expect(amounts).to.eql([...amounts].sort((a, b) => b - a));
 
@@ -659,7 +659,7 @@ describe('transactions', function () {
           expect(response.transactions).not.to.be.empty;
 
           const amounts = response.transactions.map(
-            (transaction) => transaction.amount
+              (transaction) => transaction.amount
           );
           expect(amounts).to.eql([...amounts].sort((a, b) => a - b));
 
@@ -676,7 +676,7 @@ describe('transactions', function () {
           expect(response.transactions).not.to.be.empty;
 
           const types = response.transactions.map(
-            (transaction) => transaction.type
+              (transaction) => transaction.type
           );
           expect(types).to.eql([...types].sort((a, b) => a - b));
 
@@ -708,7 +708,7 @@ describe('transactions', function () {
           );
 
           const heights = response.transactions.map(
-            (transaction) => transaction.height
+              (transaction) => transaction.height
           );
           expect(heights).to.eql([...heights].sort((a, b) => b - a));
 
@@ -725,7 +725,7 @@ describe('transactions', function () {
           expect(response.transactions).length.to.be.at.most(5);
 
           const amounts = response.transactions.map(
-            (transaction) => transaction.amount
+              (transaction) => transaction.amount
           );
           expect(amounts).to.eql([...amounts].sort((a, b) => a - b));
 
@@ -759,7 +759,7 @@ describe('transactions', function () {
         transactions.shared.getTransaction({ body }, (err, response) => {
           expect(err).not.to.exist;
           expect(response.transaction).to.deep.include(
-            existingTransactionWithAsset
+              existingTransactionWithAsset
           );
           done();
         });
@@ -785,7 +785,7 @@ describe('transactions', function () {
           123,
           'string',
           [],
-          null,
+          null
         ];
 
         invalidTypes.forEach((value) => {
@@ -884,16 +884,16 @@ describe('transactions', function () {
         const unconfirmedTransactions = transactions.getUnconfirmedTransactions({
           senderPublicKeys: [
             'b87f9fe005c3533152230fdcbd7bf87a0cea83592c591f7e71be5b7a48bb6e44',
-            '1ed651ec1c686c23249dadb2cb656edd5f8e7d35076815d8a81c395c3eed1a85',
-          ],
+            '1ed651ec1c686c23249dadb2cb656edd5f8e7d35076815d8a81c395c3eed1a85'
+          ]
         });
         expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
         unconfirmedTransactions.forEach(
-          (transaction) =>
-            expect([
-              'b87f9fe005c3533152230fdcbd7bf87a0cea83592c591f7e71be5b7a48bb6e44',
-              '1ed651ec1c686c23249dadb2cb656edd5f8e7d35076815d8a81c395c3eed1a85',
-            ]).to.include(transaction.senderPublicKey)
+            (transaction) =>
+              expect([
+                'b87f9fe005c3533152230fdcbd7bf87a0cea83592c591f7e71be5b7a48bb6e44',
+                '1ed651ec1c686c23249dadb2cb656edd5f8e7d35076815d8a81c395c3eed1a85'
+              ]).to.include(transaction.senderPublicKey)
         );
       });
 
@@ -901,8 +901,8 @@ describe('transactions', function () {
         const unconfirmedTransactions = transactions.getUnconfirmedTransactions({
           recipientPublicKeys: [
             '88133402279c1882e2d2945253154f82eba01f547d5f57a228d814365817daa5',
-            '9627e198a1ed10994340f1e60b334b824b0573bab20190494f90663bfaa92eac',
-          ],
+            '9627e198a1ed10994340f1e60b334b824b0573bab20190494f90663bfaa92eac'
+          ]
         });
         expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
         unconfirmedTransactions.forEach((transaction) => expect(['U5885317311990438076', 'U2185870976635709603']).to.include(transaction.recipientId));
@@ -920,9 +920,9 @@ describe('transactions', function () {
       it('should filter transactions using OR condition by default', () => {
         const unconfirmedTransactions = transactions.getUnconfirmedTransactions({
           minAmount: 10000000,
-          senderId: 'U3716604363012166999',
+          senderId: 'U3716604363012166999'
         }, {
-          defaultCondition: 'OR',
+          defaultCondition: 'OR'
         });
         expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
         unconfirmedTransactions.forEach((transaction) => {
@@ -935,7 +935,7 @@ describe('transactions', function () {
         expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
         unconfirmedTransactions.forEach((transaction) => {
           expect(
-            transaction.amount >= 100000000 || transaction.senderId === 'U3716604363012166999'
+              transaction.amount >= 100000000 || transaction.senderId === 'U3716604363012166999'
           ).to.be.true;
         });
       });
@@ -945,7 +945,7 @@ describe('transactions', function () {
         expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
         unconfirmedTransactions.forEach((transaction) => {
           expect(
-            transaction.amount >= 100000000 || transaction.senderId === 'U3716604363012166999'
+              transaction.amount >= 100000000 || transaction.senderId === 'U3716604363012166999'
           ).to.be.true;
         });
       });
@@ -964,7 +964,7 @@ describe('transactions', function () {
         expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
         unconfirmedTransactions.forEach((transaction) => {
           expect(
-            transaction.timestamp <= 58880317 || transaction.timestamp >= 231352261
+              transaction.timestamp <= 58880317 || transaction.timestamp >= 231352261
           ).to.be.true;
         });
       });
@@ -977,7 +977,7 @@ describe('transactions', function () {
         expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
         unconfirmedTransactions.forEach((transaction) => {
           expect(
-            transaction.type === transactionTypes.STATE && transaction.asset.state.key === key,
+              transaction.type === transactionTypes.STATE && transaction.asset.state.key === key
           ).to.be.true;
         });
       });
@@ -998,7 +998,7 @@ describe('transactions', function () {
         expect(unconfirmedTransactions).to.be.an('array').that.has.lengthOf(2);
         unconfirmedTransactions.forEach((transaction) => {
           expect(
-            transaction.type === transactionTypes.STATE && keyIds.includes(transaction.asset.state.key),
+              transaction.type === transactionTypes.STATE && keyIds.includes(transaction.asset.state.key)
           ).to.be.true;
         });
       });
@@ -1008,7 +1008,7 @@ describe('transactions', function () {
         expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
         unconfirmedTransactions.forEach((transaction) => {
           expect(
-            transaction.timestamp <= 231352261 && transaction.timestamp >= 58880317
+              transaction.timestamp <= 231352261 && transaction.timestamp >= 58880317
           ).to.be.true;
         });
       });
@@ -1062,13 +1062,13 @@ describe('transactions', function () {
         it('should filter by state types with alias type->assetStateType', () => {
           const unconfirmedTransactions = transactions.getUnconfirmedTransactions({ type: 0 }, {
             aliases: {
-              type: 'assetStateType',
-            },
+              type: 'assetStateType'
+            }
           });
           expect(unconfirmedTransactions).to.be.an('array').that.is.not.empty;
           unconfirmedTransactions.forEach((transaction) => {
             expect(
-              transaction.asset.state.type
+                transaction.asset.state.type
             ).equal(0);
           });
         });
@@ -1102,38 +1102,38 @@ describe('transactions', function () {
         options = {
           orderBy: {
             originalField: undefined,
-            sortMethod: undefined,
-          },
+            sortMethod: undefined
+          }
         };
 
         txs = [
           {
-            id: "9175562912139726777",
+            id: '9175562912139726777',
             height: 10288885,
-            blockId: "10475460465898092643",
+            blockId: '10475460465898092643',
             type: 8,
             block_timestamp: 58773245,
             timestamp: 58773228,
             senderPublicKey:
-              "2ac5eef60303003c90f662d89e60570d8661c8ba569e667296f5c7c97a0413ee",
-            senderId: "U8916295525136600565",
+              '2ac5eef60303003c90f662d89e60570d8661c8ba569e667296f5c7c97a0413ee',
+            senderId: 'U8916295525136600565',
             recipientPublicKey:
-              "5a3c1da429ae925422892e69dc4f0ab6d7ac00cef229d2d992242dcfeca27b91",
-            recipientId: "U2707535059340134112",
+              '5a3c1da429ae925422892e69dc4f0ab6d7ac00cef229d2d992242dcfeca27b91',
+            recipientId: 'U2707535059340134112',
             fee: 100000,
             signature:
-              "287dc2554025d8074d674d50ec785d530588e2b828f2d3f29687a4f05c8afc623e185896abc739ea2af8db199ec6e31c57426937343ff5ec154341cee8f72f0a",
+              '287dc2554025d8074d674d50ec785d530588e2b828f2d3f29687a4f05c8afc623e185896abc739ea2af8db199ec6e31c57426937343ff5ec154341cee8f72f0a',
             signatures: [],
             confirmations: 32801518,
             asset: {
               chat: {
                 message:
-                  "9ae819297240f00bdc3627133c2e41efd27b022fcd0d011dfdda0941ba08399697f3e3bb5c46a43aff714ae1bac616b84617ce446d808523a14f278e5d88909837848e7aa69d9d4f9a95baae56df6ad4c274248d3d01a2cfccae51367dfab265a055d5ce991af654ee418839f94885876638863d172226b0369cd488c5727e6b1a42ba46fed014c1bf586dd2cab3afe7f10cb54864c099a680d5963778c9c4052df305497edc43082a7d60193650c331c6db9c9d9c0c8bbc004e53ac56586331453164b984c57a495810d709c9b984e4f367888d8a8ce1b26f528c1abdec08747e",
-                own_message: "6802a9e744aa3ba570d7e48fce5fe0f49184d0ce38ea40f7",
-                type: 1,
-              },
-            },
-          },
+                  '9ae819297240f00bdc3627133c2e41efd27b022fcd0d011dfdda0941ba08399697f3e3bb5c46a43aff714ae1bac616b84617ce446d808523a14f278e5d88909837848e7aa69d9d4f9a95baae56df6ad4c274248d3d01a2cfccae51367dfab265a055d5ce991af654ee418839f94885876638863d172226b0369cd488c5727e6b1a42ba46fed014c1bf586dd2cab3afe7f10cb54864c099a680d5963778c9c4052df305497edc43082a7d60193650c331c6db9c9d9c0c8bbc004e53ac56586331453164b984c57a495810d709c9b984e4f367888d8a8ce1b26f528c1abdec08747e',
+                own_message: '6802a9e744aa3ba570d7e48fce5fe0f49184d0ce38ea40f7',
+                type: 1
+              }
+            }
+          }
         ];
 
         unconfirmedTxs = [
@@ -1149,8 +1149,8 @@ describe('transactions', function () {
             signature: '5ee972df476703492a667616eef428ed127e13fe5de8ba873b6579a806ddbd9fbd34147cf0321823d72e0d234466fc3dc89ebe7341e0b4a91a56b32d3bdb6a00',
             fee: 50000000,
             relays: 1,
-            receivedAt: '2019-07-16T04:38:38.492Z',
-          },
+            receivedAt: '2019-07-16T04:38:38.492Z'
+          }
         ];
       });
 
@@ -1174,9 +1174,9 @@ describe('transactions', function () {
         const reversedUnconfirmed = [...sortedUnconfirmed].reverse();
 
         const merged = transactions.mergeUnconfirmedTransactions(
-          [txs[0]],
-          reversedUnconfirmed,
-          options
+            [txs[0]],
+            reversedUnconfirmed,
+            options
         );
 
         const expectedOrder = [txs[0], ...sortedUnconfirmed];
@@ -1193,9 +1193,9 @@ describe('transactions', function () {
         const reversedUnconfirmed = [...sortedUnconfirmed].reverse();
 
         const merged = transactions.mergeUnconfirmedTransactions(
-          [txs[0]],
-          reversedUnconfirmed,
-          options
+            [txs[0]],
+            reversedUnconfirmed,
+            options
         );
 
         const expectedOrder = [...sortedUnconfirmed, txs[0]];
@@ -1282,7 +1282,7 @@ describe('transactions', function () {
       describe('should remove transfer transactions when includeDirectTransfers is', () => {
         const values = [
           0,
-          false,
+          false
         ];
 
         values.forEach((value) => {
@@ -1292,7 +1292,7 @@ describe('transactions', function () {
             const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
 
             expect(mergedTxs).to.be.an('array').that.is.not.empty;
-            mergedTxs.forEach(tx => expect(tx.type).not.to.equal(transactionTypes.SEND));
+            mergedTxs.forEach((tx) => expect(tx.type).not.to.equal(transactionTypes.SEND));
           });
         });
       });
@@ -1300,7 +1300,7 @@ describe('transactions', function () {
       describe('should remove asset from transactions when returnAsset is', () => {
         const values = [
           0,
-          false,
+          false
         ];
 
         values.forEach((value) => {
@@ -1310,7 +1310,7 @@ describe('transactions', function () {
             const mergedTxs = transactions.mergeUnconfirmedTransactions(txs, unconfirmedTxs, options);
 
             expect(mergedTxs).to.be.an('array').that.is.not.empty;
-            mergedTxs.forEach(tx => expect(tx.asset).not.to.exist);
+            mergedTxs.forEach((tx) => expect(tx.asset).not.to.exist);
           });
         });
       });
@@ -1321,7 +1321,7 @@ describe('transactions', function () {
         'confirmed',
         'multisignature',
         'unconfirmed',
-        'queued',
+        'queued'
       ];
 
       it('should return valid object', (done) => {
@@ -1340,10 +1340,16 @@ describe('transactions', function () {
 
     describe('transactions in pool', () => {
       let unconfirmedTransactionId;
+      let unconfirmedTransaction;
 
       beforeEach((done) => {
-        unconfirmedTransaction.timestamp = slots.getTime();
-        unconfirmedTransaction.timestampMs = slots.getTimeMs();
+        const timestampMs = slots.getTimeMs();
+        unconfirmedTransaction = {
+          ...unconfirmedTransactionFixture,
+          asset: { ...unconfirmedTransactionFixture.asset },
+          timestamp: Math.floor(timestampMs / 1000),
+          timestampMs
+        };
 
         delete unconfirmedTransaction.signature;
         unconfirmedTransaction.signature = transaction.sign(validSenderKeyPair, unconfirmedTransaction);
@@ -1356,7 +1362,7 @@ describe('transactions', function () {
       afterEach(() => {
         transactions.removeUnconfirmedTransaction(unconfirmedTransactionId);
         expect(transactions.transactionInPool(unconfirmedTransactionId)).to.be
-          .false;
+            .false;
       });
 
       describe('queued transactions', () => {
@@ -1365,23 +1371,23 @@ describe('transactions', function () {
 
           it('should return queued transactions', (done) => {
             transactions.shared.getQueuedTransactions(
-              { body: {} },
-              (err, response) => {
-                expect(err).not.to.exist;
-                expect(response).to.have.all.keys(getQueuedTransactionsKeys);
-                expect(response.count).to.be.a('number');
-                expect(response.transactions).to.be.an('array');
-                expect(response.transactions).not.to.be.empty;
+                { body: {} },
+                (err, response) => {
+                  expect(err).not.to.exist;
+                  expect(response).to.have.all.keys(getQueuedTransactionsKeys);
+                  expect(response.count).to.be.a('number');
+                  expect(response.transactions).to.be.an('array');
+                  expect(response.transactions).not.to.be.empty;
 
-                response.transactions.forEach((transaction) => {
-                  expect(transaction.id).to.be.a.string;
-                  expect(transaction.receivedAt).to.be.a.string;
-                  expect(transaction.blockId).not.to.exist;
-                  expect(transaction.height).not.to.exist;
-                });
+                  response.transactions.forEach((transaction) => {
+                    expect(transaction.id).to.be.a.string;
+                    expect(transaction.receivedAt).to.be.a.string;
+                    expect(transaction.blockId).not.to.exist;
+                    expect(transaction.height).not.to.exist;
+                  });
 
-                done();
-              }
+                  done();
+                }
             );
           });
         });
@@ -1389,26 +1395,26 @@ describe('transactions', function () {
         describe('getQueuedTransactions', () => {
           it('should return error with no "id" parameter', (done) => {
             transactions.shared.getQueuedTransaction(
-              { body: {} },
-              (err, response) => {
-                expect(err).to.equal('Missing required property: id');
-                expect(response).not.to.exist;
+                { body: {} },
+                (err, response) => {
+                  expect(err).to.equal('Missing required property: id');
+                  expect(response).not.to.exist;
 
-                done();
-              }
+                  done();
+                }
             );
           });
 
           it('should return queued transaction', (done) => {
             const body = { id: unconfirmedTransactionId };
             transactions.shared.getQueuedTransaction(
-              { body },
-              (err, response) => {
-                expect(err).not.to.exist;
-                expect(response.transaction).to.eql(unconfirmedTransaction);
+                { body },
+                (err, response) => {
+                  expect(err).not.to.exist;
+                  expect(response.transaction).to.eql(unconfirmedTransaction);
 
-                done();
-              }
+                  done();
+                }
             );
           });
         });
@@ -1424,25 +1430,25 @@ describe('transactions', function () {
 
           it('should return unconfirmed transactions', (done) => {
             transactions.shared.getUnconfirmedTransactions(
-              { body: {} },
-              (err, response) => {
-                expect(err).not.to.exist;
-                expect(response).to.have.all.keys(
-                  getUnconfirmedTransactionsKeys
-                );
-                expect(response.count).to.be.a('number');
-                expect(response.transactions).to.be.an('array');
-                expect(response.transactions).not.to.be.empty;
+                { body: {} },
+                (err, response) => {
+                  expect(err).not.to.exist;
+                  expect(response).to.have.all.keys(
+                      getUnconfirmedTransactionsKeys
+                  );
+                  expect(response.count).to.be.a('number');
+                  expect(response.transactions).to.be.an('array');
+                  expect(response.transactions).not.to.be.empty;
 
-                response.transactions.forEach((transaction) => {
-                  expect(transaction.id).to.be.a.string;
-                  expect(transaction.receivedAt).to.be.a.string;
-                  expect(transaction.blockId).not.to.exist;
-                  expect(transaction.height).not.to.exist;
-                });
+                  response.transactions.forEach((transaction) => {
+                    expect(transaction.id).to.be.a.string;
+                    expect(transaction.receivedAt).to.be.a.string;
+                    expect(transaction.blockId).not.to.exist;
+                    expect(transaction.height).not.to.exist;
+                  });
 
-                done();
-              }
+                  done();
+                }
             );
           });
         });
@@ -1450,26 +1456,26 @@ describe('transactions', function () {
         describe('getUnconfirmedTransaction', () => {
           it('should return error with no "id" parameter', (done) => {
             transactions.shared.getUnconfirmedTransaction(
-              { body: {} },
-              (err, response) => {
-                expect(err).to.equal('Missing required property: id');
-                expect(response).not.to.exist;
+                { body: {} },
+                (err, response) => {
+                  expect(err).to.equal('Missing required property: id');
+                  expect(response).not.to.exist;
 
-                done();
-              }
+                  done();
+                }
             );
           });
 
           it('should return unconfirmed transaction', (done) => {
             const body = { id: unconfirmedTransactionId };
             transactions.shared.getUnconfirmedTransaction(
-              { body },
-              (err, response) => {
-                expect(err).not.to.exist;
-                expect(response.transaction).to.eql(unconfirmedTransaction);
+                { body },
+                (err, response) => {
+                  expect(err).not.to.exist;
+                  expect(response.transaction).to.eql(unconfirmedTransaction);
 
-                done();
-              }
+                  done();
+                }
             );
           });
         });

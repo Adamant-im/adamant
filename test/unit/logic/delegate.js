@@ -16,13 +16,13 @@ const { modulesLoader } = require('../../common/initModule.js');
 const constants = require('../../../helpers/constants.js');
 const transactionTypes = require('../../../helpers/transactionTypes.js');
 
-const { validSender } = require('../../common/stubs/transactions/common.js')
+const { validSender } = require('../../common/stubs/transactions/common.js');
 const {
   validTransaction,
   validTransactionData,
   validUnconfirmedTransaction,
-  rawValidTransaction,
-} = require('../../common/stubs/transactions/delegate.js')
+  rawValidTransaction
+} = require('../../common/stubs/transactions/delegate.js');
 
 describe('Delegate', () => {
   let delegateBindings;
@@ -35,67 +35,67 @@ describe('Delegate', () => {
 
   const dummyBlock = {
     id: '9314232245035524467',
-    height: 1,
+    height: 1
   };
 
   const dummySender = {
-    address: validUnconfirmedTransaction.senderId,
+    address: validUnconfirmedTransaction.senderId
   };
 
   before((done) => {
     async.auto(
-      {
-        rounds(cb) {
-          modulesLoader.initModule(Rounds, modulesLoader.scope, cb);
-        },
-        accountLogic(cb) {
-          modulesLoader.initLogicWithDb(AccountLogic, cb, {});
-        },
-        transactionLogic: [
-          'rounds',
-          'accountLogic',
-          (result, cb) => {
-            modulesLoader.initLogicWithDb(
-              TransactionLogic,
-              (err, __transaction) => {
-                __transaction.bindModules(result);
-                cb(err, __transaction);
-              },
-              {
-                ed: modulesLoader.scope.ed,
-                account: result.account,
-              }
-            );
+        {
+          rounds (cb) {
+            modulesLoader.initModule(Rounds, modulesLoader.scope, cb);
           },
-        ],
-        accountModule: [
-          'accountLogic',
-          'transactionLogic',
-          (result, cb) => {
-            modulesLoader.initModuleWithDb(AccountModule, cb, {
-              logic: {
-                account: result.accountLogic,
-                transaction: result.transactionLogic,
-              },
-            });
+          accountLogic (cb) {
+            modulesLoader.initLogicWithDb(AccountLogic, cb, {});
           },
-        ],
-      },
-      (err, result) => {
-        expect(err).to.not.exist;
-        delegate = new Delegate(modulesLoader.scope.schema);
-        delegateBindings = {
-          accounts: result.accountModule,
-        };
-        delegate.bind(delegateBindings.accounts);
+          transactionLogic: [
+            'rounds',
+            'accountLogic',
+            (result, cb) => {
+              modulesLoader.initLogicWithDb(
+                  TransactionLogic,
+                  (err, __transaction) => {
+                    __transaction.bindModules(result);
+                    cb(err, __transaction);
+                  },
+                  {
+                    ed: modulesLoader.scope.ed,
+                    account: result.account
+                  }
+              );
+            }
+          ],
+          accountModule: [
+            'accountLogic',
+            'transactionLogic',
+            (result, cb) => {
+              modulesLoader.initModuleWithDb(AccountModule, cb, {
+                logic: {
+                  account: result.accountLogic,
+                  transaction: result.transactionLogic
+                }
+              });
+            }
+          ]
+        },
+        (err, result) => {
+          expect(err).to.not.exist;
+          delegate = new Delegate(modulesLoader.scope.schema);
+          delegateBindings = {
+            accounts: result.accountModule
+          };
+          delegate.bind(delegateBindings.accounts);
 
-        transaction = result.transactionLogic;
-        transaction.attachAssetType(transactionTypes.DELEGATE, delegate);
+          transaction = result.transactionLogic;
+          transaction.attachAssetType(transactionTypes.DELEGATE, delegate);
 
-        accountsModule = result.accountModule;
+          accountsModule = result.accountModule;
 
-        done();
-      }
+          done();
+        }
     );
   });
 
@@ -120,7 +120,7 @@ describe('Delegate', () => {
 
     it('should be okay with valid parameters', () => {
       expect(delegate.create(validTransactionData, validTransaction)).to.be.an(
-        'object'
+          'object'
       );
     });
   });
@@ -226,7 +226,7 @@ describe('Delegate', () => {
 
       delegate.verify(trs, validSender, (err) => {
         expect(err).to.equal(
-          'Username can only contain alphanumeric characters with the exception of !@$&_.'
+            'Username can only contain alphanumeric characters with the exception of !@$&_.'
         );
         done();
       });
@@ -256,7 +256,7 @@ describe('Delegate', () => {
 
     it('should return the valid buffer', () => {
       expect(delegate.getBytes(validTransaction)).to.eql(
-        Buffer.from('73797374656d', 'hex')
+          Buffer.from('73797374656d', 'hex')
       );
     });
   });
@@ -266,31 +266,31 @@ describe('Delegate', () => {
       const { username } = validUnconfirmedTransaction.asset.delegate;
 
       delegate.apply.call(
-        transaction,
-        validUnconfirmedTransaction,
-        dummyBlock,
-        dummySender,
-        (err) => {
-          expect(err).to.not.exist;
+          transaction,
+          validUnconfirmedTransaction,
+          dummyBlock,
+          dummySender,
+          (err) => {
+            expect(err).to.not.exist;
 
-          accountsModule.getAccount(
-            {
-              username,
-            },
-            (err, accountAfter) => {
-              expect(err).to.not.exist;
-              expect(accountAfter).to.exist;
-              expect(accountAfter.isDelegate).to.equal(1);
-              done();
-            }
-          );
-        }
+            accountsModule.getAccount(
+                {
+                  username
+                },
+                (err, accountAfter) => {
+                  expect(err).to.not.exist;
+                  expect(accountAfter).to.exist;
+                  expect(accountAfter.isDelegate).to.equal(1);
+                  done();
+                }
+            );
+          }
       );
     });
   });
 
   describe('undo()', () => {
-    function applyTransaction(trs, sender, done) {
+    function applyTransaction (trs, sender, done) {
       delegate.apply.call(transaction, trs, dummyBlock, sender, done);
     }
 
@@ -302,30 +302,30 @@ describe('Delegate', () => {
         expect(accountBefore.isDelegate).to.equal(1);
 
         delegate.undo.call(
-          transaction,
-          validUnconfirmedTransaction,
-          dummyBlock,
-          dummySender,
-          (err) => {
-            expect(err).to.not.exist;
+            transaction,
+            validUnconfirmedTransaction,
+            dummyBlock,
+            dummySender,
+            (err) => {
+              expect(err).to.not.exist;
 
-            accountsModule.getAccount(
-              { address: validSender.address },
-              (err, accountAfter) => {
-                expect(err).to.not.exist;
+              accountsModule.getAccount(
+                  { address: validSender.address },
+                  (err, accountAfter) => {
+                    expect(err).to.not.exist;
 
-                expect(accountAfter).to.exist;
-                expect(accountAfter.username).to.equal(null);
-                expect(accountAfter.isDelegate).to.equal(0);
+                    expect(accountAfter).to.exist;
+                    expect(accountAfter.username).to.equal(null);
+                    expect(accountAfter.isDelegate).to.equal(0);
 
-                applyTransaction(
-                  validUnconfirmedTransaction,
-                  dummySender,
-                  done
-                );
-              }
-            );
-          }
+                    applyTransaction(
+                        validUnconfirmedTransaction,
+                        dummySender,
+                        done
+                    );
+                  }
+              );
+            }
         );
       });
     });
@@ -338,7 +338,7 @@ describe('Delegate', () => {
 
     it('should be ok with a valid transaction', () => {
       expect(delegate.objectNormalize(validTransaction)).to.equal(
-        validTransaction
+          validTransaction
       );
     });
   });

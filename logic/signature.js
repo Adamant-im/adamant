@@ -11,7 +11,7 @@ var modules, library;
  * @param {ZSchema} schema
  * @param {object} logger
  * @memberof module:signatures
- * @class
+ * @constructor
  * @classdesc Main signature logic.
  */
 // Constructor
@@ -67,7 +67,7 @@ Signature.prototype.calculateFee = function (trs, sender) {
  * @param {account} sender
  * @param {Function} cb - Callback function.
  * @implements module:transactions#Transaction~verifySignature
- * @returns {setImmediateCallback|transaction} returns error string if invalid parameter |
+ * @return {setImmediateCallback|transaction} returns error string if invalid parameter |
  * trs validated.
  */
 Signature.prototype.verify = function (trs, sender, cb) {
@@ -98,7 +98,7 @@ Signature.prototype.verify = function (trs, sender, cb) {
  * @param {Function} cb - Callback function.
  * @todo check extra parameter sender.
  *
- * @returns {setImmediateCallback} Null error
+ * @return {setImmediateCallback} Null error
  */
 Signature.prototype.process = function (trs, sender, cb) {
   return setImmediate(cb, null, trs);
@@ -170,7 +170,6 @@ Signature.prototype.undo = function (trs, block, sender, cb) {
 /**
  * Activates unconfirmed second signature for sender account.
  * @param {transaction} trs - Unnecessary parameter.
- * @param {block} block - Unnecessary parameter.
  * @param {account} sender
  * @param {Function} cb - Callback function.
  * @implements module:accounts#Accounts~setAccountAndGet
@@ -187,7 +186,6 @@ Signature.prototype.applyUnconfirmed = function (trs, sender, cb) {
 /**
  * Deactivates unconfirmed second signature for sender account.
  * @param {transaction} trs - Unnecessary parameter.
- * @param {block} block - Unnecessary parameter.
  * @param {account} sender
  * @param {Function} cb - Callback function.
  * @implements module:accounts#Accounts~setAccountAndGet
@@ -215,7 +213,7 @@ Signature.prototype.schema = {
  * Validates signature schema.
  * @param {transaction} trs - Uses signature from asset.
  * @throws {string} Error message.
- * @returns {transaction} Transaction validated.
+ * @return {transaction} Transaction validated.
  */
 Signature.prototype.objectNormalize = function (trs) {
   var report = library.schema.validate(trs.asset.signature, Signature.prototype.schema);
@@ -234,7 +232,7 @@ Signature.prototype.objectNormalize = function (trs) {
  * @param {object} raw - Data from database.
  * @todo check if this function is called.
  *
- * @returns {multisignature} signature Object with transaction id.
+ * @return {multisignature} signature Object with transaction id.
  */
 Signature.prototype.dbRead = function (raw) {
   if (!raw.s_publicKey) {
@@ -261,7 +259,7 @@ Signature.prototype.dbFields = [
  * @param {transaction} trs - Contains signature object.
  * @todo check if this function is called.
  *
- * @returns {object} {table:signatures, values: publicKey and transaction id}.
+ * @return {object} {table:signatures, values: publicKey and transaction id}.
  */
 Signature.prototype.dbSave = function (trs) {
   var publicKey;
@@ -287,7 +285,7 @@ Signature.prototype.dbSave = function (trs) {
  * @param {transaction} trs - signatures.
  * @param {account} sender
  * @todo validate this logic, check if this function is called.
- * @returns {boolean} logic based on trs signatures and sender multisignatures.
+ * @return {boolean} logic based on trs signatures and sender multisignatures.
  */
 Signature.prototype.ready = function (trs, sender) {
   if (Array.isArray(sender.multisignatures) && sender.multisignatures.length) {

@@ -10,10 +10,11 @@ var path = require('path');
 
 /**
  * Migrator functions
- * @class
+ * @constructor
  * @private
- * @param {Object} pgp - pg promise
- * @param {Object} db - pg connection
+ * @param {object} pgp - pg promise
+ * @param {object} db - pg connection
+ * @param {Logger} logger - Application logger.
  */
 function Migrator (pgp, db, logger) {
   /**
@@ -33,7 +34,7 @@ function Migrator (pgp, db, logger) {
   /**
    * Gets last migration record from `migrations` table.
    * @method
-   * @param {Boolean} hasMigrations
+   * @param {boolean} hasMigrations
    * @param {function} waterCb - Callback function
    * @return {function} waterCb with error | row data
    */
@@ -55,7 +56,7 @@ function Migrator (pgp, db, logger) {
    * Reads folder `sql/migrations` and returns files rather than
    * lastMigration id.
    * @method
-   * @param {Object} lastMigration
+   * @param {object} lastMigration
    * @param {function} waterCb - Callback function
    * @return {function} waterCb with error | pendingMigrations
    */
@@ -181,8 +182,8 @@ function Migrator (pgp, db, logger) {
  * @requires pg-promise
  * @requires pg-monitor
  * @implements Migrator
- * @function connect
- * @param {Object} config
+ * @method connect
+ * @param {object} config
  * @param {function} logger
  * @param {function} cb
  * @return {function} error|cb

@@ -9,7 +9,7 @@ var modules, library, shared;
 /**
  * Initializes library.
  * @memberof module:dapps
- * @class
+ * @constructor
  * @classdesc Main InTransfer logic.
  * @param {Database} db
  * @param {ZSchema} schema
@@ -27,7 +27,7 @@ function InTransfer (db, schema) {
  * Binds input parameters to private variables modules and shared.
  * @param {Accounts} accounts
  * @param {Rounds} rounds
- * @param {Object} sharedApi
+ * @param {object} sharedApi
  */
 InTransfer.prototype.bind = function (accounts, rounds, sharedApi) {
   modules = {
@@ -40,7 +40,7 @@ InTransfer.prototype.bind = function (accounts, rounds, sharedApi) {
 /**
  * Assigns data to transaction recipientId and amount.
  * Generates inTransfer data into transaction asset.
- * @param {Object} data
+ * @param {object} data
  * @param {transaction} trs
  * @return {transaction} trs with assigned data
  */
@@ -246,8 +246,8 @@ InTransfer.prototype.objectNormalize = function (trs) {
 
 /**
  * Creates inTransfer object based on raw data.
- * @param {Object} raw
- * @return {Object} inTransfer with dappId
+ * @param {object} raw
+ * @return {object} inTransfer with dappId
  */
 InTransfer.prototype.dbRead = function (raw) {
   if (!raw.in_dappId) {
@@ -272,7 +272,7 @@ InTransfer.prototype.dbFields = [
  * Creates db operation object to 'intransfer' table based on
  * inTransfer data.
  * @param {transaction} trs
- * @return {Object[]} table, fields, values.
+ * @return {object[]} table, fields, values.
  */
 InTransfer.prototype.dbSave = function (trs) {
   return {

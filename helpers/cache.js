@@ -4,9 +4,9 @@ var redis = require('redis');
 
 /**
  * Connects with redis server using the config provided via parameters
- * @param {Boolean} cacheEnabled
- * @param {Object} config - Redis configuration
- * @param {Object} logger
+ * @param {boolean} cacheEnabled
+ * @param {object} config - Redis configuration
+ * @param {object} logger
  * @param {Function} cb
  */
 module.exports.connect = function (cacheEnabled, config, logger, cb) {
@@ -16,12 +16,19 @@ module.exports.connect = function (cacheEnabled, config, logger, cb) {
     return cb(null, { cacheEnabled: cacheEnabled, client: null });
   }
 
+  const redisConfig = { ...config };
+
   // delete password key if it's value is null
-  if (config.password === null) {
-    delete config.password;
+  if (redisConfig.password === null) {
+    delete redisConfig.password;
   }
 
-  var client = redis.createClient(config);
+  // node-redis v6 defaults to RESP3; keep the established RESP2 response semantics.
+  if (redisConfig.RESP === undefined) {
+    redisConfig.RESP = 2;
+  }
+
+  var client = redis.createClient(redisConfig);
 
   client.connect()
       .then(() => {

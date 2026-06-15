@@ -17,7 +17,7 @@ __private.assetTypes = {};
  * Initializes library with scope content and generates a Signature instance.
  * Calls logic.transaction.attachAssetType().
  * @memberof module:signatures
- * @class
+ * @constructor
  * @classdesc Main signatures methods.
  * @param {function} cb - Callback function.
  * @param {scope} scope - App instance.
@@ -59,7 +59,7 @@ Signatures.prototype.isLoaded = function () {
  * Calls helpers.sandbox.callMethod().
  * @implements module:helpers#callMethod
  * @param {function} call - Method to call.
- * @param {} args - List of arguments.
+ * @param {*} args - List of arguments.
  * @param {function} cb - Callback function.
  */
 Signatures.prototype.sandboxApi = function (call, args, cb) {

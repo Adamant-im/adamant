@@ -16,7 +16,7 @@ const {
   firstTransfer,
   secondTransfer,
   firstMessage,
-  secondMessage,
+  secondMessage
 } = require('../../common/stubs/blocks.js');
 const { delegateKeyPair } = require('../../common/stubs/delegate.js');
 
@@ -25,26 +25,26 @@ describe('Block', () => {
 
   beforeEach((done) => {
     modulesLoader.initLogic(
-      Block,
-      {
-        ...modulesLoader.scope,
-        db: {},
-      },
-      (error, result) => {
-        if (error) {
-          return done(error);
+        Block,
+        {
+          ...modulesLoader.scope,
+          db: {}
+        },
+        (error, result) => {
+          if (error) {
+            return done(error);
+          }
+
+          block = result;
+
+          const { transaction } = block.scope;
+          const transfer = new Transfer();
+          const chat = new Chat();
+          transaction.attachAssetType(transactionTypes.SEND, transfer);
+          transaction.attachAssetType(transactionTypes.CHAT_MESSAGE, chat);
+
+          done();
         }
-
-        block = result;
-
-        const { transaction } = block.scope;
-        const transfer = new Transfer();
-        const chat = new Chat();
-        transaction.attachAssetType(transactionTypes.SEND, transfer);
-        transaction.attachAssetType(transactionTypes.CHAT_MESSAGE, chat);
-
-        done();
-      }
     );
   });
 
@@ -55,11 +55,11 @@ describe('Block', () => {
           firstMessage,
           secondTransfer,
           firstTransfer,
-          secondMessage,
+          secondMessage
         ],
         previousBlock: validPreviousBlock,
         timestamp: validBlock.timestamp,
-        keypair: delegateKeyPair,
+        keypair: delegateKeyPair
       });
 
       const propertiesToCheck = [
@@ -69,7 +69,7 @@ describe('Block', () => {
         'payloadLength',
         'previousBlock',
         'generatorPublicKey',
-        'blockSignature',
+        'blockSignature'
       ];
 
       propertiesToCheck.forEach((property) => {
@@ -80,7 +80,7 @@ describe('Block', () => {
         firstTransfer,
         secondTransfer,
         firstMessage,
-        secondMessage,
+        secondMessage
       ]);
     });
 
@@ -89,7 +89,7 @@ describe('Block', () => {
         transactions: [],
         previousBlock: validPreviousBlock,
         timestamp: validBlock.timestamp,
-        keypair: delegateKeyPair,
+        keypair: delegateKeyPair
       });
 
       expect(newBlock.numberOfTransactions).to.equal(0);
@@ -98,10 +98,10 @@ describe('Block', () => {
       expect(newBlock.previousBlock).to.equal(validPreviousBlock.id);
       expect(newBlock.payloadLength).to.equal(0);
       expect(newBlock.generatorPublicKey).to.equal(
-        'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0'
+          'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0'
       );
       expect(newBlock.blockSignature).to.equal(
-        'd4ba6d52a3ff583eae43fdff1e1e8f34603f84a1385fe765c1ebd89158560a4df1bd82f3de17ff09841c16651b8afafb1c8fa99b7c1f9e4bd2a61b6780ea6200'
+          'd4ba6d52a3ff583eae43fdff1e1e8f34603f84a1385fe765c1ebd89158560a4df1bd82f3de17ff09841c16651b8afafb1c8fa99b7c1f9e4bd2a61b6780ea6200'
       );
       expect(newBlock.transactions).to.deep.equal([]);
     });
@@ -128,7 +128,7 @@ describe('Block', () => {
         blockSignature:
           '18607b15417a6b0a56b4c74cacd713ad7a10df16ec3ab45a697fa72b6f811f9213d895b7e0fbca71cf74323d60148d0991668e5368386408f4d841496ed2280d',
         confirmations: 1093,
-        totalForged: '95000000',
+        totalForged: '95000000'
       };
       const hasValidSignature = block.verifySignature(validBlock);
       expect(hasValidSignature).to.be.true;
@@ -154,7 +154,7 @@ describe('Block', () => {
         blockSignature:
           '108db6fed83519acf9f8ea3521d73b0b1496317bd9e9f00bc21ddf3a7338f1941bd20a60118e90f407a1b955d5ff36a81252645cd76d77466f52bd0d1434fe0a',
         confirmations: 75213,
-        totalForged: '0',
+        totalForged: '0'
       };
       const hasValidSignature = block.verifySignature(validBlock);
       expect(hasValidSignature).to.be.true;
@@ -180,7 +180,7 @@ describe('Block', () => {
         blockSignature:
           '3f4feaf57fb297d97ebf2ba0dcf3c91b1ebd42e2d8b370c5b11a7b6cb5b798f930e8445056e2b67f173340a55db65b97a6cd953e11ffda93c7009fdd0f076902',
         confirmations: 75212,
-        totalForged: '0',
+        totalForged: '0'
       };
       const hasValidSignature = block.verifySignature(validBlock);
       expect(hasValidSignature).to.be.true;
@@ -206,7 +206,7 @@ describe('Block', () => {
         blockSignature:
           '108db6fed83519acf9f8ea3521d73b0b1496317bd9e9f00bc21ddf3a7338f1941bd20a60118e90f407a1b955d5ff36a81252645cd76d77466f52bd0d1434fe0a',
         confirmations: 75213,
-        totalForged: '0',
+        totalForged: '0'
       };
       const hasValidSignature = block.verifySignature(validBlock);
       expect(hasValidSignature).to.be.false;
@@ -232,7 +232,7 @@ describe('Block', () => {
         blockSignature:
           '3f4feaf57fb297d97ebf2ba0dcf3c91b1ebd42e2d8b370c5b11a7b6cb5b798f930e8445056e2b67f173340a55db65b97a6cd953e11ffda93c7009fdd0f076902',
         confirmations: 75213,
-        totalForged: '0',
+        totalForged: '0'
       };
       const hasValidSignature = block.verifySignature(validBlock);
       expect(hasValidSignature).to.be.false;
@@ -258,7 +258,7 @@ describe('Block', () => {
         blockSignature:
           '108db6fed83519acf9f8ea3521d73b0b1496317bd9e9f00bc21ddf3a7338f1941bd20a60118e90f407a1b955d5ff36a81252645cd76d77466f52bd0d1434fe0a',
         confirmations: 75213,
-        totalForged: '0',
+        totalForged: '0'
       };
       const hasValidSignature = block.verifySignature(validBlock);
       expect(hasValidSignature).to.be.false;
@@ -284,7 +284,7 @@ describe('Block', () => {
         blockSignature:
           '3f4feaf57fb297d97ebf2ba0dcf3c91b1ebd42e2d8b370c5b11a7b6cb5b798f930e8445056e2b67f173340a55db65b97a6cd953e11ffda93c7009fdd0f076902',
         confirmations: 75212,
-        totalForged: '0',
+        totalForged: '0'
       };
       const hasValidSignature = block.verifySignature(validBlock);
       expect(hasValidSignature).to.be.false;
@@ -310,7 +310,7 @@ describe('Block', () => {
         blockSignature:
           '108db6fed83519acf9f8ea3521d73b0b1496317bd9e9f00bc21ddf3a7338f1941bd20a60118e90f407a1b955d5ff36a81252645cd76d77466f52bd0d1434fe0a',
         confirmations: 75213,
-        totalForged: '0',
+        totalForged: '0'
       };
       const hasValidSignature = block.verifySignature(validBlock);
       expect(hasValidSignature).to.be.false;
@@ -336,7 +336,7 @@ describe('Block', () => {
         blockSignature:
           '108db6fed83519acf9f8ea3521d73b0b1496317bd9e9f00bc21ddf3a7338f1941bd20a60118e90f407a1b955d5ff36a81252645cd76d77466f52bd0d1434fe0a',
         confirmations: 75213,
-        totalForged: '0',
+        totalForged: '0'
       };
       const hasValidSignature = block.verifySignature(validBlock);
       expect(hasValidSignature).to.be.false;
@@ -362,7 +362,7 @@ describe('Block', () => {
         blockSignature:
           '108db6fed83519acf9f8ea3521d73b0b1496317bd9e9f00bc21ddf3a7338f1941bd20a60118e90f407a1b955d5ff36a81252645cd76d77466f52bd0d1434fe0a',
         confirmations: 75213,
-        totalForged: '0',
+        totalForged: '0'
       };
       const hasValidSignature = block.verifySignature(validBlock);
       expect(hasValidSignature).to.be.false;
@@ -375,18 +375,18 @@ describe('Block', () => {
         ...validBlock,
         transactions: [],
         amount: null,
-        confirmations: undefined,
+        confirmations: undefined
       });
       expect(Object.keys(normalizedBlock)).to.not.include([
         'amount',
-        'confirmations',
+        'confirmations'
       ]);
     });
 
     it('should throw error on invalid block', () => {
       const transaction = firstTransfer;
       expect(() => block.objectNormalize(transaction)).to.throw(
-        'Failed to validate block'
+          'Failed to validate block'
       );
     });
 
@@ -396,9 +396,9 @@ describe('Block', () => {
         transactions: [
           {
             ...firstTransfer,
-            amount: 'Invalid value',
-          },
-        ],
+            amount: 'Invalid value'
+          }
+        ]
       };
 
       expect(() =>
@@ -414,13 +414,13 @@ describe('Block', () => {
 
     it('should generate the id of the valid block', () => {
       expect(block.getId(validBlock))
-        .to.be.a('string')
-        .which.is.equal(validBlock.id);
+          .to.be.a('string')
+          .which.is.equal(validBlock.id);
     });
 
     it('should update id if a field in block value changes', () => {
       expect(
-        block.getId({ ...validBlock, totalAmount: validBlock.totalAmount + 1 })
+          block.getId({ ...validBlock, totalAmount: validBlock.totalAmount + 1 })
       ).to.not.equal(validBlock.id);
     });
   });
@@ -432,21 +432,21 @@ describe('Block', () => {
 
     it('should generate the signature of the valid block', () => {
       expect(
-        block.sign(
-          { ...validBlock, blockSignature: undefined },
-          delegateKeyPair
-        )
+          block.sign(
+              { ...validBlock, blockSignature: undefined },
+              delegateKeyPair
+          )
       )
-        .to.be.a('string')
-        .which.is.equal(validBlock.blockSignature);
+          .to.be.a('string')
+          .which.is.equal(validBlock.blockSignature);
     });
 
     it('should update signature if a field in block value changes', () => {
       expect(
-        block.sign(
-          { ...validBlock, totalAmount: validBlock.totalAmount + 1 },
-          delegateKeyPair
-        )
+          block.sign(
+              { ...validBlock, totalAmount: validBlock.totalAmount + 1 },
+              delegateKeyPair
+          )
       ).to.not.equal(validBlock.blockSignature);
     });
   });

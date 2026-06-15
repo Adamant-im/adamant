@@ -19,24 +19,24 @@ describe('account', () => {
   beforeEach((done) => {
     db = {
       none: sinon.fake.returns(Promise.resolve()),
-      query: sinon.fake.returns(Promise.resolve()),
+      query: sinon.fake.returns(Promise.resolve())
     };
 
     modulesLoader.initLogic(
-      Account,
-      {
-        db,
-        schema: modulesLoader.scope.schema,
-        logger: modulesLoader.scope.logger,
-      },
-      (error, instance) => {
-        if (error) {
-          return done(error);
-        }
+        Account,
+        {
+          db,
+          schema: modulesLoader.scope.schema,
+          logger: modulesLoader.scope.logger
+        },
+        (error, instance) => {
+          if (error) {
+            return done(error);
+          }
 
-        account = instance;
-        done();
-      }
+          account = instance;
+          done();
+        }
     );
   });
 
@@ -51,13 +51,13 @@ describe('account', () => {
 
     beforeEach(() => {
       diff = {
-        round,
+        round
       };
       diff.publicKey = nonExistingAccount.publicKey;
-      diff.blockId = validBlock.id
+      diff.blockId = validBlock.id;
 
       round += 1;
-    })
+    });
 
     it('should update the account with a positive balance', () => {
       diff.balance = 150;
@@ -66,7 +66,7 @@ describe('account', () => {
       const result = account.merge(address, diff);
 
       expect(result).to.equal(
-        `update "mem_accounts" set "balance" = "balance" + ${diff.balance}, "blockId" = '${diff.blockId}' where "address" = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (${diff.balance})::bigint, "dependentId", '${diff.blockId}', 1 FROM mem_accounts2delegates WHERE "accountId" = '${address}';`
+          `update "mem_accounts" set "balance" = "balance" + ${diff.balance}, "blockId" = '${diff.blockId}' where "address" = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (${diff.balance})::bigint, "dependentId", '${diff.blockId}', 1 FROM mem_accounts2delegates WHERE "accountId" = '${address}';`
       );
     });
 
@@ -76,7 +76,7 @@ describe('account', () => {
       const result = account.merge(address, diff);
 
       expect(result).to.equal(
-        `update "mem_accounts" set "balance" = "balance" - ${Math.abs(diff.balance)}, "blockId" = '${diff.blockId}' where "address" = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (${diff.balance})::bigint, "dependentId", '${diff.blockId}', 2 FROM mem_accounts2delegates WHERE "accountId" = '${address}';`
+          `update "mem_accounts" set "balance" = "balance" - ${Math.abs(diff.balance)}, "blockId" = '${diff.blockId}' where "address" = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (${diff.balance})::bigint, "dependentId", '${diff.blockId}', 2 FROM mem_accounts2delegates WHERE "accountId" = '${address}';`
       );
     });
 
@@ -86,7 +86,7 @@ describe('account', () => {
       const result = account.merge(address, diff);
 
       expect(result).to.equal(
-        `insert into "mem_accounts2delegates" ("accountId", "dependentId") values ('${address}', '${delegate1}');insert into "mem_accounts2delegates" ("accountId", "dependentId") values ('${address}', '${delegate2}');update "mem_accounts" set "blockId" = '${diff.blockId}' where "address" = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (balance)::bigint, '${delegate1}', '${diff.blockId}', 3 FROM mem_accounts WHERE address = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (balance)::bigint, '${delegate2}', '${diff.blockId}', 3 FROM mem_accounts WHERE address = '${address}';`
+          `insert into "mem_accounts2delegates" ("accountId", "dependentId") values ('${address}', '${delegate1}');insert into "mem_accounts2delegates" ("accountId", "dependentId") values ('${address}', '${delegate2}');update "mem_accounts" set "blockId" = '${diff.blockId}' where "address" = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (balance)::bigint, '${delegate1}', '${diff.blockId}', 3 FROM mem_accounts WHERE address = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (balance)::bigint, '${delegate2}', '${diff.blockId}', 3 FROM mem_accounts WHERE address = '${address}';`
       );
     });
 
@@ -96,7 +96,7 @@ describe('account', () => {
       const result = account.merge(address, diff);
 
       expect(result).to.equal(
-        `delete from "mem_accounts2delegates" where "dependentId" in ('${delegate1}', '${delegate2}') and "accountId" = '${address}';update "mem_accounts" set "blockId" = '${diff.blockId}' where "address" = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (-balance)::bigint, '${delegate1}', '${diff.blockId}', 4 FROM mem_accounts WHERE address = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (-balance)::bigint, '${delegate2}', '${diff.blockId}', 4 FROM mem_accounts WHERE address = '${address}';`
+          `delete from "mem_accounts2delegates" where "dependentId" in ('${delegate1}', '${delegate2}') and "accountId" = '${address}';update "mem_accounts" set "blockId" = '${diff.blockId}' where "address" = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (-balance)::bigint, '${delegate1}', '${diff.blockId}', 4 FROM mem_accounts WHERE address = '${address}';INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") SELECT '${address}', (-balance)::bigint, '${delegate2}', '${diff.blockId}', 4 FROM mem_accounts WHERE address = '${address}';`
       );
     });
 
@@ -112,40 +112,40 @@ describe('account', () => {
     it('should insert multiple complex objects', () => {
       diff.delegates = [
         { action: '+', value: delegate1 },
-        { action: '+', value: delegate2 },
+        { action: '+', value: delegate2 }
       ];
 
       const result = account.merge(address, diff);
 
       expect(result).to.equal(
-        `insert into "mem_accounts2delegates" ("value") values ('${delegate1}'), ('${delegate2}');insert into "mem_accounts2delegates" ("value") values ('${delegate1}'), ('${delegate2}');update "mem_accounts" set "blockId" = '${diff.blockId}' where "address" = '${address}';`
+          `insert into "mem_accounts2delegates" ("value") values ('${delegate1}'), ('${delegate2}');insert into "mem_accounts2delegates" ("value") values ('${delegate1}'), ('${delegate2}');update "mem_accounts" set "blockId" = '${diff.blockId}' where "address" = '${address}';`
       );
     });
 
     it('should remove multiple complex objects', () => {
       diff.delegates = [
         { action: '-', value: delegate1 },
-        { action: '-', value: delegate2 },
+        { action: '-', value: delegate2 }
       ];
 
       const result = account.merge(address, diff);
 
       expect(result).to.equal(
-        `delete from "mem_accounts2delegates" where "value" = '${delegate1}' and "value" = '${delegate2}';update "mem_accounts" set "blockId" = '${diff.blockId}' where "address" = '${address}';`
+          `delete from "mem_accounts2delegates" where "value" = '${delegate1}' and "value" = '${delegate2}';update "mem_accounts" set "blockId" = '${diff.blockId}' where "address" = '${address}';`
       );
     });
 
     it('should remove and insert complex objects', () => {
       diff.delegates = [
         { action: '-', value: delegate1 },
-        { action: '+', value: delegate2 },
+        { action: '+', value: delegate2 }
       ];
       delete diff.blockId;
 
       const result = account.merge(address, diff);
 
       expect(result).to.equal(
-        `delete from "mem_accounts2delegates" where "value" = '${delegate1}';insert into "mem_accounts2delegates" ("value") values ('${delegate2}');`
+          `delete from "mem_accounts2delegates" where "value" = '${delegate1}';insert into "mem_accounts2delegates" ("value") values ('${delegate2}');`
       );
     });
   });
@@ -154,7 +154,7 @@ describe('account', () => {
     it('should read sql/memoryTables.sql file and execute the queries without errors', () => {
       account.createTables(() => {
         const called = db.query.calledWithMatch(
-          sinon.match({ error: sinon.match.typeOf('undefined') })
+            sinon.match({ error: sinon.match.typeOf('undefined') })
         );
 
         expect(called).to.be.true;
@@ -166,7 +166,7 @@ describe('account', () => {
     it('should execute the sql query to remove the tables', () => {
       account.removeTables(() => {
         const called = db.query.calledWithMatch(
-          'delete from "mem_accounts";delete from "mem_round";delete from "mem_accounts2delegates";delete from "mem_accounts2u_delegates";delete from "mem_accounts2multisignatures";delete from "mem_accounts2u_multisignatures";'
+            'delete from "mem_accounts";delete from "mem_round";delete from "mem_accounts2delegates";delete from "mem_accounts2u_delegates";delete from "mem_accounts2multisignatures";delete from "mem_accounts2u_multisignatures";'
         );
 
         expect(called).to.be.true;
@@ -209,21 +209,21 @@ describe('account', () => {
 
     it('should throw an error when a too short string has been passed', () => {
       expect(() => account.verifyPublicKey('a9407418dafb3c8ae')).to.throw(
-        'must be 64 characters long'
+          'must be 64 characters long'
       );
     });
 
     it('should throw an error when the provided public key is not a hex string', () => {
       expect(() =>
         account.verifyPublicKey(
-          'g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2u2g3h4i5j6k7'
+            'g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2u2g3h4i5j6k7'
         )
       ).to.throw('must be a hex string');
     });
 
     it('should throw an error when the provided public key can be trimmed to a zero length string', () => {
       expect(() => account.verifyPublicKey(' '.repeat(64))).to.throw(
-        'must be a hex string'
+          'must be a hex string'
       );
     });
   });
@@ -238,7 +238,7 @@ describe('account', () => {
       const normalizedAccount = account.toDB({
         publicKey: validAccount.publicKey,
         secondPublicKey: null,
-        address: validAccount.address,
+        address: validAccount.address
       });
 
       expect(normalizedAccount).to.have.all.keys(keys);
@@ -246,14 +246,14 @@ describe('account', () => {
       const { raw, values } = normalizedAccount;
 
       expect(raw.publicKey).to.have.property('sql').that.equals('$(publicKey)');
-      expect(values.publicKey).to.be.an.instanceof(Buffer)
+      expect(values.publicKey).to.be.an.instanceof(Buffer);
       expect(raw.secondPublicKey).to.equal(null);
       expect(raw.address).to.equal(validAccount.address);
     });
 
     it('should convert address to upper case', () => {
       const normalizedAccount = account.toDB({
-        address: nonExistingAccount.address.toLowerCase(),
+        address: nonExistingAccount.address.toLowerCase()
       });
 
       expect(normalizedAccount).to.have.all.keys(keys);
@@ -285,7 +285,7 @@ describe('account', () => {
     it('should apply desc sorting by balance', (done) => {
       account.getAll({ sort: { balance: -1 } }, ['username'], () => {
         const matched = db.query.calledWithMatch(
-          sinon.match(/order by "balance" desc/)
+            sinon.match(/order by "balance" desc/)
         );
 
         expect(matched).to.be.true;
@@ -296,7 +296,7 @@ describe('account', () => {
     it('should apply asc sorting by balance', (done) => {
       account.getAll({ sort: { balance: 1 } }, ['username'], () => {
         const matched = db.query.calledWithMatch(
-          sinon.match(/order by "balance" asc/)
+            sinon.match(/order by "balance" asc/)
         );
 
         expect(matched).to.be.true;
@@ -307,7 +307,7 @@ describe('account', () => {
     it('should search by address in uppercase', (done) => {
       account.getAll({ address: validAccount.address }, ['username'], () => {
         const matched = db.query.calledWithMatch(
-          sinon.match(/upper\("address"\) = '/)
+            sinon.match(/upper\("address"\) = '/)
         );
 
         expect(matched).to.be.true;
@@ -320,7 +320,7 @@ describe('account', () => {
         'reward',
         'totalFee',
         'confirmations',
-        'blockSignature',
+        'blockSignature'
       ];
       const actualFields = [
         'username',
@@ -328,13 +328,13 @@ describe('account', () => {
         'address',
         'publicKey',
         'balance',
-        'virgin',
+        'virgin'
       ];
       const fields = [...nonExistingFields, ...actualFields];
 
       account.getAll({ address: validAccount.address }, fields, () => {
         const matched = db.query.calledWithMatch(
-          `select "username", "isDelegate", UPPER("address") as "address", ENCODE("publicKey", \'hex\') as "publicKey", ("balance")::bigint as "balance", "virgin" from "mem_accounts" as "a" where upper("address") = '${validAccount.address}';`
+            `select "username", "isDelegate", UPPER("address") as "address", ENCODE("publicKey", \'hex\') as "publicKey", ("balance")::bigint as "balance", "virgin" from "mem_accounts" as "a" where upper("address") = '${validAccount.address}';`
         );
 
         expect(matched).to.be.true;
@@ -344,21 +344,21 @@ describe('account', () => {
 
     it('should make query with both filters and fields', (done) => {
       account.getAll(
-        {
-          limit: 1,
-          offset: -23,
-          sort: { virgin: 1 },
-          address: validAccount.address,
-        },
-        ['username', 'nonexistingfield'],
-        () => {
-          const matched = db.query.calledWithMatch(
-            `select "username" from "mem_accounts" as "a" where upper("address") = '${validAccount.address}' order by "virgin" asc limit 1;`
-          );
+          {
+            limit: 1,
+            offset: -23,
+            sort: { virgin: 1 },
+            address: validAccount.address
+          },
+          ['username', 'nonexistingfield'],
+          () => {
+            const matched = db.query.calledWithMatch(
+                `select "username" from "mem_accounts" as "a" where upper("address") = '${validAccount.address}' order by "virgin" asc limit 1;`
+            );
 
-          expect(matched).to.be.true;
-          done();
-        }
+            expect(matched).to.be.true;
+            done();
+          }
       );
     });
   });
@@ -378,7 +378,7 @@ describe('account', () => {
     it('should remove the account based on address', (done) => {
       account.remove(validAccount.address, () => {
         const matched = db.none.calledWithMatch(
-          /^delete from "mem_accounts" where "address" = /
+            /^delete from "mem_accounts" where "address" = /
         );
 
         expect(matched).to.be.true;

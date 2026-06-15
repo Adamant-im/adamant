@@ -14,7 +14,7 @@ var configOverrides = require('./configOverrides.js');
  *
  * @memberof module:helpers
  * @implements {validateForce}
- * @return {Object} configData
+ * @return {object} configData
  */
 function Config (configPath, overrideOptions) {
   try {
@@ -84,7 +84,7 @@ function validateForce (configData) {
  * Recursively copies only missing default config keys into a user config.
  * @param {object} target - User config object to mutate.
  * @param {object} source - Default config object.
- * @returns {object} Mutated target config.
+ * @return {object} Mutated target config.
  */
 function deepMergeMissing (target, source) {
   for (const key in source) {
@@ -108,7 +108,7 @@ function deepMergeMissing (target, source) {
 /**
  * Captures legacy flat logging keys before default config merge fills new sections.
  * @param {object} configData - Raw user config before default merge.
- * @returns {object} Legacy logging values and section presence flags.
+ * @return {object} Legacy logging values and section presence flags.
  */
 function getLegacyLoggingConfig (configData) {
   return {

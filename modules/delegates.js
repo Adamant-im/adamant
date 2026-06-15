@@ -30,10 +30,10 @@ __private.tmpKeypairs = {};
  * Initializes library with scope content and generates a Delegate instance.
  * Calls logic.transaction.attachAssetType().
  * @memberof module:delegates
- * @class
+ * @constructor
  * @classdesc Main delegates methods.
- * @param {scope} scope - App instance.
  * @param {function} cb - Callback function.
+ * @param {scope} scope - App instance.
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
@@ -249,7 +249,7 @@ __private.forge = function (cb) {
  * @param {Array} votes
  * @param {string} state - 'confirmed' to delegates, otherwise u_delegates.
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} cb | error messages
+ * @return {setImmediateCallback} cb | error messages
  */
 __private.checkDelegates = function (publicKey, votes, state, cb) {
   if (!Array.isArray(votes)) {
@@ -433,8 +433,8 @@ Delegates.prototype.generateDelegateList = function (height, cb) {
 /**
  * Gets delegates and for each one calculates rate, rank, approval, productivity.
  * Orders delegates as per criteria.
- * @param {Object} query
- * @param {Object} filter - account specific filters, e.g. `username`, `publicKey` or `address`
+ * @param {object} query
+ * @param {object} filter - account specific filters, e.g. `username`, `publicKey` or `address`
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} error| object with delegates ordered, offset, count, limit.
  * @todo OrderBy does not affects data? What is the impact?.
@@ -581,7 +581,7 @@ Delegates.prototype.validateBlockSlot = function (block, cb) {
  * Calls helpers.sandbox.callMethod().
  * @implements module:helpers#callMethod
  * @param {function} call - Method to call.
- * @param {} args - List of arguments.
+ * @param {*} args - List of arguments.
  * @param {function} cb - Callback function.
  */
 Delegates.prototype.sandboxApi = function (call, args, cb) {

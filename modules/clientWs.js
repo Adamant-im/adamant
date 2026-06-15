@@ -33,7 +33,7 @@ class ClientWs {
   /**
    * Emits a transaction to subscribed websocket clients once per transaction id.
    * @param {transaction} t - Transaction to emit.
-   * @returns {void}
+   * @return {void}
    */
   emit (t) {
     if (!this.enabled) {
@@ -57,7 +57,7 @@ class ClientWs {
   /**
    * Registers subscription and disconnect handlers for a client socket.
    * @param {object} socket - Connected Socket.IO client.
-   * @returns {void}
+   * @return {void}
    */
   handleConnection (socket) {
     try {
@@ -87,7 +87,7 @@ class ClientWs {
    * @param {TransactionSubscription} describe - Subscription state for the socket.
    * @param {Function} subscribe - Bound subscription method.
    * @param {string|string[]|number|number[]} value - Requested subscription values.
-   * @returns {void}
+   * @return {void}
    */
   subscribe (socket, describe, subscribe, value) {
     const values = Array.isArray(value) ? value : [value];
@@ -100,7 +100,7 @@ class ClientWs {
   /**
    * Removes subscription state for a disconnected socket.
    * @param {string} socketId - Socket.IO client identifier.
-   * @returns {void}
+   * @return {void}
    */
   removeSubscription (socketId) {
     delete this.describes[socketId];
@@ -115,7 +115,7 @@ cleanupInterval.unref();
 
 /**
  * Removes transaction ids after the duplicate-suppression window expires.
- * @returns {void}
+ * @return {void}
  */
 function cleanupTransactionsCache () {
   for (let id in lastTransactionsIds) {
@@ -127,7 +127,7 @@ function cleanupTransactionsCache () {
 
 /**
  * Returns the current Unix time in seconds.
- * @returns {number} Unix time in seconds.
+ * @return {number} Unix time in seconds.
  */
 function getUTime () {
   return new Date().getTime() / 1000;
@@ -137,7 +137,7 @@ function getUTime () {
  * Finds websocket subscriptions interested in a transaction.
  * @param {transaction} transaction - Transaction to match.
  * @param {TransactionSubscription[]} subs - Active subscriptions.
- * @returns {TransactionSubscription[]} Matching subscriptions.
+ * @return {TransactionSubscription[]} Matching subscriptions.
  */
 function findSubs (transaction, subs) {
   const matchedSubscriptions = [];

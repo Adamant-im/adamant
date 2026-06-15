@@ -23,13 +23,13 @@ const { dummyBlock } = require('../../common/stubs/blocks.js');
 const {
   iAccount,
   testAccount,
-  testAccountKeypair,
+  testAccountKeypair
 } = require('../../common/stubs/account.js');
 const {
   validTransactionData,
   validTransaction,
   existedDelegateKey,
-  invalidDelegateKey,
+  invalidDelegateKey
 } = require('../../common/stubs/transactions/vote.js');
 
 describe('vote', () => {
@@ -41,129 +41,129 @@ describe('vote', () => {
   const votedDelegates = [
     'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
     'd3a3c26c3906080689d0c2ccd3df30f2f4797c881e21a92aa4579bc68744581f',
-    '2deabea717a9e9054e3759e3041b84409dd6195c74d9d7736e0cd8442c000f5a',
+    '2deabea717a9e9054e3759e3041b84409dd6195c74d9d7736e0cd8442c000f5a'
   ];
 
-  function addVotes(votes, done) {
+  function addVotes (votes, done) {
     const trs = _.clone(validTransaction);
     trs.asset.votes = votes;
     async.parallel(
-      [
-        (cb) => {
-          vote.apply.call(transaction, trs, dummyBlock, testAccount, cb);
-        },
-        (cb) => {
-          vote.applyUnconfirmed.call(transaction, trs, testAccount, cb);
-        },
-      ],
-      done
+        [
+          (cb) => {
+            vote.apply.call(transaction, trs, dummyBlock, testAccount, cb);
+          },
+          (cb) => {
+            vote.applyUnconfirmed.call(transaction, trs, testAccount, cb);
+          }
+        ],
+        done
     );
   }
 
-  function checkAccountVotes(senderPublicKey, state, votes, action, done) {
+  function checkAccountVotes (senderPublicKey, state, votes, action, done) {
     votes = action == 'apply' ? votes : diff.reverse(votes);
     accountsModule.getAccount(
-      { publicKey: senderPublicKey },
-      (err, account) => {
-        const delegates =
+        { publicKey: senderPublicKey },
+        (err, account) => {
+          const delegates =
           (state === 'confirmed' ? account.delegates : account.u_delegates) ||
           [];
-        const groupedVotes = _.groupBy(votes, (v) => v[0]);
+          const groupedVotes = _.groupBy(votes, (v) => v[0]);
 
-        expect(
-          delegates.filter(
-            (v) => groupedVotes['+'] && groupedVotes['+'].indexOf('+' + v) != -1
-          ).length
-        ).to.be.greaterThanOrEqual(
+          expect(
+              delegates.filter(
+                  (v) => groupedVotes['+'] && groupedVotes['+'].indexOf('+' + v) != -1
+              ).length
+          ).to.be.greaterThanOrEqual(
           groupedVotes['+'] ? groupedVotes['+'].length : 0
-        );
-        expect(
-          delegates.filter(
-            (v) => groupedVotes['-'] && groupedVotes['-'].indexOf('-' + v) != -1
-          ).length
-        ).to.equal(0);
-        done();
-      }
+          );
+          expect(
+              delegates.filter(
+                  (v) => groupedVotes['-'] && groupedVotes['-'].indexOf('-' + v) != -1
+              ).length
+          ).to.equal(0);
+          done();
+        }
     );
   }
 
   before((done) => {
     async.auto(
-      {
-        rounds(cb) {
-          modulesLoader.initModule(Rounds, modulesLoader.scope, cb);
-        },
-        accountLogic(cb) {
-          modulesLoader.initLogicWithDb(AccountLogic, cb, {});
-        },
-        transactionLogic: [
-          'rounds',
-          'accountLogic',
-          (result, cb) => {
-            modulesLoader.initLogicWithDb(
-              TransactionLogic,
-              (err, __transaction) => {
-                __transaction.bindModules(result);
-                cb(err, __transaction);
-              },
-              {
-                ed: require('../../../helpers/ed'),
-                account: result.account,
-              }
-            );
+        {
+          rounds (cb) {
+            modulesLoader.initModule(Rounds, modulesLoader.scope, cb);
           },
-        ],
-        accountModule: [
-          'accountLogic',
-          'transactionLogic',
-          (result, cb) => {
-            modulesLoader.initModuleWithDb(AccountModule, cb, {
-              logic: {
-                account: result.accountLogic,
-                transaction: result.transactionLogic,
-              },
-            });
+          accountLogic (cb) {
+            modulesLoader.initLogicWithDb(AccountLogic, cb, {});
           },
-        ],
-        delegateModule: [
-          'accountModule',
-          (result, cb) => {
-            modulesLoader.initModuleWithDb(
-              DelegateModule,
-              (err, __delegates) => {
-                // not all required bindings, only the ones required for votes
-                __delegates.onBind({
-                  rounds: result.rounds,
-                  accounts: result.accountModule,
-                });
-                cb(err, __delegates);
-              },
-              {
+          transactionLogic: [
+            'rounds',
+            'accountLogic',
+            (result, cb) => {
+              modulesLoader.initLogicWithDb(
+                  TransactionLogic,
+                  (err, __transaction) => {
+                    __transaction.bindModules(result);
+                    cb(err, __transaction);
+                  },
+                  {
+                    ed: require('../../../helpers/ed'),
+                    account: result.account
+                  }
+              );
+            }
+          ],
+          accountModule: [
+            'accountLogic',
+            'transactionLogic',
+            (result, cb) => {
+              modulesLoader.initModuleWithDb(AccountModule, cb, {
                 logic: {
-                  transaction: result.transactionLogic,
-                },
-                library: {
-                  schema: modulesLoader.scope.schema,
-                },
-              }
-            );
-          },
-        ],
-      },
-      (err, result) => {
-        expect(err).to.not.exist;
-        vote = new Vote(modulesLoader.scope.logger, modulesLoader.scope.schema);
-        voteBindings = {
-          delegate: result.delegateModule,
-          rounds: result.rounds,
-          account: result.accountModule,
-        };
-        vote.bind(result.delegateModule, result.rounds);
-        transaction = result.transactionLogic;
-        transaction.attachAssetType(transactionTypes.VOTE, vote);
-        accountsModule = result.accountModule;
-        done();
-      }
+                  account: result.accountLogic,
+                  transaction: result.transactionLogic
+                }
+              });
+            }
+          ],
+          delegateModule: [
+            'accountModule',
+            (result, cb) => {
+              modulesLoader.initModuleWithDb(
+                  DelegateModule,
+                  (err, __delegates) => {
+                    // not all required bindings, only the ones required for votes
+                    __delegates.onBind({
+                      rounds: result.rounds,
+                      accounts: result.accountModule
+                    });
+                    cb(err, __delegates);
+                  },
+                  {
+                    logic: {
+                      transaction: result.transactionLogic
+                    },
+                    library: {
+                      schema: modulesLoader.scope.schema
+                    }
+                  }
+              );
+            }
+          ]
+        },
+        (err, result) => {
+          expect(err).to.not.exist;
+          vote = new Vote(modulesLoader.scope.logger, modulesLoader.scope.schema);
+          voteBindings = {
+            delegate: result.delegateModule,
+            rounds: result.rounds,
+            account: result.accountModule
+          };
+          vote.bind(result.delegateModule, result.rounds);
+          transaction = result.transactionLogic;
+          transaction.attachAssetType(transactionTypes.VOTE, vote);
+          accountsModule = result.accountModule;
+          done();
+        }
     );
   });
 
@@ -187,7 +187,7 @@ describe('vote', () => {
         'f2910e221d88134265974d9fc8efee0532e7e14ffdb22a9674c64bfd01863e70da75db51f7e0adcfbe87d9efdaef9f914f577ca08a7664db290e8e5ad89eb30c',
       id: '4802102241260248478',
       fee: 10000000,
-      senderId: '16313739661670634666L',
+      senderId: '16313739661670634666L'
     };
 
     const sender = {
@@ -198,7 +198,7 @@ describe('vote', () => {
         'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f',
       balance: 9850458911801508,
       u_balance: 9850458911801508,
-      blockId: '8505659485551877884',
+      blockId: '8505659485551877884'
     };
 
     transaction.apply(sendTrs, dummyBlock, sender, done);
@@ -206,11 +206,11 @@ describe('vote', () => {
 
   before((done) => {
     addVotes(
-      votedDelegates.map((v) => `+${v}`),
-      (err) => {
+        votedDelegates.map((v) => `+${v}`),
+        (err) => {
         // it's okay if it returns error, because that means I've already voted for these delegates
-        done();
-      }
+          done();
+        }
     );
   });
 
@@ -235,7 +235,7 @@ describe('vote', () => {
 
     it('should be okay with valid parameters', () => {
       expect(vote.create(validTransactionData, validTransaction)).to.be.an(
-        'object'
+          'object'
       );
     });
   });
@@ -282,7 +282,7 @@ describe('vote', () => {
 
       vote.verify(trs, testAccount, (err) => {
         expect(err).to.equal(
-          'Multiple votes for same delegate are not allowed'
+            'Multiple votes for same delegate are not allowed'
         );
         done();
       });
@@ -302,7 +302,7 @@ describe('vote', () => {
       trs.asset.votes = ['-' + iAccount.publicKey];
       vote.verify(trs, testAccount, (err) => {
         expect(err).to.equal(
-          'Failed to remove vote, account has not voted for this delegate'
+            'Failed to remove vote, account has not voted for this delegate'
         );
         done();
       });
@@ -351,11 +351,11 @@ describe('vote', () => {
         '-94b163c5a5ad346db1c84edaff51604164476cf78b8834b6b610dd03bd6b65d9',
         '-6164b0cc68f8de44cde90c78e838b9ee1d6041fa61cf0cfbd834d76bb369a10e',
         '-3476bba16437ee0e04a29daa34d753139fbcfc14152372d7be5b7c75d51bac6c',
-        '-01389197bbaf1afb0acd47bbfeabb34aca80fb372a8f694a1c0716b3398db746',
+        '-01389197bbaf1afb0acd47bbfeabb34aca80fb372a8f694a1c0716b3398db746'
       ];
       vote.verify(trs, testAccount, (err) => {
         expect(err).to.equal(
-          'Voting limit exceeded. Maximum is 33 votes per transaction'
+            'Voting limit exceeded. Maximum is 33 votes per transaction'
         );
         done();
       });
@@ -368,7 +368,7 @@ describe('vote', () => {
       });
       vote.verify(trs, testAccount, (err) => {
         expect(err).to.equal(
-          'Multiple votes for same delegate are not allowed'
+            'Multiple votes for same delegate are not allowed'
         );
         done();
       });
@@ -377,7 +377,7 @@ describe('vote', () => {
     it('should verify transaction with correct params', (done) => {
       const trs = _.cloneDeep(validTransaction);
       trs.asset.votes = [
-        '-d365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
+        '-d365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089'
       ];
       vote.verify(trs, testAccount, done);
     });
@@ -414,7 +414,7 @@ describe('vote', () => {
       });
       vote.checkConfirmedDelegates(trs, (err) => {
         expect(err).to.equal(
-          'Failed to add vote, account has already voted for this delegate'
+            'Failed to add vote, account has already voted for this delegate'
         );
         done();
       });
@@ -437,11 +437,11 @@ describe('vote', () => {
       });
       vote.apply.call(transaction, trs, dummyBlock, testAccount, (err) => {
         checkAccountVotes(
-          trs.senderPublicKey,
-          'confirmed',
-          trs.asset.votes,
-          'apply',
-          () => null
+            trs.senderPublicKey,
+            'confirmed',
+            trs.asset.votes,
+            'apply',
+            () => null
         );
         trs.asset.votes = votedDelegates.map((v) => {
           return '+' + v;
@@ -453,11 +453,11 @@ describe('vote', () => {
         });
         vote.apply.call(transaction, trs, dummyBlock, testAccount, (err) => {
           checkAccountVotes(
-            trs.senderPublicKey,
-            'confirmed',
-            trs.asset.votes,
-            'apply',
-            done
+              trs.senderPublicKey,
+              'confirmed',
+              trs.asset.votes,
+              'apply',
+              done
           );
         });
       });
@@ -466,11 +466,11 @@ describe('vote', () => {
     it('should return err if vote is not made for a delegate', (done) => {
       const trs = _.cloneDeep(validTransaction);
       trs.asset.votes = [
-        '-9f2fcc688518324273da230afff9756312bf23592174896fab669c2d78b1533c',
+        '-9f2fcc688518324273da230afff9756312bf23592174896fab669c2d78b1533c'
       ];
       vote.checkConfirmedDelegates(trs, (err) => {
         expect(err).to.equal(
-          'Failed to remove vote, account has not voted for this delegate'
+            'Failed to remove vote, account has not voted for this delegate'
         );
         done();
       });
@@ -491,7 +491,7 @@ describe('vote', () => {
       });
       vote.checkUnconfirmedDelegates(trs, (err) => {
         expect(err).to.equal(
-          'Failed to add vote, account has already voted for this delegate'
+            'Failed to add vote, account has already voted for this delegate'
         );
         done();
       });
@@ -513,22 +513,22 @@ describe('vote', () => {
       });
       vote.apply.call(transaction, trs, dummyBlock, testAccount, (err) => {
         checkAccountVotes(
-          trs.senderPublicKey,
-          'confirmed',
-          trs.asset.votes,
-          'apply',
-          () => null
+            trs.senderPublicKey,
+            'confirmed',
+            trs.asset.votes,
+            'apply',
+            () => null
         );
         trs.asset.votes = votedDelegates.map((v) => {
           return '+' + v;
         });
         vote.apply.call(transaction, trs, dummyBlock, testAccount, (err) => {
           checkAccountVotes(
-            trs.senderPublicKey,
-            'confirmed',
-            trs.asset.votes,
-            'apply',
-            done
+              trs.senderPublicKey,
+              'confirmed',
+              trs.asset.votes,
+              'apply',
+              done
           );
         });
       });
@@ -537,11 +537,11 @@ describe('vote', () => {
     it('should return err if vote is not made for a delegate', (done) => {
       const trs = _.cloneDeep(validTransaction);
       trs.asset.votes = [
-        '-9f2fcc688518324273da230afff9756312bf23592174896fab669c2d78b1533c',
+        '-9f2fcc688518324273da230afff9756312bf23592174896fab669c2d78b1533c'
       ];
       vote.checkUnconfirmedDelegates(trs, (err) => {
         expect(err).to.equal(
-          'Failed to remove vote, account has not voted for this delegate'
+            'Failed to remove vote, account has not voted for this delegate'
         );
         done();
       });
@@ -570,11 +570,11 @@ describe('vote', () => {
       });
       vote.apply.call(transaction, trs, dummyBlock, testAccount, (err) => {
         checkAccountVotes(
-          trs.senderPublicKey,
-          'confirmed',
-          trs.asset.votes,
-          'apply',
-          done
+            trs.senderPublicKey,
+            'confirmed',
+            trs.asset.votes,
+            'apply',
+            done
         );
       });
     });
@@ -586,11 +586,11 @@ describe('vote', () => {
       });
       vote.apply.call(transaction, trs, dummyBlock, testAccount, (err) => {
         checkAccountVotes(
-          trs.senderPublicKey,
-          'confirmed',
-          trs.asset.votes,
-          'apply',
-          done
+            trs.senderPublicKey,
+            'confirmed',
+            trs.asset.votes,
+            'apply',
+            done
         );
       });
     });
@@ -603,19 +603,19 @@ describe('vote', () => {
         return '-' + v;
       });
       vote.undo.call(
-        transaction,
-        validTransaction,
-        dummyBlock,
-        testAccount,
-        (err) => {
-          checkAccountVotes(
-            trs.senderPublicKey,
-            'confirmed',
-            trs.asset.votes,
-            'undo',
-            done
-          );
-        }
+          transaction,
+          validTransaction,
+          dummyBlock,
+          testAccount,
+          (err) => {
+            checkAccountVotes(
+                trs.senderPublicKey,
+                'confirmed',
+                trs.asset.votes,
+                'undo',
+                done
+            );
+          }
       );
     });
 
@@ -626,11 +626,11 @@ describe('vote', () => {
       });
       vote.undo.call(transaction, trs, dummyBlock, testAccount, (err) => {
         checkAccountVotes(
-          trs.senderPublicKey,
-          'confirmed',
-          trs.asset.votes,
-          'undo',
-          done
+            trs.senderPublicKey,
+            'confirmed',
+            trs.asset.votes,
+            'undo',
+            done
         );
       });
     });
@@ -643,18 +643,18 @@ describe('vote', () => {
         return '-' + v;
       });
       vote.applyUnconfirmed.call(
-        transaction,
-        validTransaction,
-        testAccount,
-        (err) => {
-          checkAccountVotes(
-            trs.senderPublicKey,
-            'unconfirmed',
-            trs.asset.votes,
-            'apply',
-            done
-          );
-        }
+          transaction,
+          validTransaction,
+          testAccount,
+          (err) => {
+            checkAccountVotes(
+                trs.senderPublicKey,
+                'unconfirmed',
+                trs.asset.votes,
+                'apply',
+                done
+            );
+          }
       );
     });
 
@@ -665,11 +665,11 @@ describe('vote', () => {
       });
       vote.applyUnconfirmed.call(transaction, trs, testAccount, (err) => {
         checkAccountVotes(
-          trs.senderPublicKey,
-          'unconfirmed',
-          trs.asset.votes,
-          'apply',
-          done
+            trs.senderPublicKey,
+            'unconfirmed',
+            trs.asset.votes,
+            'apply',
+            done
         );
       });
     });
@@ -682,18 +682,18 @@ describe('vote', () => {
         return '-' + v;
       });
       vote.undoUnconfirmed.call(
-        transaction,
-        validTransaction,
-        testAccount,
-        (err) => {
-          checkAccountVotes(
-            trs.senderPublicKey,
-            'unconfirmed',
-            trs.asset.votes,
-            'undo',
-            done
-          );
-        }
+          transaction,
+          validTransaction,
+          testAccount,
+          (err) => {
+            checkAccountVotes(
+                trs.senderPublicKey,
+                'unconfirmed',
+                trs.asset.votes,
+                'undo',
+                done
+            );
+          }
       );
     });
 
@@ -704,11 +704,11 @@ describe('vote', () => {
       });
       vote.undoUnconfirmed.call(transaction, trs, testAccount, (err) => {
         checkAccountVotes(
-          trs.senderPublicKey,
-          'unconfirmed',
-          trs.asset.votes,
-          'undo',
-          done
+            trs.senderPublicKey,
+            'unconfirmed',
+            trs.asset.votes,
+            'undo',
+            done
         );
       });
     });
@@ -717,7 +717,7 @@ describe('vote', () => {
   describe('objectNormalize()', () => {
     it('should normalize object for valid trs', () => {
       expect(vote.objectNormalize.call(transaction, validTransaction)).to.eql(
-        validTransaction
+          validTransaction
       );
     });
 
@@ -727,22 +727,22 @@ describe('vote', () => {
       expect(() => {
         vote.objectNormalize.call(transaction, trs);
       }).to.throw(
-        'Failed to validate vote schema: Array items are not unique (indexes 0 and 3)'
+          'Failed to validate vote schema: Array items are not unique (indexes 0 and 3)'
       );
     });
 
     it('should return error when votes array is longer than maximum acceptable', () => {
       const trs = _.cloneDeep(validTransaction);
       trs.asset.votes = Array.apply(
-        null,
-        Array(constants.maxVotesPerTransaction + 1)
+          null,
+          Array(constants.maxVotesPerTransaction + 1)
       ).map(() => {
         return '+' + iAccount.publicKey;
       });
       expect(() => {
         vote.objectNormalize.call(transaction, trs);
       }).to.throw(
-        'Failed to validate vote schema: Array is too long (34), maximum 33'
+          'Failed to validate vote schema: Array is too long (34), maximum 33'
       );
     });
   });
@@ -752,19 +752,19 @@ describe('vote', () => {
       const rawVotes =
         '+9d3058175acab969f41ad9b86f7a2926c74258670fe56b37c429c01fca9f2f0f,+141b16ac8d5bd150f16b1caa08f689057ca4c4434445e56661831f4e671b7c0a,+3ff32442bb6da7d60c1b7752b24e6467813c9b698e0f278d48c43580da972135';
       expect(
-        vote.dbRead({
-          v_votes: rawVotes,
-        })
+          vote.dbRead({
+            v_votes: rawVotes
+          })
       ).to.eql({
-        votes: rawVotes.split(','),
+        votes: rawVotes.split(',')
       });
     });
 
     it('should return null if no votes are supplied', () => {
       expect(
-        vote.dbRead({
-          v_votes: null,
-        })
+          vote.dbRead({
+            v_votes: null
+          })
       ).to.be.null;
     });
   });
@@ -774,11 +774,11 @@ describe('vote', () => {
       const valuesKeys = ['votes', 'transactionId'];
       const saveQuery = vote.dbSave(validTransaction);
       expect(saveQuery)
-        .to.be.an('object')
-        .with.keys(['table', 'fields', 'values']);
+          .to.be.an('object')
+          .with.keys(['table', 'fields', 'values']);
       expect(saveQuery.values).to.have.keys(valuesKeys);
       expect(saveQuery.values.votes).to.equal(
-        validTransaction.asset.votes.join(',')
+          validTransaction.asset.votes.join(',')
       );
     });
   });

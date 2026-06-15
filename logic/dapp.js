@@ -21,7 +21,7 @@ __private.unconfirmedAscii = {};
  * @param {object} network
  *
  * @memberof module:dapps
- * @class
+ * @constructor
  * @classdesc Main dapp logic.
  */
 // Constructor
@@ -217,7 +217,7 @@ DApp.prototype.process = function (trs, sender, cb) {
  * - category
  * @param {transaction} trs
  * @throws {e} error
- * @returns {Array} Buffer
+ * @return {Array} Buffer
  */
 DApp.prototype.getBytes = function (trs) {
   var buf;
@@ -443,7 +443,7 @@ DApp.prototype.dbFields = [
  * @param {transaction} trs
  * @see privateTypes
  *
- * @return {Object[]} table, fields, values.
+ * @return {object[]} table, fields, values.
  */
 DApp.prototype.dbSave = function (trs) {
   return {

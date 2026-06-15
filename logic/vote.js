@@ -13,11 +13,11 @@ var modules, library, self;
 /**
  * Initializes library.
  * @memberof module:accounts
- * @class
+ * @constructor
  * @classdesc Main vote logic.
  * Allows validate and undo transactions, verify votes.
  * @constructor
- * @param {Object} logger
+ * @param {object} logger
  * @param {ZSchema} schema
  */
 function Vote (logger, schema) {
@@ -44,7 +44,7 @@ Vote.prototype.bind = function (delegates, rounds) {
 /**
  * Sets recipientId with sender address.
  * Creates transaction.asset.votes based on data.
- * @param {Object} data
+ * @param {object} data
  * @param {transaction} trs
  * @return {transaction} trs with new data
  */
@@ -57,8 +57,7 @@ Vote.prototype.create = function (data, trs) {
 
 /**
  * Fulfills transaction data for vote
- * @param {Object} data
- * @param {transaction} trs
+ * @param {object} data
  * @return {transaction} trs with new data
  */
 Vote.prototype.publish = function (data) {
@@ -81,6 +80,8 @@ Vote.prototype.publish = function (data) {
 
 /**
  * Obtains constant fee vote.
+ * @param {transaction} trs
+ * @param {account} sender
  * @see {@link module:helpers/constants}
  * @return {number} fee
  */
@@ -142,7 +143,7 @@ Vote.prototype.verify = function (trs, sender, cb) {
 
 /**
  * Checks type, format and length from vote.
- * @param {Object} vote
+ * @param {object} vote
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} error message | cb.
  */
@@ -184,7 +185,7 @@ Vote.prototype.checkConfirmedDelegates = function (trs, cb) {
 /**
  * Calls checkUnconfirmedDelegates() with senderPublicKey and asset votes.
  * @implements {modules.delegates.checkUnconfirmedDelegates}
- * @param {Object} trs
+ * @param {object} trs
  * @param {function} cb
  * @return {setImmediateCallback} cb, err(if transaction id is not in
  * exceptions votes list)
@@ -334,8 +335,8 @@ Vote.prototype.undoUnconfirmed = function (trs, sender, cb) {
 };
 
 /**
- * @typedef {Object} votes
- * @property {String[]} votes - Unique items, max constant activeDelegates.
+ * @typedef {object} votes
+ * @property {string[]} votes - Unique items, max constant activeDelegates.
  * @property {string} transactionId
  */
 Vote.prototype.schema = {
@@ -374,7 +375,7 @@ Vote.prototype.objectNormalize = function (trs) {
 
 /**
  * Creates votes object based on raw data.
- * @param {Object} raw
+ * @param {object} raw
  * @return {null|votes} votes object
  */
 Vote.prototype.dbRead = function (raw) {
@@ -397,7 +398,7 @@ Vote.prototype.dbFields = [
 /**
  * Creates db operation object to 'votes' table based on votes data.
  * @param {transaction} trs
- * @return {Object[]} table, fields, values.
+ * @return {object[]} table, fields, values.
  */
 Vote.prototype.dbSave = function (trs) {
   return {

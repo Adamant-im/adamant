@@ -10,7 +10,7 @@ var self, __private = {}, shared = {};
 __private.loaded = false;
 
 /**
- * @class
+ * @constructor
  * @classdesc Main Crypto methods.
  * @param {setImmediateCallback} cb - Callback function.
  * @param {scope} scope - App instance.

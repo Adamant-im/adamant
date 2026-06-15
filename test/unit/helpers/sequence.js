@@ -104,7 +104,7 @@ describe('Sequence', () => {
 
         sequence.add(worker, [], () => {
           done();
-        })
+        });
         expect(sequence.isTicking).to.be.true;
       });
     });
@@ -129,8 +129,8 @@ describe('Sequence', () => {
         };
         sequence.add(anotherWorker, [], () => {
           expect(sequence.isTicking).to.be.true;
-          expect(secondSpy.calledOnce).to.be.true
-        })
+          expect(secondSpy.calledOnce).to.be.true;
+        });
 
         done();
       });

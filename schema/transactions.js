@@ -236,5 +236,5 @@ module.exports = {
       }
     },
     required: ['signature']
-  },
+  }
 };

@@ -10,7 +10,7 @@ var exceptions = require('./exceptions');
  * @requires helpers/slots
  * @memberof module:helpers
  * @constructor
- * @param {Object} scope
+ * @param {object} scope
  */
 // Constructor
 function RoundChanges (scope) {
@@ -41,7 +41,7 @@ function RoundChanges (scope) {
  * @implements bignum
  * @implements slots
  * @param {number} index
- * @return {Object} Contains fees, feesRemaining, rewards, balance
+ * @return {object} Contains fees, feesRemaining, rewards, balance
  */
 RoundChanges.prototype.at = function (index) {
   var fees = new bignum(this.roundFees.toPrecision(15)).dividedBy(slots.delegates).integerValue(bignum.ROUND_FLOOR);

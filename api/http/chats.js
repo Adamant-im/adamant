@@ -15,7 +15,7 @@ var schema = require('../../schema/dapps');
  * @requires helpers/Router
  * @requires helpers/httpApi
  * @constructor
- * @param {Object} chatsModule - Module chats instance.
+ * @param {object} chatsModule - Module chats instance.
  * @param {scope} app - Network app.
  */
 // Constructor

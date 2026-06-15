@@ -14,7 +14,7 @@ __private.unconfirmedOutTransfers = {};
  * @param {ZSchema} schema
  * @param {object} logger
  * @memberof module:dapps
- * @class
+ * @constructor
  * @classdesc Main OutTransfer logic.
  */
 // Constructor
@@ -146,7 +146,7 @@ OutTransfer.prototype.process = function (trs, sender, cb) {
  * - transactionId
  * @param {transaction} trs
  * @throws {e} Error
- * @returns {Array} Buffer
+ * @return {Array} Buffer
  */
 OutTransfer.prototype.getBytes = function (trs) {
   var buf;
@@ -298,7 +298,7 @@ OutTransfer.prototype.objectNormalize = function (trs) {
  * Creates outTransfer object based on raw data.
  * @param {object} raw
  *
- * @return {Object} outTransfer with dappId and transactionId
+ * @return {object} outTransfer with dappId and transactionId
  */
 OutTransfer.prototype.dbRead = function (raw) {
   if (!raw.ot_dappId) {
@@ -325,7 +325,7 @@ OutTransfer.prototype.dbFields = [
  * Creates db operation object to 'outtransfer' table based on
  * outTransfer data.
  * @param {transaction} trs
- * @return {Object[]} table, fields, values.
+ * @return {object[]} table, fields, values.
  */
 OutTransfer.prototype.dbSave = function (trs) {
   return {

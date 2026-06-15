@@ -13,14 +13,14 @@ var modules, library, self, __private = {};
  * Initializes variables, sets Broadcast routes and timer based on
  * broadcast interval from config file.
  * @memberof module:transport
- * @class
+ * @constructor
  * @classdesc Main Broadcaster logic.
  * @implements {__private.releaseQueue}
- * @param {Object} broadcasts
+ * @param {object} broadcasts
  * @param {boolean} force
  * @param {Peers} peers - from logic, Peers instance
  * @param {Transaction} transaction - from logic, Transaction instance
- * @param {Object} logger
+ * @param {object} logger
  */
 // Constructor
 function Broadcaster (broadcasts, force, peers, transaction, logger) {
@@ -94,7 +94,7 @@ Broadcaster.prototype.bind = function (peers, transport, transactions) {
 /**
  * Calls peers.list function to get peers and removes peers that are connected using WebSocket.
  * @implements {modules.peers.list}
- * @param {Object} params
+ * @param {object} params
  * @param {function} cb
  * @return {setImmediateCallback} err | peers
  */
@@ -120,9 +120,9 @@ Broadcaster.prototype.getPeers = function (params, cb) {
 
 /**
  * Adds new object {params, options} to queue array .
- * @param {Object} params
- * @param {Object} options
- * @return {Object[]} queue private variable with new data
+ * @param {object} params
+ * @param {object} options
+ * @return {object[]} queue private variable with new data
  */
 Broadcaster.prototype.enqueue = function (params, options) {
   options.immediate = false;
@@ -134,8 +134,8 @@ Broadcaster.prototype.enqueue = function (params, options) {
  * Logs selected peer counts and request limits for broadcast diagnostics.
  * @implements {getPeers}
  * @implements {library.logic.peers.create}
- * @param {Object} params - Broadcast peer selection parameters.
- * @param {Object} options - Transport request options.
+ * @param {object} params - Broadcast peer selection parameters.
+ * @param {object} options - Transport request options.
  * @param {Function} cb - Callback function.
  * @return {setImmediateCallback} err | peers
  */
@@ -192,7 +192,7 @@ Broadcaster.prototype.broadcast = function (params, options, cb) {
 
 /**
  * Counts relays and valid limit.
- * @param {Object} object
+ * @param {object} object
  * @return {boolean} True if Broadcast relays exhausted
  */
 Broadcaster.prototype.maxRelays = function (object) {
@@ -263,8 +263,8 @@ __private.filterTransaction = function (transaction, cb) {
 /**
  * Groups broadcasts by api.
  * @private
- * @param {Object} broadcasts
- * @return {Object[]} squashed routes
+ * @param {object} broadcasts
+ * @return {object[]} squashed routes
  */
 __private.squashQueue = function (broadcasts) {
   var grouped = _.groupBy(broadcasts, function (broadcast) {

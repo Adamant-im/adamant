@@ -21,7 +21,7 @@ __private.assetTypes = {};
  * @param {Function} cb - Callback function.
  * @param {scope} scope - App instance.
  * @memberof module:multisignatures
- * @class
+ * @constructor
  * @classdesc Main multisignatures methods.
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
@@ -61,7 +61,7 @@ function Multisignatures (cb, scope) {
  * @param {object} tx - Contains transaction and signature.
  * @param {Function} cb - Callback function.
  * @todo test function!.
- * @returns {setImmediateCallback} err messages| cb
+ * @return {setImmediateCallback} err messages| cb
  */
 Multisignatures.prototype.processSignature = function (tx, cb) {
   var transaction = modules.transactions.getMultisignatureTransaction(tx.transaction);
@@ -169,7 +169,7 @@ Multisignatures.prototype.processSignature = function (tx, cb) {
 /**
  * Calls helpers.sandbox.callMethod().
  * @param {Function} call - Method to call.
- * @param {} args - List of arguments.
+ * @param {*} args - List of arguments.
  * @param {Function} cb - Callback function.
  *
  * @implements module:helpers#callMethod
@@ -199,7 +199,7 @@ Multisignatures.prototype.onBind = function (scope) {
 
 /**
  * Checks if `modules` is loaded.
- * @returns {boolean} True if `modules` is loaded.
+ * @return {boolean} True if `modules` is loaded.
  */
 Multisignatures.prototype.isLoaded = function () {
   return !!modules;

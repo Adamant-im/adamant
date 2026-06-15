@@ -29,7 +29,7 @@ __private.assetTypes = {};
  * and a TransactionPool instance.
  * Calls logic.transaction.attachAssetType().
  * @memberof module:transactions
- * @class
+ * @constructor
  * @classdesc Main transactions methods.
  * @param {function} cb - Callback function.
  * @param {scope} scope - App instance.
@@ -71,7 +71,7 @@ function Transactions (cb, scope) {
 /**
  * Counts totals and gets transaction list from `trs_list` view.
  * @private
- * @param {Object} filter
+ * @param {object} filter
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} error | data: {transactions, count}
  */
@@ -185,7 +185,7 @@ __private.list = function (filter, cb) {
   }
 
   var orderBy = OrderBy(
-    filter.orderBy, {
+      filter.orderBy, {
         sortField: 'timestamp',
         sortMethod: 'DESC',
         sortFields: sql.sortFields,
@@ -227,21 +227,21 @@ __private.list = function (filter, cb) {
       'inId',
       'isIn',
       'type',
-      'types',
+      'types'
     ];
 
     unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(filter, {
       allowedFilters,
-      defaultCondition: 'OR',
+      defaultCondition: 'OR'
     });
 
     const paging = preparePaging(params, unconfirmedTransactions.length);
 
     params.offset = paging.db.offset;
-    params.limit  = paging.db.limit;
+    params.limit = paging.db.limit;
 
     params.mergingOffset = paging.merge.offset;
-    params.mergingLimit  = paging.merge.limit;
+    params.mergingLimit = paging.merge.limit;
   }
 
   library.db.query(sql.countList({
@@ -270,14 +270,14 @@ __private.list = function (filter, cb) {
         count += unconfirmedTransactions.length;
 
         transactions = modules.transactions.mergeUnconfirmedTransactions(
-          transactions,
-          unconfirmedTransactions,
-          {
-            orderBy,
-            limit: params.mergingLimit,
-            offset: params.mergingOffset,
-            returnAsset: filter.returnAsset,
-          }
+            transactions,
+            unconfirmedTransactions,
+            {
+              orderBy,
+              limit: params.mergingLimit,
+              offset: params.mergingOffset,
+              returnAsset: filter.returnAsset
+            }
         );
       }
 
@@ -377,8 +377,8 @@ __private.getVotesById = function (transaction, cb) {
 /**
  * Gets transaction by calling parameter method.
  * @private
- * @param {Object} method
- * @param {Object} req
+ * @param {object} method
+ * @param {object} req
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} error | data: {transaction}
  */
@@ -406,8 +406,8 @@ __private.getPooledTransaction = function (method, req, cb) {
  * Gets transactions by calling parameter method.
  * Filters by senderPublicKey or address if they are present.
  * @private
- * @param {Object} method
- * @param {Object} req
+ * @param {object} method
+ * @param {object} req
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} error | data: {transactions, count}
  */
@@ -436,7 +436,7 @@ __private.getPooledTransactions = function (method, req, cb) {
       ...transaction,
       blockId: null,
       height: null,
-      confirmations: 0,
+      confirmations: 0
     }));
 
     return setImmediate(cb, null, { transactions: toSend, count: transactions.length });
@@ -467,24 +467,24 @@ Transactions.prototype.getUnconfirmedTransaction = function (id) {
  *
  * @param {Array<Transaction>} targetArray Sorted array to merge unconfirmed transactions into
  * @param {Array<UnconfirmedTransaction>} unconfirmedTransactions Array of unconfirmed transactions to merge
- * @param {Object} options
- * @param {Object} [options.orderBy] - Options for transaction ordering. See `helpers/orderBy.js`
+ * @param {object} options
+ * @param {object} [options.orderBy] - Options for transaction ordering. See `helpers/orderBy.js`
  * @param {number} [options.limit] - Maximum number of transactions in the final array
  * @param {number} [options.offset] - Offset for the final array
  * @param {number} [options.returnAsset=1] - Whether to remove assets from all transactions. Default is 1
- * @param {number} [options.withoutDirectTransfers=0] - Whether to remove all transfer transactions. Default is 0
+ * @param {number} [options.includeDirectTransfers=1] - Whether to include transfer transactions. Default is 1
  */
 Transactions.prototype.mergeUnconfirmedTransactions = function (
-  targetArray,
-  unconfirmedTransactions,
-  options = {},
+    targetArray,
+    unconfirmedTransactions,
+    options = {}
 ) {
   const {
     orderBy,
     limit,
     includeDirectTransfers = 1,
     returnAsset = 1,
-    offset = 0,
+    offset = 0
   } = options;
   const { originalField: sortField, sortMethod } = orderBy;
 
@@ -541,27 +541,27 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
     ));
   }
 
-  result = result.slice(offset, limit ? offset + limit : undefined)
+  result = result.slice(offset, limit ? offset + limit : undefined);
 
   if (!returnAsset) {
     result = result.map((transaction) => ({
       ...transaction,
-      asset: undefined,
+      asset: undefined
     }));
   }
 
   return result;
-}
+};
 
 /**
  * Retrieves unconfirmed transactions based on the provided filter and options
  *
- * @param {Object} filter - Criteria to filter unconfirmed transactions
- * @param {Object} [options]
+ * @param {object} filter - Criteria to filter unconfirmed transactions
+ * @param {object} [options]
  * @param {string[]} [options.allowedFilters=[]] - List of keys allowed for filtering transactions
- * @param {Object} [options.aliases={}] - Key-value pairs for aliasing filter keys
+ * @param {object} [options.aliases={}] - Key-value pairs for aliasing filter keys
  * @param {string} [options.defaultCondition='AND'] - Default logical condition for combining filters ('AND' or 'OR')
- * @returns {Object[]} - Array of unconfirmed transactions matching the criteria
+ * @return {object[]} - Array of unconfirmed transactions matching the criteria
  * @throws {Error} - If `filter` is not an object
  */
 Transactions.prototype.getUnconfirmedTransactions = function (filter, options = {}) {
@@ -569,7 +569,7 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
     allowedFilters = [],
     aliases = {},
     defaultCondition = 'AND',
-    important = {},
+    important = {}
   } = options;
 
   let transactions = this.getUnconfirmedTransactionList();
@@ -610,7 +610,7 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
       senderPublicKeys: (value) => value?.includes(transaction.senderPublicKey),
       recipientPublicKeys: (value) => value?.map(accounts.getAddressByPublicKey).includes(transaction.recipientId),
       key: (value) => transaction.asset?.state?.key === value,
-      keyIds: (value) => value?.includes(transaction.asset?.state?.key),
+      keyIds: (value) => value?.includes(transaction.asset?.state?.key)
     };
 
     // Ignore boolean logic for endpoint related filters
@@ -633,7 +633,7 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
 
       const isOr = upperCaseKey.startsWith('OR:') || (!upperCaseKey.startsWith('AND:') && defaultCondition !== 'AND');
 
-      const actualKey = key.replace(/^(AND:|OR:)/i, "");
+      const actualKey = key.replace(/^(AND:|OR:)/i, '');
       if (exclusiveKeys.includes(actualKey)) {
         return false;
       }
@@ -647,7 +647,7 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
       if (isFirst && isOr) {
         result = condition;
       } else {
-        result = isOr ? result || condition : result && condition ;
+        result = isOr ? result || condition : result && condition;
       }
 
       isFirst = false;
@@ -660,9 +660,9 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
     ...transaction,
     blockId: null,
     height: null,
-    confirmations: 0,
+    confirmations: 0
   }));
-}
+};
 
 /**
  * @param {string} id
@@ -733,7 +733,7 @@ Transactions.prototype.removeUnconfirmedTransaction = function (id) {
  * Checks kind of unconfirmed transaction and process it, resets queue
  * if limit reached.
  * @param {transaction} transaction
- * @param {Object} broadcast
+ * @param {object} broadcast
  * @param {function} cb - Callback function.
  * @return {function} Calls transactionPool.processUnconfirmedTransaction
  */
@@ -874,7 +874,7 @@ Transactions.prototype.undoUnconfirmed = function (transaction, cb) {
 /**
  * Receives transactions
  * @param {transaction[]} transactions
- * @param {Object} broadcast
+ * @param {object} broadcast
  * @param {function} cb - Callback function.
  * @return {function} Calls transactionPool.receiveTransactions
  */

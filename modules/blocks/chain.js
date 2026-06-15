@@ -12,14 +12,14 @@ var modules, library, self, __private = {};
 /**
  * Initializes library.
  * @memberof module:blocks
- * @class
+ * @constructor
  * @classdesc Main Chain logic.
  * Allows set information.
- * @param {Object} logger
+ * @param {object} logger
  * @param {Block} block
  * @param {Transaction} transaction
  * @param {Database} db
- * @param {Object} genesisblock
+ * @param {object} genesisblock
  * @param {bus} bus
  * @param {Sequence} balancesSequence
  */
@@ -47,7 +47,7 @@ function Chain (logger, block, transaction, db, genesisblock, bus, balancesSeque
  * @async
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
+ * @return {object}   cb.err Error if occurred
  */
 Chain.prototype.saveGenesisBlock = function (cb) {
   // Check if genesis block ID already exists in the database
@@ -74,11 +74,11 @@ Chain.prototype.saveGenesisBlock = function (cb) {
  * Save block with transactions to database
  *
  * @async
- * @param  {Object}   block Full normalized block
+ * @param  {object}   block Full normalized block
  * @param  {Function} cb Callback function
  * @return {Function|afterSave} cb If SQL transaction was OK - returns afterSave execution,
  *                                 if not returns callback function from params (through setImmediate)
- * @return {String}   cb.err Error if occurred
+ * @return {string}   cb.err Error if occurred
  */
 Chain.prototype.saveBlock = function (block, cb) {
   // Prepare and execute SQL transaction
@@ -113,10 +113,10 @@ Chain.prototype.saveBlock = function (block, cb) {
  * @private
  * @async
  * @method afterSave
- * @param  {Object}   block Full normalized block
+ * @param  {object}   block Full normalized block
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
+ * @return {object}   cb.err Error if occurred
  */
 __private.afterSave = function (block, cb) {
   library.bus.message('transactionsSaved', block.transactions);
@@ -135,10 +135,10 @@ __private.afterSave = function (block, cb) {
  *
  * @private
  * @method promiseTransactions
- * @param  {Object} t SQL connection object
- * @param  {Object} block Full normalized block
- * @param  {Object} blockPromises Not used
- * @return {Object} t SQL connection object filled with inserts
+ * @param  {object} t SQL connection object
+ * @param  {object} block Full normalized block
+ * @param  {object} blockPromises Not used
+ * @return {object} t SQL connection object filled with inserts
  * @throws Will throw 'Invalid promise' when no promise, promise.values or promise.table
  */
 __private.promiseTransactions = function (t, block, blockPromises) {
@@ -195,7 +195,7 @@ __private.promiseTransactions = function (t, block, blockPromises) {
  * @param  {number}   blockId ID of block to delete
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err String if SQL error occurred, null if success
+ * @return {object}   cb.err String if SQL error occurred, null if success
  */
 Chain.prototype.deleteBlock = function (blockId, cb) {
   // Delete block with ID from blocks table
@@ -217,8 +217,8 @@ Chain.prototype.deleteBlock = function (blockId, cb) {
  * @param  {number}   blockId ID of block to begin with
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err SQL error
- * @return {Object}   cb.res SQL response
+ * @return {object}   cb.err SQL error
+ * @return {object}   cb.res SQL response
  */
 Chain.prototype.deleteAfterBlock = function (blockId, cb) {
   library.db.query(sql.deleteAfterBlock, { id: blockId }).then(function (res) {
@@ -236,10 +236,10 @@ Chain.prototype.deleteAfterBlock = function (blockId, cb) {
  * @private
  * @async
  * @method applyGenesisBlock
- * @param  {Object}   block Full normalized genesis block
+ * @param  {object}   block Full normalized genesis block
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
+ * @return {object}   cb.err Error if occurred
  */
 Chain.prototype.applyGenesisBlock = function (block, cb) {
   // Sort transactions included in block
@@ -290,12 +290,12 @@ Chain.prototype.applyGenesisBlock = function (block, cb) {
  * @private
  * @async
  * @method applyTransaction
- * @param  {Object}   block Block object
- * @param  {Object}   transaction Transaction object
- * @param  {Object}   sender Sender account
+ * @param  {object}   block Block object
+ * @param  {object}   transaction Transaction object
+ * @param  {object}   sender Sender account
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
+ * @return {object}   cb.err Error if occurred
  */
 __private.applyTransaction = function (block, transaction, sender, cb) {
   // FIXME: Not sure about flow here, when nodes have different transactions - 'applyUnconfirmed' can fail but 'apply' can be ok
@@ -328,12 +328,12 @@ __private.applyTransaction = function (block, transaction, sender, cb) {
  * @async
  * @method applyBlock
  * @emits  SIGTERM
- * @param  {Object}   block Full normalized block
+ * @param  {object}   block Full normalized block
  * @param  {boolean}  broadcast Indicator that block needs to be broadcasted
  * @param  {Function} cb Callback function
  * @param  {boolean}  saveBlock Indicator that block needs to be saved to database
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
+ * @return {object}   cb.err Error if occurred
  */
 Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
   // Prevent shutdown during database writes.
@@ -507,10 +507,11 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
  * @private
  * @async
  * @method popLastBlock
+ * @param {block} oldLastBlock
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error
- * @return {Object}   cb.obj New last block
+ * @return {object}   cb.err Error
+ * @return {object}   cb.obj New last block
  */
 __private.popLastBlock = function (oldLastBlock, cb) {
   // Execute in sequence via balancesSequence
@@ -588,8 +589,8 @@ __private.popLastBlock = function (oldLastBlock, cb) {
  * @method deleteLastBlock
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
- * @return {Object}   cb.obj New last block
+ * @return {object}   cb.err Error if occurred
+ * @return {object}   cb.obj New last block
  */
 Chain.prototype.deleteLastBlock = function (cb) {
   var lastBlock = modules.blocks.lastBlock.get();
@@ -620,7 +621,7 @@ Chain.prototype.deleteLastBlock = function (cb) {
  * @method recoverChain
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
+ * @return {object}   cb.err Error if occurred
  */
 Chain.prototype.recoverChain = function (cb) {
   var lastBlock = modules.blocks.lastBlock.get();

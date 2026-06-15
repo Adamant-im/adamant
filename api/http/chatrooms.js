@@ -14,7 +14,7 @@ const httpApi = require('../../helpers/httpApi');
  * @requires helpers/Router
  * @requires helpers/httpApi
  * @constructor
- * @param {Object} chatroomsModule - Module chats instance.
+ * @param {object} chatroomsModule - Module chats instance.
  * @param {scope} app - Network app.
  */
 // Constructor

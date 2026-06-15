@@ -13,9 +13,9 @@ var modules;
 /**
  * Initializes library.
  * @memberof module:peers
- * @class
+ * @constructor
  * @classdesc Main peers logic.
- * @param {Object} logger
+ * @param {object} logger
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} Callback function with `this` as data.
  */
@@ -35,7 +35,7 @@ function Peers (logger, cb) {
  */
 Peers.prototype.getByNonce = function (nonce) {
   return Object.values(__private.peers).find((peer) => peer.nonce === nonce);
-}
+};
 
 /**
  * Returns a peer instance.
@@ -100,7 +100,7 @@ Peers.prototype.upsert = function (peer, insertOnly) {
     var diff = {};
     _.each(peer, function (value, key) {
       const isImmutableProperty = existingPeer.immutable.includes(key);
-      if (key !== 'updated'  && !isImmutableProperty && existingPeer[key] !== value) {
+      if (key !== 'updated' && !isImmutableProperty && existingPeer[key] !== value) {
         diff[key] = value;
       }
     });
@@ -187,7 +187,7 @@ Peers.prototype.recordRequest = function (data, error) {
   if (!self.exists(data)) {
     library.logger.debug('peers', 'Failed to update request success rate for peer', {
       peer: data,
-      err: error,
+      err: error
     });
     return false;
   }
@@ -213,16 +213,16 @@ Peers.prototype.list = function (normalize) {
 
 /**
  * Returns amount of peers that are connected via socket
- * @returns {number}
+ * @return {number}
  */
 Peers.prototype.getSocketCount = function () {
   return Object.values(__private.peers).reduce((acc, peer) => acc + (peer.isBroadcastingViaSocket ? 1 : 0), 0);
-}
+};
 
 // Public methods
 /**
  * Modules are not required in this file.
- * @param {Object} __modules - Peers module.
+ * @param {object} __modules - Peers module.
  */
 Peers.prototype.bindModules = function (__modules) {
   modules = {

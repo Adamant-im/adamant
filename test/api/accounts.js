@@ -39,7 +39,7 @@ describe('GET /api/accounts/getBalance?address=', function () {
     getBalance('', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
-      node.expect(res.body.error).to.contain("Object didn't pass validation for format address");
+      node.expect(res.body.error).to.contain('Object didn\'t pass validation for format address');
       done();
     });
   });
@@ -78,7 +78,7 @@ describe('GET /api/accounts/getPublicKey?address=', function () {
     getPublicKey('', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
-      node.expect(res.body.error).to.contain("Object didn't pass validation for format address");
+      node.expect(res.body.error).to.contain('Object didn\'t pass validation for format address');
       done();
     });
   });
@@ -161,7 +161,7 @@ describe('GET /accounts', function () {
     getAccounts('address=', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
-      node.expect(res.body.error).to.contain("Object didn't pass validation for format address");
+      node.expect(res.body.error).to.contain('Object didn\'t pass validation for format address');
       done();
     });
   });
@@ -186,7 +186,7 @@ describe('GET /accounts', function () {
   it('using known publicKey and empty address should fail', function (done) {
     getAccounts('publicKey=' + node.iAccount.publicKey + '&address=', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error').to.contain("Object didn't pass validation for format address");
+      node.expect(res.body).to.have.property('error').to.contain('Object didn\'t pass validation for format address');
       done();
     });
   });
@@ -230,7 +230,7 @@ describe('GET /accounts', function () {
     getAccounts('publicKey=&address=', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
-      node.expect(res.body.error).to.contain("Object didn't pass validation for format address");
+      node.expect(res.body.error).to.contain('Object didn\'t pass validation for format address');
       done();
     });
   });

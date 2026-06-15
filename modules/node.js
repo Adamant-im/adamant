@@ -19,7 +19,7 @@ __private.blockReward = new BlockReward();
 /**
  * Initializes library with scope content.
  * @memberof module:node
- * @class
+ * @constructor
  * @classdesc Main node methods.
  * @param {function} cb - Callback function.
  * @param {scope} scope - App instance.
@@ -62,7 +62,7 @@ Node.prototype.onBind = function (scope) {
     blocks: scope.blocks,
     transport: scope.transport,
     system: scope.system,
-    loader: scope.loader,
+    loader: scope.loader
   };
 };
 
@@ -124,7 +124,7 @@ Node.prototype.shared = {
             syncing: modules.loader.syncing(),
             consensus: modules.transport.consensus(),
             blocks: modules.loader.getBlocksToSync(),
-            blocksCount: modules.loader.getTotalBlocks(),
+            blocksCount: modules.loader.getTotalBlocks()
           },
           network: {
             broadhash: modules.system.getBroadhash(),

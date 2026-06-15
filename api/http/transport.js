@@ -24,9 +24,10 @@ var schema = require('../../schema/transport');
  * @requires helpers/Router
  * @requires helpers/httpApi
  * @constructor
- * @param {Object} transportModule - Module transport instance.
+ * @param {object} transportModule - Module transport instance.
  * @param {scope} app - Network app.
- * @param {function} logger
+ * @param {Logger} logger - Application logger.
+ * @param {Cache} cache - API response cache.
  */
 // Constructor
 function TransportHttpApi (transportModule, app, logger, cache) {

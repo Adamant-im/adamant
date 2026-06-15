@@ -1,10 +1,11 @@
 var async = require('async');
 var transactionTypes = require('../helpers/transactionTypes.js');
 var errorCacheDisabled = 'Cache Unavailable';
+var apiCachePattern = '/api/*';
 
 /**
  * Creates an isolated Redis cache module.
- * @class
+ * @constructor
  * @param {Function} cb - Callback invoked with the initialized cache.
  * @param {object} scope - Application scope containing cache and logger instances.
  */
@@ -27,7 +28,7 @@ function Cache (cb, scope) {
 
 /**
  * Returns whether this cache instance has a ready Redis connection.
- * @returns {boolean} Whether Redis caching is enabled and connected.
+ * @return {boolean} Whether Redis caching is enabled and connected.
  */
 Cache.prototype.isConnected = function () {
   // The cache helper updates client.ready when the Redis connection is established.
@@ -36,7 +37,7 @@ Cache.prototype.isConnected = function () {
 
 /**
  * Returns whether cache mutations are allowed and Redis is connected.
- * @returns {boolean} Whether this cache instance is ready.
+ * @return {boolean} Whether this cache instance is ready.
  */
 Cache.prototype.isReady = function () {
   return this.cacheReady && this.isConnected();
@@ -46,7 +47,7 @@ Cache.prototype.isReady = function () {
  * Reads and parses a JSON value from Redis.
  * @param {string} key - Redis key.
  * @param {Function} cb - Callback receiving the parsed value.
- * @returns {Promise<void>} Promise resolved after the callback is invoked.
+ * @return {Promise<void>} Promise resolved after the callback is invoked.
  */
 Cache.prototype.getJsonForKey = async function (key, cb) {
   if (!this.isConnected()) {
@@ -71,7 +72,7 @@ Cache.prototype.getJsonForKey = async function (key, cb) {
  * @param {string} key - Redis key.
  * @param {object} value - JSON-compatible value.
  * @param {Function} [cb] - Optional completion callback.
- * @returns {Promise<void>} Promise resolved after the write attempt.
+ * @return {Promise<void>} Promise resolved after the write attempt.
  */
 Cache.prototype.setJsonForKey = async function (key, value, cb) {
   if (!this.isConnected()) {
@@ -101,7 +102,7 @@ Cache.prototype.setJsonForKey = async function (key, value, cb) {
  * Deletes a JSON value from Redis.
  * @param {string} key - Redis key.
  * @param {Function} cb - Completion callback.
- * @returns {void}
+ * @return {void}
  */
 Cache.prototype.deleteJsonForKey = function (key, cb) {
   if (!this.isConnected()) {
@@ -117,7 +118,7 @@ Cache.prototype.deleteJsonForKey = function (key, cb) {
  * Deletes all Redis entries matching a scan pattern.
  * @param {string} pattern - Redis scan pattern.
  * @param {Function} cb - Completion callback.
- * @returns {Promise<void>} Promise resolved after matching entries are removed.
+ * @return {Promise<void>} Promise resolved after matching entries are removed.
  */
 Cache.prototype.removeByPattern = async function (pattern, cb) {
   if (!this.isConnected()) {
@@ -127,8 +128,10 @@ Cache.prototype.removeByPattern = async function (pattern, cb) {
   try {
     const keysToDelete = [];
 
-    for await (const key of this.client.scanIterator({ MATCH: pattern })) {
-      keysToDelete.push(...key);
+    for await (const keys of this.client.scanIterator({ MATCH: pattern })) {
+      for (const key of keys) {
+        keysToDelete.push(key);
+      }
     }
 
     if (keysToDelete.length > 0) {
@@ -144,7 +147,7 @@ Cache.prototype.removeByPattern = async function (pattern, cb) {
 /**
  * Removes all entries from the configured Redis database.
  * @param {Function} cb - Completion callback.
- * @returns {void}
+ * @return {void}
  */
 Cache.prototype.flushDb = function (cb) {
   if (!this.isConnected()) {
@@ -159,7 +162,7 @@ Cache.prototype.flushDb = function (cb) {
 /**
  * Closes the Redis connection during application cleanup.
  * @param {Function} cb - Completion callback.
- * @returns {void}
+ * @return {void}
  */
 Cache.prototype.cleanup = function (cb) {
   this.quit(cb);
@@ -168,7 +171,7 @@ Cache.prototype.cleanup = function (cb) {
 /**
  * Closes this cache instance's Redis connection.
  * @param {Function} cb - Completion callback.
- * @returns {void}
+ * @return {void}
  */
 Cache.prototype.quit = function (cb) {
   if (!this.isConnected()) {
@@ -186,7 +189,7 @@ Cache.prototype.quit = function (cb) {
  * @param {Block} block - Applied block.
  * @param {Broadcast} broadcast - Block broadcast flag.
  * @param {Function} cb - Completion callback.
- * @returns {void}
+ * @return {void}
  */
 Cache.prototype.onNewBlock = function (block, broadcast, cb) {
   cb = cb || function () { };
@@ -210,7 +213,7 @@ Cache.prototype.onNewBlock = function (block, broadcast, cb) {
  * Invalidates delegate cache entries after a round finishes.
  * @param {Round} round - Completed round.
  * @param {Function} cb - Completion callback.
- * @returns {void}
+ * @return {void}
  */
 Cache.prototype.onFinishRound = function (round, cb) {
   cb = cb || function () { };
@@ -234,7 +237,7 @@ Cache.prototype.onFinishRound = function (round, cb) {
  * Invalidates delegate cache entries after saving a delegate transaction.
  * @param {Transactions[]} transactions - Saved transactions.
  * @param {Function} cb - Completion callback.
- * @returns {void}
+ * @return {void}
  */
 Cache.prototype.onTransactionsSaved = function (transactions, cb) {
   cb = cb || function () { };
@@ -263,18 +266,39 @@ Cache.prototype.onTransactionsSaved = function (transactions, cb) {
 
 /**
  * Disables cache mutations while blockchain synchronization is active.
- * @returns {void}
+ * @return {void}
  */
 Cache.prototype.onSyncStarted = function () {
   this.cacheReady = false;
 };
 
 /**
- * Enables cache mutations after blockchain synchronization finishes.
- * @returns {void}
+ * Clears stale API entries and enables cache mutations after synchronization.
+ * API response keys are generated from `req.originalUrl` and use the `/api/`
+ * namespace; unrelated keys in a shared Redis database are preserved.
+ * @param {Function} [cb] - Optional completion callback.
+ * @return {void}
  */
-Cache.prototype.onSyncFinished = function () {
-  this.cacheReady = true;
+Cache.prototype.onSyncFinished = function (cb) {
+  cb = cb || function () { };
+
+  if (!this.isConnected()) {
+    this.cacheReady = true;
+    return cb();
+  }
+
+  const cache = this;
+
+  cache.removeByPattern(apiCachePattern, function (err) {
+    if (err) {
+      cache.logger.error('cache', 'Failed to clear cache after blockchain synchronization', err);
+      return cb(err);
+    }
+
+    cache.cacheReady = true;
+    cache.logger.trace('cache', 'Cache cleared after blockchain synchronization');
+    return cb();
+  });
 };
 
 module.exports = Cache;

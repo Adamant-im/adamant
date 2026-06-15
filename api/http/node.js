@@ -13,7 +13,7 @@ var schema = require('../../schema/node.js');
  * @requires helpers/Router
  * @requires helpers/httpApi
  * @constructor
- * @param {Object} nodeModule - Module node instance.
+ * @param {object} nodeModule - Module node instance.
  * @param {scope} app - Network app.
  */
 

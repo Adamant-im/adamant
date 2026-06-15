@@ -20,11 +20,11 @@ __private.blockReward = new BlockReward();
  * Initializes library with scope content and generates a Vote instance.
  * Calls logic.transaction.attachAssetType().
  * @memberof module:accounts
- * @class
+ * @constructor
  * @classdesc Main accounts methods.
  * @implements module:accounts.Account#Vote
- * @param {scope} scope - App instance.
  * @param {function} cb - Callback function.
+ * @param {scope} scope - App instance.
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 function Accounts (cb, scope) {
@@ -105,7 +105,7 @@ Accounts.prototype.generateAddressByPublicKey = function (publicKey) {
 /**
  * Gets account information, calls logic.account.get().
  * @overload
- * @param {Object} filter - Contains publicKey.
+ * @param {object} filter - Contains publicKey.
  * @param {Array} fields - Fields to get.
  * @param {function} cb - Callback function.
  */
@@ -113,14 +113,14 @@ Accounts.prototype.generateAddressByPublicKey = function (publicKey) {
 /**
  * Gets account information, calls logic.account.get().
  * @overload
- * @param {Object} filter - Contains publicKey.
+ * @param {object} filter - Contains publicKey.
  * @param {function} cb - Callback function.
  */
 
 /**
  * Gets account information, calls logic.account.get().
  * @implements module:accounts#Account~get
- * @param {Object} filter - Contains publicKey.
+ * @param {object} filter - Contains publicKey.
  * @param {Array | function} fields - Fields to get or callback function.
  * @param {function} [cb] - Callback function.
  */
@@ -143,8 +143,8 @@ Accounts.prototype.getAccount = function (filter, fields, cb) {
 /**
  * Gets accounts information, calls logic.account.getAll().
  * @implements module:accounts#Account~getAll
- * @param {Object} filter
- * @param {Object} fields
+ * @param {object} filter
+ * @param {object} fields
  * @param {function} cb - Callback function.
  */
 Accounts.prototype.getAccounts = function (filter, fields, cb) {
@@ -155,10 +155,10 @@ Accounts.prototype.getAccounts = function (filter, fields, cb) {
  * Validates input address and calls logic.account.set() and logic.account.get().
  * @implements module:accounts#Account~set
  * @implements module:accounts#Account~get
- * @param {Object} data - Contains address or public key to generate address.
+ * @param {object} data - Contains address or public key to generate address.
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} Errors.
- * @returns {function()} Call to logic.account.get().
+ * @return {setImmediateCallback} Errors.
+ * @return {function()} Call to logic.account.get().
  */
 Accounts.prototype.setAccountAndGet = function (data, cb) {
   var address = data.address || null;
@@ -191,10 +191,10 @@ Accounts.prototype.setAccountAndGet = function (data, cb) {
 /**
  * Validates input address and calls logic.account.merge().
  * @implements module:accounts#Account~merge
- * @param {Object} data - Contains address and public key.
+ * @param {object} data - Contains address and public key.
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback} for errors wit address and public key.
- * @returns {function} calls to logic.account.merge().
+ * @return {setImmediateCallback} for errors wit address and public key.
+ * @return {function} calls to logic.account.merge().
  * @todo improve publicKey validation try/catch
  */
 Accounts.prototype.mergeAccountAndGet = function (data, cb) {

@@ -22,7 +22,7 @@ var rcRegExp = /[a-z]+$/;
  * - broadhash
  * - minVersion
  * - nonce
- * @class
+ * @constructor
  * @classdesc Main System methods.
  * @implements {os}
  * @param {setImmediateCallback} cb - Callback function.
@@ -65,7 +65,7 @@ function System (cb, scope) {
 // Public methods
 /**
  * Returns private variables object content.
- * @return {Object}
+ * @return {object}
  */
 System.prototype.headers = function () {
   return __private;
@@ -120,7 +120,7 @@ System.prototype.getNonce = function () {
 };
 /**
  * Gets private variable `nethash` and compares with input param.
- * @param {hash}
+ * @param {hash} nethash
  * @return {boolean} True if input param is equal to private value.
  */
 System.prototype.networkCompatible = function (nethash) {

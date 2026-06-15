@@ -2,17 +2,17 @@ const { expect } = require('chai');
 const node = require('../node.js');
 const { sendADM } = require('../common/api.js');
 
-function getStates(senderId, options, done) {
+function getStates (senderId, options, done) {
   const params = {
     senderId,
-    ...options,
+    ...options
   };
 
   const args = Object.keys(params).map((key) => `${key}=${params[key]}`);
   node.get(`/api/states/get?${args.join('&')}`, done);
 }
 
-function storeState(params, done) {
+function storeState (params, done) {
   node.post('/api/states/store', params, done);
 }
 
@@ -23,9 +23,9 @@ describe('GET /api/states/get', () => {
     sendADM({
       secret: node.iAccount.password,
       amount: node.fees.stateFee * 2,
-      recipientId: testAccount.address,
+      recipientId: testAccount.address
     }, () => {
-      done()
+      done();
     });
   });
 
@@ -39,7 +39,7 @@ describe('GET /api/states/get', () => {
     const stateTransaction = node.createStateTransaction({
       key: 'testkey',
       value: 'testvalue',
-      keyPair: testAccount.keypair,
+      keyPair: testAccount.keypair
     });
 
     storeState({ transaction: stateTransaction }, (err, res) => {
@@ -55,8 +55,8 @@ describe('GET /api/states/get', () => {
     getStates(testAccount.address, {}, (err, res) => {
       expect(err).to.not.exist;
       expect(res.body).
-        to.have.property('transactions').
-        that.is.an('array');
+          to.have.property('transactions').
+          that.is.an('array');
 
       const { transactions } = res.body;
       transactions.forEach((transaction) => {
@@ -71,7 +71,7 @@ describe('GET /api/states/get', () => {
     const stateTransaction = node.createStateTransaction({
       key: 'anotherkey',
       value: 'testvalue',
-      keyPair: testAccount.keypair,
+      keyPair: testAccount.keypair
     });
 
     storeState({ transaction: stateTransaction }, (err, res) => {
@@ -89,4 +89,4 @@ describe('GET /api/states/get', () => {
       }, 1000);
     });
   });
-})
+});

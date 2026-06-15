@@ -10,7 +10,7 @@ describe('TransactionPool', () => {
     id: '17190511997607511181',
     senderPublicKey:
       '108f664525da4610f54d6c366a1533fef081ca0eb322c470efb29c0bd250d0a0',
-    receivedAt: new Date(),
+    receivedAt: new Date()
   };
 
   const someTransactions = [
@@ -18,32 +18,32 @@ describe('TransactionPool', () => {
       id: '16207561138663598511',
       senderPublicKey:
         'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae',
-      receivedAt: new Date(),
+      receivedAt: new Date()
     },
     {
       id: '8787084714365585523',
       senderPublicKey:
         'b0b4d346382aa07b23c0b733d040424532201b9eb22004b66a79d4b44e9d1449',
-      receivedAt: new Date(),
+      receivedAt: new Date()
     },
     {
       id: '14422771217432719682',
       senderPublicKey:
         'cef765962b59710195fe09f1f7fa6968dd0f12324447c0ce62779c8f7fefd5fb',
-      receivedAt: new Date(),
-    },
+      receivedAt: new Date()
+    }
   ];
 
   beforeEach(() => removeQueuedJobs());
 
   beforeEach(() => {
     transactionPool = new TransactionPool(
-      1000,
-      10,
-      {},
-      1000,
-      { message: () => {} },
-      console
+        1000,
+        10,
+        1000,
+        {},
+        { message: () => {} },
+        console
     );
   });
 
@@ -55,7 +55,7 @@ describe('TransactionPool', () => {
 
       transactionPool.addUnconfirmedTransaction(singleTransaction);
       expect(transactionPool.getUnconfirmedTransactionList()).to.eql([
-        singleTransaction,
+        singleTransaction
       ]);
     });
 
@@ -63,14 +63,14 @@ describe('TransactionPool', () => {
       transactionPool.addUnconfirmedTransaction(singleTransaction);
       transactionPool.addUnconfirmedTransaction(singleTransaction);
       expect(transactionPool.getUnconfirmedTransactionList()).to.have.lengthOf(
-        1
+          1
       );
 
       someTransactions.forEach((trx) =>
         transactionPool.addUnconfirmedTransaction(trx)
       );
       expect(transactionPool.getUnconfirmedTransactionList()).to.have.lengthOf(
-        1 + someTransactions.length
+          1 + someTransactions.length
       );
     });
   });
@@ -79,12 +79,12 @@ describe('TransactionPool', () => {
     it('should remove an existing transaction by ID', () => {
       transactionPool.addUnconfirmedTransaction(singleTransaction);
       expect(
-        transactionPool.getUnconfirmedTransaction(singleTransaction.id)
+          transactionPool.getUnconfirmedTransaction(singleTransaction.id)
       ).to.eql(singleTransaction);
 
       transactionPool.removeUnconfirmedTransaction(singleTransaction.id);
       expect(transactionPool.getUnconfirmedTransaction(singleTransaction.id)).to
-        .be.undefined;
+          .be.undefined;
       expect(transactionPool.getUnconfirmedTransactionList()).to.be.empty;
     });
 
@@ -93,7 +93,7 @@ describe('TransactionPool', () => {
         transactionPool.addUnconfirmedTransaction(trx)
       );
       expect(transactionPool.getUnconfirmedTransactionList()).to.have.lengthOf(
-        1 + someTransactions.length
+          1 + someTransactions.length
       );
 
       transactionPool.removeUnconfirmedTransaction(someTransactions[1].id);
@@ -108,31 +108,31 @@ describe('TransactionPool', () => {
   describe('transactionInPool()', () => {
     it('should return false when the pool is empty', () => {
       expect(transactionPool.transactionInPool(singleTransaction.id)).to.be
-        .false;
+          .false;
     });
 
     it('should return true for unconfirmed transactions in the pool', () => {
       transactionPool.addUnconfirmedTransaction(singleTransaction);
       expect(transactionPool.transactionInPool(singleTransaction.id)).to.be
-        .true;
+          .true;
     });
 
     it('should return true for bundled transactions in the pool', () => {
       transactionPool.addBundledTransaction(singleTransaction);
       expect(transactionPool.transactionInPool(singleTransaction.id)).to.be
-        .true;
+          .true;
     });
 
     it('should return true for queued transactions in the pool', () => {
       transactionPool.addQueuedTransaction(singleTransaction);
       expect(transactionPool.transactionInPool(singleTransaction.id)).to.be
-        .true;
+          .true;
     });
 
     it('should return true for multisignature transactions in the pool', () => {
       transactionPool.addMultisignatureTransaction(singleTransaction);
       expect(transactionPool.transactionInPool(singleTransaction.id)).to.be
-        .true;
+          .true;
     });
   });
 
@@ -143,7 +143,7 @@ describe('TransactionPool', () => {
         transactionPool.addBundledTransaction(singleTransaction);
         expect(transactionPool.countBundled()).to.equal(1);
         expect(transactionPool.getBundledTransactionList()).to.eql([
-          singleTransaction,
+          singleTransaction
         ]);
       });
 
@@ -195,7 +195,7 @@ describe('TransactionPool', () => {
         transactionPool.addQueuedTransaction(singleTransaction);
         expect(transactionPool.countQueued()).to.equal(1);
         expect(transactionPool.getQueuedTransactionList()).to.eql([
-          singleTransaction,
+          singleTransaction
         ]);
       });
 
@@ -267,7 +267,7 @@ describe('TransactionPool', () => {
     describe('getMultisignatureTransactionList()', () => {
       it('should return an empty list if none are multisignature', () => {
         expect(transactionPool.getMultisignatureTransactionList(false, false))
-          .to.be.empty;
+            .to.be.empty;
       });
 
       it('should retrieve a reversed sub-list', () => {
@@ -276,14 +276,14 @@ describe('TransactionPool', () => {
         );
 
         const normalOrder = transactionPool.getMultisignatureTransactionList(
-          false,
-          false
+            false,
+            false
         );
         expect(normalOrder).to.eql(someTransactions);
 
         const reversed = transactionPool.getMultisignatureTransactionList(
-          true,
-          false
+            true,
+            false
         );
         expect(reversed).to.eql([...someTransactions].reverse());
       });
@@ -292,20 +292,20 @@ describe('TransactionPool', () => {
         const multiTxs = [
           { id: someTransactions[0].id, ready: false },
           { id: someTransactions[1].id, ready: true },
-          { id: someTransactions[2].id, ready: true },
+          { id: someTransactions[2].id, ready: true }
         ];
         multiTxs.forEach((tx) =>
           transactionPool.addMultisignatureTransaction(tx)
         );
 
         const readyOnly = transactionPool.getMultisignatureTransactionList(
-          false,
-          true
+            false,
+            true
         );
         expect(readyOnly).to.have.lengthOf(2);
         expect(readyOnly.map((t) => t.id)).to.eql([
           someTransactions[1].id,
-          someTransactions[2].id,
+          someTransactions[2].id
         ]);
       });
     });
@@ -321,7 +321,7 @@ describe('TransactionPool', () => {
         transactionPool.addUnconfirmedTransaction(tx)
       );
       expect(transactionPool.countUnconfirmed()).to.equal(
-        someTransactions.length
+          someTransactions.length
       );
     });
   });

@@ -26,8 +26,10 @@ var httpApi = require('../../helpers/httpApi');
  * @requires helpers/Router
  * @requires helpers/httpApi
  * @constructor
- * @param {Object} delegatesModule - Module delegate instance.
+ * @param {object} delegatesModule - Module delegate instance.
  * @param {scope} app - Network app.
+ * @param {Logger} logger - Application logger.
+ * @param {Cache} cache - API response cache.
  */
 // Constructor
 function DelegatesHttpApi (delegatesModule, app, logger, cache) {

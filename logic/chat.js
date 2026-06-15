@@ -18,12 +18,14 @@ __private.unconfirmedAscii = {};
 /**
  * Initializes library.
  * @memberof module:chats
- * @class
+ * @constructor
  * @classdesc Main chat logic.
  * @param {Database} db
- * @param {Object} logger
+ * @param {object} ed
  * @param {ZSchema} schema
- * @param {Object} network
+ * @param {Account} account
+ * @param {Logger} logger
+ * @param {Function} cb
  */
 // Constructor
 function Chat (db, ed, schema, account, logger, cb) {
@@ -43,6 +45,8 @@ function Chat (db, ed, schema, account, logger, cb) {
 // Public methods
 /**
  * Binds scope.modules to private variable modules.
+ * @param {Accounts} accounts
+ * @param {Rounds} rounds
  */
 Chat.prototype.bind = function (accounts, rounds) {
   modules = {
@@ -269,7 +273,7 @@ Chat.prototype.undoUnconfirmed = function (trs, sender, cb) {
 
 
 /**
- * @typedef {Object} chat
+ * @typedef {object} chat
  * @property {dappCategory} category - Number between 0 and 8
  * @property {string} name - Between 1 and 32 chars
  * @property {string} description - Between 0 and 160 chars
@@ -328,7 +332,7 @@ Chat.prototype.objectNormalize = function (trs) {
 
 /**
  * Creates chat object based on raw data.
- * @param {Object} raw
+ * @param {object} raw
  * @return {null|dapp} dapp object
  */
 Chat.prototype.dbRead = function (raw) {
@@ -402,7 +406,7 @@ Chat.prototype.normalize = function (data) {
  * Creates db operation object based on dapp data.
  * @see privateTypes
  * @param {transaction} trs
- * @return {Object[]} table, fields, values.
+ * @return {object[]} table, fields, values.
  */
 Chat.prototype.dbSave = function (trs) {
   return {

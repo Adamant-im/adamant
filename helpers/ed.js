@@ -17,7 +17,7 @@ var ed = {};
 /**
  * Returns whether the passphrase is valid mnemonic
  * @param {string} passphrase passphrase to test
- * @returns {boolean}
+ * @return {boolean}
  */
 ed.isValidPassphrase = function (passphrase) {
   return mnemonic.isValid(passphrase, mnemonic.Words.ENGLISH);
@@ -25,7 +25,7 @@ ed.isValidPassphrase = function (passphrase) {
 
 /**
  * Generates a new passphrase
- * @returns {string} passphrase
+ * @return {string} passphrase
  */
 ed.generatePassphrase = function () {
   const secretMnemonic = new mnemonic(mnemonic.Words.ENGLISH);
@@ -48,7 +48,7 @@ ed.createPassPhraseHash = function (passPhrase) {
  * Creates a keypair based on a hash.
  * @implements {sodium}
  * @param {hash} hash
- * @return {Object} publicKey, privateKey
+ * @return {object} publicKey, privateKey
  */
 ed.makeKeypair = function (hash) {
   const publicKey = Buffer.alloc(sodium.crypto_sign_PUBLICKEYBYTES);
@@ -80,7 +80,7 @@ ed.sign = function (hash, keypair) {
  * @param {hash} hash
  * @param {signature} signatureBuffer
  * @param {publicKey} publicKeyBuffer
- * @return {Boolean} true if verified
+ * @return {boolean} true if verified
  */
 ed.verify = function (hash, signatureBuffer, publicKeyBuffer) {
   if (!Buffer.isBuffer(signatureBuffer) || signatureBuffer.length !== sodium.crypto_sign_BYTES) {
