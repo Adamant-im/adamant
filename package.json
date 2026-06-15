@@ -68,7 +68,7 @@
     "lodash": "=4.17.21",
     "method-override": "=3.0.0",
     "neoip": "^3.0.1",
-    "npm": "=11.4.2",
+    "npm": "=11.17.0",
     "pg-monitor": "=3.0.0",
     "pg-native": "=3.5.2",
     "pg-promise": "=11.15.0",
