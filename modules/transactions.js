@@ -185,7 +185,7 @@ __private.list = function (filter, cb) {
   }
 
   var orderBy = OrderBy(
-    filter.orderBy, {
+      filter.orderBy, {
         sortField: 'timestamp',
         sortMethod: 'DESC',
         sortFields: sql.sortFields,
@@ -227,21 +227,21 @@ __private.list = function (filter, cb) {
       'inId',
       'isIn',
       'type',
-      'types',
+      'types'
     ];
 
     unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(filter, {
       allowedFilters,
-      defaultCondition: 'OR',
+      defaultCondition: 'OR'
     });
 
     const paging = preparePaging(params, unconfirmedTransactions.length);
 
     params.offset = paging.db.offset;
-    params.limit  = paging.db.limit;
+    params.limit = paging.db.limit;
 
     params.mergingOffset = paging.merge.offset;
-    params.mergingLimit  = paging.merge.limit;
+    params.mergingLimit = paging.merge.limit;
   }
 
   library.db.query(sql.countList({
@@ -270,14 +270,14 @@ __private.list = function (filter, cb) {
         count += unconfirmedTransactions.length;
 
         transactions = modules.transactions.mergeUnconfirmedTransactions(
-          transactions,
-          unconfirmedTransactions,
-          {
-            orderBy,
-            limit: params.mergingLimit,
-            offset: params.mergingOffset,
-            returnAsset: filter.returnAsset,
-          }
+            transactions,
+            unconfirmedTransactions,
+            {
+              orderBy,
+              limit: params.mergingLimit,
+              offset: params.mergingOffset,
+              returnAsset: filter.returnAsset
+            }
         );
       }
 
@@ -436,7 +436,7 @@ __private.getPooledTransactions = function (method, req, cb) {
       ...transaction,
       blockId: null,
       height: null,
-      confirmations: 0,
+      confirmations: 0
     }));
 
     return setImmediate(cb, null, { transactions: toSend, count: transactions.length });
@@ -475,16 +475,16 @@ Transactions.prototype.getUnconfirmedTransaction = function (id) {
  * @param {number} [options.withoutDirectTransfers=0] - Whether to remove all transfer transactions. Default is 0
  */
 Transactions.prototype.mergeUnconfirmedTransactions = function (
-  targetArray,
-  unconfirmedTransactions,
-  options = {},
+    targetArray,
+    unconfirmedTransactions,
+    options = {}
 ) {
   const {
     orderBy,
     limit,
     includeDirectTransfers = 1,
     returnAsset = 1,
-    offset = 0,
+    offset = 0
   } = options;
   const { originalField: sortField, sortMethod } = orderBy;
 
@@ -541,17 +541,17 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
     ));
   }
 
-  result = result.slice(offset, limit ? offset + limit : undefined)
+  result = result.slice(offset, limit ? offset + limit : undefined);
 
   if (!returnAsset) {
     result = result.map((transaction) => ({
       ...transaction,
-      asset: undefined,
+      asset: undefined
     }));
   }
 
   return result;
-}
+};
 
 /**
  * Retrieves unconfirmed transactions based on the provided filter and options
@@ -569,7 +569,7 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
     allowedFilters = [],
     aliases = {},
     defaultCondition = 'AND',
-    important = {},
+    important = {}
   } = options;
 
   let transactions = this.getUnconfirmedTransactionList();
@@ -610,7 +610,7 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
       senderPublicKeys: (value) => value?.includes(transaction.senderPublicKey),
       recipientPublicKeys: (value) => value?.map(accounts.getAddressByPublicKey).includes(transaction.recipientId),
       key: (value) => transaction.asset?.state?.key === value,
-      keyIds: (value) => value?.includes(transaction.asset?.state?.key),
+      keyIds: (value) => value?.includes(transaction.asset?.state?.key)
     };
 
     // Ignore boolean logic for endpoint related filters
@@ -633,7 +633,7 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
 
       const isOr = upperCaseKey.startsWith('OR:') || (!upperCaseKey.startsWith('AND:') && defaultCondition !== 'AND');
 
-      const actualKey = key.replace(/^(AND:|OR:)/i, "");
+      const actualKey = key.replace(/^(AND:|OR:)/i, '');
       if (exclusiveKeys.includes(actualKey)) {
         return false;
       }
@@ -647,7 +647,7 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
       if (isFirst && isOr) {
         result = condition;
       } else {
-        result = isOr ? result || condition : result && condition ;
+        result = isOr ? result || condition : result && condition;
       }
 
       isFirst = false;
@@ -660,9 +660,9 @@ Transactions.prototype.getUnconfirmedTransactions = function (filter, options = 
     ...transaction,
     blockId: null,
     height: null,
-    confirmations: 0,
+    confirmations: 0
   }));
-}
+};
 
 /**
  * @param {string} id

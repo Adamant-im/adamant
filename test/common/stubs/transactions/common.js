@@ -8,7 +8,7 @@ const validSender = {
   username: 'market',
   publicKey: 'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d0',
   multimin: 0,
-  address: 'U810656636599221322',
+  address: 'U810656636599221322'
 };
 
 const validSenderHash = accounts.createPassPhraseHash(validSender.password);

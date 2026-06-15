@@ -4,5 +4,5 @@
  * @returns {boolean} whether the string can be considered a public key
  */
 exports.isPublicKey = (value) => {
-  return typeof value === "string" && Buffer.from(value, "hex").length === 32;
+  return typeof value === 'string' && Buffer.from(value, 'hex').length === 32;
 };

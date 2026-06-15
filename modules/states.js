@@ -162,7 +162,7 @@ __private.list = function (filter, cb) {
       filter.orderBy, {
         sortFields: sql.sortFields,
         sortField: 'timestamp',
-        sortMethod: 'DESC',
+        sortMethod: 'DESC'
       }
   );
 
@@ -175,34 +175,34 @@ __private.list = function (filter, cb) {
 
   if (filter.returnUnconfirmed) {
     unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(
-      filter,
-      {
-        allowedFilters: [
-          'senderId',
-          'recipientId',
-          'toHeight',
-          'fromHeight',
-          'senderIds',
-          'key',
-          'keyIds',
-          'type',
-        ],
-        aliases: {
-          type: 'assetStateType',
-        },
-        important: {
-          type: transactionTypes.STATE,
+        filter,
+        {
+          allowedFilters: [
+            'senderId',
+            'recipientId',
+            'toHeight',
+            'fromHeight',
+            'senderIds',
+            'key',
+            'keyIds',
+            'type'
+          ],
+          aliases: {
+            type: 'assetStateType'
+          },
+          important: {
+            type: transactionTypes.STATE
+          }
         }
-      },
     );
 
     const paging = preparePaging(params, unconfirmedTransactions.length);
 
     params.offset = paging.db.offset;
-    params.limit  = paging.db.limit;
+    params.limit = paging.db.limit;
 
     params.mergingOffset = paging.merge.offset;
-    params.mergingLimit  = paging.merge.limit;
+    params.mergingLimit = paging.merge.limit;
   }
 
   library.db.query(sql.countList({
@@ -223,13 +223,13 @@ __private.list = function (filter, cb) {
 
       if (filter.returnUnconfirmed) {
         transactions = modules.transactions.mergeUnconfirmedTransactions(
-          transactions,
-          unconfirmedTransactions,
-          {
-            orderBy,
-            limit: params.mergingLimit,
-            offset: params.mergingOffset,
-          },
+            transactions,
+            unconfirmedTransactions,
+            {
+              orderBy,
+              limit: params.mergingLimit,
+              offset: params.mergingOffset
+            }
         );
       }
 

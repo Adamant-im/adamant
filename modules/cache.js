@@ -270,11 +270,30 @@ Cache.prototype.onSyncStarted = function () {
 };
 
 /**
- * Enables cache mutations after blockchain synchronization finishes.
+ * Clears stale entries and enables cache mutations after synchronization.
+ * @param {Function} [cb] - Optional completion callback.
  * @returns {void}
  */
-Cache.prototype.onSyncFinished = function () {
-  this.cacheReady = true;
+Cache.prototype.onSyncFinished = function (cb) {
+  cb = cb || function () { };
+
+  if (!this.isConnected()) {
+    this.cacheReady = true;
+    return cb();
+  }
+
+  const cache = this;
+
+  cache.flushDb(function (err) {
+    if (err) {
+      cache.logger.error('cache', 'Failed to clear cache after blockchain synchronization');
+      return cb(err);
+    }
+
+    cache.cacheReady = true;
+    cache.logger.trace('cache', 'Cache cleared after blockchain synchronization');
+    return cb();
+  });
 };
 
 module.exports = Cache;

@@ -33,14 +33,14 @@ const {
   validTransaction,
   validUnconfirmedTransaction,
   rawValidTransaction,
-  validTransactionData,
+  validTransactionData
 } = require('../../common/stubs/transactions/transfer.js');
 const {
   testAccountKeypair,
   delegateAccount,
   genesisAccount,
   delegateAccountKeypair,
-  genesisKeypair,
+  genesisKeypair
 } = require('../../common/stubs/account.js');
 const defaultConfig = require('../../../config.default.json');
 
@@ -50,35 +50,35 @@ const validKeypair = testAccountKeypair;
 
 const testSender = {
   ...senderDefault,
-  ...delegateAccount,
+  ...delegateAccount
 };
 const testSenderKeypair = delegateAccountKeypair;
 
 const genesis = {
   ...senderDefault,
-  ...genesisAccount,
+  ...genesisAccount
 };
 
 describe('transaction', () => {
   let transaction;
   let accountModule;
 
-  function attachTransferAsset(transaction, accountLogic, rounds, done) {
+  function attachTransferAsset (transaction, accountLogic, rounds, done) {
     modulesLoader.initModuleWithDb(
-      AccountModule,
-      (err, __accountModule) => {
-        const transfer = new Transfer();
-        transfer.bind(__accountModule, rounds);
-        transaction.attachAssetType(transactionTypes.SEND, transfer);
-        accountModule = __accountModule;
-        done();
-      },
-      {
-        logic: {
-          account: accountLogic,
-          transaction: transaction,
+        AccountModule,
+        (err, __accountModule) => {
+          const transfer = new Transfer();
+          transfer.bind(__accountModule, rounds);
+          transaction.attachAssetType(transactionTypes.SEND, transfer);
+          accountModule = __accountModule;
+          done();
         },
-      }
+        {
+          logic: {
+            account: accountLogic,
+            transaction: transaction
+          }
+        }
     );
   };
 
@@ -86,38 +86,38 @@ describe('transaction', () => {
 
   before((done) => {
     async.auto(
-      {
-        rounds(cb) {
-          modulesLoader.initModule(Rounds, modulesLoader.scope, cb);
-        },
-        accountLogic(cb) {
-          modulesLoader.initLogicWithDb(AccountLogic, cb);
-        },
-        transaction: [
-          'accountLogic',
-          (result, cb) => {
-            modulesLoader.initLogicWithDb(Transaction, cb, {
-              ed: require('../../../helpers/ed'),
-              account: result.accountLogic,
-              consensus: {
-                loader: {
-                  getHeight: () => dummyHeight,
-                },
-              },
-            });
+        {
+          rounds (cb) {
+            modulesLoader.initModule(Rounds, modulesLoader.scope, cb);
           },
-        ],
-      },
-      (err, result) => {
-        transaction = result.transaction;
-        transaction.bindModules(result);
-        attachTransferAsset(
-          transaction,
-          result.accountLogic,
-          result.rounds,
-          done
-        );
-      }
+          accountLogic (cb) {
+            modulesLoader.initLogicWithDb(AccountLogic, cb);
+          },
+          transaction: [
+            'accountLogic',
+            (result, cb) => {
+              modulesLoader.initLogicWithDb(Transaction, cb, {
+                ed: require('../../../helpers/ed'),
+                account: result.accountLogic,
+                consensus: {
+                  loader: {
+                    getHeight: () => dummyHeight
+                  }
+                }
+              });
+            }
+          ]
+        },
+        (err, result) => {
+          transaction = result.transaction;
+          transaction.bindModules(result);
+          attachTransferAsset(
+              transaction,
+              result.accountLogic,
+              result.rounds,
+              done
+          );
+        }
     );
   });
 
@@ -151,48 +151,48 @@ describe('transaction', () => {
     it('should attach all transaction types', () => {
       let appliedLogic;
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.VOTE,
-        new Vote()
+          transactionTypes.VOTE,
+          new Vote()
       );
       expect(appliedLogic).to.be.an.instanceof(Vote);
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.SEND,
-        new Transfer()
+          transactionTypes.SEND,
+          new Transfer()
       );
       expect(appliedLogic).to.be.an.instanceof(Transfer);
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.DELEGATE,
-        new Delegate()
+          transactionTypes.DELEGATE,
+          new Delegate()
       );
       expect(appliedLogic).to.be.an.instanceof(Delegate);
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.SIGNATURE,
-        new Signature()
+          transactionTypes.SIGNATURE,
+          new Signature()
       );
       expect(appliedLogic).to.be.an.instanceof(Signature);
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.MULTI,
-        new Multisignature()
+          transactionTypes.MULTI,
+          new Multisignature()
       );
       expect(appliedLogic).to.be.an.instanceof(Multisignature);
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.IN_TRANSFER,
-        new InTransfer()
+          transactionTypes.IN_TRANSFER,
+          new InTransfer()
       );
       expect(appliedLogic).to.be.an.instanceof(InTransfer);
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.OUT_TRANSFER,
-        new OutTransfer()
+          transactionTypes.OUT_TRANSFER,
+          new OutTransfer()
       );
       expect(appliedLogic).to.be.an.instanceof(OutTransfer);
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.CHAT_MESSAGE,
-        new Chat()
+          transactionTypes.CHAT_MESSAGE,
+          new Chat()
       );
       expect(appliedLogic).to.be.an.instanceof(Chat);
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.STATE,
-        new State()
+          transactionTypes.STATE,
+          new State()
       );
       expect(appliedLogic).to.be.an.instanceof(State);
       return transaction;
@@ -219,8 +219,8 @@ describe('transaction', () => {
       const notSignedTx = _.cloneDeep(validTransaction);
       delete notSignedTx.signature;
       expect(transaction.sign(genesisKeypair, notSignedTx))
-        .to.be.a('string')
-        .which.is.equal(validTransaction.signature);
+          .to.be.a('string')
+          .which.is.equal(validTransaction.signature);
     });
 
     it('should not include timestampMs in signature bytes', () => {
@@ -254,8 +254,8 @@ describe('transaction', () => {
 
     it('should generate the id of the trs', () => {
       expect(transaction.getId(validTransaction))
-        .to.be.a('string')
-        .which.is.equal(validTransaction.id);
+          .to.be.a('string')
+          .which.is.equal(validTransaction.id);
     });
 
     it('should update id if a field in trs value changes', () => {
@@ -283,8 +283,8 @@ describe('transaction', () => {
       const expectedHash =
         '8d847c2495f790ee1f203c572f998b02376c37be57a8853bbbdcbc882d07b639';
       expect(transaction.getHash(trs).toString('hex'))
-        .to.be.a('string')
-        .which.is.equal(expectedHash);
+          .to.be.a('string')
+          .which.is.equal(expectedHash);
     });
 
     it('should update hash if a field is trs value changes', () => {
@@ -293,7 +293,7 @@ describe('transaction', () => {
       const trs = _.cloneDeep(validTransaction);
       trs.amount = 4000;
       expect(transaction.getHash(trs).toString('hex')).to.not.equal(
-        originalTrsHash
+          originalTrsHash
       );
     });
 
@@ -384,7 +384,7 @@ describe('transaction', () => {
 
     it('should return error for transaction which is already confirmed', (done) => {
       const dummyConfirmedTrs = {
-        id: '17190511997607511181',
+        id: '17190511997607511181'
       };
       transaction.checkConfirmed(dummyConfirmedTrs, (err) => {
         expect(err || []).to.include('Transaction is already confirmed');
@@ -404,10 +404,10 @@ describe('transaction', () => {
       let sender = _.cloneDeep(testSender);
       sender.balance = 0;
       const res = transaction.checkBalance(
-        amount,
-        balanceKey,
-        validUnconfirmedTransaction,
-        sender
+          amount,
+          balanceKey,
+          validUnconfirmedTransaction,
+          sender
       );
       expect(res.exceeded).to.be.true;
       expect(res.error).to.include('Account does not have enough ADM:');
@@ -419,10 +419,10 @@ describe('transaction', () => {
       let sender = _.cloneDeep(genesis);
       sender.balance = 0;
       const res = transaction.checkBalance(
-        amount,
-        balanceKey,
-        validTransaction,
-        sender
+          amount,
+          balanceKey,
+          validTransaction,
+          sender
       );
       expect(res.exceeded).to.be.false;
       expect(res.error).to.not.exist;
@@ -433,10 +433,10 @@ describe('transaction', () => {
       let sender = _.cloneDeep(senderDefault);
       sender.balance = 100000001;
       const res = transaction.checkBalance(
-        validTransaction.amount,
-        balanceKey,
-        validTransaction,
-        sender
+          validTransaction.amount,
+          balanceKey,
+          validTransaction,
+          sender
       );
       expect(res.exceeded).to.be.false;
       expect(res.error).to.not.exist;
@@ -466,7 +466,7 @@ describe('transaction', () => {
 
     it('should return error when failed to generate id', (done) => {
       const trs = {
-        type: 0,
+        type: 0
       };
       transaction.process(trs, senderDefault, function (err, res) {
         expect(err).to.equal('Failed to get transaction id');
@@ -485,7 +485,7 @@ describe('transaction', () => {
   });
 
   describe('verify()', () => {
-    function createAndProcess(trsData, sender, cb) {
+    function createAndProcess (trsData, sender, cb) {
       const trs = transaction.create(trsData);
       transaction.process(trs, sender, (err, __trs) => {
         expect(err).to.not.exist;
@@ -540,7 +540,7 @@ describe('transaction', () => {
       const trs = _.cloneDeep(validTransaction);
       const dummyRequester = {
         secondSignature:
-          'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f',
+          'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f'
       };
       trs.requesterPublicKey =
         '839eba0f811554b9f935e39a68b3078f90bea22c5424d3ad16630f027a48362f78349ddc3948360045d6460404f5bc8e25b662d4fd09e60c89453776962df40d';
@@ -559,12 +559,12 @@ describe('transaction', () => {
 
       transaction.verify(trs, genesis, {}, (err) => {
         expect(err).to.include(
-          [
-            'Invalid sender public key:',
-            invalidPublicKey,
-            'expected:',
-            senderDefault.publicKey,
-          ].join(' ')
+            [
+              'Invalid sender public key:',
+              invalidPublicKey,
+              'expected:',
+              senderDefault.publicKey
+            ].join(' ')
         );
         done();
       });
@@ -581,7 +581,7 @@ describe('transaction', () => {
       vs.address = 'U15365455923155964650';
       transaction.verify(trs, vs, {}, (err) => {
         expect(err).to.include(
-          'Invalid sender. Can not send from genesis account'
+            'Invalid sender. Can not send from genesis account'
         );
         done();
       });
@@ -850,7 +850,7 @@ describe('transaction', () => {
       delete trs.signature;
       trs.signature = transaction.sign(testSenderKeypair, trs);
       expect(() => transaction.publish(trs)).to.throw(
-        'Transaction timestamp is in the future'
+          'Transaction timestamp is in the future'
       );
     });
 
@@ -876,7 +876,7 @@ describe('transaction', () => {
       trs.signature = transaction.sign(testSenderKeypair, trs);
 
       expect(() => transaction.publish(trs)).to.throw(
-        'Transaction timestamp is in the future'
+          'Transaction timestamp is in the future'
       );
     });
 
@@ -899,15 +899,15 @@ describe('transaction', () => {
         chat: {
           message: '75582d940f2c4093929c99a6c1911b4753',
           own_message: '58dceaa227b3fb1dd1c7d3fbf3eb5db6aeb6a03cb7e2ec91',
-          type: 1,
-        },
+          type: 1
+        }
       };
       trs.timestamp = slots.getTime() - 16;
       trs.timestampMs = trs.timestamp * 1000;
       delete trs.signature;
       trs.signature = transaction.sign(testSenderKeypair, trs);
       expect(() => transaction.publish(trs)).to.throw(
-        'Transaction timestamp is more than 5 seconds in the past',
+          'Transaction timestamp is more than 5 seconds in the past'
       );
     });
 
@@ -921,15 +921,15 @@ describe('transaction', () => {
         state: {
           key: 'test:key',
           value: '74657374',
-          type: 0,
-        },
+          type: 0
+        }
       };
       trs.timestamp = slots.getTime() - 16;
       trs.timestampMs = trs.timestamp * 1000;
       delete trs.signature;
       trs.signature = transaction.sign(testSenderKeypair, trs);
       expect(() => transaction.publish(trs)).to.throw(
-        'Transaction timestamp is more than 5 seconds in the past',
+          'Transaction timestamp is more than 5 seconds in the past'
       );
     });
   });
@@ -943,21 +943,21 @@ describe('transaction', () => {
       const trs = _.cloneDeep(validTransactionData);
       trs.amount = 1001;
       expect(
-        transaction.verifySignature(trs, testSender.publicKey, trs.signature)
+          transaction.verifySignature(trs, testSender.publicKey, trs.signature)
       ).to.be.false;
     });
 
     it('should return false if signature not provided', () => {
       const trs = _.cloneDeep(validTransaction);
       expect(
-        transaction.verifySignature(trs, senderDefault.publicKey, null)
+          transaction.verifySignature(trs, senderDefault.publicKey, null)
       ).to.be.false;
     });
 
     it('should return valid signature for correct trs', () => {
       const trs = _.cloneDeep(validTransaction);
       expect(
-        transaction.verifySignature(trs, genesis.publicKey, trs.signature)
+          transaction.verifySignature(trs, genesis.publicKey, trs.signature)
       ).to.be.true;
     });
 
@@ -978,11 +978,11 @@ describe('transaction', () => {
     it('should verify the second signature correctly', () => {
       const signature = transaction.sign(validKeypair, validTransaction);
       expect(
-        transaction.verifySecondSignature(
-          validTransaction,
-          validKeypair.publicKey.toString('hex'),
-          signature
-        )
+          transaction.verifySecondSignature(
+              validTransaction,
+              validKeypair.publicKey.toString('hex'),
+              signature
+          )
       ).to.be.true;
     });
   });
@@ -997,11 +997,11 @@ describe('transaction', () => {
       const invalidPublicKey =
         'addb0e15a44b0fdc6ff291be28d8c98f5551d0cd9218d749e30ddb87c6e31ca9';
       expect(
-        transaction.verifyBytes(
-          trsBytes,
-          invalidPublicKey,
-          validTransaction.signature
-        )
+          transaction.verifyBytes(
+              trsBytes,
+              invalidPublicKey,
+              validTransaction.signature
+          )
       ).to.be.false;
     });
 
@@ -1011,9 +1011,9 @@ describe('transaction', () => {
         'iddb0e15a44b0fdc6ff291be28d8c98f5551d0cd9218d749e30ddb87c6e31ca9';
       expect(() => {
         transaction.verifyBytes(
-          trsBytes,
-          invalidPublicKey,
-          validTransaction.signature
+            trsBytes,
+            invalidPublicKey,
+            validTransaction.signature
         );
       }).to.throw();
     });
@@ -1021,16 +1021,16 @@ describe('transaction', () => {
     it('should be okay for valid bytes', () => {
       const trsBytes = transaction.getBytes(validTransaction, true, true);
       const res = transaction.verifyBytes(
-        trsBytes,
-        validTransaction.senderPublicKey,
-        validTransaction.signature
+          trsBytes,
+          validTransaction.senderPublicKey,
+          validTransaction.signature
       );
       expect(res).to.be.true;
     });
   });
 
   describe('apply()', () => {
-    function undoTransaction(trs, sender, done) {
+    function undoTransaction (trs, sender, done) {
       transaction.undo(trs, dummyBlock, sender, done);
     }
 
@@ -1058,44 +1058,44 @@ describe('transaction', () => {
 
     it('should subtract balance from sender account on valid transaction', (done) => {
       accountModule.getAccount(
-        { publicKey: validUnconfirmedTransaction.senderPublicKey },
-        function (err, accountBefore) {
-          const amount = new bignum(
-            validUnconfirmedTransaction.amount.toString()
-          ).plus(validUnconfirmedTransaction.fee.toString());
-          const balanceBefore = new bignum(accountBefore.balance.toString());
+          { publicKey: validUnconfirmedTransaction.senderPublicKey },
+          function (err, accountBefore) {
+            const amount = new bignum(
+                validUnconfirmedTransaction.amount.toString()
+            ).plus(validUnconfirmedTransaction.fee.toString());
+            const balanceBefore = new bignum(accountBefore.balance.toString());
 
-          transaction.apply(
-            validUnconfirmedTransaction,
-            dummyBlock,
-            testSender,
-            (err) => {
-              accountModule.getAccount(
-                { publicKey: validUnconfirmedTransaction.senderPublicKey },
-                function (err, accountAfter) {
-                  expect(err).to.not.exist;
-                  const balanceAfter = new bignum(
-                    accountAfter.balance.toString()
-                  );
-                  expect(balanceAfter.plus(amount).toString()).to.equal(
-                    balanceBefore.toString()
-                  );
-                  undoTransaction(
-                    validUnconfirmedTransaction,
-                    testSender,
-                    done
+            transaction.apply(
+                validUnconfirmedTransaction,
+                dummyBlock,
+                testSender,
+                (err) => {
+                  accountModule.getAccount(
+                      { publicKey: validUnconfirmedTransaction.senderPublicKey },
+                      function (err, accountAfter) {
+                        expect(err).to.not.exist;
+                        const balanceAfter = new bignum(
+                            accountAfter.balance.toString()
+                        );
+                        expect(balanceAfter.plus(amount).toString()).to.equal(
+                            balanceBefore.toString()
+                        );
+                        undoTransaction(
+                            validUnconfirmedTransaction,
+                            testSender,
+                            done
+                        );
+                      }
                   );
                 }
-              );
-            }
-          );
-        }
+            );
+          }
       );
     });
   });
 
   describe('undo()', () => {
-    function applyTransaction(trs, sender, done) {
+    function applyTransaction (trs, sender, done) {
       transaction.apply(trs, dummyBlock, sender, done);
     }
 
@@ -1109,27 +1109,27 @@ describe('transaction', () => {
       delete trs.recipientId;
 
       accountModule.getAccount(
-        { publicKey: trs.senderPublicKey },
-        function (err, accountBefore) {
-          const balanceBefore = new bignum(accountBefore.balance.toString());
+          { publicKey: trs.senderPublicKey },
+          function (err, accountBefore) {
+            const balanceBefore = new bignum(accountBefore.balance.toString());
 
-          transaction.undo(trs, dummyBlock, testSender, (err) => {
-            accountModule.getAccount(
-              { publicKey: trs.senderPublicKey },
-              function (err, accountAfter) {
-                const balanceAfter = new bignum(accountAfter.balance.toString());
+            transaction.undo(trs, dummyBlock, testSender, (err) => {
+              accountModule.getAccount(
+                  { publicKey: trs.senderPublicKey },
+                  function (err, accountAfter) {
+                    const balanceAfter = new bignum(accountAfter.balance.toString());
 
-                expect(
-                  balanceBefore.plus(amount.multipliedBy(2)).toString()
-                ).to.not.equal(balanceAfter.toString());
-                expect(balanceBefore.toString()).to.equal(
-                  balanceAfter.toString()
-                );
-                done();
-              }
-            );
-          });
-        }
+                    expect(
+                        balanceBefore.plus(amount.multipliedBy(2)).toString()
+                    ).to.not.equal(balanceAfter.toString());
+                    expect(balanceBefore.toString()).to.equal(
+                        balanceAfter.toString()
+                    );
+                    done();
+                  }
+              );
+            });
+          }
       );
     });
 
@@ -1138,31 +1138,31 @@ describe('transaction', () => {
       const amount = new bignum(trs.amount.toString()).plus(trs.fee.toString());
 
       accountModule.getAccount(
-        { publicKey: trs.senderPublicKey },
-        function (err, accountBefore) {
-          const balanceBefore = new bignum(accountBefore.balance.toString());
+          { publicKey: trs.senderPublicKey },
+          function (err, accountBefore) {
+            const balanceBefore = new bignum(accountBefore.balance.toString());
 
-          transaction.undo(trs, dummyBlock, testSender, (err) => {
-            accountModule.getAccount(
-              { publicKey: trs.senderPublicKey },
-              function (err, accountAfter) {
-                expect(err).to.not.exist;
+            transaction.undo(trs, dummyBlock, testSender, (err) => {
+              accountModule.getAccount(
+                  { publicKey: trs.senderPublicKey },
+                  function (err, accountAfter) {
+                    expect(err).to.not.exist;
 
-                const balanceAfter = new bignum(accountAfter.balance.toString());
-                expect(balanceBefore.plus(amount).toString()).to.equal(
-                  balanceAfter.toString()
-                );
-                applyTransaction(trs, testSender, done);
-              }
-            );
-          });
-        }
+                    const balanceAfter = new bignum(accountAfter.balance.toString());
+                    expect(balanceBefore.plus(amount).toString()).to.equal(
+                        balanceAfter.toString()
+                    );
+                    applyTransaction(trs, testSender, done);
+                  }
+              );
+            });
+          }
       );
     });
   });
 
   describe('applyUnconfirmed()', () => {
-    function undoUnconfirmedTransaction(trs, sender, done) {
+    function undoUnconfirmedTransaction (trs, sender, done) {
       transaction.undoUnconfirmed(trs, sender, done);
     }
 
@@ -1189,22 +1189,22 @@ describe('transaction', () => {
 
     it('should okay for valid params', (done) => {
       transaction.applyUnconfirmed(
-        validUnconfirmedTransaction,
-        testSender,
-        (err) => {
-          expect(err).to.not.exist;
-          undoUnconfirmedTransaction(
-            validUnconfirmedTransaction,
-            testSender,
-            done
-          );
-        }
+          validUnconfirmedTransaction,
+          testSender,
+          (err) => {
+            expect(err).to.not.exist;
+            undoUnconfirmedTransaction(
+                validUnconfirmedTransaction,
+                testSender,
+                done
+            );
+          }
       );
     });
   });
 
   describe('undoUnconfirmed()', () => {
-    function applyUnconfirmedTransaction(trs, sender, done) {
+    function applyUnconfirmedTransaction (trs, sender, done) {
       transaction.applyUnconfirmed(trs, sender, done);
     }
 
@@ -1214,16 +1214,16 @@ describe('transaction', () => {
 
     it('should be okay with valid params', (done) => {
       transaction.undoUnconfirmed(
-        validUnconfirmedTransaction,
-        testSender,
-        (err) => {
-          expect(err).to.not.exist;
-          applyUnconfirmedTransaction(
-            validUnconfirmedTransaction,
-            testSender,
-            done
-          );
-        }
+          validUnconfirmedTransaction,
+          testSender,
+          (err) => {
+            expect(err).to.not.exist;
+            applyUnconfirmedTransaction(
+                validUnconfirmedTransaction,
+                testSender,
+                done
+            );
+          }
       );
     });
   });
@@ -1253,8 +1253,8 @@ describe('transaction', () => {
       expect(saveQuery).to.have.length(1);
       const trsValues = saveQuery[0].values;
       expect(trsValues)
-        .to.have.property('signatures')
-        .which.is.equal(trs.signatures.join(','));
+          .to.have.property('signatures')
+          .which.is.equal(trs.signatures.join(','));
     });
 
     it('should return query object for valid parameters', () => {
@@ -1276,7 +1276,7 @@ describe('transaction', () => {
         'fee',
         'signature',
         'signSignature',
-        'signatures',
+        'signatures'
       ];
       expect(saveQuery).to.be.an('array');
       expect(saveQuery).to.have.length(1);
@@ -1349,7 +1349,7 @@ describe('transaction', () => {
       dummyHeight = consensusActivationHeights.spaceship;
 
       expect(
-        _.keys(transaction.objectNormalize(validTransaction))
+          _.keys(transaction.objectNormalize(validTransaction))
       ).to.have.length(12);
     });
 
@@ -1396,7 +1396,7 @@ describe('transaction', () => {
         'signSignature',
         'signatures',
         'confirmations',
-        'asset',
+        'asset'
       ];
       expect(trs).to.be.an('object');
       expect(trs).to.have.keys(expectedKeys);

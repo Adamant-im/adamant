@@ -4,13 +4,13 @@ const {
   MAX_TRANSACTION_TYPE,
   MIN_CHAT_MESSAGE_TRANSACTION_TYPE,
   MAX_CHAT_MESSAGE_TRANSACTION_TYPE
-} = require('../../helpers/tranasctionTypesBoundary');
+} = require('../../helpers/transactionTypesBoundary');
 const transactionTypes = require('../../helpers/transactionTypes');
 
-const validator = new ZSchema({noEmptyStrings: true});
+const validator = new ZSchema({ noEmptyStrings: true });
 
 class TransactionSubscription {
-  constructor(socket) {
+  constructor (socket) {
     this.socket = socket;
 
     /**
@@ -39,7 +39,7 @@ class TransactionSubscription {
    * @param {object} transaction - Unconfirmed transaction to check against
    * @returns {boolean}
    */
-  impliesTransaction(transaction) {
+  impliesTransaction (transaction) {
     if (this.addresses.size) {
       const isSubscribedByAddress =
         this.impliesAddress(transaction.recipientId) ||
@@ -70,9 +70,9 @@ class TransactionSubscription {
   /**
    * Subscribes to the given addresses
    * @param {...Array<string>} addresses - List of addresses to subscribe
-   * @returns {boolean} - whether succuessfuly subscribed to at least one address
+   * @returns {boolean} - whether successfully subscribed to at least one address
    */
-  subscribeToAddresses(...addresses) {
+  subscribeToAddresses (...addresses) {
     let subscribed = false;
 
     addresses.forEach((address) => {
@@ -93,9 +93,9 @@ class TransactionSubscription {
    * Subscribes to the given types
    * @see {@link ../../helpers/transaction.js} for the list of available types
    * @param {...Array<number>} types - List of types to subscribe
-   * @returns {boolean} - whether succuessfuly subscribed to at least one transaction type
+   * @returns {boolean} - whether successfully subscribed to at least one transaction type
    */
-  subscribeToTypes(...types) {
+  subscribeToTypes (...types) {
     let subscribed = false;
 
     types.forEach((type) => {
@@ -115,9 +115,9 @@ class TransactionSubscription {
   /**
    * Subscribes to the given types for `transaction.asset.chat`
    * @param {...Array<number>} assetChatTypes - List of types of `transaction.asset.chat` to subscribe
-   * @returns {boolean} - whether succuessfuly subscribed to at least one `transaction.asset.chat` type
+   * @returns {boolean} - whether successfully subscribed to at least one `transaction.asset.chat` type
    */
-  subscribeToAssetChatTypes(...assetChatTypes) {
+  subscribeToAssetChatTypes (...assetChatTypes) {
     let subscribed = false;
 
     assetChatTypes.forEach((type) => {
@@ -139,7 +139,7 @@ class TransactionSubscription {
    * @param {string} address - Address to check
    * @returns {boolean}
    */
-  impliesAddress(address) {
+  impliesAddress (address) {
     return this.addresses.has(address);
   }
 
@@ -148,7 +148,7 @@ class TransactionSubscription {
    * @param {number} type - Transaction type to check
    * @returns {boolean}
    */
-  impliesTransactionType(type) {
+  impliesTransactionType (type) {
     return this.types.has(type);
   }
 
@@ -157,7 +157,7 @@ class TransactionSubscription {
    * @param {number} assetType - Transaction type to check
    * @returns {boolean}
    */
-  impliesTransactionAssetType(assetType) {
+  impliesTransactionAssetType (assetType) {
     return this.assetChatTypes.has(assetType);
   }
 }

@@ -12,7 +12,7 @@ describe('RoundChanges', () => {
     validScope = {
       round: 1,
       roundFees: 500,
-      roundRewards: [0, 0, 100, 10],
+      roundRewards: [0, 0, 100, 10]
     };
   });
 
@@ -22,7 +22,7 @@ describe('RoundChanges', () => {
 
       expect(roundChanges.roundFees).to.equal(validScope.roundFees);
       expect(_.isEqual(roundChanges.roundRewards, validScope.roundRewards)).to
-        .be.true;
+          .be.true;
     });
 
     it('should floor fees value', () => {

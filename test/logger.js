@@ -11,9 +11,9 @@ const log = (message, data) => {
   let details = '';
 
   if (data) {
-    details = json.length > MAX_LOG_LENGTH
-      ? `${json.slice(0, MAX_LOG_LENGTH)}...`
-      : json;
+    details = json.length > MAX_LOG_LENGTH ?
+      `${json.slice(0, MAX_LOG_LENGTH)}...` :
+      json;
   }
 
   if (SILENT !== 'true') {
@@ -33,9 +33,9 @@ const logUpdate = (...args) => {
     readline.cursorTo(process.stdout, 0);
     process.stdout.write(`${args.join(' ')}`);
   }
-}
+};
 
 module.exports = {
   log,
-  logUpdate,
+  logUpdate
 };

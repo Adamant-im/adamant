@@ -17,7 +17,7 @@ const {
   notAMnemonicPassphrase,
   nonExistingAddress,
   invalidPublicKey,
-  invalidAddress,
+  invalidAddress
 } = require('../../common/stubs/account.js');
 
 describe('accounts', function () {
@@ -30,7 +30,7 @@ describe('accounts', function () {
   const dummyBlock = {
     id: '9314232245035524467',
     height: 1,
-    timestamp: 0,
+    timestamp: 0
   };
 
   before(function (done) {
@@ -68,7 +68,7 @@ describe('accounts', function () {
 
     it('should return a valid address when called with valid public key', () => {
       const address = accounts.generateAddressByPublicKey(
-        testAccount.publicKey
+          testAccount.publicKey
       );
       expect(address).to.equal(testAccount.address);
     });
@@ -120,30 +120,30 @@ describe('accounts', function () {
       expect(() => accounts.getAccount(filter, invalidFields)).to.throw();
     });
 
-    it("should return the specified fields of an account matching the given address", (done) => {
+    it('should return the specified fields of an account matching the given address', (done) => {
       const filter = { address: testAccount.address };
       accounts.getAccount(
-        filter,
-        ['username', 'address', 'publicKey'],
-        (err, account) => {
-          expect(err).not.to.exist;
-          expect(account).to.eql({
-            username: testAccount.username,
-            address: testAccount.address,
-            publicKey: testAccount.publicKey,
-          });
-          done();
-        }
+          filter,
+          ['username', 'address', 'publicKey'],
+          (err, account) => {
+            expect(err).not.to.exist;
+            expect(account).to.eql({
+              username: testAccount.username,
+              address: testAccount.address,
+              publicKey: testAccount.publicKey
+            });
+            done();
+          }
       );
     });
 
-    it("should return the specified fields of an account matching the given public key", (done) => {
+    it('should return the specified fields of an account matching the given public key', (done) => {
       const filter = { publicKey: testAccount.publicKey };
       accounts.getAccount(filter, ['username', 'address'], (err, account) => {
         expect(err).not.to.exist;
         expect(account).to.eql({
           username: testAccount.username,
-          address: testAccount.address,
+          address: testAccount.address
         });
         done();
       });
@@ -168,7 +168,7 @@ describe('accounts', function () {
 
     it('should throw an error when invalid data is provided and no callback is specified', () => {
       expect(() => accounts.setAccountAndGet({})).to.throw(
-        'Missing address or public key'
+          'Missing address or public key'
       );
     });
 
@@ -181,65 +181,65 @@ describe('accounts', function () {
       done();
     });
 
-    it("should change the account balance and return the account", (done) => {
+    it('should change the account balance and return the account', (done) => {
       const amount = 100000;
 
-      function undo(previous) {
+      function undo (previous) {
         accounts.setAccountAndGet(
-          {
-            publicKey: testAccount.publicKey,
-            balance: previous.balance,
-            u_balance: previous.u_balance,
-          },
-          (err) => {
-            expect(err).not.to.exist;
-            done();
-          }
+            {
+              publicKey: testAccount.publicKey,
+              balance: previous.balance,
+              u_balance: previous.u_balance
+            },
+            (err) => {
+              expect(err).not.to.exist;
+              done();
+            }
         );
       }
 
       accounts.getAccount(
-        { address: testAccount.address },
-        ['balance', 'u_balance'],
-        (err, accountBefore) => {
-          expect(err).not.to.exist;
+          { address: testAccount.address },
+          ['balance', 'u_balance'],
+          (err, accountBefore) => {
+            expect(err).not.to.exist;
 
-          const balance = new bignum(accountBefore.balance)
-            .plus(amount)
-            .toString();
-          const u_balance = new bignum(accountBefore.balance)
-            .plus(amount)
-            .toString();
+            const balance = new bignum(accountBefore.balance)
+                .plus(amount)
+                .toString();
+            const u_balance = new bignum(accountBefore.balance)
+                .plus(amount)
+                .toString();
 
-          accounts.setAccountAndGet(
-            {
-              publicKey: testAccount.publicKey,
-              balance,
-              u_balance,
-            },
-            (err, account) => {
-              expect(err).not.to.exist;
-
-              // check returned values
-              expect(account.balance).to.equal(balance);
-              expect(account.u_balance).to.equal(u_balance);
-
-              // check if the values were actually saved
-              accounts.getAccount(
-                { address: testAccount.address },
-                ['balance', 'u_balance'],
-                (err, accountAfter) => {
+            accounts.setAccountAndGet(
+                {
+                  publicKey: testAccount.publicKey,
+                  balance,
+                  u_balance
+                },
+                (err, account) => {
                   expect(err).not.to.exist;
 
-                  expect(accountAfter.balance).to.equal(balance);
-                  expect(accountAfter.u_balance).to.equal(u_balance);
+                  // check returned values
+                  expect(account.balance).to.equal(balance);
+                  expect(account.u_balance).to.equal(u_balance);
 
-                  undo(accountBefore);
+                  // check if the values were actually saved
+                  accounts.getAccount(
+                      { address: testAccount.address },
+                      ['balance', 'u_balance'],
+                      (err, accountAfter) => {
+                        expect(err).not.to.exist;
+
+                        expect(accountAfter.balance).to.equal(balance);
+                        expect(accountAfter.u_balance).to.equal(u_balance);
+
+                        undo(accountBefore);
+                      }
+                  );
                 }
-              );
-            }
-          );
-        }
+            );
+          }
       );
     });
   });
@@ -255,7 +255,7 @@ describe('accounts', function () {
 
     it('should throw an error when invalid data is provided and no callback is specified', () => {
       expect(() => accounts.mergeAccountAndGet({})).to.throw(
-        'Missing address or public key'
+          'Missing address or public key'
       );
     });
 
@@ -268,76 +268,76 @@ describe('accounts', function () {
       done();
     });
 
-    it("should change the account balance and return the account", (done) => {
+    it('should change the account balance and return the account', (done) => {
       const amount = 100000;
 
-      function undo(previous) {
+      function undo (previous) {
         accounts.mergeAccountAndGet(
-          {
-            publicKey: testAccount.publicKey,
-            balance: -amount,
-            u_balance: -amount,
-          },
-          (err) => {
-            expect(err).not.to.exist;
+            {
+              publicKey: testAccount.publicKey,
+              balance: -amount,
+              u_balance: -amount
+            },
+            (err) => {
+              expect(err).not.to.exist;
 
-            accounts.getAccount(
-              { publicKey: testAccount.publicKey },
-              ['balance', 'u_balance'],
-              (err, account) => {
-                expect(err).not.to.exist;
-                expect(account.balance).to.equal(previous.balance);
-                expect(account.u_balance).to.equal(previous.u_balance);
+              accounts.getAccount(
+                  { publicKey: testAccount.publicKey },
+                  ['balance', 'u_balance'],
+                  (err, account) => {
+                    expect(err).not.to.exist;
+                    expect(account.balance).to.equal(previous.balance);
+                    expect(account.u_balance).to.equal(previous.u_balance);
 
-                done();
-              }
-            );
-          }
+                    done();
+                  }
+              );
+            }
         );
       }
 
       accounts.getAccount(
-        { address: testAccount.address },
-        ['balance', 'u_balance'],
-        (err, accountBefore) => {
-          expect(err).not.to.exist;
+          { address: testAccount.address },
+          ['balance', 'u_balance'],
+          (err, accountBefore) => {
+            expect(err).not.to.exist;
 
-          const balance = new bignum(accountBefore.balance)
-            .plus(amount)
-            .toString();
-          const u_balance = new bignum(accountBefore.u_balance)
-            .plus(amount)
-            .toString();
+            const balance = new bignum(accountBefore.balance)
+                .plus(amount)
+                .toString();
+            const u_balance = new bignum(accountBefore.u_balance)
+                .plus(amount)
+                .toString();
 
-          accounts.mergeAccountAndGet(
-            {
-              publicKey: testAccount.publicKey,
-              balance: amount,
-              u_balance: amount,
-            },
-            (err, account) => {
-              expect(err).not.to.exist;
-
-              // check returned values
-              expect(account.balance).to.equal(balance);
-              expect(account.u_balance).to.equal(u_balance);
-
-              // check if the values were actually saved
-              accounts.getAccount(
-                { address: testAccount.address },
-                ['balance', 'u_balance'],
-                (err, accountAfter) => {
+            accounts.mergeAccountAndGet(
+                {
+                  publicKey: testAccount.publicKey,
+                  balance: amount,
+                  u_balance: amount
+                },
+                (err, account) => {
                   expect(err).not.to.exist;
 
-                  expect(accountAfter.balance).to.equal(balance);
-                  expect(accountAfter.u_balance).to.equal(u_balance);
+                  // check returned values
+                  expect(account.balance).to.equal(balance);
+                  expect(account.u_balance).to.equal(u_balance);
 
-                  undo(accountBefore);
+                  // check if the values were actually saved
+                  accounts.getAccount(
+                      { address: testAccount.address },
+                      ['balance', 'u_balance'],
+                      (err, accountAfter) => {
+                        expect(err).not.to.exist;
+
+                        expect(accountAfter.balance).to.equal(balance);
+                        expect(accountAfter.u_balance).to.equal(u_balance);
+
+                        undo(accountBefore);
+                      }
+                  );
                 }
-              );
-            }
-          );
-        }
+            );
+          }
       );
     });
   });
@@ -365,7 +365,7 @@ describe('accounts', function () {
       'secondSignature',
       'secondPublicKey',
       'multisignatures',
-      'u_multisignatures',
+      'u_multisignatures'
     ];
 
     describe('new()', () => {
@@ -375,7 +375,7 @@ describe('accounts', function () {
         accounts.shared.new({ body }, (err, response) => {
           expect(response).not.to.exist;
           expect(err).to.include(
-            "Object didn't pass validation for format publicKey"
+              'Object didn\'t pass validation for format publicKey'
           );
           done();
         });
@@ -410,7 +410,7 @@ describe('accounts', function () {
         const body = { address: testAccount.publicKey };
         accounts.shared.getBalance({ body }, (err, response) => {
           expect(err).to.include(
-            "Object didn't pass validation for format address"
+              'Object didn\'t pass validation for format address'
           );
           expect(response).not.to.exist;
           done();
@@ -444,7 +444,7 @@ describe('accounts', function () {
         const body = { address: testAccount.publicKey };
         accounts.shared.getPublickey({ body }, (err, response) => {
           expect(err).to.include(
-            "Object didn't pass validation for format address"
+              'Object didn\'t pass validation for format address'
           );
           expect(response).not.to.exist;
           done();
@@ -477,7 +477,7 @@ describe('accounts', function () {
         const body = { address: testAccount.publicKey };
         accounts.shared.getDelegates({ body }, (err, response) => {
           expect(err).to.include(
-            "Object didn't pass validation for format address"
+              'Object didn\'t pass validation for format address'
           );
           expect(response).not.to.exist;
           done();
@@ -542,7 +542,7 @@ describe('accounts', function () {
       it('should return the account the account matching the given public key and address', (done) => {
         const body = {
           address: testAccount.address,
-          publicKey: testAccount.publicKey,
+          publicKey: testAccount.publicKey
         };
         accounts.shared.getAccount({ body }, (err, response) => {
           expect(err).not.to.exist;
@@ -558,7 +558,7 @@ describe('accounts', function () {
       it('should return error if the address and the public key do not match', (done) => {
         const body = {
           address: nonExistingAddress,
-          publicKey: testAccount.publicKey,
+          publicKey: testAccount.publicKey
         };
         accounts.shared.getAccount({ body }, (err, response) => {
           expect(err).to.equal('Account publicKey does not match address');
@@ -580,7 +580,7 @@ describe('accounts', function () {
         const body = { publicKey: invalidPublicKey };
         accounts.shared.getAccount({ body }, (err, response) => {
           expect(err).to.include(
-            "Object didn't pass validation for format publicKey"
+              'Object didn\'t pass validation for format publicKey'
           );
           expect(response).not.to.exist;
           done();
@@ -591,7 +591,7 @@ describe('accounts', function () {
         const body = { address: invalidAddress };
         accounts.shared.getAccount({ body }, (err, response) => {
           expect(err).to.include(
-            "Object didn't pass validation for format address"
+              'Object didn\'t pass validation for format address'
           );
           expect(response).not.to.exist;
           done();

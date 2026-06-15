@@ -3,7 +3,7 @@
 var node = require('./../node.js');
 var constants = require('../../helpers/constants.js');
 const {
-  sendADMAndWaitUntilNextBlock,
+  sendADMAndWaitUntilNextBlock
 } = require('../common/api.js');
 
 var account = node.randomAccount();

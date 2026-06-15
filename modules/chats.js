@@ -142,7 +142,7 @@ __private.list = function (filter, cb) {
   where.push(
     includeDirectTransfers ?
       `("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})` :
-      `"t_type" = ${transactionTypes.CHAT_MESSAGE}`,
+      `"t_type" = ${transactionTypes.CHAT_MESSAGE}`
   );
 
   if (filter.senderId) {
@@ -181,7 +181,7 @@ __private.list = function (filter, cb) {
       filter.orderBy, {
         sortFields: sql.sortFields,
         sortField: 'timestamp',
-        sortMethod: 'DESC',
+        sortMethod: 'DESC'
       }
   );
 
@@ -200,23 +200,23 @@ __private.list = function (filter, cb) {
         'recipientId',
         'inId',
         'isIn',
-        'type',
+        'type'
       ],
       aliases: {
-        type: 'assetChatType',
+        type: 'assetChatType'
       },
       important: {
-        type: transactionTypes.CHAT_MESSAGE,
-      },
+        type: transactionTypes.CHAT_MESSAGE
+      }
     });
 
     const paging = preparePaging(params, unconfirmedTransactions.length);
 
     params.offset = paging.db.offset;
-    params.limit  = paging.db.limit;
+    params.limit = paging.db.limit;
 
     params.mergingOffset = paging.merge.offset;
-    params.mergingLimit  = paging.merge.limit;
+    params.mergingLimit = paging.merge.limit;
   }
 
   library.db.query(sql.countList({
@@ -237,14 +237,14 @@ __private.list = function (filter, cb) {
 
       if (filter.returnUnconfirmed) {
         transactions = modules.transactions.mergeUnconfirmedTransactions(
-          transactions,
-          unconfirmedTransactions,
-          {
-            orderBy,
-            includeDirectTransfers,
-            limit: params.mergingLimit,
-            offset: params.mergingOffset,
-          }
+            transactions,
+            unconfirmedTransactions,
+            {
+              orderBy,
+              includeDirectTransfers,
+              limit: params.mergingLimit,
+              offset: params.mergingOffset
+            }
         );
       }
 

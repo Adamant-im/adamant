@@ -4,8 +4,8 @@ var async = require('async');
 var pgp = require('pg-promise');
 var path = require('path');
 
-const knex = require("knex")({
-  client: "pg", // Specify the client to use PostgreSQL syntax
+const knex = require('knex')({
+  client: 'pg' // Specify the client to use PostgreSQL syntax
 });
 
 var constants = require('../helpers/constants.js');
@@ -573,18 +573,18 @@ Account.prototype.getAll = function (filter, fields, cb) {
   }
 
   var realFields = this.fields
-    .filter(function (field) {
-      return fields.indexOf(field.alias || field.field) !== -1;
-    })
-    .map(function (field) {
-      if (field.expression) {
-        return knex.raw(`${field.expression} as "${field.alias || field.name}"`);
-      }
-      if (field.alias) {
-        return `${field.field} as ${field.alias}`;
-      }
-      return field.field;
-    });
+      .filter(function (field) {
+        return fields.indexOf(field.alias || field.field) !== -1;
+      })
+      .map(function (field) {
+        if (field.expression) {
+          return knex.raw(`${field.expression} as "${field.alias || field.name}"`);
+        }
+        if (field.alias) {
+          return `${field.field} as ${field.alias}`;
+        }
+        return field.field;
+      });
 
   // todo: what does it do?
   var realConv = {};
@@ -621,7 +621,7 @@ Account.prototype.getAll = function (filter, fields, cb) {
   }
   delete filter.sort;
 
-  query = query.where(filter)
+  query = query.where(filter);
 
   this.scope.db.query(query.toString() + ';').then(function (rows) {
     return setImmediate(cb, null, rows);
@@ -647,11 +647,11 @@ Account.prototype.set = function (address, rawFields, cb) {
   rawFields.address = address;
 
   const fields = this.toDB(rawFields);
-  const query =  knex(this.table)
-    .insert(fields.raw)
-    .onConflict('address')
-    .merge(fields.raw)
-    .toString() + ';'
+  const query = knex(this.table)
+      .insert(fields.raw)
+      .onConflict('address')
+      .merge(fields.raw)
+      .toString() + ';';
 
   this.scope.db.none(query, fields.values).then(function () {
     return setImmediate(cb);
@@ -690,11 +690,11 @@ Account.prototype.merge = function (address, diff, cb) {
           break;
         case Number:
           if (isNaN(trueValue) || trueValue === Infinity) {
-            const error = new Error(`Encountered unsafe number: ${trueValue}`)
+            const error = new Error(`Encountered unsafe number: ${trueValue}`);
             library.logger.error('accounts', `${error.message}; While trying to merge: ${JSON.stringify(diff)}`, error.stack);
             return setImmediate(cb, error.message);
           } else if (Math.abs(trueValue) === trueValue && trueValue !== 0) {
-            update[value] = knex.raw('?? + ?', [value, Math.floor(trueValue)])
+            update[value] = knex.raw('?? + ?', [value, Math.floor(trueValue)]);
 
             if (value === 'balance') {
               round.push({
@@ -708,7 +708,7 @@ Account.prototype.merge = function (address, diff, cb) {
               });
             }
           } else if (trueValue < 0) {
-            update[value] = knex.raw('?? - ?', [value, Math.floor(Math.abs(trueValue))])
+            update[value] = knex.raw('?? - ?', [value, Math.floor(Math.abs(trueValue))]);
 
             // If decrementing u_balance on account
             if (update.u_balance) {
@@ -808,10 +808,10 @@ Account.prototype.merge = function (address, diff, cb) {
   if (Object.keys(remove).length) {
     Object.keys(remove).forEach(function (el) {
       const sql = knex(self.table + '2' + el)
-        .whereIn('dependentId', remove[el])
-        .andWhere('accountId', address)
-        .del()
-        .toString() + ';';
+          .whereIn('dependentId', remove[el])
+          .andWhere('accountId', address)
+          .del()
+          .toString() + ';';
 
       sqles.push(sql);
     });
@@ -821,11 +821,11 @@ Account.prototype.merge = function (address, diff, cb) {
     Object.keys(insert).forEach(function (el) {
       for (var i = 0; i < insert[el].length; i++) {
         const sql = knex(self.table + '2' + el)
-          .insert({
-            accountId: address,
-            dependentId: insert[el][i]
-          })
-          .toString() + ';';
+            .insert({
+              accountId: address,
+              dependentId: insert[el][i]
+            })
+            .toString() + ';';
 
         sqles.push(sql);
       }
@@ -851,8 +851,8 @@ Account.prototype.merge = function (address, diff, cb) {
       insert_object[el].accountId = address;
       for (var i = 0; i < insert_object[el].length; i++) {
         const sql = knex(self.table + '2' + el)
-          .insert(insert_object[el])
-          .toString() + ';';
+            .insert(insert_object[el])
+            .toString() + ';';
 
         sqles.push(sql);
       }
@@ -861,9 +861,9 @@ Account.prototype.merge = function (address, diff, cb) {
 
   if (Object.keys(update).length) {
     const sql = knex(this.table)
-      .update(update)
-      .where({ address: address })
-      .toString() + ';';
+        .update(update)
+        .where({ address: address })
+        .toString() + ';';
 
     sqles.push(sql);
   }
@@ -911,9 +911,9 @@ Account.prototype.merge = function (address, diff, cb) {
  */
 Account.prototype.remove = function (address, cb) {
   const sql = knex(this.table)
-    .where({ address: address })
-    .del()
-    .toString() + ';';
+      .where({ address: address })
+      .del()
+      .toString() + ';';
 
   this.scope.db.none(sql).then(function () {
     return setImmediate(cb, null, address);

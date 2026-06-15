@@ -55,7 +55,7 @@ module.exports = {
       },
       address: {
         type: 'string',
-        format: 'address',
+        format: 'address'
       },
       username: {
         type: 'string',

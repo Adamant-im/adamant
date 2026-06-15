@@ -7,7 +7,7 @@ var slowDown = require('express-slow-down');
  * Allow all requests through
  * @returns {true}
  */
-function skip() {
+function skip () {
   return true;
 }
 
@@ -24,13 +24,13 @@ var defaults = {
  * @param {Object} [limits]
  * @return {Object} max, delayMs, delayAfter, windowMs
  */
-function applyLimits(config) {
+function applyLimits (config) {
   const limits = config ?? defaults;
 
   if (typeof limits === 'object') {
     const settings = {
       max: Math.floor(limits.max) || defaults.max,
-      delayMs: function(used) {
+      delayMs: function (used) {
         return (used - this.delayAfter) * (Math.floor(limits.delayMs) || defaults.delayMs);
       },
       delayAfter: Math.floor(limits.delayAfter) || defaults.delayAfter,

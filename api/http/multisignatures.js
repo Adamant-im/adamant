@@ -26,7 +26,7 @@ function MultisignaturesHttpApi (mutlisignaturesModule, app) {
   router.all(/(.*)/, (req, res) => {
     res.status(404).send({
       success: false,
-      error: 'API endpoint not found',
+      error: 'API endpoint not found'
     });
   });
 

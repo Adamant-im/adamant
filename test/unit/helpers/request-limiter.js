@@ -45,9 +45,9 @@ describe('RequestLimiter', () => {
 
     it('should return the default client limits', () => {
       expect(limiter)
-        .to.be.an('object')
-        .that.has.property('client')
-        .that.is.an('object');
+          .to.be.an('object')
+          .that.has.property('client')
+          .that.is.an('object');
       expect(limiter.client).to.have.property('delayAfter').to.equal(0);
       expect(limiter.client).to.have.property('delayMs').that.is.a('function');
       expect(limiter.client).to.have.property('skip').that.is.a('function');
@@ -57,9 +57,9 @@ describe('RequestLimiter', () => {
 
     it('should return the default peer limits', () => {
       expect(limiter)
-        .to.be.an('object')
-        .that.has.property('peer')
-        .that.is.an('object');
+          .to.be.an('object')
+          .that.has.property('peer')
+          .that.is.an('object');
       expect(limiter.peer).to.have.property('delayAfter').to.equal(0);
       expect(limiter.peer).to.have.property('delayMs').that.is.a('function');
       expect(limiter.peer).to.have.property('skip').that.is.a('function');
@@ -69,19 +69,19 @@ describe('RequestLimiter', () => {
 
     it('should enable the client middleware', () => {
       expect(limiter)
-        .to.be.an('object')
-        .that.has.property('middleware')
-        .that.is.an('object');
+          .to.be.an('object')
+          .that.has.property('middleware')
+          .that.is.an('object');
       expect(limiter.middleware)
-        .to.have.property('client')
-        .that.is.a('function');
+          .to.have.property('client')
+          .that.is.a('function');
     });
 
     it('should enable the peer middleware', () => {
       expect(limiter)
-        .to.be.an('object')
-        .that.has.property('middleware')
-        .that.is.an('object');
+          .to.be.an('object')
+          .that.has.property('middleware')
+          .that.is.an('object');
       expect(limiter.middleware).to.have.property('peer').that.is.a('function');
     });
   });
@@ -95,7 +95,7 @@ describe('RequestLimiter', () => {
       limits = {
         delayMs: 2,
         delayAfter: 3,
-        windowMs: 4,
+        windowMs: 4
       };
       options = { options: { limits: limits } };
       limiter = RequestLimiter(app, { api: options, peers: options });
@@ -103,9 +103,9 @@ describe('RequestLimiter', () => {
 
     it('should return the defined client limits', () => {
       expect(limiter)
-        .to.be.an('object')
-        .that.has.property('client')
-        .that.is.an('object');
+          .to.be.an('object')
+          .that.has.property('client')
+          .that.is.an('object');
       expect(limiter.client).to.have.property('delayMs').that.is.a('function');
       expect(limiter.client).to.have.property('delayAfter').to.equal(3);
       expect(limiter.client).to.have.property('windowMs').to.equal(4);
@@ -114,9 +114,9 @@ describe('RequestLimiter', () => {
 
     it('should return the defined peer limits', function () {
       expect(limiter)
-        .to.be.an('object')
-        .that.has.property('peer')
-        .that.is.an('object');
+          .to.be.an('object')
+          .that.has.property('peer')
+          .that.is.an('object');
       expect(limiter.peer).to.have.property('delayMs').that.is.a('function');
       expect(limiter.peer).to.have.property('delayAfter').to.equal(3);
       expect(limiter.peer).to.have.property('windowMs').to.equal(4);
@@ -125,19 +125,19 @@ describe('RequestLimiter', () => {
 
     it('should enable the client middleware', function () {
       expect(limiter)
-        .to.be.an('object')
-        .that.has.property('middleware')
-        .that.is.an('object');
+          .to.be.an('object')
+          .that.has.property('middleware')
+          .that.is.an('object');
       expect(limiter.middleware)
-        .to.have.property('client')
-        .that.is.a('function');
+          .to.have.property('client')
+          .that.is.a('function');
     });
 
     it('should enable the peer middleware', function () {
       expect(limiter)
-        .to.be.an('object')
-        .that.has.property('middleware')
-        .that.is.an('object');
+          .to.be.an('object')
+          .that.has.property('middleware')
+          .that.is.an('object');
       expect(limiter.middleware).to.have.property('peer').that.is.a('function');
     });
   });

@@ -15,7 +15,7 @@ const SUCCESS_RATE_POOL_SIZE = 25;
  * @return calls accept method
  */
 // Constructor
-function Peer(peer) {
+function Peer (peer) {
   return this.accept(peer || {});
 }
 
@@ -102,7 +102,7 @@ Peer.STATE = {
 Peer.prototype.calcSuccessRate = function () {
   const successRate = (this.successRequestCount / SUCCESS_RATE_POOL_SIZE) * 100;
   return Math.round(successRate * 100) / 100;
-}
+};
 
 /**
  * Updates success request count and state when more than 80% requests have failed
@@ -111,20 +111,20 @@ Peer.prototype.calcSuccessRate = function () {
 Peer.prototype.recordRequest = function (error) {
   if (error) {
     this.successRequestCount = Math.max(
-      this.successRequestCount - 1,
-      0,
-    )
+        this.successRequestCount - 1,
+        0
+    );
   } else {
     this.successRequestCount = Math.min(
-      this.successRequestCount + 1,
-      SUCCESS_RATE_POOL_SIZE,
-    )
+        this.successRequestCount + 1,
+        SUCCESS_RATE_POOL_SIZE
+    );
   }
 
   if (this.state === Peer.STATE.CONNECTED && this.calcSuccessRate() < 80) {
     this.state = Peer.STATE.DISCONNECTED;
   }
-}
+};
 
 /**
  * Checks peer properties and adjusts according rules.

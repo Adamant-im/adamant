@@ -36,8 +36,8 @@ function TransactionPool (broadcastInterval, releaseLimit, maxTxsPerQueue, trans
         releaseLimit: releaseLimit
       },
       transactions: {
-        maxTxsPerQueue: maxTxsPerQueue,
-      },
+        maxTxsPerQueue: maxTxsPerQueue
+      }
     }
   };
   self = this;
@@ -102,7 +102,7 @@ TransactionPool.prototype.transactionInPool = function (id) {
     self.unconfirmed,
     self.bundled,
     self.queued,
-    self.multisignature,
+    self.multisignature
   ].some((queue) => queue.has(id));
 };
 

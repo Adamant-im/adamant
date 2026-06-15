@@ -20,15 +20,15 @@ const { senderDefault } = require('../../common/stubs/transactions/common.js');
 const {
   validTransaction,
   validUnconfirmedTransaction,
-  validTransactionData,
+  validTransactionData
 } = require('../../common/stubs/transactions/transfer.js');
 const {
-  delegateAccount,
+  delegateAccount
 } = require('../../common/stubs/account.js');
 
 const validSender = {
   ...senderDefault,
-  ...delegateAccount,
+  ...delegateAccount
 };
 
 describe('transfer', () => {
@@ -39,10 +39,10 @@ describe('transfer', () => {
 
   before((done) => {
     async.auto({
-      rounds(cb) {
+      rounds (cb) {
         modulesLoader.initModule(Rounds, modulesLoader.scope, cb);
       },
-      accountLogic(cb) {
+      accountLogic (cb) {
         modulesLoader.initLogicWithDb(AccountLogic, cb, {});
       },
       transactionLogic: ['rounds', 'accountLogic', (result, cb) => {

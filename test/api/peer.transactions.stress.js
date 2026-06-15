@@ -2,7 +2,7 @@
 
 var node = require('./../node.js');
 const {
-  sendADMAndWaitUntilNextBlock,
+  sendADMAndWaitUntilNextBlock
 } = require('../common/api.js');
 
 function postTransaction (transaction, done) {

@@ -1,17 +1,17 @@
 const node = require('./../node.js');
 
 const apiUtils = {
-  sendADM({ secret, amount, recipientId }, done) {
+  sendADM ({ secret, amount, recipientId }, done) {
     const keyPair = node.createKeypairFromPassphrase(secret);
     const transaction = node.createSendTransaction({
       keyPair,
       recipientId,
-      amount,
+      amount
     });
 
     node.post('/api/transactions/process', { transaction }, done);
   },
-  sendRandomAmountADM(address, done) {
+  sendRandomAmountADM (address, done) {
     const randomAmount = node.randomADM();
 
     apiUtils.sendADM({
@@ -23,19 +23,19 @@ const apiUtils = {
       done(err, res);
     });
   },
-  sendADMAndWaitUntilNextBlock(params, done) {
+  sendADMAndWaitUntilNextBlock (params, done) {
     apiUtils.sendADM(params, (err, res) => {
       node.expect(res.body).to.have.property('success').to.be.true;
       node.onNewBlock(function (err) {
         return done(err, res);
       });
-    })
+    });
   },
-  voteForDelegatesAndWaitUntilNextBlock({ secret, votes }, done) {
-    const keyPair = node.createKeypairFromPassphrase(secret)
+  voteForDelegatesAndWaitUntilNextBlock ({ secret, votes }, done) {
+    const keyPair = node.createKeypairFromPassphrase(secret);
     const transaction = node.createVoteTransaction({
       keyPair,
-      votes,
+      votes
     });
 
     node.post('/api/accounts/delegates', transaction, function (err, res) {
@@ -45,13 +45,13 @@ const apiUtils = {
       });
     });
   },
-  sendADMasync({ secret, amount, recipientId }) {
+  sendADMasync ({ secret, amount, recipientId }) {
     return new Promise((resolve, reject) => {
       const keyPair = node.createKeypairFromPassphrase(secret);
       const transaction = node.createSendTransaction({
         keyPair,
         recipientId,
-        amount,
+        amount
       });
 
       node.post('/api/transactions/process', { transaction }, (err, res) => {
@@ -65,7 +65,7 @@ const apiUtils = {
   },
   postMessage (transaction, done) {
     node.post('/api/transactions', { transaction: transaction }, done);
-  },
+  }
   // openAccount(secret) {
   //   const hash = accounts.createPassPhraseHash(secret);
   //   const keypair = accounts.makeKeypair(hash);

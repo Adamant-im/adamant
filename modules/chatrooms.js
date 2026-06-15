@@ -129,7 +129,7 @@ __private.listChats = function (filter, cb) {
 
   if (filter.returnUnconfirmed) {
     unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions({
-      isIn: filter.userId,
+      isIn: filter.userId
     });
 
 
@@ -138,13 +138,13 @@ __private.listChats = function (filter, cb) {
     const utxs = unconfirmedTransactions.length;
 
     const confirmedOffset = Math.max(0, userOffset - utxs);
-    const confirmedLimit  = userLimit + Math.min(userOffset, utxs);
+    const confirmedLimit = userLimit + Math.min(userOffset, utxs);
 
     params.offset = confirmedOffset;
-    params.limit  = confirmedLimit;
+    params.limit = confirmedLimit;
 
     params.mergingOffset = userOffset - confirmedOffset;
-    params.mergingLimit  = userLimit;
+    params.mergingLimit = userLimit;
   }
 
   library.db.query(sql.countChats({
@@ -163,14 +163,14 @@ __private.listChats = function (filter, cb) {
 
       if (filter.returnUnconfirmed) {
         transactions = modules.transactions.mergeUnconfirmedTransactions(
-          transactions,
-          unconfirmedTransactions,
-          {
-            orderBy,
-            includeDirectTransfers,
-            limit: params.mergingLimit,
-            offset: params.mergingOffset,
-          }
+            transactions,
+            unconfirmedTransactions,
+            {
+              orderBy,
+              includeDirectTransfers,
+              limit: params.mergingLimit,
+              offset: params.mergingOffset
+            }
         );
       }
 
@@ -183,7 +183,7 @@ __private.listChats = function (filter, cb) {
           lastTransaction: trs,
           participants: [
             { address: trs.senderId, publicKey: trs.senderPublicKey },
-            { address: trs.recipientId, publicKey: trs.recipientPublicKey },
+            { address: trs.recipientId, publicKey: trs.recipientPublicKey }
           ]
         };
       }
@@ -275,7 +275,7 @@ __private.listMessages = function (filter, cb) {
   if (filter.returnUnconfirmed) {
     unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(filter, {
       allowedFilters: [
-        'type',
+        'type'
       ],
       aliases: {
         type: 'assetChatType'
@@ -283,17 +283,17 @@ __private.listMessages = function (filter, cb) {
       important: {
         senderIds: [filter.companionId, filter.userId],
         recipientIds: [filter.companionId, filter.userId],
-        type: transactionTypes.CHAT_MESSAGE,
+        type: transactionTypes.CHAT_MESSAGE
       }
     });
 
     const paging = preparePaging(params, unconfirmedTransactions.length);
 
     params.offset = paging.db.offset;
-    params.limit  = paging.db.limit;
+    params.limit = paging.db.limit;
 
     params.mergingOffset = paging.merge.offset;
-    params.mergingLimit  = paging.merge.limit;
+    params.mergingLimit = paging.merge.limit;
   }
 
   library.db.query(sql.countList({
@@ -316,14 +316,14 @@ __private.listMessages = function (filter, cb) {
 
       if (filter.returnUnconfirmed) {
         transactions = modules.transactions.mergeUnconfirmedTransactions(
-          transactions,
-          unconfirmedTransactions,
-          {
-            orderBy,
-            includeDirectTransfers,
-            limit: params.mergingLimit,
-            offset: params.mergingOffset,
-          }
+            transactions,
+            unconfirmedTransactions,
+            {
+              orderBy,
+              includeDirectTransfers,
+              limit: params.mergingLimit,
+              offset: params.mergingOffset
+            }
         );
       }
 

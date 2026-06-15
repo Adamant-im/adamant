@@ -32,7 +32,7 @@ function TransactionsHttpApi (transactionsModule, app, logger, cache) {
   router.use('/multisignatures', (req, res) => {
     res.status(404).send({
       success: false,
-      error: 'API endpoint not found',
+      error: 'API endpoint not found'
     });
   });
 

@@ -54,7 +54,7 @@ node.fees = {
   multisignatureRegistrationFee: node.constants.fees.multisignature,
   dappAddFee: node.constants.fees.dapp,
   messageFee: node.constants.fees.chat_message,
-  stateFee: node.constants.fees.state_store,
+  stateFee: node.constants.fees.state_store
 };
 
 // Test application
@@ -262,7 +262,7 @@ node.createVoteTransaction = function (data) {
 node.createStateTransaction = function (data) {
   const details = {
     ...data,
-    transactionType: transactionTypes.STATE,
+    transactionType: transactionTypes.STATE
   };
 
   const transaction = {
@@ -272,16 +272,16 @@ node.createStateTransaction = function (data) {
       state: {
         key: details.key,
         value: details.value,
-        type: 0,
-      },
-    },
+        type: 0
+      }
+    }
   };
 
   const signature = this.transactionSign(transaction, details.keyPair);
 
   return {
     ...transaction,
-    signature,
+    signature
   };
 };
 
@@ -568,10 +568,10 @@ node.waitForNewBlock = function (height, blocksToWait, cb) {
               }
 
               testLogger.logUpdate(
-                '== Waiting for block:'.grey,
-                'Height:'.grey, `${res.data.height}`.yellow,
-                'Target:'.grey, `${target}`.yellow,
-                'Second:'.grey, `${counter++}`.yellow,
+                  '== Waiting for block:'.grey,
+                  'Height:'.grey, `${res.data.height}`.yellow,
+                  'Target:'.grey, `${target}`.yellow,
+                  'Second:'.grey, `${counter++}`.yellow
               );
 
               if (res.data.height >= target) {
@@ -772,7 +772,7 @@ function abstractRequest (options, done) {
   if (done) {
     request.end(function (err, res) {
       if (!res) {
-        console.log(err, res)
+        console.log(err, res);
       }
 
       testLogger.log('> Response:'.grey, res.body);

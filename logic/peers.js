@@ -35,7 +35,7 @@ function Peers (logger, cb) {
  */
 Peers.prototype.getByNonce = function (nonce) {
   return Object.values(__private.peers).find((peer) => peer.nonce === nonce);
-}
+};
 
 /**
  * Returns a peer instance.
@@ -100,7 +100,7 @@ Peers.prototype.upsert = function (peer, insertOnly) {
     var diff = {};
     _.each(peer, function (value, key) {
       const isImmutableProperty = existingPeer.immutable.includes(key);
-      if (key !== 'updated'  && !isImmutableProperty && existingPeer[key] !== value) {
+      if (key !== 'updated' && !isImmutableProperty && existingPeer[key] !== value) {
         diff[key] = value;
       }
     });
@@ -187,7 +187,7 @@ Peers.prototype.recordRequest = function (data, error) {
   if (!self.exists(data)) {
     library.logger.debug('peers', 'Failed to update request success rate for peer', {
       peer: data,
-      err: error,
+      err: error
     });
     return false;
   }
@@ -217,7 +217,7 @@ Peers.prototype.list = function (normalize) {
  */
 Peers.prototype.getSocketCount = function () {
   return Object.values(__private.peers).reduce((acc, peer) => acc + (peer.isBroadcastingViaSocket ? 1 : 0), 0);
-}
+};
 
 // Public methods
 /**

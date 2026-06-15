@@ -19,8 +19,7 @@ module.exports = [
       'public/node_modules/',
       'public/bower_components/',
       'public/static/',
-      'helpers/bignum.js',
-      'docs/jsdoc/scripts/prettify/prettify.js'
+      'helpers/bignum.js'
     ]
   },
   {

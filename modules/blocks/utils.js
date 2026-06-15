@@ -221,7 +221,7 @@ Utils.prototype.getIdSequence = function (height, cb) {
 
     return setImmediate(cb, null, { firstHeight: rows[0].height, ids: ids.join(',') });
   }).catch(function (err) {
-    library.logger.error('blocks', `Failed to get id sequence ${height}: ${err?.message || err}`,err.stack);
+    library.logger.error('blocks', `Failed to get id sequence ${height}: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Blocks#getIdSequence error');
   });
 };
@@ -278,7 +278,7 @@ Utils.prototype.loadBlocksData = function (filter, options, cb) {
         return setImmediate(cb, null, rows);
       });
     }).catch(function (err ) {
-      library.logger.error('blocks', `Failed to get height by last id ${filter.lastid}: ${err?.message || err}`,err.stack);
+      library.logger.error('blocks', `Failed to get height by last id ${filter.lastid}: ${err?.message || err}`, err.stack);
       return setImmediate(cb, 'Blocks#loadBlockData error');
     });
   }, cb);

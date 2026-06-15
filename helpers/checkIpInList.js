@@ -12,7 +12,7 @@ var ip = require('neoip');
  * @param {boolean} returnListIsEmpty - The return value, if list is empty.
  * @return {boolean} True if ip is in the list, false otherwise.
  */
-function CheckIpInList(list, addr, returnListIsEmpty) {
+function CheckIpInList (list, addr, returnListIsEmpty) {
   // In express req.ip is an alias for req.socket.remoteAddress:
   // > Value may be undefined if the socket is destroyed (for example, if the client disconnected).
   // > https://nodejs.org/api/net.html#net_socket_remoteaddress

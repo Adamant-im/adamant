@@ -331,7 +331,7 @@ describe('cache', function () {
       });
     });
 
-    it('should not remove keys when cacheReady = false', function (done) {
+    it('should clear stale keys after synchronization finishes', function (done) {
       var key = '/api/transactions';
       var value = { testObject: 'testValue' };
 
@@ -345,14 +345,19 @@ describe('cache', function () {
         cache.onSyncStarted();
         cache.onNewBlock(null, null, function (err) {
           expect(err).to.equal('Cache Unavailable');
-          cache.onSyncFinished();
-          cache.getJsonForKey(key, function (err, res) {
+          cache.onSyncFinished(function (err) {
             if (err) {
               return done(err);
             }
 
-            expect(res).to.eql(value);
-            done();
+            cache.getJsonForKey(key, function (err, res) {
+              if (err) {
+                return done(err);
+              }
+
+              expect(res).to.equal(null);
+              done();
+            });
           });
         });
       });
@@ -409,7 +414,7 @@ describe('cache', function () {
       });
     });
 
-    it('should not remove keys when cacheReady = false', function (done) {
+    it('should clear stale delegate keys after synchronization finishes', function (done) {
       var key = '/api/delegates';
       var value = { testObject: 'testValue' };
 
@@ -423,14 +428,19 @@ describe('cache', function () {
         cache.onSyncStarted();
         cache.onFinishRound(null, function (err) {
           expect(err).to.equal('Cache Unavailable');
-          cache.onSyncFinished();
-          cache.getJsonForKey(key, function (err, res) {
+          cache.onSyncFinished(function (err) {
             if (err) {
               return done(err);
             }
 
-            expect(res).to.eql(value);
-            done();
+            cache.getJsonForKey(key, function (err, res) {
+              if (err) {
+                return done(err);
+              }
+
+              expect(res).to.equal(null);
+              done();
+            });
           });
         });
       });
@@ -485,7 +495,7 @@ describe('cache', function () {
       });
     });
 
-    it('should not remove keys when cacheReady = false', function (done) {
+    it('should clear keys stale after delegate transactions during synchronization', function (done) {
       var key = '/api/delegates?123';
       var value = { testObject: 'testValue' };
 
@@ -499,14 +509,19 @@ describe('cache', function () {
         cache.onSyncStarted();
         cache.onTransactionsSaved([validTransaction], function (err) {
           expect(err).to.equal('Cache Unavailable');
-          cache.onSyncFinished();
-          cache.getJsonForKey(key, function (err, res) {
+          cache.onSyncFinished(function (err) {
             if (err) {
               return done(err);
             }
 
-            expect(res).to.eql(value);
-            done();
+            cache.getJsonForKey(key, function (err, res) {
+              if (err) {
+                return done(err);
+              }
+
+              expect(res).to.equal(null);
+              done();
+            });
           });
         });
       });

@@ -167,26 +167,26 @@ __private.query = function (action, config, cb) {
   } else {
     var batchPack = [];
     async.until(
-      function (testCb) {
-        batchPack = config.values.splice(0, 10);
-        return testCb(null, batchPack.length === 0);
-      }, function (cb) {
-        var fields = Object.keys(config.fields).map(function (field) {
-          return __private.escape2(config.fields[field]);
-        });
-        var rows = [];
-        batchPack.forEach(function (value) {
-          var currentRow = value.map(__private.escape);
-          rows.push('SELECT ' + currentRow.join(','));
-        });
-        sql = knex.raw('INSERT INTO ?? (' + fields.join(',') + ') ' + rows.join(' UNION '), ['dapp_' + config.dappid + '_' + config.table]).toString();
-        library.db.none(sql).then(function () {
-          return setImmediate(cb);
-        }).catch(function (err) {
-          library.logger.error('sql', err.stack);
-          return setImmediate(cb, 'Sql#query error');
-        });
-      }, done);
+        function (testCb) {
+          batchPack = config.values.splice(0, 10);
+          return testCb(null, batchPack.length === 0);
+        }, function (cb) {
+          var fields = Object.keys(config.fields).map(function (field) {
+            return __private.escape2(config.fields[field]);
+          });
+          var rows = [];
+          batchPack.forEach(function (value) {
+            var currentRow = value.map(__private.escape);
+            rows.push('SELECT ' + currentRow.join(','));
+          });
+          sql = knex.raw('INSERT INTO ?? (' + fields.join(',') + ') ' + rows.join(' UNION '), ['dapp_' + config.dappid + '_' + config.table]).toString();
+          library.db.none(sql).then(function () {
+            return setImmediate(cb);
+          }).catch(function (err) {
+            library.logger.error('sql', err.stack);
+            return setImmediate(cb, 'Sql#query error');
+          });
+        }, done);
   }
 };
 

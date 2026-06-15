@@ -10,7 +10,7 @@ const transactionTypes = require('../../helpers/transactionTypes.js');
 
 const { iAccount } = node;
 
-function getTransactions(params, done) {
+function getTransactions (params, done) {
   const queryString = new URLSearchParams(params).toString();
   node.get(`/api/chats/get${queryString ? `?${queryString}` : ''}`, done);
 }
@@ -62,12 +62,12 @@ describe('GET /api/chats/get', () => {
       getTransactions(options, (err, response) => {
         expect(err).not.to.exist;
         expect(response.body)
-          .to.have.property('transactions')
-          .that.is.an('array')
-          .that.is.not.empty;
+            .to.have.property('transactions')
+            .that.is.an('array')
+            .that.is.not.empty;
 
         response.body.transactions.forEach((transaction) =>
-          expect(transaction.type).to.equal(transactionTypes.CHAT_MESSAGE),
+          expect(transaction.type).to.equal(transactionTypes.CHAT_MESSAGE)
         );
 
         done();
@@ -80,15 +80,15 @@ describe('GET /api/chats/get', () => {
       getTransactions(options, (err, response) => {
         expect(err).not.to.exist;
         expect(response.body)
-          .to.have.property('transactions')
-          .that.is.an('array')
-          .that.is.not.empty;
+            .to.have.property('transactions')
+            .that.is.an('array')
+            .that.is.not.empty;
 
         const hasChatMessage = response.body.transactions.some(
-          (transaction) => transaction.type === transactionTypes.CHAT_MESSAGE,
+            (transaction) => transaction.type === transactionTypes.CHAT_MESSAGE
         );
         const hasSend = response.body.transactions.some(
-          (transaction) => transaction.type === transactionTypes.SEND,
+            (transaction) => transaction.type === transactionTypes.SEND
         );
 
         expect(hasChatMessage).to.be.true;
@@ -106,7 +106,7 @@ describe('GET /api/chats/get', () => {
         'Infinity',
         'string',
         '[]',
-        '{}',
+        '{}'
       ];
 
       values.forEach((value) => {
@@ -116,12 +116,12 @@ describe('GET /api/chats/get', () => {
           getTransactions(options, (err, response) => {
             expect(err).not.to.exist;
             expect(response.body)
-              .to.have.property('transactions')
-              .that.is.an('array')
-              .that.is.not.empty;
+                .to.have.property('transactions')
+                .that.is.an('array')
+                .that.is.not.empty;
 
             response.body.transactions.forEach((transaction) =>
-              expect(transaction.type).to.equal(transactionTypes.CHAT_MESSAGE),
+              expect(transaction.type).to.equal(transactionTypes.CHAT_MESSAGE)
             );
 
             done();
@@ -142,12 +142,12 @@ describe('GET /api/chats/get', () => {
       getTransactions(options, (err, response) => {
         expect(err).not.to.exist;
         expect(response.body)
-          .to.have.property('transactions')
-          .that.is.an('array')
-          .that.is.not.empty;
+            .to.have.property('transactions')
+            .that.is.an('array')
+            .that.is.not.empty;
 
         response.body.transactions.forEach((transaction) =>
-          expect(transaction.type).to.equal(transactionTypes.CHAT_MESSAGE),
+          expect(transaction.type).to.equal(transactionTypes.CHAT_MESSAGE)
         );
 
         done();
@@ -160,15 +160,15 @@ describe('GET /api/chats/get', () => {
       getTransactions(options, (err, response) => {
         expect(err).not.to.exist;
         expect(response.body)
-          .to.have.property('transactions')
-          .that.is.an('array')
-          .that.is.not.empty;
+            .to.have.property('transactions')
+            .that.is.an('array')
+            .that.is.not.empty;
 
         const hasChatMessage = response.body.transactions.some(
-          (transaction) => transaction.type === transactionTypes.CHAT_MESSAGE,
+            (transaction) => transaction.type === transactionTypes.CHAT_MESSAGE
         );
         const hasSend = response.body.transactions.some(
-          (transaction) => transaction.type === transactionTypes.SEND,
+            (transaction) => transaction.type === transactionTypes.SEND
         );
 
         expect(hasChatMessage).to.be.true;
@@ -180,7 +180,7 @@ describe('GET /api/chats/get', () => {
 
     describe('should return transactions only with chat message type when', () => {
       const values = [
-        0,
+        0
       ];
 
       values.forEach((value) => {
@@ -190,12 +190,12 @@ describe('GET /api/chats/get', () => {
           getTransactions(options, (err, response) => {
             expect(err).not.to.exist;
             expect(response.body)
-              .to.have.property('transactions')
-              .that.is.an('array')
-              .that.is.not.empty;
+                .to.have.property('transactions')
+                .that.is.an('array')
+                .that.is.not.empty;
 
             response.body.transactions.forEach((transaction) =>
-              expect(transaction.type).to.equal(transactionTypes.CHAT_MESSAGE),
+              expect(transaction.type).to.equal(transactionTypes.CHAT_MESSAGE)
             );
 
             done();
