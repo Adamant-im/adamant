@@ -17,11 +17,11 @@ var self, library, __private = {};
 /**
  * Main account logic.
  * @memberof module:accounts
- * @class
+ * @constructor
  * @classdesc Main account logic.
  * @param {Database} db
  * @param {ZSchema} schema
- * @param {Object} logger
+ * @param {object} logger
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} With `this` as data.
  */
@@ -38,7 +38,7 @@ function Account (db, schema, logger, cb) {
 
   this.table = 'mem_accounts';
   /**
-   * @typedef {Object} account
+   * @typedef {object} account
    * @property {string} username - Lowercase, between 1 and 20 chars.
    * @property {boolean} isDelegate
    * @property {boolean} u_isDelegate
@@ -52,10 +52,10 @@ function Account (db, schema, logger, cb) {
    * @property {number} u_balance - Between 0 and totalAmount from constants.
    * @property {number} vote
    * @property {number} rate
-   * @property {String[]} delegates - From mem_account2delegates table, filtered by address.
-   * @property {String[]} u_delegates - From mem_account2u_delegates table, filtered by address.
-   * @property {String[]} multisignatures - From mem_account2multisignatures table, filtered by address.
-   * @property {String[]} u_multisignatures - From mem_account2u_multisignatures table, filtered by address.
+   * @property {string[]} delegates - From mem_account2delegates table, filtered by address.
+   * @property {string[]} u_delegates - From mem_account2u_delegates table, filtered by address.
+   * @property {string[]} multisignatures - From mem_account2multisignatures table, filtered by address.
+   * @property {string[]} u_multisignatures - From mem_account2u_multisignatures table, filtered by address.
    * @property {number} multimin - Between 0 and 17.
    * @property {number} u_multimin - Between 0 and 17.
    * @property {number} multilifetime - Between 1 and 72.
@@ -518,8 +518,8 @@ Account.prototype.verifyPublicKey = function (publicKey) {
 
 /**
  * Normalizes address and creates binary buffers to insert.
- * @param {Object} raw - with address and public key.
- * @return {Object} Normalized address.
+ * @param {object} raw - with address and public key.
+ * @return {object} Normalized address.
  */
 Account.prototype.toDB = function (raw) {
   const values = {};
@@ -539,7 +539,7 @@ Account.prototype.toDB = function (raw) {
 
 /**
  * Gets account information for specified fields and filter criteria.
- * @param {Object} filter - Contains address.
+ * @param {object} filter - Contains address.
  * @param {Object|function} fields - Table fields.
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} Returns null or Object with database data.
@@ -559,7 +559,7 @@ Account.prototype.get = function (filter, fields, cb) {
 
 /**
  * Gets accounts information from mem_accounts.
- * @param {Object} filter - Contains address.
+ * @param {object} filter - Contains address.
  * @param {Object|function} fields - Table fields.
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} data with rows | 'Account#getAll error'.
@@ -634,7 +634,7 @@ Account.prototype.getAll = function (filter, fields, cb) {
 /**
  * Sets fields for specific address in mem_accounts table.
  * @param {address} address
- * @param {Object} fields
+ * @param {object} rawFields
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} cb | 'Account#set error'.
  */
@@ -666,7 +666,7 @@ Account.prototype.set = function (address, rawFields, cb) {
  * Inserts into mem_round "address", "amount", "delegate", "blockId", "round"
  * based on field balance or delegates.
  * @param {address} address
- * @param {Object} diff - Must contains only mem_account editable fields.
+ * @param {object} diff - Must contains only mem_account editable fields.
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback|cb|done} Multiple returns: done() or error.
  */

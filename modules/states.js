@@ -28,7 +28,7 @@ __private.assetTypes = {};
  * Listens `exit` signal.
  * Checks 'public/state' folder and created it if doesn't exists.
  * @memberof module:states
- * @class
+ * @constructor
  * @classdesc Main states methods.
  * @param {function} cb - Callback function.
  * @param {scope} scope - App instance.
@@ -109,7 +109,7 @@ __private.getByIds = function (ids, cb) {
  * Gets records from `states` table based on filter
  * @private
  * @implements {library.db.query}
- * @param {Object} filter - Could contains type, address, limit,
+ * @param {object} filter - Could contains type, address, limit,
  * offset, orderBy
  * @param {function} cb
  * @return {setImmediateCallback} error description | rows data

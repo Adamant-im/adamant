@@ -13,7 +13,7 @@ var httpApi = require('../../helpers/httpApi');
  * @requires helpers/Router
  * @requires helpers/httpApi
  * @constructor
- * @param {Object} signaturesModule - Module signatures instance.
+ * @param {object} signaturesModule - Module signatures instance.
  * @param {scope} app - Network app.
  */
 // Constructor

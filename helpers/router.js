@@ -6,8 +6,8 @@ var extend = require('extend');
 /**
  * Express.js router wrapper.
  * @memberof module:helpers
- * @function
- * @return {Object} router express
+ * @method
+ * @return {object} router express
  * @throws {Error} If config is invalid
  */
 var Router = function () {
@@ -34,7 +34,7 @@ var Router = function () {
   /**
    * Adds one middleware to an array of routes.
    * @param {Function} middleware
-   * @param {String} routes
+   * @param {string} routes
    */
   router.attachMiddlwareForUrls = function (middleware, routes) {
     routes.forEach(function (entry) {

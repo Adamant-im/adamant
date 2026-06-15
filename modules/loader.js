@@ -32,7 +32,7 @@ __private.shutdownRequested = false;
  * @param {Function} cb - Callback function.
  * @param {scope} scope - App instance.
  * @memberof module:loader
- * @class
+ * @constructor
  * @classdesc Main Loader methods.
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
@@ -121,7 +121,7 @@ __private.requestStop = function () {
 /**
  * Checks if shutdown was requested.
  * @private
- * @returns {boolean}
+ * @return {boolean}
  */
 __private.isStopRequested = function () {
   return __private.stopRequested;
@@ -770,7 +770,7 @@ __private.sync = function (cb) {
  * @private
  * @implements {modules.blocks.lastBlock.get}
  * @implements {library.logic.peers.create}
- * @return {Object} {height number, peers array}
+ * @return {object} {height number, peers array}
  */
 __private.findGoodPeers = function (heights) {
   var lastBlockHeight = modules.blocks.lastBlock.get().height;
@@ -860,7 +860,7 @@ Loader.prototype.getNetwork = function (cb) {
 
 /**
  * Checks if private variable syncIntervalId have value.
- * @returns {boolean} True if syncIntervalId have value
+ * @return {boolean} True if syncIntervalId have value
  */
 Loader.prototype.syncing = function () {
   return !!__private.syncIntervalId;
@@ -869,7 +869,7 @@ Loader.prototype.syncing = function () {
 /**
  * Returns current blockchain height to achieve if in sync process;
  * Returns `0` if syncing done.
- * @returns {number}
+ * @return {number}
  */
 Loader.prototype.getBlocksToSync = function () {
   return __private.blocksToSync;
@@ -877,7 +877,7 @@ Loader.prototype.getBlocksToSync = function () {
 
 /**
  * Returns last blockchain height when syncing.
- * @returns {number}
+ * @return {number}
  */
 Loader.prototype.getHeight = function () {
   return __private.lastBlock.height;
@@ -885,7 +885,7 @@ Loader.prototype.getHeight = function () {
 
 /**
  * Returns if the blockchain is in sync process.
- * @returns {boolean}
+ * @return {boolean}
  */
 Loader.prototype.loaded = function () {
   return __private.loaded;
@@ -893,7 +893,7 @@ Loader.prototype.loaded = function () {
 
 /**
  * Returns whether the blockchain has checked if it needs to sync
- * @returns {boolean}
+ * @return {boolean}
  */
 Loader.prototype.isReadyToSync = function () {
   return __private.ready;
@@ -901,7 +901,7 @@ Loader.prototype.isReadyToSync = function () {
 
 /**
  * Returns total synced blocks.
- * @returns {number}
+ * @return {number}
  */
 Loader.prototype.getTotalBlocks = function () {
   return __private.total;
@@ -921,7 +921,7 @@ Loader.prototype.sandboxApi = function (call, args, cb) {
 
 /**
  * Checks if `modules` is loaded.
- * @returns {boolean} True if `modules` is loaded.
+ * @return {boolean} True if `modules` is loaded.
  */
 Loader.prototype.isLoaded = function () {
   return !!modules;
@@ -936,7 +936,7 @@ Loader.prototype.isLoaded = function () {
  * @implements {__private.loadTransactions}
  * @implements {__private.loadSignatures}
  * @implements {__private.initialize}
- * @returns {Function} calls to __private.syncTimer()
+ * @return {Function} calls to __private.syncTimer()
  */
 Loader.prototype.onPeersReady = function () {
   library.logger.trace('loader', 'Peers ready');

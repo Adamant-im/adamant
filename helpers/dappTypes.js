@@ -1,6 +1,6 @@
 'use strict';
 /**
- * @typedef {Object} dappType
+ * @enum {number}
  * - 0: DAPP
  * - 1: FILE
  */

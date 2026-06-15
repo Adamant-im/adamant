@@ -3,9 +3,9 @@
 var node = require('./../node.js');
 
 /**
- * @param {string} table
+ * @param {object} db
  * @param {Logger} logger
- * @param {Object} db
+ * @param {string} table
  * @param {Function} cb
  */
 function clearDatabaseTable (db, logger, table, cb) {
@@ -19,8 +19,8 @@ function clearDatabaseTable (db, logger, table, cb) {
 
 /**
  * @param {Function} cb
- * @param {Number} [retries=10] retries
- * @param {Number} [timeout=200] timeout
+ * @param {number} [retries=10] retries
+ * @param {number} [timeout=200] timeout
  */
 function waitUntilBlockchainReady (cb, retries, timeout) {
   if (!retries) {

@@ -6,9 +6,9 @@ var pgp = require('pg-promise');
  * Creates and returns an insert instance
  * @memberof module:helpers
  * @requires pg-promise
- * @class
- * @param {Object} record
- * @param {Object} values
+ * @constructor
+ * @param {object} record
+ * @param {object} values
  * @param {boolean} [concat]
  * @return {function} True if ip is in the list, false otherwise.
  * @throws {string} Error description

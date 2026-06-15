@@ -49,7 +49,7 @@ __private.routes = {};
  * @todo apply node pattern for callbacks: callback always at the end.
  * @todo add 'use strict';
  * @memberof module:dapps
- * @class
+ * @constructor
  * @classdesc Main dapps methods.
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
@@ -1070,7 +1070,7 @@ DApps.prototype.onNewBlock = function (block, broadcast) {
 
 /**
  * Checks if `modules` is loaded.
- * @returns {boolean} True if `modules` is loaded.
+ * @return {boolean} True if `modules` is loaded.
  */
 DApps.prototype.isLoaded = function () {
   return !!modules;

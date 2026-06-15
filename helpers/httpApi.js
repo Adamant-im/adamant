@@ -17,8 +17,8 @@ var slots = require('./slots');
 var middleware = {
   /**
    * Adds CORS header to all requests.
-   * @param {Object} req
-   * @param {Object} res
+   * @param {object} req
+   * @param {object} res
    * @param {Function} next
    */
   cors: function (req, res, next) {
@@ -31,8 +31,8 @@ var middleware = {
    * Logs all api errors.
    * @param {Logger} logger
    * @param {Error} err
-   * @param {Object} req
-   * @param {Object} res
+   * @param {object} req
+   * @param {object} res
    * @param {Function} next
    */
   errorLogger: function (logger, err, req, res, next) {
@@ -44,8 +44,8 @@ var middleware = {
   /**
    * Logs api client connections.
    * @param {Logger} logger
-   * @param {Object} req
-   * @param {Object} res
+   * @param {object} req
+   * @param {object} res
    * @param {Function} next
    */
   logClientConnections: function (logger, req, res, next) {
@@ -58,8 +58,8 @@ var middleware = {
   /**
    * Resends error msg when blockchain is not loaded.
    * @param {Function} isLoaded
-   * @param {Object} req
-   * @param {Object} res
+   * @param {object} req
+   * @param {object} res
    * @param {Function} next
    */
   blockchainReady: function (isLoaded, req, res, next) {
@@ -69,8 +69,8 @@ var middleware = {
 
   /**
    * Resends error if API endpoint doesn't exists.
-   * @param {Object} req
-   * @param {Object} res
+   * @param {object} req
+   * @param {object} res
    * @param {Function} next
    */
   notFound: function (req, res, next) {
@@ -79,8 +79,8 @@ var middleware = {
 
   /**
    * Uses req.sanitize for particular endpoint.
-   * @param {String} property
-   * @param {Object} schema
+   * @param {string} property
+   * @param {object} schema
    * @param {Function} cb
    * @return {Function} Sanitize middleware.
    */
@@ -99,8 +99,8 @@ var middleware = {
    * Attaches header to response.
    * @param {string} headerKey
    * @param {string} headerValue
-   * @param {Object} req
-   * @param {Object} res
+   * @param {object} req
+   * @param {object} res
    * @param {Function} next
    */
   attachResponseHeader: function (headerKey, headerValue, req, res, next) {
@@ -110,9 +110,9 @@ var middleware = {
 
   /**
    * Applies rules of public / internal API described in config.json.
-   * @param {Object} config
-   * @param {Object} req
-   * @param {Object} res
+   * @param {object} config
+   * @param {object} req
+   * @param {object} res
    * @param {Function} next
    */
   applyAPIAccessRules: function (config, req, res, next) {
@@ -134,8 +134,8 @@ var middleware = {
   /**
    * Passes getter for headers and assign then to response.
    * @param {Function} getHeaders
-   * @param {Object} req
-   * @param {Object} res
+   * @param {object} req
+   * @param {object} res
    * @param {Function} next
    */
   attachResponseHeaders: function (getHeaders, req, res, next) {
@@ -146,8 +146,10 @@ var middleware = {
   /**
    * Lookup cache, and reply with cached response if it's a hit.
    * If it's a miss, forward the request but cache the response if it's a success.
-   * @param {Object} req
-   * @param {Object} res
+   * @param {Logger} logger - Application logger.
+   * @param {Cache} cache - API response cache.
+   * @param {object} req
+   * @param {object} res
    * @param {Function} next
    */
   useCache: function (logger, cache, req, res, next) {
@@ -179,9 +181,9 @@ var middleware = {
 
 /**
  * Adds 'success' field to every response and attach error message if needed.
- * @param {Object} res
- * @param {String} err
- * @param {Object} response
+ * @param {object} res
+ * @param {string} err
+ * @param {object} response
  */
 function respond (res, err, response) {
   if (err) {
@@ -193,9 +195,9 @@ function respond (res, err, response) {
 
 /**
  * Register router in express app using default middleware.
- * @param {String} route
- * @param {Object} app
- * @param {Object} router
+ * @param {string} route
+ * @param {object} app
+ * @param {object} router
  * @param {Function} isLoaded
  */
 function registerEndpoint (route, app, router, isLoaded) {

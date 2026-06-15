@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * @typedef {Object} dappCategory
+ * @enum {number}
  * - 0: Education
  * - 1: Entertainment
  * - 2: Finance

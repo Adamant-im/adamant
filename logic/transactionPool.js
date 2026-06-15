@@ -12,15 +12,16 @@ var modules, library, self, __private = {};
  * Initializes variables, sets bundled transaction timer and
  * transaction expiry timer.
  * @memberof module:transactions
- * @class
+ * @constructor
  * @classdesc Main transactionPool logic.
  * @implements {processBundled}
  * @implements {expireTransactions}
  * @param {number} broadcastInterval
  * @param {number} releaseLimit
+ * @param {number} maxTxsPerQueue
  * @param {Transaction} transaction - Logic instance
  * @param {bus} bus
- * @param {Object} logger
+ * @param {object} logger
  */
 // Constructor
 function TransactionPool (broadcastInterval, releaseLimit, maxTxsPerQueue, transaction, bus, logger) {
@@ -176,6 +177,7 @@ TransactionPool.prototype.getQueuedTransactionList = function (reverse, limit) {
 /**
  * Gets multisignature transactions based on limit and reverse option.
  * @param {boolean} reverse
+ * @param {boolean} ready
  * @param {number} [limit]
  * @return {getTransactionList} Calls getTransactionList
  * @todo Avoid mix sync/async implementations of the same function
@@ -341,7 +343,7 @@ TransactionPool.prototype.countMultisignature = function () {
  * Calls processUnconfirmedTransaction for each transaction.
  * @implements {processUnconfirmedTransaction}
  * @param {transaction[]} transactions
- * @param {Object} broadcast
+ * @param {object} broadcast
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} err, transactions
  */
@@ -401,7 +403,7 @@ TransactionPool.prototype.processBundled = function (cb) {
  * @implements {queueTransaction}
  * @implements {processVerifyTransaction}
  * @param {transaction} transaction
- * @param {Object} broadcast
+ * @param {object} broadcast
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback|queueTransaction} error | queueTransaction
  */

@@ -12,7 +12,7 @@ var modules, library, self, __private = {};
 /**
  * Formats block sync progress from the current loader target.
  * @param {block} block - Block loaded from a peer.
- * @returns {string} Human-readable block height, target and progress details.
+ * @return {string} Human-readable block height, target and progress details.
  */
 function formatSyncProgress (block) {
   var target = modules.loader && modules.loader.getBlocksToSync && modules.loader.getBlocksToSync();
@@ -29,10 +29,10 @@ function formatSyncProgress (block) {
 /**
  * Initializes library.
  * @memberof module:blocks
- * @class
+ * @constructor
  * @classdesc Main Process logic.
  * Allows process blocks.
- * @param {Object} logger
+ * @param {object} logger
  * @param {Block} block
  * @param {Peers} peers
  * @param {Transaction} transaction
@@ -40,7 +40,7 @@ function formatSyncProgress (block) {
  * @param {Database} db
  * @param {Sequence} dbSequence
  * @param {Sequence} sequence
- * @param {Object} genesisblock
+ * @param {object} genesisblock
  */
 function Process (logger, block, peers, transaction, schema, db, dbSequence, sequence, genesisblock) {
   library = {
@@ -73,8 +73,8 @@ function Process (logger, block, peers, transaction, schema, db, dbSequence, seq
  * @param  {number}   height Block height
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
- * @return {Object}   cb.res Result object
+ * @return {object}   cb.err Error if occurred
+ * @return {object}   cb.res Result object
  */
 Process.prototype.getCommonBlock = function (peer, height, cb) {
   var comparisionFailed = false;
@@ -162,8 +162,8 @@ Process.prototype.getCommonBlock = function (peer, height, cb) {
  * @param  {Function} cb Callback function
  * @param  {Function} shouldStop Optional callback that returns true on shutdown
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
- * @return {Object}   cb.lastBlock Current last block
+ * @return {object}   cb.err Error if occurred
+ * @return {object}   cb.lastBlock Current last block
  */
 Process.prototype.loadBlocksOffset = function (limit, offset, verify, cb, shouldStop) {
   // Calculate limit if offset is supplied
@@ -233,8 +233,8 @@ Process.prototype.loadBlocksOffset = function (limit, offset, verify, cb, should
  * @param  {Function} cb Callback function
  * @param  {Function} shouldStop Optional callback that returns true on shutdown
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
- * @return {Object}   cb.lastValidBlock Normalized new last block
+ * @return {object}   cb.err Error if occurred
+ * @return {object}   cb.lastValidBlock Normalized new last block
  */
 Process.prototype.loadBlocksFromPeer = function (peer, cb, shouldStop) {
   // Set current last block as last valid block
@@ -327,11 +327,11 @@ Process.prototype.loadBlocksFromPeer = function (peer, cb, shouldStop) {
  * @async
  * @public
  * @method generateBlock
- * @param  {Object}   keypair Pair of private and public keys, see: helpers.ed.makeKeypair
+ * @param  {object}   keypair Pair of private and public keys, see: helpers.ed.makeKeypair
  * @param  {number}   timestamp Slot time, see: helpers.slots.getSlotTime
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error message if error occurred
+ * @return {object}   cb.err Error message if error occurred
  */
 Process.prototype.generateBlock = function (keypair, timestamp, cb) {
   // Get transactions that will be included in block
@@ -385,7 +385,7 @@ Process.prototype.generateBlock = function (keypair, timestamp, cb) {
  * @public
  * @param {block} block - Received block.
  * @listens module:transport~event:receiveBlock
- * @returns {void}
+ * @return {void}
  */
 Process.prototype.onReceiveBlock = function (block) {
   var lastBlock;
@@ -451,7 +451,7 @@ Process.prototype.onReceiveBlock = function (block) {
 /**
  * Returns whether the node can process live blocks.
  * @private
- * @returns {boolean} Whether live block processing is currently safe.
+ * @return {boolean} Whether live block processing is currently safe.
  */
 __private.isReadyToReceiveBlock = function () {
   const syncPending = !modules.loader.isReadyToSync() || modules.loader.syncing();
@@ -465,7 +465,7 @@ __private.isReadyToReceiveBlock = function () {
  * @private
  * @async
  * @method receiveBlock
- * @param {Object}   block Full normalized block
+ * @param {object}   block Full normalized block
  * @param {Function} cb Callback function
  */
 __private.receiveBlock = function (block, cb) {
@@ -490,8 +490,8 @@ __private.receiveBlock = function (block, cb) {
  * @private
  * @async
  * @method receiveBlock
- * @param {Object}   block Received block
- * @param {Object}   lastBlock Current local last block
+ * @param {object}   block Received block
+ * @param {object}   lastBlock Current local last block
  * @param {Function} cb Callback function
  */
 __private.receiveForkOne = function (block, lastBlock, cb) {
@@ -560,8 +560,8 @@ __private.receiveForkOne = function (block, lastBlock, cb) {
  * @private
  * @async
  * @method receiveBlock
- * @param {Object}   block Received block
- * @param {Object}   lastBlock Current local last block
+ * @param {object}   block Received block
+ * @param {object}   lastBlock Current local last block
  * @param {Function} cb Callback function
  */
 __private.receiveForkFive = function (block, lastBlock, cb) {

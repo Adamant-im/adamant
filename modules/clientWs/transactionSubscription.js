@@ -37,7 +37,7 @@ class TransactionSubscription {
    * Determines if the transaction matches subscribed addresses and types
    * Skips addresses or types check if not subscribed to any
    * @param {object} transaction - Unconfirmed transaction to check against
-   * @returns {boolean}
+   * @return {boolean}
    */
   impliesTransaction (transaction) {
     if (this.addresses.size) {
@@ -70,7 +70,7 @@ class TransactionSubscription {
   /**
    * Subscribes to the given addresses
    * @param {...Array<string>} addresses - List of addresses to subscribe
-   * @returns {boolean} - whether successfully subscribed to at least one address
+   * @return {boolean} - whether successfully subscribed to at least one address
    */
   subscribeToAddresses (...addresses) {
     let subscribed = false;
@@ -93,7 +93,7 @@ class TransactionSubscription {
    * Subscribes to the given types
    * @see {@link ../../helpers/transaction.js} for the list of available types
    * @param {...Array<number>} types - List of types to subscribe
-   * @returns {boolean} - whether successfully subscribed to at least one transaction type
+   * @return {boolean} - whether successfully subscribed to at least one transaction type
    */
   subscribeToTypes (...types) {
     let subscribed = false;
@@ -115,7 +115,7 @@ class TransactionSubscription {
   /**
    * Subscribes to the given types for `transaction.asset.chat`
    * @param {...Array<number>} assetChatTypes - List of types of `transaction.asset.chat` to subscribe
-   * @returns {boolean} - whether successfully subscribed to at least one `transaction.asset.chat` type
+   * @return {boolean} - whether successfully subscribed to at least one `transaction.asset.chat` type
    */
   subscribeToAssetChatTypes (...assetChatTypes) {
     let subscribed = false;
@@ -137,7 +137,7 @@ class TransactionSubscription {
   /**
    * Determines if the address is included in the list of subscribed addresses
    * @param {string} address - Address to check
-   * @returns {boolean}
+   * @return {boolean}
    */
   impliesAddress (address) {
     return this.addresses.has(address);
@@ -146,7 +146,7 @@ class TransactionSubscription {
   /**
    * Determines if the type is included in the list of subscribed types
    * @param {number} type - Transaction type to check
-   * @returns {boolean}
+   * @return {boolean}
    */
   impliesTransactionType (type) {
     return this.types.has(type);
@@ -155,7 +155,7 @@ class TransactionSubscription {
   /**
    * Determines if the type is included in the list of subscribed types
    * @param {number} assetType - Transaction type to check
-   * @returns {boolean}
+   * @return {boolean}
    */
   impliesTransactionAssetType (assetType) {
     return this.assetChatTypes.has(assetType);

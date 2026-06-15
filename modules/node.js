@@ -19,7 +19,7 @@ __private.blockReward = new BlockReward();
 /**
  * Initializes library with scope content.
  * @memberof module:node
- * @class
+ * @constructor
  * @classdesc Main node methods.
  * @param {function} cb - Callback function.
  * @param {scope} scope - App instance.

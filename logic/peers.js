@@ -13,9 +13,9 @@ var modules;
 /**
  * Initializes library.
  * @memberof module:peers
- * @class
+ * @constructor
  * @classdesc Main peers logic.
- * @param {Object} logger
+ * @param {object} logger
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} Callback function with `this` as data.
  */
@@ -213,7 +213,7 @@ Peers.prototype.list = function (normalize) {
 
 /**
  * Returns amount of peers that are connected via socket
- * @returns {number}
+ * @return {number}
  */
 Peers.prototype.getSocketCount = function () {
   return Object.values(__private.peers).reduce((acc, peer) => acc + (peer.isBroadcastingViaSocket ? 1 : 0), 0);
@@ -222,7 +222,7 @@ Peers.prototype.getSocketCount = function () {
 // Public methods
 /**
  * Modules are not required in this file.
- * @param {Object} __modules - Peers module.
+ * @param {object} __modules - Peers module.
  */
 Peers.prototype.bindModules = function (__modules) {
   modules = {

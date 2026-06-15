@@ -19,7 +19,7 @@ __private.ticking = false;
  * @param {scope} scope - App instance.
  * @todo apply node pattern for callbacks: callback always at the end.
  * @memberof module:rounds
- * @class
+ * @constructor
  * @classdesc Main rounds methods.
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
@@ -43,14 +43,14 @@ function Rounds (cb, scope) {
 
 // Public methods
 /**
- * @returns {boolean} __private.loaded
+ * @return {boolean} __private.loaded
  */
 Rounds.prototype.loaded = function () {
   return __private.loaded;
 };
 
 /**
- * @returns {boolean} __private.ticking
+ * @return {boolean} __private.ticking
  */
 Rounds.prototype.ticking = function () {
   return __private.ticking;
@@ -352,7 +352,6 @@ Rounds.prototype.onBind = function (scope) {
 
 /**
  * Sets private variable loaded to true.
- * @param {block} block New block
  * @listens module:loader~event:blockchainReady
  *
  * @public
@@ -420,7 +419,7 @@ __private.getOutsiders = function (scope, cb) {
 /**
  * Gets rows from `round_blocks` and calculates rewards. Loads into scope
  * variable fees, rewards and delegates.
- * @param {number} round
+ * @param {scope} scope
  * @param {Function} cb
  * @private
  * @implements {library.db.query}

@@ -5,7 +5,7 @@ var slowDown = require('express-slow-down');
 
 /**
  * Allow all requests through
- * @returns {true}
+ * @return {true}
  */
 function skip () {
   return true;
@@ -21,8 +21,8 @@ var defaults = {
 /**
  * Returns limits object from input or default values.
  * @private
- * @param {Object} [limits]
- * @return {Object} max, delayMs, delayAfter, windowMs
+ * @param {object} [config] - Requested limits.
+ * @return {object} max, delayMs, delayAfter, windowMs
  */
 function applyLimits (config) {
   const limits = config ?? defaults;
@@ -50,11 +50,11 @@ function applyLimits (config) {
 /**
  * Applies limits config to app.
  * @memberof module:helpers
- * @function request-limiter
+ * @method request-limiter
  * @implements applyLimits
- * @param {Object} app - Application instance
- * @param {Object} config
- * @return {Object} limits per client and peer
+ * @param {object} app - Application instance
+ * @param {object} config
+ * @return {object} limits per client and peer
  */
 module.exports = function (app, config) {
   if (config.trustProxy) {

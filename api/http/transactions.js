@@ -22,8 +22,10 @@ var httpApi = require('../../helpers/httpApi');
  * @requires helpers/Router
  * @requires helpers/httpApi
  * @constructor
- * @param {Object} transactionsModule - Module transaction instance.
+ * @param {object} transactionsModule - Module transaction instance.
  * @param {scope} app - Network app.
+ * @param {Logger} logger - Application logger.
+ * @param {Cache} cache - API response cache.
  */
 // Constructor
 function TransactionsHttpApi (transactionsModule, app, logger, cache) {

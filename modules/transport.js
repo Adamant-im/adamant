@@ -25,7 +25,7 @@ __private.messages = {};
 /**
  * Initializes library with scope content and generates a Broadcaster instance.
  * @memberof module:transport
- * @class
+ * @constructor
  * @classdesc Main Transport methods.
  * @param {function} cb - Callback function.
  * @param {scope} scope - App instance.
@@ -72,7 +72,7 @@ function Transport (cb, scope) {
  * @private
  * @implements {crypto.createHash}
  * @implements {bignum.fromBuffer}
- * @param {Object} obj
+ * @param {object} obj
  * @return {string} Buffer array to string
  */
 __private.hashsum = function (obj) {
@@ -90,7 +90,7 @@ __private.hashsum = function (obj) {
  * Removes a peer based on ip and port.
  * @private
  * @implements {modules.peers.remove}
- * @param {Object} options - Contains code and peer
+ * @param {object} options - Contains code and peer
  * @param {string} extraMessage
  */
 __private.removePeer = function (options, extraMessage) {
@@ -118,7 +118,7 @@ __private.recordRequest = function (options) {
  * @private
  * @implements {library.schema.validate}
  * @implements {__private.receiveSignature}
- * @param {Object} query
+ * @param {object} query
  * @param {function} cb
  * @return {setImmediateCallback} cb, err
  */
@@ -183,7 +183,7 @@ __private.receiveSignature = function (signature, cb) {
  * @private
  * @implements {library.schema.validate}
  * @implements {__private.receiveTransaction}
- * @param {Object} query - Contains transactions
+ * @param {object} query - Contains transactions
  * @param {peer} peer
  * @param {string} extraLogMessage
  * @param {function} cb
@@ -268,8 +268,8 @@ __private.receiveTransaction = function (transaction, peer, extraLogMessage, cb)
 // Public methods
 /**
  * Sets or gets headers
- * @param {Object} [headers]
- * @return {Object} private variable with headers
+ * @param {object} [headers]
+ * @return {object} private variable with headers
  */
 Transport.prototype.headers = function (headers) {
   if (headers) {
@@ -303,7 +303,7 @@ Transport.prototype.poorConsensus = function () {
 /**
  * Calls getPeers method from Broadcaster class.
  * @implements {Broadcaster.getPeers}
- * @param {Object} params
+ * @param {object} params
  * @param {function} cb
  * @return {Broadcaster.getPeers} calls getPeers
  */
@@ -316,7 +316,7 @@ Transport.prototype.getPeers = function (params, cb) {
  * with first peer from list.
  * @implements {modules.peers.list}
  * @implements {getFromPeer}
- * @param {Object} config
+ * @param {object} config
  * @param {function|Object} options
  * @param {function} cb
  * @return {setImmediateCallback|getFromPeer} error | calls getFromPeer
@@ -353,9 +353,9 @@ Transport.prototype.getFromRandomPeer = function (config, options, cb) {
  * @implements {modules.peers.update}
  * @implements {__private.removePeer}
  * @param {peer} peer
- * @param {Object} options
+ * @param {object} options
  * @param {function} cb
- * @return {setImmediateCallback|Object} error message | {body, peer}
+ * @return {setImmediateCallback | object} error message | {body, peer}
  * @todo implements secure http request with https
  */
 Transport.prototype.getFromPeer = function (peer, options, cb) {
@@ -476,7 +476,7 @@ Transport.prototype.onBlockchainReady = function () {
  * @implements {Broadcaster.enqueue}
  * @implements {library.network.wsServer.emit}
  * @param {signature} signature
- * @param {Object} broadcast
+ * @param {object} broadcast
  * @emits signature/change
  */
 Transport.prototype.onSignature = function (signature, broadcast) {
@@ -492,7 +492,7 @@ Transport.prototype.onSignature = function (signature, broadcast) {
  * @implements {Broadcaster.enqueue}
  * @implements {library.network.wsServer.emit}
  * @param {transaction} transaction
- * @param {Object} broadcast
+ * @param {object} broadcast
  * @emits transactions/change
  */
 Transport.prototype.onUnconfirmedTransaction = function (transaction, broadcast) {
@@ -509,7 +509,7 @@ Transport.prototype.onUnconfirmedTransaction = function (transaction, broadcast)
  * @implements {Broadcaster.broadcast}
  * @implements {library.network.wsServer.emit}
  * @param {block} block
- * @param {Object} broadcast
+ * @param {object} broadcast
  * @emits blocks/change
  */
 Transport.prototype.onNewBlock = function (block, broadcast) {
@@ -529,8 +529,8 @@ Transport.prototype.onNewBlock = function (block, broadcast) {
  * Calls broadcast '/dapp/message'.
  * @implements {Broadcaster.maxRelays}
  * @implements {Broadcaster.broadcast}
- * @param {Object} msg
- * @param {Object} broadcast
+ * @param {object} msg
+ * @param {object} broadcast
  */
 Transport.prototype.onMessage = function (msg, broadcast) {
   if (broadcast && !__private.broadcaster.maxRelays(msg)) {

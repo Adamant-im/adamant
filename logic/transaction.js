@@ -18,8 +18,7 @@ const SIGN_INT_32_MAX = 2147483647;
 const SIGN_INT_32_MIN = -2147483648;
 
 /**
- * @typedef {object} privateTypes
- * @property
+ * @enum {number}
  * - 0: Transfer
  * - 1: Signature
  * - 2: Delegate
@@ -42,11 +41,11 @@ __private.types = {};
  * @param {object} genesisblock
  * @param {Account} account
  * @param {object} logger
- * @param clientWs
- * @param consensus
+ * @param {ClientWs} clientWs
+ * @param {Consensus} consensus
  * @param {Function} cb - Callback function.
  * @memberof module:transactions
- * @class
+ * @constructor
  * @classdesc Main transaction logic.
  * @return {setImmediateCallback} With `this` as data.
  */
@@ -127,7 +126,7 @@ Transaction.prototype.create = function (data) {
  * This should be called for freshly created transactions received from the Public API
  * @param {object} data - The transaction object
  * @throws {Error} If an invalid transaction is passed
- * @returns {object} The modified transaction object
+ * @return {object} The modified transaction object
  */
 Transaction.prototype.publish = function (data) {
   if (!__private.types[data.type]) {
@@ -199,7 +198,7 @@ Transaction.prototype.normalize = function (data) {
  * @param {number} typeId
  * @param {object} instance
  * @throws {string} Invalid instance interface if validations are wrong
- * @returns {object} instance
+ * @return {object} instance
  */
 Transaction.prototype.attachAssetType = function (typeId, instance) {
   if (instance && typeof instance.create === 'function' && typeof instance.getBytes === 'function' &&
@@ -428,7 +427,7 @@ Transaction.prototype.checkConfirmed = function (trs, cb) {
  * @param {account} sender
  *
  * @implements {bignum}
- * @return {Object} With exceeded boolean and error: address, balance
+ * @return {object} With exceeded boolean and error: address, balance
  */
 Transaction.prototype.checkBalance = function (amount, balance, trs, sender) {
   var exceededBalance = new bignum(sender[balance].toString()).isLessThan(amount);
@@ -865,7 +864,7 @@ Transaction.prototype.apply = function (trs, block, sender, cb) {
     /**
      * calls apply for Transfer, Signature, Delegate, Vote, Multisignature,
      * DApp, InTransfer or OutTransfer.
-     * @param err
+     * @param {*} err
      */
     __private.types[trs.type].apply.call(this, trs, block, sender, function (err) {
       if (err) {
@@ -1062,7 +1061,7 @@ Transaction.prototype.dbFields = [
  * @param {transaction} trs
  * @throws {string | error} error string | catch error
  * @see privateTypes
- * @return {Object[]} dbSave result + created object
+ * @return {object[]} dbSave result + created object
  */
 Transaction.prototype.dbSave = function (trs) {
   if (!__private.types[trs.type]) {
@@ -1150,12 +1149,12 @@ Transaction.prototype.afterSave = function (trs, cb) {
  * @property {number} fee
  * @property {string} signature
  * @property {string} signSignature
- * @property {Object} asset
+ * @property {object} asset
  * @property {multisignature} [asset.multisignature]
  * @property {signature} [asset.signature]
  * @property {dapp} [asset.dapp]
- * @property {Object} [asset.outTransfer] - Contains dappId and transactionId
- * @property {Object} [asset.inTransfer] - Contains dappId
+ * @property {object} [asset.outTransfer] - Contains dappId and transactionId
+ * @property {object} [asset.inTransfer] - Contains dappId
  * @property {votes} [asset.votes] - Contains multiple votes to a transactionId
  *
  */

@@ -21,7 +21,7 @@ var schema = require('../../schema/accounts.js');
  * @requires helpers/Router
  * @requires helpers/httpApi
  * @constructor
- * @param {Object} accountsModule - Module account instance.
+ * @param {object} accountsModule - Module account instance.
  * @param {scope} app - Network app.
  */
 

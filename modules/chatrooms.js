@@ -23,7 +23,7 @@ __private.assetTypes = {};
  * Listens `exit` signal.
  * Checks 'public/chat' folder and created it if doesn't exists.
  * @memberof module:chatrooms
- * @class
+ * @constructor
  * @classdesc Main chatrooms methods.
  * @param {function} cb - Callback function.
  * @param {scope} scope - App instance.

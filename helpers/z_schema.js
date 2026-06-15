@@ -18,10 +18,10 @@ var ip = require('neoip');
  * - version
  * @see {@link https://github.com/zaggino/z-schema}
  *
- * @class
+ * @constructor
  * @memberof module:helpers
  * @requires ip
- * @return {Boolean} True if the format is valid
+ * @return {boolean} True if the format is valid
  */
 const zSchemaModule = require('z-schema');
 const ZSchema = zSchemaModule.default;
@@ -32,7 +32,7 @@ const { isPublicKey } = require('./publicKey.js');
  * Preserves the legacy z-schema v6 API used throughout the node.
  * Validation remains synchronous, non-throwing, and pinned to Draft-04.
  * @param {object} options
- * @class
+ * @constructor
  */
 function z_schema (options) {
   this.validator = ZSchema.create({
@@ -46,7 +46,7 @@ function z_schema (options) {
 /**
  * Restores error messages exposed by z-schema v6.
  * @param {object} error
- * @returns {object}
+ * @return {object}
  */
 function normalizeError (error) {
   if (error.code === 'INVALID_FORMAT' && typeof error.params[1] === 'string') {
@@ -67,7 +67,7 @@ function normalizeError (error) {
  * @param {object} result
  * @param {*} value
  * @param {object} schema
- * @returns {Array}
+ * @return {Array}
  */
 function getValidationErrors (result, value, schema) {
   if (Array.isArray(result.err && result.err.details)) {
@@ -97,7 +97,7 @@ function getValidationErrors (result, value, schema) {
  * @param {object} schema
  * @param {Function} callback
  *
- * @return {Boolean}
+ * @return {boolean}
  */
 z_schema.prototype.validate = function (value, schema, callback) {
   const result = this.validator.validate(value, schema);
@@ -112,7 +112,7 @@ z_schema.prototype.validate = function (value, schema, callback) {
 
 /**
  * Returns errors from the latest validation attempt.
- * @returns {Array|null}
+ * @return {Array|null}
  */
 z_schema.prototype.getLastErrors = function () {
   return this.lastErrors;

@@ -33,7 +33,7 @@ class Consensus {
    * Returns the authoritative current blockchain height.
    * The blocks module advances on every applied block, while loader height can lag
    * between synchronization cycles on a locally forging node.
-   * @returns {number} Current blockchain height.
+   * @return {number} Current blockchain height.
    */
   getCurrentHeight () {
     if (this.blocks && this.blocks.lastBlock && typeof this.blocks.lastBlock.get === 'function') {

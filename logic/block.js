@@ -14,9 +14,9 @@ var __private = {};
 /**
  * Main Block logic.
  * @memberof module:blocks
- * @class
+ * @constructor
  * @classdesc Main Block logic.
- * @param {Object} ed
+ * @param {object} ed
  * @param {ZSchema} schema
  * @param {Transaction} transaction
  * @param {function} cb - Callback function.
@@ -63,7 +63,7 @@ __private.getAddressByPublicKey = function (publicKey) {
  * @implements {scope.transaction.getBytes}
  * @implements {Block.sign}
  * @implements {Block.objectNormalize}
- * @param {Object} data
+ * @param {object} data
  * @return {block} block
  */
 Block.prototype.create = function (data) {
@@ -130,7 +130,7 @@ Block.prototype.create = function (data) {
  * @implements {Block.getHash}
  * @implements {scope.ed.sign}
  * @param {block} block
- * @param {Object} keypair
+ * @param {object} keypair
  * @return {signature} block signature
  */
 Block.prototype.sign = function (block, keypair) {
@@ -252,7 +252,7 @@ Block.prototype.dbFields = [
 /**
  * Creates db object transaction to `blocks` table.
  * @param {block} block
- * @return {Object} created object {table, fields, values}
+ * @return {object} created object {table, fields, values}
  * @throws {error} catch error
  */
 Block.prototype.dbSave = function (block) {
@@ -288,7 +288,7 @@ Block.prototype.dbSave = function (block) {
 };
 
 /**
- * @typedef {Object} block
+ * @typedef {object} block
  * @property {string} id - Between 1 and 20 chars
  * @property {number} height
  * @property {signature} blockSignature
@@ -446,7 +446,7 @@ Block.prototype.calculateFee = function (block) {
 /**
  * Creates block object based on raw data.
  * @implements {bignum}
- * @param {Object} raw
+ * @param {object} raw
  * @return {null|block} blcok object
  */
 Block.prototype.dbRead = function (raw) {

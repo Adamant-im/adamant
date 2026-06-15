@@ -13,7 +13,7 @@ exports.Field = Field;
 /**
  * Create validator. Options could have properties `forceAsync`, `skipMissed` and `rules`.
  * @memberof module:helpers
- * @param {Object} options
+ * @param {object} options
  * @constructor
  */
 function Validator (options) {
@@ -181,7 +181,7 @@ Validator.prototype.onEnd = function () {};
 /**
  * Add validation rule descriptor to validator rule set.
  * @param {string} name Validator name
- * @param {{validate:function,filter:function}} descriptor Validator descriptor object
+ * @param {{validate: Function, filter: Function}} descriptor Validator descriptor object
  */
 Validator.addRule = function (name, descriptor) {
   if (typeof descriptor !== 'object') {
@@ -214,8 +214,8 @@ Validator.addAlias = function (name, origin) {
 
 /**
  * Add extra property to Field. It could be
- * @param name
- * @param value
+ * @param {string} name
+ * @param {*} value
  */
 Validator.fieldProperty = function (name, value) {
   this.prototype.Field.prototype[name] = value;

@@ -29,7 +29,7 @@ __private.assetTypes = {};
  * and a TransactionPool instance.
  * Calls logic.transaction.attachAssetType().
  * @memberof module:transactions
- * @class
+ * @constructor
  * @classdesc Main transactions methods.
  * @param {function} cb - Callback function.
  * @param {scope} scope - App instance.
@@ -71,7 +71,7 @@ function Transactions (cb, scope) {
 /**
  * Counts totals and gets transaction list from `trs_list` view.
  * @private
- * @param {Object} filter
+ * @param {object} filter
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} error | data: {transactions, count}
  */
@@ -377,8 +377,8 @@ __private.getVotesById = function (transaction, cb) {
 /**
  * Gets transaction by calling parameter method.
  * @private
- * @param {Object} method
- * @param {Object} req
+ * @param {object} method
+ * @param {object} req
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} error | data: {transaction}
  */
@@ -406,8 +406,8 @@ __private.getPooledTransaction = function (method, req, cb) {
  * Gets transactions by calling parameter method.
  * Filters by senderPublicKey or address if they are present.
  * @private
- * @param {Object} method
- * @param {Object} req
+ * @param {object} method
+ * @param {object} req
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} error | data: {transactions, count}
  */
@@ -467,8 +467,8 @@ Transactions.prototype.getUnconfirmedTransaction = function (id) {
  *
  * @param {Array<Transaction>} targetArray Sorted array to merge unconfirmed transactions into
  * @param {Array<UnconfirmedTransaction>} unconfirmedTransactions Array of unconfirmed transactions to merge
- * @param {Object} options
- * @param {Object} [options.orderBy] - Options for transaction ordering. See `helpers/orderBy.js`
+ * @param {object} options
+ * @param {object} [options.orderBy] - Options for transaction ordering. See `helpers/orderBy.js`
  * @param {number} [options.limit] - Maximum number of transactions in the final array
  * @param {number} [options.offset] - Offset for the final array
  * @param {number} [options.returnAsset=1] - Whether to remove assets from all transactions. Default is 1
@@ -556,12 +556,12 @@ Transactions.prototype.mergeUnconfirmedTransactions = function (
 /**
  * Retrieves unconfirmed transactions based on the provided filter and options
  *
- * @param {Object} filter - Criteria to filter unconfirmed transactions
- * @param {Object} [options]
+ * @param {object} filter - Criteria to filter unconfirmed transactions
+ * @param {object} [options]
  * @param {string[]} [options.allowedFilters=[]] - List of keys allowed for filtering transactions
- * @param {Object} [options.aliases={}] - Key-value pairs for aliasing filter keys
+ * @param {object} [options.aliases={}] - Key-value pairs for aliasing filter keys
  * @param {string} [options.defaultCondition='AND'] - Default logical condition for combining filters ('AND' or 'OR')
- * @returns {Object[]} - Array of unconfirmed transactions matching the criteria
+ * @return {object[]} - Array of unconfirmed transactions matching the criteria
  * @throws {Error} - If `filter` is not an object
  */
 Transactions.prototype.getUnconfirmedTransactions = function (filter, options = {}) {
@@ -733,7 +733,7 @@ Transactions.prototype.removeUnconfirmedTransaction = function (id) {
  * Checks kind of unconfirmed transaction and process it, resets queue
  * if limit reached.
  * @param {transaction} transaction
- * @param {Object} broadcast
+ * @param {object} broadcast
  * @param {function} cb - Callback function.
  * @return {function} Calls transactionPool.processUnconfirmedTransaction
  */
@@ -874,7 +874,7 @@ Transactions.prototype.undoUnconfirmed = function (transaction, cb) {
 /**
  * Receives transactions
  * @param {transaction[]} transactions
- * @param {Object} broadcast
+ * @param {object} broadcast
  * @param {function} cb - Callback function.
  * @return {function} Calls transactionPool.receiveTransactions
  */

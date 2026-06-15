@@ -3,7 +3,7 @@
 /**
  * Applies z_schema to validate schema.
  * @memberof module:helpers
- * @function z_schema-express
+ * @method z_schema-express
  * @param {function} z_schema
  * @return {function}
  */

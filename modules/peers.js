@@ -25,7 +25,7 @@ var modules, library, self, __private = {}, shared = {};
  * @param {Function} cb - Callback function.
  * @param {scope} scope - App instance.
  * @memberof module:peers
- * @class
+ * @constructor
  * @classdesc Main peers methods.
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
@@ -185,7 +185,7 @@ __private.insertSeeds = function (cb) {
  * @param {Function} cb - Callback function.
  * @implements library.db
  * @private
- * @returns {setImmediateCallback} cb
+ * @return {setImmediateCallback} cb
  */
 __private.dbLoad = function (cb) {
   var updated = 0;
@@ -227,7 +227,7 @@ __private.dbLoad = function (cb) {
  * @param {Function} cb - Callback function.
  * @implements library.db
  * @private
- * @returns {setImmediateCallback} cb
+ * @return {setImmediateCallback} cb
  */
 __private.dbSave = function (cb) {
   var peers = library.logic.peers.list(true);
@@ -300,7 +300,7 @@ Peers.prototype.sandboxApi = function (call, args, cb) {
  * @param {peer} peer
  * @todo rename this function to activePeer or similar
  *
- * @returns {Function} Calls peers.upsert
+ * @return {Function} Calls peers.upsert
  */
 Peers.prototype.update = function (peer) {
   peer.state = Peer.STATE.CONNECTED;
@@ -333,7 +333,7 @@ Peers.prototype.switchToHttp = function (peer) {
  * Returns whether the peer is in config peers list
  * @param {string} ip
  * @param {number} port
- * @returns {boolean}
+ * @return {boolean}
  */
 Peers.prototype.isFrozen = function (ip, port) {
   const peers = library.config.peers.list;
@@ -380,7 +380,7 @@ Peers.prototype.recordRequest = function (ip, port, error) {
  * @param {peer} peer - List of arguments.
  * @param {Function} cb - Callback function.
  * @implements transport.getFromPeer
- * @returns {setImmediateCallback} cb | error when ping peer fails
+ * @return {setImmediateCallback} cb | error when ping peer fails
  */
 Peers.prototype.ping = function (peer, cb) {
   library.logger.trace('peers', 'Pinging peer: ' + peer.string);
@@ -669,7 +669,7 @@ Peers.prototype.cleanup = function (cb) {
 
 /**
  * Checks if `modules` is loaded.
- * @returns {boolean} True if `modules` is loaded.
+ * @return {boolean} True if `modules` is loaded.
  */
 Peers.prototype.isLoaded = function () {
   return !!modules;

@@ -16,7 +16,7 @@ __private.DOUBLE_QUOTES_DOUBLED = '""';
 
 /**
  * Initializes library with scope content.
- * @class
+ * @constructor
  * @classdesc Main Sql methods.
  * @param {setImmediateCallback} cb - Callback function.
  * @param {scope} scope - App instance.
@@ -77,7 +77,7 @@ __private.escape2 = function (str) {
 
 /**
  * @private
- * @param {Object} obj
+ * @param {object} obj
  * @param {string} dappid
  */
 __private.pass = function (obj, dappid) {
@@ -117,7 +117,7 @@ __private.pass = function (obj, dappid) {
  * @implements {library.db.query}
  * @implements {async.until}
  * @param {string} action
- * @param {Object} config
+ * @param {object} config
  * @param {function} cb
  * @return {setImmediateCallback} cb, err, data
  */
@@ -196,7 +196,7 @@ __private.query = function (action, config, cb) {
  * @implements {async.eachSeries}
  * @implements {library.db.none}
  * @param {string} dappid
- * @param {Object} config
+ * @param {object} config
  * @param {function} cb
  * @return {setImmediateCallback} err message | cb
  */
@@ -257,7 +257,7 @@ Sql.prototype.createTables = function (dappid, config, cb) {
  * @implements {async.eachSeries}
  * @implements {library.db.none}
  * @param {string} dappid
- * @param {Object} config
+ * @param {object} config
  * @param {function} cb
  * @return {setImmediateCallback} err message | cb
  */
@@ -317,7 +317,7 @@ Sql.prototype.onBlockchainReady = function () {
 // Shared API
 /**
  * @implements {__private.query.call}
- * @param {Object} req
+ * @param {object} req
  * @param {function} cb
  */
 shared.select = function (req, cb) {
@@ -327,7 +327,7 @@ shared.select = function (req, cb) {
 
 /**
  * @implements {__private.query.call}
- * @param {Object} req
+ * @param {object} req
  * @param {function} cb
  */
 shared.batch = function (req, cb) {
@@ -337,7 +337,7 @@ shared.batch = function (req, cb) {
 
 /**
  * @implements {__private.query.call}
- * @param {Object} req
+ * @param {object} req
  * @param {function} cb
  */
 shared.insert = function (req, cb) {
@@ -347,7 +347,7 @@ shared.insert = function (req, cb) {
 
 /**
  * @implements {__private.query.call}
- * @param {Object} req
+ * @param {object} req
  * @param {function} cb
  */
 shared.update = function (req, cb) {
@@ -357,7 +357,7 @@ shared.update = function (req, cb) {
 
 /**
  * @implements {__private.query.call}
- * @param {Object} req
+ * @param {object} req
  * @param {function} cb
  */
 shared.remove = function (req, cb) {

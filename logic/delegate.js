@@ -8,7 +8,7 @@ var modules, library;
 /**
  * Initializes library.
  * @memberof module:delegates
- * @class
+ * @constructor
  * @classdesc Main delegate logic.
  * @param {ZSchema} schema
  */
@@ -31,9 +31,9 @@ Delegate.prototype.bind = function (accounts) {
 
 /**
  * Creates a delegate.
- * @param {Object} data - Entry information: username, publicKey.
+ * @param {object} data - Entry information: username, publicKey.
  * @param {transaction} trs - Transaction to assign the delegate.
- * @return {Object} trs with new data
+ * @return {object} trs with new data
  */
 Delegate.prototype.create = function (data, trs) {
   trs.recipientId = null;
@@ -70,6 +70,8 @@ Delegate.prototype.publish = function (data) {
 
 /**
  * Obtains constant fee delegate.
+ * @param {transaction} trs
+ * @param {account} sender
  * @see {@link module:helpers/constants}
  * @return {number} constants.fees.delegate
  * @todo delete unnecessary function parameters trs, sender.
@@ -84,7 +86,7 @@ Delegate.prototype.calculateFee = function (trs, sender) {
  * @param {transaction} trs
  * @param {account} sender
  * @param {function} cb - Callback function.
- * @returns {setImmediateCallback|Object} returns error if invalid parameter |
+ * @return {setImmediateCallback | object} returns error if invalid parameter |
  * trs validated.
  */
 Delegate.prototype.verify = function (trs, sender, cb) {
@@ -186,6 +188,7 @@ Delegate.prototype.getBytes = function (trs) {
  * Checks trs delegate and calls modules.accounts.setAccountAndGet() with username.
  * @implements module:accounts#Accounts~setAccountAndGet
  * @param {transaction} trs
+ * @param {block} block - Unused compatibility parameter.
  * @param {account} sender
  * @param {function} cb - Callback function.
  * @todo delete extra parameter block.
@@ -210,6 +213,7 @@ Delegate.prototype.apply = function (trs, block, sender, cb) {
  * Checks trs delegate and no nameexist and calls modules.accounts.setAccountAndGet() with u_username.
  * @implements module:accounts#Accounts~setAccountAndGet
  * @param {transaction} trs
+ * @param {block} block - Unused compatibility parameter.
  * @param {account} sender
  * @param {function} cb - Callback function.
  * @todo delete extra parameter block.
@@ -307,8 +311,8 @@ Delegate.prototype.objectNormalize = function (trs) {
 
 /**
  * Creates delegate Object based on raw data.
- * @param {Object} raw - Contains d_username, t_senderPK, t_senderId.
- * @return {null|Object} Null if no d_username, otherwise created delegate object.
+ * @param {object} raw - Contains d_username, t_senderPK, t_senderId.
+ * @return {null | object} Null if no d_username, otherwise created delegate object.
  */
 Delegate.prototype.dbRead = function (raw) {
   if (!raw.d_username) {
@@ -334,7 +338,7 @@ Delegate.prototype.dbFields = [
 /**
  * Creates Object based on trs data.
  * @param {transaction} trs - Contains delegate username.
- * @return {Object} {table:delegates, username and transaction id}.
+ * @return {object} {table:delegates, username and transaction id}.
  */
 Delegate.prototype.dbSave = function (trs) {
   return {
@@ -351,7 +355,7 @@ Delegate.prototype.dbSave = function (trs) {
  * Evaluates transaction signatures and sender multisignatures.
  * @param {transaction} trs - signatures.
  * @param {account} sender
- * @return {Boolean} logic based on trs signatures and sender multisignatures.
+ * @return {boolean} logic based on trs signatures and sender multisignatures.
  */
 Delegate.prototype.ready = function (trs, sender) {
   if (Array.isArray(sender.multisignatures) && sender.multisignatures.length) {

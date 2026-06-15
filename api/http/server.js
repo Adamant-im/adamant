@@ -11,7 +11,7 @@ var httpApi = require('../../helpers/httpApi');
  * @requires helpers/Router
  * @requires helpers/httpApi
  * @constructor
- * @param {Object} serverModule - Module server instance.
+ * @param {object} serverModule - Module server instance.
  * @param {scope} app - Main app.
  */
 // Constructor

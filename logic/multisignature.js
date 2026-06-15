@@ -19,7 +19,7 @@ __private.unconfirmedSignatures = {};
  * @param {object} logger
  *
  * @memberof module:multisignatures
- * @class
+ * @constructor
  * @classdesc Main multisignature logic.
  */
 // Constructor
@@ -83,7 +83,7 @@ Multisignature.prototype.calculateFee = function (trs, sender) {
  * @param {account} sender
  * @param {Function} cb - Callback function.
  * @implements module:transactions#Transaction~verifySignature
- * @returns {setImmediateCallback|transaction} returns error string if invalid parameter |
+ * @return {setImmediateCallback|transaction} returns error string if invalid parameter |
  * trs validated.
  */
 Multisignature.prototype.verify = function (trs, sender, cb) {
@@ -202,7 +202,7 @@ Multisignature.prototype.verify = function (trs, sender, cb) {
  * @param {Function} cb - Callback function.
  * @todo check extra parameter sender.
  *
- * @returns {setImmediateCallback} Null error
+ * @return {setImmediateCallback} Null error
  */
 Multisignature.prototype.process = function (trs, sender, cb) {
   return setImmediate(cb, null, trs);
@@ -379,7 +379,7 @@ Multisignature.prototype.schema = {
  * Validates multisignature schema.
  * @param {transaction} trs - Uses multisignature from asset.
  * @throws {string} Error message.
- * @returns {transaction} Transaction validated.
+ * @return {transaction} Transaction validated.
  */
 Multisignature.prototype.objectNormalize = function (trs) {
   var report = library.schema.validate(trs.asset.multisignature, Multisignature.prototype.schema);
@@ -398,7 +398,7 @@ Multisignature.prototype.objectNormalize = function (trs) {
  * @param {object} raw - Data from database.
  * @todo check if this function is called.
  *
- * @returns {multisignature} multisignature Object.
+ * @return {multisignature} multisignature Object.
  */
 Multisignature.prototype.dbRead = function (raw) {
   if (!raw.m_keysgroup) {
@@ -433,7 +433,7 @@ Multisignature.prototype.dbFields = [
  * @param {transaction} trs - Contains multisignature object.
  * @todo check if this function is called.
  *
- * @returns {object} {table:multisignatures, values: multisignature and transaction id}.
+ * @return {object} {table:multisignatures, values: multisignature and transaction id}.
  */
 Multisignature.prototype.dbSave = function (trs) {
   return {
