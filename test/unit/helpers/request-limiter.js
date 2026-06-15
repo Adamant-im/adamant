@@ -93,6 +93,7 @@ describe('RequestLimiter', () => {
 
     beforeEach(() => {
       limits = {
+        max: 5,
         delayMs: 2,
         delayAfter: 3,
         windowMs: 4
@@ -107,6 +108,7 @@ describe('RequestLimiter', () => {
           .that.has.property('client')
           .that.is.an('object');
       expect(limiter.client).to.have.property('delayMs').that.is.a('function');
+      expect(limiter.client).to.have.property('max').to.equal(5);
       expect(limiter.client).to.have.property('delayAfter').to.equal(3);
       expect(limiter.client).to.have.property('windowMs').to.equal(4);
       expect(limiter.client.delayMs(4)).to.equal(2);
@@ -118,6 +120,7 @@ describe('RequestLimiter', () => {
           .that.has.property('peer')
           .that.is.an('object');
       expect(limiter.peer).to.have.property('delayMs').that.is.a('function');
+      expect(limiter.peer).to.have.property('max').to.equal(5);
       expect(limiter.peer).to.have.property('delayAfter').to.equal(3);
       expect(limiter.peer).to.have.property('windowMs').to.equal(4);
       expect(limiter.peer.delayMs(4)).to.equal(2);

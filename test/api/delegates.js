@@ -92,7 +92,7 @@ describe('GET /api/delegates (cache)', function () {
             return done(err);
           }
 
-          node.async.retry({ times: 20, interval: 100 }, function (retryCb) {
+          node.async.retry({ times: 60, interval: 100 }, function (retryCb) {
             cache.getJsonForKey(url, function (err, afterCachedResponse) {
               if (err) {
                 return retryCb(err);

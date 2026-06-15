@@ -48,6 +48,21 @@ function applyLimits (config) {
 }
 
 /**
+ * Returns options supported by express-slow-down.
+ * @private
+ * @param {object} limits - Normalized request limits.
+ * @return {object} Slow-down middleware options.
+ */
+function getSlowDownOptions (limits) {
+  return {
+    delayMs: limits.delayMs,
+    delayAfter: limits.delayAfter,
+    windowMs: limits.windowMs,
+    skip: limits.skip
+  };
+}
+
+/**
  * Applies limits config to app.
  * @memberof module:helpers
  * @method request-limiter
@@ -73,8 +88,8 @@ module.exports = function (app, config) {
   };
 
   limits.middleware = {
-    client: app.use('/api/', rateLimit(limits.client), slowDown(limits.client)),
-    peer: app.use('/peer/', rateLimit(limits.peer), slowDown(limits.peer))
+    client: app.use('/api/', rateLimit(limits.client), slowDown(getSlowDownOptions(limits.client))),
+    peer: app.use('/peer/', rateLimit(limits.peer), slowDown(getSlowDownOptions(limits.peer)))
   };
 
   return limits;

@@ -5,7 +5,7 @@
  * @memberof module:helpers
  * @method
  * @param {Array} orderBy
- * @param {string} options
+ * @param {object} options
  * @return {object} error | {sortField, sortMethod}.
  */
 function OrderBy (orderBy, options) {

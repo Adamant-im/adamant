@@ -200,6 +200,7 @@ z_schema.registerFormat('delegatesList', function (obj) {
 });
 
 z_schema.registerFormat('parsedInt', function (value) {
+  // Loose equality intentionally accepts integer-like strings such as "1.0".
   if (isNaN(value) || parseInt(value) != value || isNaN(parseInt(value, 10))) {
     return false;
   }

@@ -270,7 +270,7 @@ Cache.prototype.onSyncStarted = function () {
 };
 
 /**
- * Clears stale entries and enables cache mutations after synchronization.
+ * Clears stale API entries and enables cache mutations after synchronization.
  * @param {Function} [cb] - Optional completion callback.
  * @return {void}
  */
@@ -284,9 +284,9 @@ Cache.prototype.onSyncFinished = function (cb) {
 
   const cache = this;
 
-  cache.flushDb(function (err) {
+  cache.removeByPattern('/api/*', function (err) {
     if (err) {
-      cache.logger.error('cache', 'Failed to clear cache after blockchain synchronization');
+      cache.logger.error('cache', 'Failed to clear cache after blockchain synchronization', err);
       return cb(err);
     }
 

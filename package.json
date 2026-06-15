@@ -22,9 +22,9 @@
     "test:api": "npx mocha test/api/* --trace-uncaught",
     "test:fast": "npx mocha --exclude test/unit/sql/blockRewards.js --exclude test/api/delegates.js --exclude test/api/peer.transactions.stress.js --exclude test/api/peer.transactions.votes.js test/unit/**/* test/api/**/*",
     "eslint": "npx grunt eslint-nofix --verbose",
-    "eslint:file": "npx eslint -f visualstudio",
-    "eslint:fix": "npx eslint -f visualstudio --fix",
-    "eslint:fixrule": "npx eslint -f visualstudio --no-eslintrc --fix --env browser,node,es2021,commonjs --parser-options=ecmaVersion:12 --rule"
+    "eslint:file": "npx eslint -f codeframe",
+    "eslint:fix": "npx eslint -f codeframe --fix",
+    "eslint:fixrule": "npx eslint -f codeframe --no-config-lookup --fix --rule"
   },
   "keywords": [
     "adm",

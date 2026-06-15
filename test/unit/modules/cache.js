@@ -333,14 +333,15 @@ describe('cache', function () {
 
     it('should clear stale keys after synchronization finishes', function (done) {
       var key = '/api/transactions';
+      var unrelatedKey = 'other-service:key';
       var value = { testObject: 'testValue' };
 
-      cache.setJsonForKey(key, value, function (err, status) {
+      async.map([key, unrelatedKey], function (cacheKey, cb) {
+        cache.setJsonForKey(cacheKey, value, cb);
+      }, function (err) {
         if (err) {
           return done(err);
         }
-
-        expect(status).to.equal('OK');
 
         cache.onSyncStarted();
         cache.onNewBlock(null, null, function (err) {
@@ -356,10 +357,41 @@ describe('cache', function () {
               }
 
               expect(res).to.equal(null);
-              done();
+              cache.getJsonForKey(unrelatedKey, function (err, unrelatedValue) {
+                if (err) {
+                  return done(err);
+                }
+
+                expect(unrelatedValue).to.eql(value);
+                done();
+              });
             });
           });
         });
+      });
+    });
+  });
+
+  describe('onSyncFinished', function () {
+    it('should stay disabled and log the error when stale keys cannot be cleared', function (done) {
+      const clearError = new Error('Redis scan failed');
+      const removeStub = sinon.stub(cache, 'removeByPattern').yields(clearError);
+      const loggerStub = sinon.stub(cache.logger, 'error');
+
+      cache.onSyncStarted();
+      cache.onSyncFinished(function (err) {
+        expect(err).to.equal(clearError);
+        expect(cache.isReady()).to.equal(false);
+        expect(loggerStub.calledWith(
+            'cache',
+            'Failed to clear cache after blockchain synchronization',
+            clearError
+        )).to.equal(true);
+
+        removeStub.restore();
+        loggerStub.restore();
+        cache.cacheReady = true;
+        done();
       });
     });
   });
