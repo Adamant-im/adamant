@@ -1,18 +1,28 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-trap 'echo -e "\n[ERROR] Line $LINENO failed. Aborting.\n\n" >&2' ERR
 
-# Defaults for mainnet
+on_error() {
+  local exit_status=$?
+  printf "\n[ERROR] Line %s failed. Repair stopped.\n\n" "${BASH_LINENO[0]}" >&2
+  exit "$exit_status"
+}
+trap on_error ERR
+
+readonly TOOL_VERSION="1.4.0"
+
 network="mainnet"
 username="adamant"
 databasename="adamant_main"
 configfile="config.json"
 processname="adamant"
-port="36666" # Default mainnet REST port; later re-read from config
+port="36666"
 image_url="https://explorer.adamant.im/db_backup.sql.gz"
 
-# Options
-while getopts ":n:" OPTION; do
+usage() {
+  printf "Usage: %s [-n mainnet|testnet]\n" "${0##*/}"
+}
+
+while getopts ":n:h" OPTION; do
   case "$OPTION" in
     n)
       case "$OPTARG" in
@@ -22,200 +32,231 @@ while getopts ":n:" OPTION; do
           databasename="adamant_test"
           configfile="test/config.json"
           processname="adamanttest"
-          port="36667" # Default testnet REST port; later re-read from config
+          port="36667"
           image_url="https://testnet.adamant.im/db_test_backup.sql.gz"
           ;;
-        mainnet) : ;; # keep defaults
+        mainnet) : ;;
         *)
-          printf "\nNetwork should be 'mainnet' or 'testnet'.\n\n"
-          trap - ERR; exit 2
+          printf "\nNetwork must be 'mainnet' or 'testnet'.\n\n" >&2
+          usage
+          trap - ERR
+          exit 2
           ;;
       esac
       ;;
+    h)
+      usage
+      exit 0
+      ;;
+    :)
+      printf "\nOption '-%s' requires an argument.\n\n" "$OPTARG" >&2
+      usage
+      trap - ERR
+      exit 2
+      ;;
     \?)
-      printf "\nWrong parameters. Use '-n' to choose 'mainnet' or 'testnet'.\n\n"
-      trap - ERR; exit 2
+      printf "\nUnknown option: '-%s'.\n\n" "$OPTARG" >&2
+      usage
+      trap - ERR
+      exit 2
       ;;
   esac
 done
 
-image_filename="$(basename "$image_url")"        # db_backup.sql.gz
-image_unzipped_filename="${image_filename%.gz}"  # db_backup.sql
-
-# Logging: Everything goes both to screen and logfile
-# This must work even if the script is executed via `bash -c` or from stdin (no BASH_SOURCE path)
-script_path=""
-if [[ -n "${BASH_SOURCE[0]:-}" && "${BASH_SOURCE[0]}" != "bash" && "${BASH_SOURCE[0]}" != "-bash" ]]; then
-  script_path="${BASH_SOURCE[0]}"
-elif [[ -n "${0:-}" && "${0}" != "bash" && "${0}" != "-bash" ]]; then
-  script_path="${0}"
+if [[ "$(id -u)" -ne 0 ]]; then
+  printf "\nRun this repair tool as root, for example: sudo bash %s\n\n" "${0##*/}" >&2
+  trap - ERR
+  exit 1
 fi
 
-if [[ -n "$script_path" && -e "$script_path" ]]; then
-  SCRIPT_DIR="$(cd "$(dirname "$script_path")" && pwd)"
-else
-  SCRIPT_DIR="/tmp"
+if [[ ! -r /etc/os-release ]]; then
+  printf "\nCannot identify the operating system: /etc/os-release is missing.\n\n" >&2
+  trap - ERR
+  exit 1
 fi
 
-LOGFILE="${SCRIPT_DIR}/adamant_${network}_fix.log"
-
-# If /var/log is writable, prefer it (more expected for root-run repair scripts)
-if [[ "$SCRIPT_DIR" == "/tmp" && -w /var/log ]]; then
-  LOGFILE="/var/log/adamant_${network}_fix.log"
+# shellcheck disable=SC1091
+. /etc/os-release
+if [[ "${ID:-}" != "ubuntu" ]]; then
+  printf "\nThis repair tool supports Ubuntu. Detected: %s.\n\n" \
+    "${PRETTY_NAME:-unknown OS}" >&2
+  trap - ERR
+  exit 1
 fi
+case "${VERSION_ID:-}" in
+  20.04|22.04|24.04|26.04) ;;
+  *)
+    printf "\nUnsupported Ubuntu release '%s'. Supported releases: 20.04, 22.04, 24.04, and 26.04.\n\n" \
+      "${VERSION_ID:-unknown}" >&2
+    trap - ERR
+    exit 1
+    ;;
+esac
+
+image_filename="$(basename "$image_url")"
+image_unzipped_filename="${image_filename%.gz}"
+LOGFILE="/var/log/adamant_${network}_fix.log"
 
 exec > >(tee -a "$LOGFILE") 2>&1
-if [ -s "$LOGFILE" ]; then
-  printf "\n\n\n===========================\n" >> "$LOGFILE"
+if [[ -s "$LOGFILE" ]]; then
+  printf "\n\n\n===========================\n"
 fi
-printf "%s ADAMANT %s Node Repair/Bootstrap started…\n" \
-  "$(date -u '+%Y-%m-%d %H:%M UTC+0')" "$network" >> "$LOGFILE"
+printf "%s ADAMANT %s node repair started\n" \
+  "$(date -u '+%Y-%m-%d %H:%M UTC')" "$network"
 
-SECONDS=0
+printf "\nADAMANT Node Repair and Bootstrap Tool v%s for Ubuntu 20.04-26.04 LTS.\n" \
+  "$TOOL_VERSION"
+printf "Make sure you obtained this script from adamant.im or the official GitHub repository.\n"
+printf "This tool downloads and validates a trusted blockchain image, resets the selected database, and restarts the node.\n"
+printf "Installation and recovery guide: https://docs.adamant.im/own-node/installation.html\n\n"
 
-printf "\nADAMANT mainnet/testnet Node Repair/bootstrap Tool v1.3.7 for Ubuntu 20–24.\n"
-printf "Make sure you obtained this file from the adamant.im website or GitHub.\n"
-printf "This tool resets the ADM mainnet/testnet blockchain DB, loads a fresh image, and restarts your node.\n"
-printf "Alternatively, follow the step-by-step manual guide: https://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
-printf "If you prefer full validation from height 0, syncing may take days.\n\n"
+printf "Operating system: %s\n" "$PRETTY_NAME"
+printf "Selected network: %s\n" "$network"
+printf "Node user:        %s\n" "$username"
+printf "Database:         %s\n" "$databasename"
+printf "PM2 process:      %s\n\n" "$processname"
 
-printf "Selected network: '%s'\n" "$network"
-printf "ADM Node user:    '%s'\n" "$username"
-printf "Database:         '%s'\n" "$databasename"
-printf "Process name:     '%s'\n\n" "$processname"
-
-read -r -p "WARNING! Intended for ADM nodes installed via the ADAMANT installer or with default setup. Type \"yes\" to proceed: " agreement
-if [[ $agreement != "yes" ]]; then
-  printf "\nExecution cancelled.\n\n"; exit 1
-fi
-
-# Pre-flight
-if [ "$(id -u)" -ne 0 ]; then
-  printf "\n\nRun the script as a user with sudo privileges as it modifies PostgreSQL and installs missing packages."
-  printf "\nExecution cancelled.\n\n"
-  trap - ERR; exit 1
+read -r -p "WARNING: This will permanently replace database '$databasename'. Type \"yes\" to continue: " agreement
+if [[ "$agreement" != "yes" ]]; then
+  printf "\nRepair cancelled.\n\n"
+  exit 1
 fi
 
 if ! id -u "$username" >/dev/null 2>&1; then
-  printf "\n\nSystem user '%s' not found. This tool expects the environment created by the ADAMANT installer or with default setup." "$username"
-  printf "\nExecution cancelled.\n\n"
-  trap - ERR; exit 1
+  printf "\nSystem user '%s' was not found. This tool expects a standard ADAMANT installation.\n\n" \
+    "$username" >&2
+  exit 1
 fi
 
-# Ensure tools are present (jq/wget/gzip/psql)
-printf "\n\nChecking required packages (jq, wget, gzip, psql)…\n"
-if ! command -v jq >/dev/null 2>&1 || ! command -v wget >/dev/null 2>&1 || ! command -v gunzip >/dev/null 2>&1 || ! command -v psql >/dev/null 2>&1; then
-  printf "Installing missing packages…\n"
-  apt update
-  DEBIAN_FRONTEND=noninteractive apt install -y jq wget gzip postgresql-client || true
-fi
-
-# Stop node process under the ADM node user
-printf "\n\nStopping ADAMANT '%s' node process '%s' via pm2…\n\n" "$network" "$processname"
-su - "$username" -c "source ~/.nvm/nvm.sh >/dev/null 2>&1 || true; pm2 stop '$processname' || true"
-su - "$username" -c "source ~/.nvm/nvm.sh >/dev/null 2>&1 || true; pm2 save || true"
-
-# PostgreSQL: Terminate sessions, drop & recreate DB
-printf "\n\nResetting '%s' database. Terminating active '%s' DB connections…\n\n" "$network" "$databasename"
-systemctl is-active --quiet postgresql || service postgresql start || true
-sudo -u postgres psql -v ON_ERROR_STOP=1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${databasename}' AND pid <> pg_backend_pid();" || true
-
-printf "\nDropping '%s' database…\n\n" "$databasename"
-sudo -u postgres psql -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS ${databasename} WITH (FORCE);" || \
-sudo -u postgres psql -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS ${databasename};"
-
-printf "\n\nRecreating '%s' database owned by '%s'…\n\n" "$databasename" "$username"
-sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE ${databasename} OWNER ${username};"
-sudo -u postgres psql -v ON_ERROR_STOP=1 -c "ALTER DATABASE ${databasename} OWNER TO ${username};"
-
-# Heavy lifting under node user
-NODE_HOME="$(eval echo "~$username")"
+NODE_HOME="$(getent passwd "$username" | cut -d: -f6)"
 REPO_DIR="${NODE_HOME}/adamant"
-
-su - "$username" -s /bin/bash <<EOSU
-set -Eeuo pipefail
-trap 'echo -e "\n[ERROR] (user:\$USER) failed at line \$LINENO: \$BASH_COMMAND\n" >&2' ERR
-
-# Inject values from parent (root) shell
-REPO_DIR="${REPO_DIR}"
-network="${network}"
-databasename="${databasename}"
-processname="${processname}"
-image_url="${image_url}"
-image_filename="${image_filename}"
-image_unzipped_filename="${image_unzipped_filename}"
-
-echo
-echo
-echo "Entering ADM node directory…"
-cd "\$REPO_DIR" || { printf "\nCannot enter '%s'. Aborting.\n\n" "\$REPO_DIR"; exit 1; }
-
-source ~/.nvm/nvm.sh >/dev/null 2>&1 || true
-
-echo
-echo "Downloading '\$network' blockchain image…"
-rm -f "\$image_unzipped_filename" "\$image_filename" || true
-
-wget --progress=bar:force:noscroll "\$image_url" -O "\$image_filename" 2>/dev/tty
-
-echo
-echo "Unzipping blockchain image (may take minutes)…"
-gunzip -f "\$image_filename"
-
-echo
-echo "Loading image into database '\$databasename'…"
-echo
-psql "\$databasename" < "\$image_unzipped_filename"
-
-echo
-echo
-echo "Cleaning up temp files…"
-rm -f "\$image_unzipped_filename"
-
-echo
-if pm2 show "\$processname" >/dev/null 2>&1; then
-  echo "Restarting existing pm2 process '\$processname'…"
-  echo
-  pm2 restart "\$processname"
-else
-  echo "Starting new pm2 process '\$processname'…"
-  echo
-  if [[ "\$network" == "mainnet" ]]; then
-    pm2 start --name "\$processname" app.js
-  else
-    pm2 start --name "\$processname" app.js -- --config "test/config.json" --genesis "test/genesisBlock.json"
-  fi
+CFG_PATH="${REPO_DIR}/${configfile}"
+if [[ -z "$NODE_HOME" || ! -d "$REPO_DIR/.git" ]]; then
+  printf "\nADAMANT repository '%s' was not found.\n\n" "$REPO_DIR" >&2
+  exit 1
 fi
-pm2 save || true
+if [[ ! -f "$CFG_PATH" ]]; then
+  printf "\nADAMANT configuration '%s' was not found.\n\n" "$CFG_PATH" >&2
+  exit 1
+fi
+if [[ ! -s "${NODE_HOME}/.nvm/nvm.sh" ]]; then
+  printf "\nnvm was not found for user '%s'.\n\n" "$username" >&2
+  exit 1
+fi
+
+# Install or update the required repair tools while preserving local package
+# configuration files. Do not hide failures: continuing without these tools
+# could leave an empty database.
+printf "\nUpdating required repair packages.\n"
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+APT_OPTIONS=(-y -o Dpkg::Options::=--force-confold)
+apt-get update
+apt-get "${APT_OPTIONS[@]}" install gzip jq postgresql-client wget
+
+if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files postgresql.service >/dev/null 2>&1; then
+  systemctl start postgresql
+else
+  service postgresql start
+fi
+
+role_exists="$(runuser -u postgres -- psql -XAtqc \
+  "SELECT 1 FROM pg_roles WHERE rolname = '${username}'" postgres)"
+if [[ "$role_exists" != "1" ]]; then
+  printf "\nPostgreSQL role '%s' was not found. Refusing to recreate the database without its owner.\n\n" \
+    "$username" >&2
+  exit 1
+fi
+
+# shellcheck disable=SC2016
+runuser -u "$username" -- env HOME="$NODE_HOME" PROCESS_NAME="$processname" bash -c '
+  set -Eeuo pipefail
+  source "$HOME/.nvm/nvm.sh"
+  command -v pm2 >/dev/null
+  pm2 describe "$PROCESS_NAME" >/dev/null
+'
+
+# Download to a partial file and validate gzip before touching the database.
+printf "\nDownloading and validating the %s blockchain image before database reset.\n" "$network"
+runuser -u "$username" -- env \
+  HOME="$NODE_HOME" \
+  REPO_DIR="$REPO_DIR" \
+  IMAGE_URL="$image_url" \
+  IMAGE_FILENAME="$image_filename" \
+  IMAGE_UNZIPPED_FILENAME="$image_unzipped_filename" \
+  bash <<'EOSU'
+set -Eeuo pipefail
+cd "$REPO_DIR"
+rm -f "${IMAGE_FILENAME}.part" "$IMAGE_FILENAME" "$IMAGE_UNZIPPED_FILENAME"
+wget --progress=dot:giga "$IMAGE_URL" -O "${IMAGE_FILENAME}.part"
+mv "${IMAGE_FILENAME}.part" "$IMAGE_FILENAME"
+gzip --test "$IMAGE_FILENAME"
 EOSU
 
-# Read port from config file for curl hint
-CFG_PATH="${REPO_DIR}/${configfile}"
-if [ -f "$CFG_PATH" ]; then
-  port_read="$(jq -r '.port // empty' "$CFG_PATH" 2>/dev/null || true)"
-  if [[ -n "${port_read:-}" ]]; then
-    port="$port_read"
-  fi
+# PM2 sends a catchable signal and allows the node to run its graceful shutdown
+# handlers before the database is replaced.
+printf "\nStopping ADAMANT %s process '%s' through pm2.\n" "$network" "$processname"
+# shellcheck disable=SC2016
+runuser -u "$username" -- env HOME="$NODE_HOME" PROCESS_NAME="$processname" bash -c '
+  set -Eeuo pipefail
+  source "$HOME/.nvm/nvm.sh"
+  pm2 stop "$PROCESS_NAME"
+  pm2 save
+'
+
+printf "\nTerminating active connections to database '%s'.\n" "$databasename"
+runuser -u postgres -- psql -Xv ON_ERROR_STOP=1 -c \
+  "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${databasename}' AND pid <> pg_backend_pid();" \
+  postgres
+
+printf "Dropping and recreating database '%s'.\n" "$databasename"
+runuser -u postgres -- psql -Xv ON_ERROR_STOP=1 -c \
+  "DROP DATABASE IF EXISTS ${databasename} WITH (FORCE);" postgres || \
+runuser -u postgres -- psql -Xv ON_ERROR_STOP=1 -c \
+  "DROP DATABASE IF EXISTS ${databasename};" postgres
+runuser -u postgres -- createdb -O "$username" "$databasename"
+
+printf "\nExtracting and loading the validated blockchain image.\n"
+runuser -u "$username" -- env \
+  HOME="$NODE_HOME" \
+  REPO_DIR="$REPO_DIR" \
+  DATABASE_NAME="$databasename" \
+  IMAGE_FILENAME="$image_filename" \
+  IMAGE_UNZIPPED_FILENAME="$image_unzipped_filename" \
+  bash <<'EOSU'
+set -Eeuo pipefail
+cd "$REPO_DIR"
+gunzip "$IMAGE_FILENAME"
+psql -Xv ON_ERROR_STOP=1 "$DATABASE_NAME" < "$IMAGE_UNZIPPED_FILENAME"
+rm -f "$IMAGE_UNZIPPED_FILENAME"
+EOSU
+
+printf "\nRestarting ADAMANT %s process '%s'.\n" "$network" "$processname"
+# shellcheck disable=SC2016
+runuser -u "$username" -- env HOME="$NODE_HOME" PROCESS_NAME="$processname" bash -c '
+  set -Eeuo pipefail
+  source "$HOME/.nvm/nvm.sh"
+  pm2 restart "$PROCESS_NAME" --update-env
+  pm2 save
+'
+
+port_read="$(jq -r '.port // empty' "$CFG_PATH" 2>/dev/null || true)"
+if [[ -n "$port_read" ]]; then
+  port="$port_read"
 fi
 
-# Done
 minutes=$(( (SECONDS + 59) / 60 ))
-printf "\n\nADAMANT '%s' node repair/bootstrap completed successfully.\n" "$network"
-printf "Total execution time: %d minutes.\n" "$minutes"
-printf "See repair logs in: %s\n\n" "$LOGFILE"
-
-printf "To check your node status:\n"
-printf "    su - %s    # Use pm2 while logged in as '%s'\n" "$username" "$username"
-printf "    pm2 list\n"
+printf "\nADAMANT %s node repair completed successfully.\n" "$network"
+printf "Total repair time: %d minutes.\n" "$minutes"
+printf "Repair log: %s\n\n" "$LOGFILE"
+printf "Check the node as user '%s':\n" "$username"
+printf "    su - %s\n" "$username"
 printf "    pm2 show %s\n" "$processname"
 printf "    pm2 logs %s\n\n" "$processname"
-printf "To query current blockchain height:\n    curl http://localhost:%s/api/blocks/getHeight\n\n" "$port"
+printf "Query the current blockchain height:\n"
+printf "    curl http://localhost:%s/api/blocks/getHeight\n\n" "$port"
 
-printf "Thank you for supporting the truly decentralized ADAMANT Messenger! 🚀\n\n"
-
-# Remind the user that a 'screen' session is currently running
-if [[ -n ${STY:-} ]]; then
-  printf "You are running inside a 'screen' session (%s). To finish cleanly,\n" "$STY"
-  printf "    Detach:    Press Ctrl-A D (screen keeps running in background)\n"
-  printf "    Exit:      Type 'exit' or press Ctrl-D (screen will terminate)\n\n\n"
+if [[ -n "${STY:-}" ]]; then
+  printf "This command is running inside screen session '%s'.\n" "$STY"
+  printf "Detach with Ctrl-A D, or exit the shell to close the session.\n"
 fi

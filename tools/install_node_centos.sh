@@ -1,4 +1,16 @@
 #!/usr/bin/env bash
+set -Eeuo pipefail
+
+on_error() {
+  local exit_status=$?
+  printf "\n[ERROR] Line %s failed. Installation stopped.\n\n" "${BASH_LINENO[0]}" >&2
+  exit "$exit_status"
+}
+trap on_error ERR
+
+readonly INSTALLER_VERSION="2.4.0"
+readonly NVM_VERSION="0.40.5"
+readonly POSTGRESQL_VERSION="18"
 
 branch="master"
 network="mainnet"
@@ -7,216 +19,440 @@ databasename="adamant_main"
 configfile="config.json"
 processname="adamant"
 port="36666"
-nodejs="jod"
+nodejs="24"
+image_url="https://explorer.adamant.im/db_backup.sql.gz"
 
-while getopts 'b:n:j:' OPTION; do
-  OPTARG=$(echo "$OPTARG" | xargs)
+usage() {
+  printf "Usage: %s [-b branch] [-n mainnet|testnet] [-j 22|24|26]\n" "${0##*/}"
+}
+
+while getopts ":b:n:j:h" OPTION; do
   case "$OPTION" in
     b)
       branch="$OPTARG"
       ;;
     n)
-      if [ "$OPTARG" == "testnet" ]
-      then
-        network="$OPTARG"
-        username="adamanttest"
-        databasename="adamant_test"
-        configfile="test/config.json"
-        processname="adamanttest"
-        port="36667"
-      elif [ "$OPTARG" != "mainnet" ]
-      then
-        printf "\nNetwork should be 'mainnet' or 'testnet'.\n\n"
-        exit 1
-      fi
+      case "$OPTARG" in
+        testnet)
+          network="testnet"
+          username="adamanttest"
+          databasename="adamant_test"
+          configfile="test/config.json"
+          processname="adamanttest"
+          port="36667"
+          image_url="https://testnet.adamant.im/db_test_backup.sql.gz"
+          ;;
+        mainnet) : ;;
+        *)
+          printf "\nNetwork must be 'mainnet' or 'testnet'.\n\n" >&2
+          usage
+          trap - ERR
+          exit 2
+          ;;
+      esac
       ;;
     j)
-      if [ "$OPTARG" == "20" ] || [ "$OPTARG" == "iron" ]
-      then
-        nodejs="iron"
-      elif [ "$OPTARG" != "22" ] && [ "$OPTARG" != "jod" ]
-      then
-        printf "\nNodejs should be 'iron' = '20', or 'jod' = '22'.\n\n"
-        exit 1
-      fi
+      case "$OPTARG" in
+        22|jod) nodejs="22" ;;
+        24|krypton) nodejs="24" ;;
+        26) nodejs="26" ;;
+        *)
+          printf "\nNode.js must be version 22, 24, or 26. Version 24 is the default.\n\n" >&2
+          trap - ERR
+          exit 2
+          ;;
+      esac
       ;;
-    *)
-      printf "\nWrong parameters. Use '-b' for branch, '-t' for network.\n\n"
-      exit 1
-    ;;
+    h)
+      usage
+      exit 0
+      ;;
+    :)
+      printf "\nOption '-%s' requires an argument.\n\n" "$OPTARG" >&2
+      usage
+      trap - ERR
+      exit 2
+      ;;
+    \?)
+      printf "\nUnknown option: '-%s'.\n\n" "$OPTARG" >&2
+      usage
+      trap - ERR
+      exit 2
+      ;;
   esac
 done
 
-printf "\n"
-printf "Welcome to the ADAMANT Node Installer v2.2.0 for CentOS 8.\n"
-printf "Please ensure you obtained this file from the adamant.im website or GitHub.\n"
-printf "This installer is the easiest way to run an ADAMANT node. However, we still recommend consulting an IT specialist if you are not familiar with Linux systems.\n"
-printf "You can find full installation instructions (for Ubuntu) at:\nhttps://news.adamant.im/how-to-run-your-adamant-node-on-ubuntu-990e391e8fcc\n"
-printf "During installation, you will be asked to set database and user passwords.\n"
-printf "The system may also prompt you to choose parameters such as encoding, keyboard layout, and GRUB settings. You can generally leave the defaults.\n\n"
+if [[ "$(id -u)" -ne 0 ]]; then
+  printf "\nRun this installer as root, for example: sudo bash %s\n\n" "${0##*/}" >&2
+  trap - ERR
+  exit 1
+fi
 
-printf "Note: You have selected the '%s' network.\n" "$network"
-printf "Note: You have selected the '%s' branch.\n" "$branch"
-printf "Note: You have selected Node.js version '%s'.\n" "$nodejs"
-printf "\n"
+if [[ ! -r /etc/os-release ]]; then
+  printf "\nCannot identify the operating system: /etc/os-release is missing.\n\n" >&2
+  trap - ERR
+  exit 1
+fi
 
-read -r -p "WARNING! This script is intended for new droplets. Existing data MAY BE DAMAGED. If you agree to continue, type \"yes\": " agreement
-if [[ $agreement != "yes" ]]
-then
+# shellcheck disable=SC1091
+. /etc/os-release
+el_major="$(rpm -E '%{rhel}' 2>/dev/null || true)"
+if [[ ! "$el_major" =~ ^(8|9|10)$ ]]; then
+  el_major="${VERSION_ID%%.*}"
+fi
+if [[ ! "$el_major" =~ ^(8|9|10)$ ]]; then
+  printf "\nUnsupported operating system '%s'. This installer supports RHEL-compatible releases 8-10.\n\n" \
+    "${PRETTY_NAME:-unknown OS}" >&2
+  trap - ERR
+  exit 1
+fi
+
+case "${ID:-} ${ID_LIKE:-}" in
+  *rhel*|*centos*|*rocky*|*almalinux*|*ol*) ;;
+  *)
+    printf "\nUnsupported operating system family: %s.\n\n" "${PRETTY_NAME:-unknown OS}" >&2
+    trap - ERR
+    exit 1
+    ;;
+esac
+
+case "$(uname -m)" in
+  x86_64) pgdg_arch="x86_64" ;;
+  aarch64|arm64) pgdg_arch="aarch64" ;;
+  *)
+    printf "\nUnsupported architecture '%s'. Supported architectures: x86_64 and aarch64.\n\n" \
+      "$(uname -m)" >&2
+    trap - ERR
+    exit 1
+    ;;
+esac
+
+image_filename="$(basename "$image_url")"
+image_unzipped_filename="${image_filename%.gz}"
+LOGFILE="/var/log/adamant_${network}_install.log"
+
+exec > >(tee -a "$LOGFILE") 2>&1
+if [[ -s "$LOGFILE" ]]; then
+  printf "\n\n\n===========================\n"
+fi
+printf "%s ADAMANT %s node installation started\n" \
+  "$(date -u '+%Y-%m-%d %H:%M UTC')" "$network"
+
+printf "\nWelcome to the ADAMANT Node Installer v%s for RHEL-compatible releases 8-10.\n" \
+  "$INSTALLER_VERSION"
+printf "Supported distributions include CentOS Stream, Rocky Linux, AlmaLinux, and RHEL.\n"
+printf "The installer updates system packages and preserves existing ADAMANT configuration and local Git changes.\n"
+printf "Review backups and custom service configuration before continuing on an existing server.\n\n"
+printf "Installation guide: https://docs.adamant.im/own-node/installation.html\n\n"
+
+printf "Operating system:  %s\n" "$PRETTY_NAME"
+printf "Selected network:  %s\n" "$network"
+printf "Selected branch:   %s\n" "$branch"
+printf "Selected Node.js:  %s (24 is recommended for production)\n\n" "$nodejs"
+
+read -r -p "The script will update packages and configure ADAMANT services. Type \"yes\" to continue: " agreement
+if [[ "$agreement" != "yes" ]]; then
   printf "\nInstallation cancelled.\n\n"
   exit 1
 fi
 
 IMAGE=false
-if [[ $network == "mainnet" ]]
-then
-  printf "\nUsing a blockchain image can significantly reduce sync time, but you must fully trust its source.\n"
-  printf "If you skip this step, your node will verify every single transaction, which can take several days.\n"
-  read -r -p "Do you want to use the ADAMANT blockchain image to bootstrap the node? [Y/n]: " useimage
-  case $useimage in
-    [yY][eE][sS]|[yY]|[jJ]|'')
-      IMAGE=true
-      printf "\nThe blockchain image will be downloaded, and your node will reach the current height in a few minutes.\n\n"
-    ;;
-    *)
-      printf "\nYour node will sync from scratch. This process may take several days to reach the current blockchain height.\n\n"
-    ;;
-  esac
-fi
+printf "\nA blockchain image can reduce synchronization time, but its source must be trusted.\n"
+printf "Without an image, the node verifies the blockchain from height 1, which may take several days.\n"
+read -r -p "Use the official ADAMANT blockchain image to bootstrap? [Y/n]: " useimage
+case "${useimage:-Y}" in
+  [yY][eE][sS]|[yY]|[jJ]|'') IMAGE=true ;;
+  *) printf "The node will synchronize from scratch.\n" ;;
+esac
 
-hostname=$(cat "/etc/hostname")
-if grep -q "$hostname" "/etc/hosts"
-then
-  printf "Hostname /etc/hosts seems to be good.\n\n"
+hostname_value="$(hostname)"
+if ! awk -v hostname="$hostname_value" '
+  $1 !~ /^#/ {
+    for (field = 2; field <= NF; field++) {
+      if ($field == hostname) {
+        found = 1
+      }
+    }
+  }
+  END { exit !found }
+' /etc/hosts; then
+  printf "\nAdding hostname '%s' to /etc/hosts.\n" "$hostname_value"
+  printf '\n127.0.1.1\t%s\n' "$hostname_value" >> /etc/hosts
 else
-  printf "File /etc/hosts has no hostname record. I'll fix it.\n\n"
-  sh -c -e "echo '\n127.0.1.1  $hostname' >> /etc/hosts";
+  printf "\nThe /etc/hosts hostname entry is already present.\n"
 fi
 
-get_database_password () {
-  read -r -sp "Set the database password: $(echo $'\n> ')" postgrespwd
-  read -r -sp "$(echo $'\n')Confirm password: $(echo $'\n> ')" postgrespwdconfirmation
-  if [[ $postgrespwd = "$postgrespwdconfirmation" ]]
-  then
-    echo "$postgrespwd"
-  else
-    printf "\nPassword mismatch. Try again.\n\n"
-    get_database_password
-  fi
+get_database_password() {
+  local password confirmation
+
+  while true; do
+    printf '\nSet the PostgreSQL password for role %s:\n> ' "$username" >&2
+    read -r -s password
+    printf '\nConfirm the password:\n> ' >&2
+    read -r -s confirmation
+    printf '\n' >&2
+
+    if [[ -z "$password" ]]; then
+      printf 'The database password cannot be empty. Try again.\n' >&2
+    elif [[ "$password" != "$confirmation" ]]; then
+      printf 'The passwords do not match. Try again.\n' >&2
+    else
+      printf '%s' "$password"
+      return
+    fi
+  done
 }
 
 DB_PASSWORD="$(get_database_password)"
+DB_PASSWORD_SQL=${DB_PASSWORD//\'/\'\'}
+DB_PASSWORD_BASE64="$(printf '%s' "$DB_PASSWORD" | base64 | tr -d '\n')"
+unset DB_PASSWORD
 
-#User
-printf "\n\nChecking if user '%s' exists…\n\n" "$username"
-if [[ $(id -u "$username" > /dev/null 2>&1; echo $?) = 1 ]]
-then
-  printf "Creating system user named '%s'…\n" "$username"
-  sudo adduser "$username"
-  sudo passwd "$username"
-  printf "User '%s' has been created.\n\n" "$username"
+printf "\nInstalling package-management and build prerequisites.\n"
+dnf -y install \
+  ca-certificates curl git gzip jq tar wget \
+  gcc gcc-c++ make automake autoconf libtool pkgconf-pkg-config python3
+
+# Use the official PGDG repository on fresh installations. Installing the
+# repository is harmless on reruns and keeps installed PostgreSQL packages
+# eligible for security updates.
+pgdg_rpm="https://download.postgresql.org/pub/repos/yum/reporpms/EL-${el_major}-${pgdg_arch}/pgdg-redhat-repo-latest.noarch.rpm"
+dnf -y install "$pgdg_rpm"
+
+printf "\nUpdating installed system packages.\n"
+dnf -y upgrade --refresh
+
+printf "\nInstalling Redis and PostgreSQL client development files.\n"
+dnf -y install redis libpq-devel
+
+if ! git check-ref-format --branch "$branch" >/dev/null 2>&1; then
+  printf "Invalid Git branch name: '%s'.\n" "$branch" >&2
+  exit 2
 fi
 
-#Packages
-printf "Updating system packages…\n\n"
+postgresql_service=""
+if rpm -qa | grep -Eq '^postgresql([0-9]+)?-server-'; then
+  printf "Existing PostgreSQL server installation detected; preserving its major version.\n"
+  while IFS= read -r service_name; do
+    if systemctl is-active --quiet "$service_name"; then
+      postgresql_service="$service_name"
+      break
+    fi
+    if [[ -z "$postgresql_service" ]]; then
+      postgresql_service="$service_name"
+    fi
+  done < <(systemctl list-unit-files --type=service --no-legend \
+    | awk '$1 ~ /^postgresql(-[0-9]+)?\.service$/ { sub(/\.service$/, "", $1); print $1 }')
+else
+  printf "Installing PostgreSQL %s from the official PGDG repository.\n" "$POSTGRESQL_VERSION"
+  dnf -qy module disable postgresql || true
+  dnf -y install \
+    "postgresql${POSTGRESQL_VERSION}" \
+    "postgresql${POSTGRESQL_VERSION}-server" \
+    "postgresql${POSTGRESQL_VERSION}-contrib"
+  postgresql_service="postgresql-${POSTGRESQL_VERSION}"
+  if [[ ! -s "/var/lib/pgsql/${POSTGRESQL_VERSION}/data/PG_VERSION" ]]; then
+    "/usr/pgsql-${POSTGRESQL_VERSION}/bin/postgresql-${POSTGRESQL_VERSION}-setup" initdb
+  fi
+fi
 
-sudo dnf config-manager --set-enabled powertools
-sudo dnf -y install epel-release
-sudo dnf -y update
+if [[ -z "$postgresql_service" ]]; then
+  printf "Cannot determine the installed PostgreSQL systemd service.\n" >&2
+  exit 1
+fi
+systemctl enable --now "$postgresql_service"
+systemctl enable --now redis
 
-printf "\n\nInstalling postgresql and other prerequisites…\n\n"
+if id -u "$username" >/dev/null 2>&1; then
+  printf "\nSystem user '%s' already exists; preserving it.\n" "$username"
+else
+  printf "\nCreating system user '%s'.\n" "$username"
+  useradd --create-home --shell /bin/bash "$username"
+fi
 
-sudo dnf -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-sudo dnf -qy module disable postgresql
-sudo dnf -y install postgresql13 postgresql13-server postgresql13-contrib
-sudo /usr/pgsql-13/bin/postgresql-13-setup initdb
-sudo systemctl enable --now postgresql-13
-sudo dnf group install "Development Tools" -y
-sudo dnf -y install wget python2 curl mc git nano automake autoconf libtool jq rpl wget libpq5-devel redis
-sudo systemctl enable --now redis
+NODE_HOME="$(getent passwd "$username" | cut -d: -f6)"
+if [[ -z "$NODE_HOME" || ! -d "$NODE_HOME" ]]; then
+  printf "Cannot determine a valid home directory for user '%s'.\n" "$username" >&2
+  exit 1
+fi
+REPO_DIR="${NODE_HOME}/adamant"
 
-#Postgres
-printf "\n\nCreating database '%s' and database user '%s'…\n\n" "$databasename" "$username"
-cd /tmp || echo "/tmp: No such directory"
-sudo -u postgres psql -c "CREATE ROLE ${username} LOGIN PASSWORD '${DB_PASSWORD}';"
-sudo -u postgres psql -c "CREATE DATABASE ${databasename};"
-sudo -u postgres psql -c "ALTER DATABASE ${databasename} OWNER TO ${username};"
+PSQL_BIN="$(command -v psql || true)"
+if [[ -z "$PSQL_BIN" && -x "/usr/pgsql-${POSTGRESQL_VERSION}/bin/psql" ]]; then
+  PSQL_BIN="/usr/pgsql-${POSTGRESQL_VERSION}/bin/psql"
+fi
+if [[ -z "$PSQL_BIN" ]]; then
+  PSQL_BIN="$(find /usr/pgsql-* -maxdepth 2 -type f -name psql 2>/dev/null | sort -V | tail -1)"
+fi
+if [[ -z "$PSQL_BIN" ]]; then
+  printf "Cannot locate the PostgreSQL client.\n" >&2
+  exit 1
+fi
+PG_BIN_DIR="$(dirname "$PSQL_BIN")"
 
-#Run next commands as user
-su - "$username" <<EOSU
+role_exists="$(runuser -u postgres -- "$PSQL_BIN" -XAtqc \
+  "SELECT 1 FROM pg_roles WHERE rolname = '${username}'" postgres)"
+if [[ "$role_exists" == "1" ]]; then
+  printf "\nUpdating the password for existing PostgreSQL role '%s'.\n" "$username"
+  runuser -u postgres -- "$PSQL_BIN" -Xv ON_ERROR_STOP=1 -c \
+    "ALTER ROLE ${username} WITH LOGIN PASSWORD '${DB_PASSWORD_SQL}';" postgres
+else
+  printf "\nCreating PostgreSQL role '%s'.\n" "$username"
+  runuser -u postgres -- "$PSQL_BIN" -Xv ON_ERROR_STOP=1 -c \
+    "CREATE ROLE ${username} WITH LOGIN PASSWORD '${DB_PASSWORD_SQL}';" postgres
+fi
 
-#NodeJS
-printf "\n\nInstalling nvm & node.js…\n\n"
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-source ~/.nvm/nvm.sh
-source ~/.profile
-source ~/.bashrc
-nvm i --lts=$nodejs
-npm i -g pm2
+database_exists="$(runuser -u postgres -- "$PSQL_BIN" -XAtqc \
+  "SELECT 1 FROM pg_database WHERE datname = '${databasename}'" postgres)"
+if [[ "$database_exists" == "1" ]]; then
+  printf "Database '%s' already exists; preserving its contents.\n" "$databasename"
+else
+  printf "Creating database '%s'.\n" "$databasename"
+  runuser -u postgres -- "$PG_BIN_DIR/createdb" -O "$username" "$databasename"
+fi
+runuser -u postgres -- "$PSQL_BIN" -Xv ON_ERROR_STOP=1 -c \
+  "ALTER DATABASE ${databasename} OWNER TO ${username};" postgres
 
-#Logrotate
-printf "\n\n"
-pm2 install pm2-logrotate
+database_has_tables="$(runuser -u postgres -- "$PSQL_BIN" -XAtqc \
+  "SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname NOT IN ('pg_catalog', 'information_schema'))" \
+  "$databasename")"
+if [[ "$database_has_tables" == "t" && "$IMAGE" == "true" ]]; then
+  printf "Database '%s' already contains tables; skipping the blockchain image to avoid overwriting data.\n" \
+    "$databasename"
+  IMAGE=false
+fi
+
+runuser -u "$username" -- env \
+  HOME="$NODE_HOME" \
+  PATH="${PG_BIN_DIR}:/usr/local/bin:/usr/bin:/bin" \
+  NETWORK="$network" \
+  BRANCH="$branch" \
+  NODEJS_VERSION="$nodejs" \
+  NVM_INSTALL_VERSION="$NVM_VERSION" \
+  REPO_DIR="$REPO_DIR" \
+  CONFIG_FILE="$configfile" \
+  PROCESS_NAME="$processname" \
+  DATABASE_NAME="$databasename" \
+  DB_PASSWORD_BASE64="$DB_PASSWORD_BASE64" \
+  USE_IMAGE="$IMAGE" \
+  IMAGE_URL="$image_url" \
+  IMAGE_FILENAME="$image_filename" \
+  IMAGE_UNZIPPED_FILENAME="$image_unzipped_filename" \
+  bash <<'EOSU'
+set -Eeuo pipefail
+trap 'status=$?; printf "\n[ERROR] User setup failed at line %s.\n\n" "$LINENO" >&2; exit "$status"' ERR
+
+printf "\nInstalling or updating nvm v%s and Node.js %s.\n" "$NVM_INSTALL_VERSION" "$NODEJS_VERSION"
+export NVM_DIR="$HOME/.nvm"
+curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/v${NVM_INSTALL_VERSION}/install.sh" | bash
+# shellcheck disable=SC1091
+source "$NVM_DIR/nvm.sh"
+nvm install "$NODEJS_VERSION" --latest-npm
+nvm alias default "$NODEJS_VERSION"
+nvm use "$NODEJS_VERSION"
+npm install --global pm2@latest
+pm2 update
+printf "Using Node.js %s, npm %s, and pm2 %s.\n" "$(node --version)" "$(npm --version)" "$(pm2 --version)"
+
+printf "\nConfiguring pm2 log rotation.\n"
+if pm2 describe pm2-logrotate >/dev/null 2>&1; then
+  pm2 module:update pm2-logrotate
+else
+  pm2 install pm2-logrotate
+fi
 pm2 set pm2-logrotate:max_size 500M
 pm2 set pm2-logrotate:retain 5
 pm2 set pm2-logrotate:compress true
 pm2 set pm2-logrotate:rotateInterval '0 0 0 1 *'
 
-#ADAMANT
-printf "\n\nInstalling ADAMANT '%s' node. Cloning project repository from GitHub ('%s' branch)…\n\n" "$network" "$branch"
-git clone https://github.com/Adamant-im/adamant --branch $branch
-cd adamant || { printf "\n\nUnable to enter node's directory 'adamant'. Something is wrong, halting.\n\n"; exit 1; }
-npm i
-
-#Setup node: set DB password in config.json
-printf "\n\nSetting node's config…\n\n"
-
-if [[ $configfile == "config.json" ]]
-then
-  cp config.default.json config.json
-elif [ "$configfile" == "test/config.json" ]
-then
-  cp test/config.default.json test/config.json
-fi
-
-rpl -i -q '"password": "password",' "\"password\": \"${DB_PASSWORD}\"," "$configfile"
-
-#By default, node's API is available only from localhost
-#rpl -i -q '"public": false,' '"public": true,' "$configfile"
-
-# Download actual blockchain image for 'mainnet' network
-if [[ $IMAGE = true ]]
-then
-  printf "\n\nDownloading actual blockchain image…\n\n"
-  wget https://explorer.adamant.im/db_backup.sql.gz
-  printf "\nUnzipping the blockchain image, it can take a few minutes…\n\n"
-  gunzip db_backup.sql.gz
-  printf "\nLoading the blockchain image…\n\n"
-  psql adamant_main < db_backup.sql
-  printf "\nDeleting temporary blockchain image file…\n"
-  rm db_backup.sql
-fi
-
-printf "\n\nAdding ADAMANT '%s' node to crontab for autostart after system reboot…\n\n" "$network"
-if [[ $network == "mainnet" ]]
-then
-  crontab -l | { cat; echo "@reboot cd /home/adamant/adamant && pm2 start --name adamant app.js"; } | crontab -
+if [[ ! -e "$REPO_DIR" ]]; then
+  printf "\nCloning ADAMANT branch '%s'.\n" "$BRANCH"
+  git clone --branch "$BRANCH" --single-branch https://github.com/Adamant-im/adamant "$REPO_DIR"
+elif [[ ! -d "$REPO_DIR/.git" ]]; then
+  printf "\nExisting path '%s' is not an ADAMANT Git checkout. Refusing to overwrite it.\n" "$REPO_DIR" >&2
+  exit 1
 else
-  crontab -l | { cat; echo "@reboot cd /home/adamanttest/adamant && pm2 start --name adamanttest app.js -- --config test/config.json --genesis test/genesisBlock.json"; } | crontab -
+  printf "\nExisting ADAMANT checkout found. Fetching branch '%s'.\n" "$BRANCH"
+  cd "$REPO_DIR"
+  git fetch --prune origin "$BRANCH"
+  if [[ -n "$(git status --porcelain)" ]]; then
+    printf "Local repository changes detected; preserving the current checkout without switching branches.\n"
+  else
+    if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
+      git checkout "$BRANCH"
+    else
+      git checkout --track -b "$BRANCH" "origin/$BRANCH"
+    fi
+    if ! git merge --ff-only "origin/$BRANCH"; then
+      printf "WARNING: The local branch cannot be fast-forwarded; preserving its current history.\n"
+    fi
+  fi
 fi
 
-printf "\n\nRunning ADAMANT '%s' node…\n\n" "$network"
-if [[ $network == "mainnet" ]]
-then
-  pm2 start --name adamant app.js
+cd "$REPO_DIR"
+printf "\nInstalling Node.js dependencies.\n"
+npm install
+
+printf "\nConfiguring the ADAMANT node.\n"
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  if [[ "$CONFIG_FILE" == "config.json" ]]; then
+    cp config.default.json "$CONFIG_FILE"
+  else
+    cp test/config.default.json "$CONFIG_FILE"
+  fi
 else
-  pm2 start --name adamanttest app.js -- --config test/config.json --genesis test/genesisBlock.json
+  printf "Configuration file '%s' already exists; preserving its settings.\n" "$CONFIG_FILE"
 fi
 
+DB_PASSWORD_DECODED="$(printf '%s' "$DB_PASSWORD_BASE64" | base64 --decode)"
+export DB_PASSWORD_DECODED
+config_tmp="$(mktemp "${CONFIG_FILE}.tmp.XXXXXX")"
+jq '.db.password = env.DB_PASSWORD_DECODED' "$CONFIG_FILE" > "$config_tmp"
+chmod --reference="$CONFIG_FILE" "$config_tmp" 2>/dev/null || true
+mv "$config_tmp" "$CONFIG_FILE"
+unset DB_PASSWORD_DECODED DB_PASSWORD_BASE64
+
+if [[ "$USE_IMAGE" == "true" ]]; then
+  printf "\nDownloading the %s blockchain image.\n" "$NETWORK"
+  rm -f "${IMAGE_FILENAME}.part" "$IMAGE_FILENAME" "$IMAGE_UNZIPPED_FILENAME"
+  wget --progress=dot:giga "$IMAGE_URL" -O "${IMAGE_FILENAME}.part"
+  mv "${IMAGE_FILENAME}.part" "$IMAGE_FILENAME"
+  gzip --test "$IMAGE_FILENAME"
+  printf "Extracting and loading the blockchain image.\n"
+  gunzip "$IMAGE_FILENAME"
+  psql -Xv ON_ERROR_STOP=1 "$DATABASE_NAME" < "$IMAGE_UNZIPPED_FILENAME"
+  rm -f "$IMAGE_UNZIPPED_FILENAME"
+fi
+
+printf "\nStarting the ADAMANT %s node.\n" "$NETWORK"
+if pm2 describe "$PROCESS_NAME" >/dev/null 2>&1; then
+  pm2 restart "$PROCESS_NAME" --update-env
+elif [[ "$NETWORK" == "mainnet" ]]; then
+  pm2 start --name "$PROCESS_NAME" app.js
+else
+  pm2 start --name "$PROCESS_NAME" app.js -- \
+    --config test/config.json --genesis test/genesisBlock.json
+fi
+pm2 save
 EOSU
 
-printf "\n\nADAMANT '%s' node installation script completed. Execution time: %s seconds.\n" "$network" "$SECONDS"
-printf "Check your node status with the command: 'pm2 show %s'\n" "$processname"
-printf "To check the current node height, run: 'curl http://localhost:%s/api/blocks/getHeight'\n" "$port"
-printf "Thank you for supporting the truly decentralized ADAMANT Messenger.\n\n"
-su - "$username"
+unset DB_PASSWORD_BASE64 DB_PASSWORD_SQL
+
+# shellcheck disable=SC2016
+NODE_BIN_DIR="$(runuser -u "$username" -- env HOME="$NODE_HOME" bash -c \
+  'source "$HOME/.nvm/nvm.sh" && dirname "$(command -v node)"')"
+printf "\nEnabling pm2 startup for user '%s'.\n" "$username"
+env PATH="${NODE_BIN_DIR}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+  "${NODE_BIN_DIR}/pm2" startup systemd -u "$username" --hp "$NODE_HOME"
+
+minutes=$(( (SECONDS + 59) / 60 ))
+printf "\nADAMANT %s node installation completed successfully.\n" "$network"
+printf "Total installation time: %d minutes.\n" "$minutes"
+printf "Installation log: %s\n\n" "$LOGFILE"
+printf "Check the node as user '%s':\n" "$username"
+printf "    su - %s\n" "$username"
+printf "    pm2 list\n"
+printf "    pm2 show %s\n" "$processname"
+printf "    pm2 logs %s\n\n" "$processname"
+printf "Query the current blockchain height:\n"
+printf "    curl http://localhost:%s/api/blocks/getHeight\n\n" "$port"
