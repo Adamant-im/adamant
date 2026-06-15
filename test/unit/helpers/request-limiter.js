@@ -2,6 +2,7 @@
 
 const { expect } = require('chai');
 const express = require('express');
+const request = require('supertest');
 
 const RequestLimiter = require('../../../helpers/request-limiter.js');
 
@@ -50,7 +51,7 @@ describe('RequestLimiter', () => {
           .that.is.an('object');
       expect(limiter.client).to.have.property('delayAfter').to.equal(0);
       expect(limiter.client).to.have.property('delayMs').that.is.a('function');
-      expect(limiter.client).to.have.property('skip').that.is.a('function');
+      expect(limiter.client).to.have.property('max').to.equal(0);
       expect(limiter.client).to.have.property('windowMs').to.equal(60000);
       expect(limiter.client.delayMs(100)).to.equal(0);
     });
@@ -62,7 +63,7 @@ describe('RequestLimiter', () => {
           .that.is.an('object');
       expect(limiter.peer).to.have.property('delayAfter').to.equal(0);
       expect(limiter.peer).to.have.property('delayMs').that.is.a('function');
-      expect(limiter.peer).to.have.property('skip').that.is.a('function');
+      expect(limiter.peer).to.have.property('max').to.equal(0);
       expect(limiter.peer).to.have.property('windowMs').to.equal(60000);
       expect(limiter.peer.delayMs(100)).to.equal(0);
     });
@@ -143,5 +144,49 @@ describe('RequestLimiter', () => {
           .that.is.an('object');
       expect(limiter.middleware).to.have.property('peer').that.is.a('function');
     });
+
+    it('should keep the delay calculation independent from its receiver', () => {
+      const delayMs = limiter.client.delayMs;
+      expect(delayMs(4)).to.equal(2);
+    });
+  });
+
+  it('should enforce max when slow-down is disabled', async () => {
+    RequestLimiter(app, {
+      api: {
+        options: {
+          limits: {
+            max: 1,
+            delayAfter: 0,
+            delayMs: 0,
+            windowMs: 60000
+          }
+        }
+      }
+    });
+    app.get('/api/test', (req, res) => res.sendStatus(200));
+
+    await request(app).get('/api/test').expect(200);
+    await request(app).get('/api/test').expect(429);
+  });
+
+  it('should not apply a hard limit when max is disabled', async () => {
+    RequestLimiter(app, {
+      api: {
+        options: {
+          limits: {
+            max: 0,
+            delayAfter: 1,
+            delayMs: 0,
+            windowMs: 60000
+          }
+        }
+      }
+    });
+    app.get('/api/test', (req, res) => res.sendStatus(200));
+
+    for (let i = 0; i < 6; i++) {
+      await request(app).get('/api/test').expect(200);
+    }
   });
 });

@@ -28,6 +28,10 @@ const ZSchema = zSchemaModule.default;
 const semver = require('semver');
 const { isPublicKey } = require('./publicKey.js');
 
+if (typeof ZSchema !== 'function' || typeof ZSchema.create !== 'function') {
+  throw new Error('z-schema module shape mismatch: expected .default to expose ZSchema.create()');
+}
+
 /**
  * Preserves the legacy z-schema v6 API used throughout the node.
  * Validation remains synchronous, non-throwing, and pinned to Draft-04.

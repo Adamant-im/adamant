@@ -1,6 +1,7 @@
 var async = require('async');
 var transactionTypes = require('../helpers/transactionTypes.js');
 var errorCacheDisabled = 'Cache Unavailable';
+var apiCachePattern = '/api/*';
 
 /**
  * Creates an isolated Redis cache module.
@@ -127,8 +128,10 @@ Cache.prototype.removeByPattern = async function (pattern, cb) {
   try {
     const keysToDelete = [];
 
-    for await (const key of this.client.scanIterator({ MATCH: pattern })) {
-      keysToDelete.push(...key);
+    for await (const keys of this.client.scanIterator({ MATCH: pattern })) {
+      for (const key of keys) {
+        keysToDelete.push(key);
+      }
     }
 
     if (keysToDelete.length > 0) {
@@ -271,6 +274,8 @@ Cache.prototype.onSyncStarted = function () {
 
 /**
  * Clears stale API entries and enables cache mutations after synchronization.
+ * API response keys are generated from `req.originalUrl` and use the `/api/`
+ * namespace; unrelated keys in a shared Redis database are preserved.
  * @param {Function} [cb] - Optional completion callback.
  * @return {void}
  */
@@ -284,7 +289,7 @@ Cache.prototype.onSyncFinished = function (cb) {
 
   const cache = this;
 
-  cache.removeByPattern('/api/*', function (err) {
+  cache.removeByPattern(apiCachePattern, function (err) {
     if (err) {
       cache.logger.error('cache', 'Failed to clear cache after blockchain synchronization', err);
       return cb(err);

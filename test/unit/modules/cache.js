@@ -85,6 +85,8 @@ describe('cache', function () {
       expect(__cache).to.be.an('object');
       cache = __cache;
       expect(cache.client.options.RESP).to.equal(2);
+      expect(modulesLoader.scope.config.redis.password).to.equal(null);
+      expect(modulesLoader.scope.config.redis.RESP).to.equal(undefined);
       return done();
     });
   });
@@ -393,6 +395,26 @@ describe('cache', function () {
         cache.cacheReady = true;
         done();
       });
+    });
+
+    it('should stay disabled and log an error when called without a callback', function () {
+      const clearError = new Error('Redis scan failed');
+      const removeStub = sinon.stub(cache, 'removeByPattern').yields(clearError);
+      const loggerStub = sinon.stub(cache.logger, 'error');
+
+      cache.onSyncStarted();
+      cache.onSyncFinished();
+
+      expect(cache.isReady()).to.equal(false);
+      expect(loggerStub.calledWith(
+          'cache',
+          'Failed to clear cache after blockchain synchronization',
+          clearError
+      )).to.equal(true);
+
+      removeStub.restore();
+      loggerStub.restore();
+      cache.cacheReady = true;
     });
   });
 

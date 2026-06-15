@@ -69,7 +69,7 @@ class TransactionSubscription {
 
   /**
    * Subscribes to the given addresses
-   * @param {...Array<string>} addresses - List of addresses to subscribe
+   * @param {...string} addresses - Addresses to subscribe to
    * @return {boolean} - whether successfully subscribed to at least one address
    */
   subscribeToAddresses (...addresses) {
@@ -92,7 +92,7 @@ class TransactionSubscription {
   /**
    * Subscribes to the given types
    * @see {@link ../../helpers/transaction.js} for the list of available types
-   * @param {...Array<number>} types - List of types to subscribe
+   * @param {...number} types - Transaction types to subscribe to
    * @return {boolean} - whether successfully subscribed to at least one transaction type
    */
   subscribeToTypes (...types) {
@@ -114,7 +114,7 @@ class TransactionSubscription {
 
   /**
    * Subscribes to the given types for `transaction.asset.chat`
-   * @param {...Array<number>} assetChatTypes - List of types of `transaction.asset.chat` to subscribe
+   * @param {...number} assetChatTypes - Types of `transaction.asset.chat` to subscribe to
    * @return {boolean} - whether successfully subscribed to at least one `transaction.asset.chat` type
    */
   subscribeToAssetChatTypes (...assetChatTypes) {

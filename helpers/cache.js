@@ -16,17 +16,19 @@ module.exports.connect = function (cacheEnabled, config, logger, cb) {
     return cb(null, { cacheEnabled: cacheEnabled, client: null });
   }
 
+  const redisConfig = { ...config };
+
   // delete password key if it's value is null
-  if (config.password === null) {
-    delete config.password;
+  if (redisConfig.password === null) {
+    delete redisConfig.password;
   }
 
   // node-redis v6 defaults to RESP3; keep the established RESP2 response semantics.
-  if (config.RESP === undefined) {
-    config.RESP = 2;
+  if (redisConfig.RESP === undefined) {
+    redisConfig.RESP = 2;
   }
 
-  var client = redis.createClient(config);
+  var client = redis.createClient(redisConfig);
 
   client.connect()
       .then(() => {

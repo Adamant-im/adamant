@@ -472,7 +472,7 @@ Transactions.prototype.getUnconfirmedTransaction = function (id) {
  * @param {number} [options.limit] - Maximum number of transactions in the final array
  * @param {number} [options.offset] - Offset for the final array
  * @param {number} [options.returnAsset=1] - Whether to remove assets from all transactions. Default is 1
- * @param {number} [options.withoutDirectTransfers=0] - Whether to remove all transfer transactions. Default is 0
+ * @param {number} [options.includeDirectTransfers=1] - Whether to include transfer transactions. Default is 1
  */
 Transactions.prototype.mergeUnconfirmedTransactions = function (
     targetArray,
