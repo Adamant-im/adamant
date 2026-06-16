@@ -8,7 +8,7 @@ on_error() {
 }
 trap on_error ERR
 
-readonly INSTALLER_VERSION="2.4.3"
+readonly INSTALLER_VERSION="2.4.4"
 readonly NVM_VERSION="0.40.5"
 
 branch="master"
@@ -61,6 +61,15 @@ detect_installed_postgresql_server_majors() {
         print $2
       }' \
     | sort -Vu
+}
+
+repair_node_user_permissions() {
+  for path in "$NODE_HOME/.nvm" "$NODE_HOME/.pm2" "$REPO_DIR"; do
+    if [[ -e "$path" ]]; then
+      chown -R "$username:$username" "$path"
+      chmod -R u+rwX "$path"
+    fi
+  done
 }
 
 # Parse command-line options before creating the network-specific log file.
@@ -389,6 +398,7 @@ if [[ -z "$NODE_HOME" || ! -d "$NODE_HOME" ]]; then
   exit 1
 fi
 REPO_DIR="${NODE_HOME}/adamant"
+repair_node_user_permissions
 
 # Create or update the PostgreSQL role and database without masking SQL errors.
 role_exists="$(runuser -u postgres -- psql -XAtqc \
@@ -446,14 +456,15 @@ runuser -u "$username" -- env \
 set -Eeuo pipefail
 trap 'status=$?; printf "\n[ERROR] User setup failed at line %s.\n\n" "$LINENO" >&2; exit "$status"' ERR
 
+cd "$HOME"
 printf "\nInstalling or updating nvm v%s and Node.js %s.\n" "$NVM_INSTALL_VERSION" "$NODEJS_VERSION"
 export NVM_DIR="$HOME/.nvm"
 if [[ -d "$NVM_DIR/.git" ]]; then
   git -C "$NVM_DIR" fetch --tags --depth 1 origin "v${NVM_INSTALL_VERSION}"
-  git -C "$NVM_DIR" checkout --quiet "v${NVM_INSTALL_VERSION}"
+  git -c advice.detachedHead=false -C "$NVM_DIR" checkout --quiet "v${NVM_INSTALL_VERSION}"
 else
   rm -rf "$NVM_DIR"
-  git clone --depth 1 --branch "v${NVM_INSTALL_VERSION}" https://github.com/nvm-sh/nvm.git "$NVM_DIR"
+  git -c advice.detachedHead=false clone --depth 1 --branch "v${NVM_INSTALL_VERSION}" https://github.com/nvm-sh/nvm.git "$NVM_DIR"
 fi
 nvm_profile="$HOME/.bashrc"
 if ! grep -q 'NVM_DIR="$HOME/.nvm"' "$nvm_profile" 2>/dev/null; then
@@ -559,7 +570,7 @@ unset DB_PASSWORD_BASE64 DB_PASSWORD_SQL
 if command -v systemctl >/dev/null 2>&1 && [[ "$(ps -p 1 -o comm=)" == "systemd" ]]; then
   # shellcheck disable=SC2016
   NODE_BIN_DIR="$(runuser -u "$username" -- env HOME="$NODE_HOME" bash -c \
-    'source "$HOME/.nvm/nvm.sh" && dirname "$(command -v node)"')"
+    'cd "$HOME" && source "$HOME/.nvm/nvm.sh" && dirname "$(command -v node)"')"
   printf "\nEnabling pm2 startup for user '%s'.\n" "$username"
   env PATH="${NODE_BIN_DIR}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
     "${NODE_BIN_DIR}/pm2" startup systemd -u "$username" --hp "$NODE_HOME"

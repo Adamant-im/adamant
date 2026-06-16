@@ -8,7 +8,7 @@ on_error() {
 }
 trap on_error ERR
 
-readonly TOOL_VERSION="1.4.2"
+readonly TOOL_VERSION="1.4.3"
 
 network="mainnet"
 username="adamant"
@@ -38,6 +38,15 @@ read_from_tty() {
   printf "%s" "$prompt_text" > /dev/tty
   IFS= read -r response < /dev/tty
   printf "%s" "$response"
+}
+
+repair_node_user_permissions() {
+  for path in "$NODE_HOME/.nvm" "$NODE_HOME/.pm2" "$REPO_DIR"; do
+    if [[ -e "$path" ]]; then
+      chown -R "$username:$username" "$path"
+      chmod -R u+rwX "$path"
+    fi
+  done
 }
 
 while getopts ":n:h" OPTION; do
@@ -154,6 +163,7 @@ if [[ -z "$NODE_HOME" || ! -d "$REPO_DIR/.git" ]]; then
   printf "\nADAMANT repository '%s' was not found.\n\n" "$REPO_DIR" >&2
   exit 1
 fi
+repair_node_user_permissions
 if [[ ! -f "$CFG_PATH" ]]; then
   printf "\nADAMANT configuration '%s' was not found.\n\n" "$CFG_PATH" >&2
   exit 1
@@ -233,6 +243,7 @@ fi
 # shellcheck disable=SC2016
 runuser -u "$username" -- env HOME="$NODE_HOME" PROCESS_NAME="$processname" bash -c '
   set -Eeuo pipefail
+  cd "$HOME"
   source "$HOME/.nvm/nvm.sh"
   command -v pm2 >/dev/null
   if ! pm2 describe "$PROCESS_NAME" >/dev/null 2>&1; then
@@ -263,6 +274,7 @@ printf "\nStopping ADAMANT %s process '%s' through pm2.\n" "$network" "$processn
 # shellcheck disable=SC2016
 runuser -u "$username" -- env HOME="$NODE_HOME" PROCESS_NAME="$processname" bash -c '
   set -Eeuo pipefail
+  cd "$HOME"
   source "$HOME/.nvm/nvm.sh"
   if pm2 describe "$PROCESS_NAME" >/dev/null 2>&1; then
     pm2 stop "$PROCESS_NAME"
@@ -304,6 +316,7 @@ printf "\nRestarting ADAMANT %s process '%s'.\n" "$network" "$processname"
 # shellcheck disable=SC2016
 runuser -u "$username" -- env HOME="$NODE_HOME" NETWORK="$network" PROCESS_NAME="$processname" bash -c '
   set -Eeuo pipefail
+  cd "$HOME"
   source "$HOME/.nvm/nvm.sh"
   if pm2 describe "$PROCESS_NAME" >/dev/null 2>&1; then
     pm2 restart "$PROCESS_NAME" --update-env
