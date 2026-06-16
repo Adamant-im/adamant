@@ -26,6 +26,34 @@ usage() {
   printf "       Node.js aliases: jod=22, krypton=24. Version 24 is the default.\n"
 }
 
+require_interactive_tty() {
+  if [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
+    printf "\nThis installer requires an interactive terminal for confirmations and passwords.\n" >&2
+    printf "Run it from a normal shell session, for example:\n" >&2
+    printf "    curl -fsSL https://adamant.im/install_node.sh | sudo bash -s -- -n mainnet\n\n" >&2
+    exit 1
+  fi
+}
+
+read_from_tty() {
+  local prompt_text="$1"
+  local response
+
+  printf "%s" "$prompt_text" > /dev/tty
+  IFS= read -r response < /dev/tty
+  printf "%s" "$response"
+}
+
+read_secret_from_tty() {
+  local prompt_text="$1"
+  local response
+
+  printf "%s" "$prompt_text" > /dev/tty
+  IFS= read -r -s response < /dev/tty
+  printf "\n" > /dev/tty
+  printf "%s" "$response"
+}
+
 # Parse command-line options before creating the network-specific log file.
 while getopts ":b:n:j:h" OPTION; do
   case "$OPTION" in
@@ -139,7 +167,8 @@ printf "Selected network:  %s\n" "$network"
 printf "Selected branch:   %s\n" "$branch"
 printf "Selected Node.js:  %s\n\n" "$nodejs"
 
-read -r -p "The script will upgrade packages, may restart services, and configure ADAMANT. Type \"yes\" to continue: " agreement
+require_interactive_tty
+agreement="$(read_from_tty "The script will upgrade packages, may restart services, and configure ADAMANT. Type \"yes\" to continue: ")"
 if [[ "$agreement" != "yes" ]]; then
   printf "\nInstallation cancelled.\n\n"
   exit 1
@@ -149,7 +178,7 @@ fi
 IMAGE=false
 printf "\nA blockchain image can reduce synchronization time, but its source must be trusted.\n"
 printf "Without an image, the node verifies the blockchain from height 1, which may take several days.\n"
-read -r -p "Use the official ADAMANT blockchain image to bootstrap? [Y/n]: " useimage
+useimage="$(read_from_tty "Use the official ADAMANT blockchain image to bootstrap? [Y/n]: ")"
 case "${useimage:-Y}" in
   [yY][eE][sS]|[yY]|[jJ]|'') IMAGE=true ;;
   *) printf "The node will synchronize from scratch.\n" ;;
@@ -177,11 +206,8 @@ get_database_password() {
   local password confirmation
 
   while true; do
-    printf '\nSet the PostgreSQL password for role %s:\n> ' "$username" >&2
-    read -r -s password
-    printf '\nConfirm the password:\n> ' >&2
-    read -r -s confirmation
-    printf '\n' >&2
+    password="$(read_secret_from_tty "$(printf '\nSet the PostgreSQL database password for role %s.\nThis is not the Linux user login password.\n> ' "$username")")"
+    confirmation="$(read_secret_from_tty "$(printf 'Confirm the PostgreSQL database password:\n> ')")"
 
     if [[ -z "$password" ]]; then
       printf 'The database password cannot be empty. Try again.\n' >&2
@@ -270,15 +296,33 @@ fi
 
 # Keep an existing PostgreSQL major version. On a fresh host, install the latest
 # stable server supplied by the configured repository.
-if dpkg-query -W -f='${Package}\n' 'postgresql-[0-9]*' 2>/dev/null \
-  | grep -Eq '^postgresql-[0-9]+$'; then
+postgresql_major_packages="$(dpkg-query -W -f='${Package}\n' 'postgresql-[0-9]*' 2>/dev/null \
+  | sed -n 's/^postgresql-\([0-9][0-9]*\)$/\1/p' | sort -Vu || true)"
+if [[ -n "$postgresql_major_packages" ]]; then
   printf "Existing PostgreSQL server installation detected; preserving its major version.\n"
 else
   printf "Installing PostgreSQL server package '%s'.\n" "$postgresql_package"
   apt-get "${APT_OPTIONS[@]}" install "$postgresql_package"
+  postgresql_major_packages="$(dpkg-query -W -f='${Package}\n' 'postgresql-[0-9]*' 2>/dev/null \
+    | sed -n 's/^postgresql-\([0-9][0-9]*\)$/\1/p' | sort -Vu || true)"
 fi
 
-if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files postgresql.service >/dev/null 2>&1; then
+postgresql_major="$(printf '%s\n' "$postgresql_major_packages" | tail -1)"
+if command -v pg_lsclusters >/dev/null 2>&1 && command -v pg_ctlcluster >/dev/null 2>&1; then
+  if ! pg_lsclusters -h | awk 'NF { found = 1 } END { exit !found }'; then
+    if [[ -z "$postgresql_major" ]]; then
+      printf "Cannot determine installed PostgreSQL major version for cluster creation.\n" >&2
+      exit 1
+    fi
+    pg_createcluster "$postgresql_major" main --start
+  fi
+
+  while read -r cluster_version cluster_name _ cluster_status _; do
+    if [[ -n "$cluster_version" && -n "$cluster_name" && "$cluster_status" != "online" ]]; then
+      pg_ctlcluster "$cluster_version" "$cluster_name" start
+    fi
+  done < <(pg_lsclusters -h)
+elif command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files postgresql.service >/dev/null 2>&1; then
   systemctl enable --now postgresql
 else
   service postgresql start

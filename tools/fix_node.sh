@@ -22,6 +22,24 @@ usage() {
   printf "Usage: %s [-h] [-n mainnet|testnet]\n" "${0##*/}"
 }
 
+require_interactive_tty() {
+  if [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
+    printf "\nThis repair tool requires an interactive terminal for confirmation.\n" >&2
+    printf "Run it from a normal shell session, for example:\n" >&2
+    printf "    curl -fsSL https://adamant.im/fix_node.sh | sudo bash -s -- -n mainnet\n\n" >&2
+    exit 1
+  fi
+}
+
+read_from_tty() {
+  local prompt_text="$1"
+  local response
+
+  printf "%s" "$prompt_text" > /dev/tty
+  IFS= read -r response < /dev/tty
+  printf "%s" "$response"
+}
+
 while getopts ":n:h" OPTION; do
   case "$OPTION" in
     n)
@@ -116,7 +134,8 @@ printf "Node user:        %s\n" "$username"
 printf "Database:         %s\n" "$databasename"
 printf "PM2 process:      %s\n\n" "$processname"
 
-read -r -p "WARNING: This will permanently replace database '$databasename'. Type \"yes\" to continue: " agreement
+require_interactive_tty
+agreement="$(read_from_tty "WARNING: This will permanently replace database '$databasename'. Type \"yes\" to continue: ")"
 if [[ "$agreement" != "yes" ]]; then
   printf "\nRepair cancelled.\n\n"
   exit 1
