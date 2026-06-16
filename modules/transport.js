@@ -250,6 +250,21 @@ __private.receiveTransaction = function (transaction, peer, extraLogMessage, cb)
     return setImmediate(cb, 'Invalid transaction body - ' + e.toString());
   }
 
+  // Real-time admission grace, mirroring the Public API's `publish()` boundary.
+  // This is a wall-clock spam/pool-poisoning guard, not a consensus rule, so it
+  // belongs here - the boundary where a transaction first enters the network from a
+  // peer - and not inside `transaction.verify()`, which also replays historical,
+  // already-confirmed transactions during block processing and sync. See AGENTS.md
+  // "Current Activation Switches" for why wall-clock checks must stay out of verify().
+  var timestampWindowError = library.logic.transaction.checkFutureTimestamp(transaction) ||
+      library.logic.transaction.checkPastTimestampWindow(transaction);
+
+  if (timestampWindowError) {
+    library.logger.debug('transactions', 'Rejected transaction ' + id + ' from peer ' + peer.string, timestampWindowError);
+
+    return setImmediate(cb, timestampWindowError);
+  }
+
   library.balancesSequence.add(function (cb) {
     library.logger.debug('transactions', 'Received transaction ' + transaction.id + ' from peer ' + peer.string);
     modules.transactions.processUnconfirmedTransaction(transaction, true, function (err) {

@@ -122,10 +122,11 @@ Transaction.prototype.create = function (data) {
 /**
  * Checks a transaction's timestamp against the future-timestamp grace period used
  * after `spaceship` activation (`maxTransactionFutureMs`).
- * Shared by `publish()` (Public API submissions) and `verify()` (every other
- * admission path: peer-relayed transactions and transactions inside received blocks,
- * including historical ones replayed during sync) so a future-dated transaction can't
- * bypass this check by entering through a path other than the Public API.
+ * This is wall-clock-relative admission control for transactions freshly entering the
+ * network in real time, not a consensus rule - it must only be called at real-time
+ * ingestion boundaries (Public API `publish()`, P2P `modules/transport.js`), never from
+ * `verify()`, which also replays historical, long-confirmed transactions during sync
+ * and must stay replay-deterministic. See AGENTS.md "Current Activation Switches".
  * @param {object} trs - The transaction object
  * @return {string|undefined} Error message if the timestamp is too far in the future
  */
@@ -750,25 +751,6 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
     if (timestampMsDelta < 0 || timestampMsDelta >= maxTimestampMsDelta) {
       return setImmediate(cb, `Invalid transaction timestamp. timestampMs must be within the same second as timestamp, from 0 to ${maxTimestampMsDelta - 1}ms`);
     }
-  }
-
-  // `verify()` is the universal gate (peer-relayed transactions and transactions
-  // inside received blocks, including historical ones replayed during sync) -
-  // enforce the future-timestamp check here too so it can't be bypassed by entering
-  // through a path other than the Public API. Only the future check applies here:
-  // the past-age window (`checkPastTimestampWindow`) is for freshly submitted
-  // transactions only and would wrongly reject long-confirmed historical chat/state
-  // transactions replayed during sync. Pre-`spaceship` nodes keep the original
-  // strict rule so a block accepted by an upgraded node isn't forked away by one
-  // that isn't.
-  if (this.scope.consensus.isActivated('spaceship')) {
-    const futureTimestampError = this.checkFutureTimestamp(trs);
-
-    if (futureTimestampError) {
-      return setImmediate(cb, futureTimestampError);
-    }
-  } else if (slots.getSlotNumber(timestamp) > slots.getSlotNumber()) {
-    return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is in the future');
   }
 
   // Call verify on transaction type
