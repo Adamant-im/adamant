@@ -260,7 +260,7 @@ __private.receiveTransaction = function (transaction, peer, extraLogMessage, cb)
       library.logic.transaction.checkPastTimestampWindow(transaction);
 
   if (timestampWindowError) {
-    library.logger.debug('transactions', 'Rejected transaction ' + id + ' from peer ' + peer.string, timestampWindowError);
+    library.logger.debug('transactions', 'Rejected transaction ' + transaction.id + ' from peer ' + peer.string, timestampWindowError);
 
     return setImmediate(cb, timestampWindowError);
   }

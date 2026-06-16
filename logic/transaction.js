@@ -148,7 +148,8 @@ Transaction.prototype.checkFutureTimestamp = function (trs) {
  * Checks that a chat/state transaction's timestamp isn't more than `maxTransactionAgeSec`
  * in the past. Only meaningful for freshly submitted transactions - `verify()` also
  * replays historical, long-confirmed transactions (e.g. during sync), which legitimately
- * have timestamps far in the past, so this is only called from `publish()`.
+ * have timestamps far in the past, so this must only be called at real-time ingestion
+ * boundaries (Public API `publish()`, P2P `modules/transport.js`), never from `verify()`.
  * @param {object} trs - The transaction object
  * @return {string|undefined} Error message if the timestamp is too far in the past
  */

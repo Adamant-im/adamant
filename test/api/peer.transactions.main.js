@@ -167,6 +167,26 @@ describe('POST /peer/transactions', function () {
     });
   });
 
+  it('using a transaction with a timestamp far in the future should fail', function (done) {
+    var account = node.randomAccount();
+    var transaction = node.createSendTransaction({
+      keyPair: node.iAccount.keypair,
+      amount: 1,
+      recipientId: account.address
+    });
+
+    transaction.timestamp += 100000;
+    transaction.timestampMs = transaction.timestamp * 1000;
+    transaction.signature = node.transactionSign(transaction, node.iAccount.keypair);
+    transaction.id = node.getId(transaction);
+
+    postTransaction(transaction, function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('message').to.eql('Transaction timestamp is in the future');
+      done();
+    });
+  });
+
   it('using transaction with undefined recipientId should fail', function (done) {
     var transaction = node.createSendTransaction({
       keyPair: node.iAccount.keypair,
