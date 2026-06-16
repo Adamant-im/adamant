@@ -23,7 +23,8 @@ nodejs="24"
 image_url="https://explorer.adamant.im/db_backup.sql.gz"
 
 usage() {
-  printf "Usage: %s [-b branch] [-n mainnet|testnet] [-j 22|24|26]\n" "${0##*/}"
+  printf "Usage: %s [-h] [-b branch] [-n mainnet|testnet] [-j 22|24|26]\n" "${0##*/}"
+  printf "       Node.js aliases: jod=22, krypton=24. Version 24 is the default.\n"
 }
 
 while getopts ":b:n:j:h" OPTION; do
@@ -142,6 +143,7 @@ printf "\nWelcome to the ADAMANT Node Installer v%s for RHEL-compatible releases
   "$INSTALLER_VERSION"
 printf "Supported distributions include CentOS Stream, Rocky Linux, AlmaLinux, and RHEL.\n"
 printf "The installer updates system packages and preserves existing ADAMANT configuration and local Git changes.\n"
+printf "Package upgrades may restart PostgreSQL, Redis, and other affected system services.\n"
 printf "Review backups and custom service configuration before continuing on an existing server.\n\n"
 printf "Installation guide: https://docs.adamant.im/own-node/installation.html\n\n"
 
@@ -150,7 +152,7 @@ printf "Selected network:  %s\n" "$network"
 printf "Selected branch:   %s\n" "$branch"
 printf "Selected Node.js:  %s (24 is recommended for production)\n\n" "$nodejs"
 
-read -r -p "The script will update packages and configure ADAMANT services. Type \"yes\" to continue: " agreement
+read -r -p "The script will upgrade packages, may restart services, and configure ADAMANT. Type \"yes\" to continue: " agreement
 if [[ "$agreement" != "yes" ]]; then
   printf "\nInstallation cancelled.\n\n"
   exit 1
@@ -217,7 +219,13 @@ dnf -y install \
 # repository is harmless on reruns and keeps installed PostgreSQL packages
 # eligible for security updates.
 pgdg_rpm="https://download.postgresql.org/pub/repos/yum/reporpms/EL-${el_major}-${pgdg_arch}/pgdg-redhat-repo-latest.noarch.rpm"
-dnf -y install "$pgdg_rpm"
+pgdg_enabled=false
+if curl -fsSL -o /dev/null "$pgdg_rpm"; then
+  dnf -y install "$pgdg_rpm"
+  pgdg_enabled=true
+else
+  printf "WARNING: PGDG RPM is unavailable; using distribution PostgreSQL packages.\n"
+fi
 
 printf "\nUpdating installed system packages.\n"
 dnf -y upgrade --refresh
@@ -244,15 +252,24 @@ if rpm -qa | grep -Eq '^postgresql([0-9]+)?-server-'; then
   done < <(systemctl list-unit-files --type=service --no-legend \
     | awk '$1 ~ /^postgresql(-[0-9]+)?\.service$/ { sub(/\.service$/, "", $1); print $1 }')
 else
-  printf "Installing PostgreSQL %s from the official PGDG repository.\n" "$POSTGRESQL_VERSION"
-  dnf -qy module disable postgresql || true
-  dnf -y install \
-    "postgresql${POSTGRESQL_VERSION}" \
-    "postgresql${POSTGRESQL_VERSION}-server" \
-    "postgresql${POSTGRESQL_VERSION}-contrib"
-  postgresql_service="postgresql-${POSTGRESQL_VERSION}"
-  if [[ ! -s "/var/lib/pgsql/${POSTGRESQL_VERSION}/data/PG_VERSION" ]]; then
-    "/usr/pgsql-${POSTGRESQL_VERSION}/bin/postgresql-${POSTGRESQL_VERSION}-setup" initdb
+  if [[ "$pgdg_enabled" == "true" ]]; then
+    printf "Installing PostgreSQL %s from the official PGDG repository.\n" "$POSTGRESQL_VERSION"
+    dnf -qy module disable postgresql || true
+    dnf -y install \
+      "postgresql${POSTGRESQL_VERSION}" \
+      "postgresql${POSTGRESQL_VERSION}-server" \
+      "postgresql${POSTGRESQL_VERSION}-contrib"
+    postgresql_service="postgresql-${POSTGRESQL_VERSION}"
+    if [[ ! -s "/var/lib/pgsql/${POSTGRESQL_VERSION}/data/PG_VERSION" ]]; then
+      "/usr/pgsql-${POSTGRESQL_VERSION}/bin/postgresql-${POSTGRESQL_VERSION}-setup" initdb
+    fi
+  else
+    printf "Installing PostgreSQL from the distribution repository.\n"
+    dnf -y install postgresql postgresql-server postgresql-contrib
+    postgresql_service="postgresql"
+    if [[ ! -s /var/lib/pgsql/data/PG_VERSION ]]; then
+      postgresql-setup --initdb
+    fi
   fi
 fi
 
@@ -260,8 +277,13 @@ if [[ -z "$postgresql_service" ]]; then
   printf "Cannot determine the installed PostgreSQL systemd service.\n" >&2
   exit 1
 fi
-systemctl enable --now "$postgresql_service"
-systemctl enable --now redis
+if command -v systemctl >/dev/null 2>&1 && [[ "$(ps -p 1 -o comm=)" == "systemd" ]]; then
+  systemctl enable --now "$postgresql_service"
+  systemctl enable --now redis
+else
+  service "$postgresql_service" start
+  service redis start
+fi
 
 if id -u "$username" >/dev/null 2>&1; then
   printf "\nSystem user '%s' already exists; preserving it.\n" "$username"
@@ -290,16 +312,26 @@ if [[ -z "$PSQL_BIN" ]]; then
 fi
 PG_BIN_DIR="$(dirname "$PSQL_BIN")"
 
+for _ in {1..30}; do
+  if runuser -u postgres -- "$PG_BIN_DIR/pg_isready" -q; then
+    break
+  fi
+  sleep 1
+done
+runuser -u postgres -- "$PG_BIN_DIR/pg_isready" -q
+
 role_exists="$(runuser -u postgres -- "$PSQL_BIN" -XAtqc \
   "SELECT 1 FROM pg_roles WHERE rolname = '${username}'" postgres)"
 if [[ "$role_exists" == "1" ]]; then
   printf "\nUpdating the password for existing PostgreSQL role '%s'.\n" "$username"
-  runuser -u postgres -- "$PSQL_BIN" -Xv ON_ERROR_STOP=1 -c \
-    "ALTER ROLE ${username} WITH LOGIN PASSWORD '${DB_PASSWORD_SQL}';" postgres
+  runuser -u postgres -- "$PSQL_BIN" -X --set=ON_ERROR_STOP=1 postgres <<EOSQL
+ALTER ROLE ${username} WITH LOGIN PASSWORD '${DB_PASSWORD_SQL}';
+EOSQL
 else
   printf "\nCreating PostgreSQL role '%s'.\n" "$username"
-  runuser -u postgres -- "$PSQL_BIN" -Xv ON_ERROR_STOP=1 -c \
-    "CREATE ROLE ${username} WITH LOGIN PASSWORD '${DB_PASSWORD_SQL}';" postgres
+  runuser -u postgres -- "$PSQL_BIN" -X --set=ON_ERROR_STOP=1 postgres <<EOSQL
+CREATE ROLE ${username} WITH LOGIN PASSWORD '${DB_PASSWORD_SQL}';
+EOSQL
 fi
 
 database_exists="$(runuser -u postgres -- "$PSQL_BIN" -XAtqc \
@@ -310,7 +342,7 @@ else
   printf "Creating database '%s'.\n" "$databasename"
   runuser -u postgres -- "$PG_BIN_DIR/createdb" -O "$username" "$databasename"
 fi
-runuser -u postgres -- "$PSQL_BIN" -Xv ON_ERROR_STOP=1 -c \
+runuser -u postgres -- "$PSQL_BIN" -X --set=ON_ERROR_STOP=1 -c \
   "ALTER DATABASE ${databasename} OWNER TO ${username};" postgres
 
 database_has_tables="$(runuser -u postgres -- "$PSQL_BIN" -XAtqc \
@@ -344,7 +376,20 @@ trap 'status=$?; printf "\n[ERROR] User setup failed at line %s.\n\n" "$LINENO" 
 
 printf "\nInstalling or updating nvm v%s and Node.js %s.\n" "$NVM_INSTALL_VERSION" "$NODEJS_VERSION"
 export NVM_DIR="$HOME/.nvm"
-curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/v${NVM_INSTALL_VERSION}/install.sh" | bash
+if [[ -d "$NVM_DIR/.git" ]]; then
+  git -C "$NVM_DIR" fetch --tags --depth 1 origin "v${NVM_INSTALL_VERSION}"
+  git -C "$NVM_DIR" checkout --quiet "v${NVM_INSTALL_VERSION}"
+else
+  rm -rf "$NVM_DIR"
+  git clone --depth 1 --branch "v${NVM_INSTALL_VERSION}" https://github.com/nvm-sh/nvm.git "$NVM_DIR"
+fi
+nvm_profile="$HOME/.bashrc"
+if ! grep -q 'NVM_DIR="$HOME/.nvm"' "$nvm_profile" 2>/dev/null; then
+  {
+    printf '\nexport NVM_DIR="$HOME/.nvm"\n'
+    printf '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"\n'
+  } >> "$nvm_profile"
+fi
 # shellcheck disable=SC1091
 source "$NVM_DIR/nvm.sh"
 nvm install "$NODEJS_VERSION" --latest-npm
@@ -408,7 +453,7 @@ DB_PASSWORD_DECODED="$(printf '%s' "$DB_PASSWORD_BASE64" | base64 --decode)"
 export DB_PASSWORD_DECODED
 config_tmp="$(mktemp "${CONFIG_FILE}.tmp.XXXXXX")"
 jq '.db.password = env.DB_PASSWORD_DECODED' "$CONFIG_FILE" > "$config_tmp"
-chmod --reference="$CONFIG_FILE" "$config_tmp" 2>/dev/null || true
+chmod 0600 "$config_tmp"
 mv "$config_tmp" "$CONFIG_FILE"
 unset DB_PASSWORD_DECODED DB_PASSWORD_BASE64
 
@@ -420,7 +465,7 @@ if [[ "$USE_IMAGE" == "true" ]]; then
   gzip --test "$IMAGE_FILENAME"
   printf "Extracting and loading the blockchain image.\n"
   gunzip "$IMAGE_FILENAME"
-  psql -Xv ON_ERROR_STOP=1 "$DATABASE_NAME" < "$IMAGE_UNZIPPED_FILENAME"
+  psql -X --set=ON_ERROR_STOP=1 "$DATABASE_NAME" < "$IMAGE_UNZIPPED_FILENAME"
   rm -f "$IMAGE_UNZIPPED_FILENAME"
 fi
 
@@ -438,12 +483,16 @@ EOSU
 
 unset DB_PASSWORD_BASE64 DB_PASSWORD_SQL
 
-# shellcheck disable=SC2016
-NODE_BIN_DIR="$(runuser -u "$username" -- env HOME="$NODE_HOME" bash -c \
-  'source "$HOME/.nvm/nvm.sh" && dirname "$(command -v node)"')"
-printf "\nEnabling pm2 startup for user '%s'.\n" "$username"
-env PATH="${NODE_BIN_DIR}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
-  "${NODE_BIN_DIR}/pm2" startup systemd -u "$username" --hp "$NODE_HOME"
+if command -v systemctl >/dev/null 2>&1 && [[ "$(ps -p 1 -o comm=)" == "systemd" ]]; then
+  # shellcheck disable=SC2016
+  NODE_BIN_DIR="$(runuser -u "$username" -- env HOME="$NODE_HOME" bash -c \
+    'source "$HOME/.nvm/nvm.sh" && dirname "$(command -v node)"')"
+  printf "\nEnabling pm2 startup for user '%s'.\n" "$username"
+  env PATH="${NODE_BIN_DIR}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+    "${NODE_BIN_DIR}/pm2" startup systemd -u "$username" --hp "$NODE_HOME"
+else
+  printf "\nWARNING: systemd was not detected. Configure pm2 startup manually for user '%s'.\n" "$username"
+fi
 
 minutes=$(( (SECONDS + 59) / 60 ))
 printf "\nADAMANT %s node installation completed successfully.\n" "$network"

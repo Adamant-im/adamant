@@ -19,7 +19,7 @@ port="36666"
 image_url="https://explorer.adamant.im/db_backup.sql.gz"
 
 usage() {
-  printf "Usage: %s [-n mainnet|testnet]\n" "${0##*/}"
+  printf "Usage: %s [-h] [-n mainnet|testnet]\n" "${0##*/}"
 }
 
 while getopts ":n:h" OPTION; do
@@ -173,7 +173,9 @@ runuser -u "$username" -- env HOME="$NODE_HOME" PROCESS_NAME="$processname" bash
   set -Eeuo pipefail
   source "$HOME/.nvm/nvm.sh"
   command -v pm2 >/dev/null
-  pm2 describe "$PROCESS_NAME" >/dev/null
+  if ! pm2 describe "$PROCESS_NAME" >/dev/null 2>&1; then
+    printf "WARNING: pm2 process '%s' is not registered; repair will recreate it after loading the image.\n" "$PROCESS_NAME"
+  fi
 '
 
 # Download to a partial file and validate gzip before touching the database.
@@ -200,19 +202,23 @@ printf "\nStopping ADAMANT %s process '%s' through pm2.\n" "$network" "$processn
 runuser -u "$username" -- env HOME="$NODE_HOME" PROCESS_NAME="$processname" bash -c '
   set -Eeuo pipefail
   source "$HOME/.nvm/nvm.sh"
-  pm2 stop "$PROCESS_NAME"
+  if pm2 describe "$PROCESS_NAME" >/dev/null 2>&1; then
+    pm2 stop "$PROCESS_NAME"
+  else
+    printf "WARNING: pm2 process '%s' is not registered; skipping stop.\n" "$PROCESS_NAME"
+  fi
   pm2 save
 '
 
 printf "\nTerminating active connections to database '%s'.\n" "$databasename"
-runuser -u postgres -- psql -Xv ON_ERROR_STOP=1 -c \
+runuser -u postgres -- psql -X --set=ON_ERROR_STOP=1 -c \
   "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${databasename}' AND pid <> pg_backend_pid();" \
   postgres
 
 printf "Dropping and recreating database '%s'.\n" "$databasename"
-runuser -u postgres -- psql -Xv ON_ERROR_STOP=1 -c \
+runuser -u postgres -- psql -X --set=ON_ERROR_STOP=1 -c \
   "DROP DATABASE IF EXISTS ${databasename} WITH (FORCE);" postgres || \
-runuser -u postgres -- psql -Xv ON_ERROR_STOP=1 -c \
+runuser -u postgres -- psql -X --set=ON_ERROR_STOP=1 -c \
   "DROP DATABASE IF EXISTS ${databasename};" postgres
 runuser -u postgres -- createdb -O "$username" "$databasename"
 
@@ -226,17 +232,25 @@ runuser -u "$username" -- env \
   bash <<'EOSU'
 set -Eeuo pipefail
 cd "$REPO_DIR"
-gunzip "$IMAGE_FILENAME"
-psql -Xv ON_ERROR_STOP=1 "$DATABASE_NAME" < "$IMAGE_UNZIPPED_FILENAME"
+rm -f "$IMAGE_UNZIPPED_FILENAME"
+gunzip -f "$IMAGE_FILENAME"
+psql -X --set=ON_ERROR_STOP=1 "$DATABASE_NAME" < "$IMAGE_UNZIPPED_FILENAME"
 rm -f "$IMAGE_UNZIPPED_FILENAME"
 EOSU
 
 printf "\nRestarting ADAMANT %s process '%s'.\n" "$network" "$processname"
 # shellcheck disable=SC2016
-runuser -u "$username" -- env HOME="$NODE_HOME" PROCESS_NAME="$processname" bash -c '
+runuser -u "$username" -- env HOME="$NODE_HOME" NETWORK="$network" PROCESS_NAME="$processname" bash -c '
   set -Eeuo pipefail
   source "$HOME/.nvm/nvm.sh"
-  pm2 restart "$PROCESS_NAME" --update-env
+  if pm2 describe "$PROCESS_NAME" >/dev/null 2>&1; then
+    pm2 restart "$PROCESS_NAME" --update-env
+  elif [[ "$NETWORK" == "mainnet" ]]; then
+    pm2 start --name "$PROCESS_NAME" app.js
+  else
+    pm2 start --name "$PROCESS_NAME" app.js -- \
+      --config test/config.json --genesis test/genesisBlock.json
+  fi
   pm2 save
 '
 

@@ -22,7 +22,8 @@ nodejs="24"
 image_url="https://explorer.adamant.im/db_backup.sql.gz"
 
 usage() {
-  printf "Usage: %s [-b branch] [-n mainnet|testnet] [-j 22|24|26]\n" "${0##*/}"
+  printf "Usage: %s [-h] [-b branch] [-n mainnet|testnet] [-j 22|24|26]\n" "${0##*/}"
+  printf "       Node.js aliases: jod=22, krypton=24. Version 24 is the default.\n"
 }
 
 # Parse command-line options before creating the network-specific log file.
@@ -129,6 +130,7 @@ printf "\nWelcome to the ADAMANT Node Installer v%s for Ubuntu 20.04-26.04 LTS.\
   "$INSTALLER_VERSION"
 printf "Make sure you obtained this script from adamant.im or the official GitHub repository.\n"
 printf "The installer updates system packages and preserves existing ADAMANT configuration and local Git changes.\n"
+printf "Package upgrades may restart PostgreSQL, Redis, and other affected system services.\n"
 printf "Review backups and custom service configuration before continuing on an existing server.\n\n"
 printf "Installation guide: https://docs.adamant.im/own-node/installation.html\n\n"
 
@@ -137,7 +139,7 @@ printf "Selected network:  %s\n" "$network"
 printf "Selected branch:   %s\n" "$branch"
 printf "Selected Node.js:  %s (24 is recommended for production)\n\n" "$nodejs"
 
-read -r -p "The script will update packages and configure ADAMANT services. Type \"yes\" to continue: " agreement
+read -r -p "The script will upgrade packages, may restart services, and configure ADAMANT. Type \"yes\" to continue: " agreement
 if [[ "$agreement" != "yes" ]]; then
   printf "\nInstallation cancelled.\n\n"
   exit 1
@@ -222,6 +224,12 @@ case "$architecture" in
       install -d -m 0755 /usr/share/postgresql-common/pgdg
       curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
         -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+      pgdg_key_fingerprint="$(gpg --show-keys --with-colons /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+        | awk -F: '$1 == "fpr" { print $10; exit }')"
+      if [[ "$pgdg_key_fingerprint" != "B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8" ]]; then
+        printf "Unexpected PostgreSQL APT key fingerprint: %s\n" "${pgdg_key_fingerprint:-unknown}" >&2
+        exit 1
+      fi
       cat > /etc/apt/sources.list.d/pgdg.sources <<EOF
 Types: deb
 URIs: ${pgdg_url}
@@ -275,6 +283,13 @@ if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files postgresql.
 else
   service postgresql start
 fi
+for _ in {1..30}; do
+  if runuser -u postgres -- pg_isready -q; then
+    break
+  fi
+  sleep 1
+done
+runuser -u postgres -- pg_isready -q
 
 if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files redis-server.service >/dev/null 2>&1; then
   systemctl enable --now redis-server
@@ -302,12 +317,14 @@ role_exists="$(runuser -u postgres -- psql -XAtqc \
   "SELECT 1 FROM pg_roles WHERE rolname = '${username}'" postgres)"
 if [[ "$role_exists" == "1" ]]; then
   printf "\nUpdating the password for existing PostgreSQL role '%s'.\n" "$username"
-  runuser -u postgres -- psql -Xv ON_ERROR_STOP=1 -c \
-    "ALTER ROLE ${username} WITH LOGIN PASSWORD '${DB_PASSWORD_SQL}';" postgres
+  runuser -u postgres -- psql -X --set=ON_ERROR_STOP=1 postgres <<EOSQL
+ALTER ROLE ${username} WITH LOGIN PASSWORD '${DB_PASSWORD_SQL}';
+EOSQL
 else
   printf "\nCreating PostgreSQL role '%s'.\n" "$username"
-  runuser -u postgres -- psql -Xv ON_ERROR_STOP=1 -c \
-    "CREATE ROLE ${username} WITH LOGIN PASSWORD '${DB_PASSWORD_SQL}';" postgres
+  runuser -u postgres -- psql -X --set=ON_ERROR_STOP=1 postgres <<EOSQL
+CREATE ROLE ${username} WITH LOGIN PASSWORD '${DB_PASSWORD_SQL}';
+EOSQL
 fi
 
 database_exists="$(runuser -u postgres -- psql -XAtqc \
@@ -318,7 +335,7 @@ else
   printf "Creating database '%s'.\n" "$databasename"
   runuser -u postgres -- createdb -O "$username" "$databasename"
 fi
-runuser -u postgres -- psql -Xv ON_ERROR_STOP=1 -c \
+runuser -u postgres -- psql -X --set=ON_ERROR_STOP=1 -c \
   "ALTER DATABASE ${databasename} OWNER TO ${username};" postgres
 
 database_has_tables="$(runuser -u postgres -- psql -XAtqc \
@@ -353,7 +370,20 @@ trap 'status=$?; printf "\n[ERROR] User setup failed at line %s.\n\n" "$LINENO" 
 
 printf "\nInstalling or updating nvm v%s and Node.js %s.\n" "$NVM_INSTALL_VERSION" "$NODEJS_VERSION"
 export NVM_DIR="$HOME/.nvm"
-curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/v${NVM_INSTALL_VERSION}/install.sh" | bash
+if [[ -d "$NVM_DIR/.git" ]]; then
+  git -C "$NVM_DIR" fetch --tags --depth 1 origin "v${NVM_INSTALL_VERSION}"
+  git -C "$NVM_DIR" checkout --quiet "v${NVM_INSTALL_VERSION}"
+else
+  rm -rf "$NVM_DIR"
+  git clone --depth 1 --branch "v${NVM_INSTALL_VERSION}" https://github.com/nvm-sh/nvm.git "$NVM_DIR"
+fi
+nvm_profile="$HOME/.bashrc"
+if ! grep -q 'NVM_DIR="$HOME/.nvm"' "$nvm_profile" 2>/dev/null; then
+  {
+    printf '\nexport NVM_DIR="$HOME/.nvm"\n'
+    printf '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"\n'
+  } >> "$nvm_profile"
+fi
 # shellcheck disable=SC1091
 source "$NVM_DIR/nvm.sh"
 nvm install "$NODEJS_VERSION" --latest-npm
@@ -417,7 +447,7 @@ DB_PASSWORD_DECODED="$(printf '%s' "$DB_PASSWORD_BASE64" | base64 --decode)"
 export DB_PASSWORD_DECODED
 config_tmp="$(mktemp "${CONFIG_FILE}.tmp.XXXXXX")"
 jq '.db.password = env.DB_PASSWORD_DECODED' "$CONFIG_FILE" > "$config_tmp"
-chmod --reference="$CONFIG_FILE" "$config_tmp" 2>/dev/null || true
+chmod 0600 "$config_tmp"
 mv "$config_tmp" "$CONFIG_FILE"
 unset DB_PASSWORD_DECODED DB_PASSWORD_BASE64
 
@@ -429,7 +459,7 @@ if [[ "$USE_IMAGE" == "true" ]]; then
   gzip --test "$IMAGE_FILENAME"
   printf "Extracting and loading the blockchain image.\n"
   gunzip "$IMAGE_FILENAME"
-  psql -Xv ON_ERROR_STOP=1 "$DATABASE_NAME" < "$IMAGE_UNZIPPED_FILENAME"
+  psql -X --set=ON_ERROR_STOP=1 "$DATABASE_NAME" < "$IMAGE_UNZIPPED_FILENAME"
   rm -f "$IMAGE_UNZIPPED_FILENAME"
 fi
 
