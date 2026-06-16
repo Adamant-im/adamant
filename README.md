@@ -1,6 +1,6 @@
 # ADAMANT
 
-ADAMANT is a **decentralized blockchain-based messaging platform**. Applications use ADAMANT as an anonymous and encrypted relay and storage layer to enable secure messaging features. Examples include the [Messenger app](https://github.com/Adamant-im/adamant-im), [Blockchain 2FA](https://github.com/Adamant-im/adamant-2fa), and [Exchange bot](https://github.com/Adamant-im/adamant-exchangebot).
+ADAMANT is a **decentralized, blockchain-based messaging platform**. Applications use ADAMANT as an anonymous, encrypted relay and storage layer for secure communication. Examples include the [Messenger app](https://github.com/Adamant-im/adamant-im), [Blockchain 2FA](https://github.com/Adamant-im/adamant-2fa), and [Exchange bot](https://github.com/Adamant-im/adamant-exchangebot).
 
 For more information, refer to the ADAMANT website:
 
@@ -18,23 +18,49 @@ Additional information:
 
 ## Node and API Documentation
 
-Comprehensive [Node specification](https://docs.adamant.im) is available.
+Comprehensive [node documentation](https://docs.adamant.im) is available.
 
-It covers the Fair dPoS consensus algorithm, decentralization principles, node installation and configuration, and other core concepts. The documentation also details API endpoints for managing accounts, transactions, chats, and key-value storage (KVS). Additionally, it provides guidance on creating new accounts and encrypting or decrypting messages, and data types.
+It covers the Fair dPoS consensus algorithm, decentralization principles, node installation and configuration, and other core concepts. The documentation also describes API endpoints for managing accounts, transactions, chats, and key-value storage (KVS), along with account creation, message encryption and decryption, and API data types.
 
 See also:
 
 - [ADAMANT Improvement Proposals (AIPs)](https://aips.adamant.im)
 
-## Installation, Configuration and Running ADM node
+## Installing, Configuring, and Running an ADAMANT Node
 
-ADAMANT Node requires Node.js 22.13.0 or newer.
+ADAMANT Node requires Node.js 22.13.0 or newer. The installation scripts support Node.js 22, 24, and 26, with Node.js 24 selected by default.
 
-Refer to [ADAMANT Node documentation](https://docs.adamant.im/own-node/installation.html) for complete installation instructions. It includes hardware requirements, installation scripts, and step-by-step guides for setting up an ADM blockchain node on various operating systems, including Linux, macOS, and Windows.
+Refer to the [ADAMANT Node installation documentation](https://docs.adamant.im/own-node/installation.html) for hardware requirements and complete setup instructions for Linux, macOS, and Windows.
+
+### Linux Installation Scripts
+
+The bundled installers support:
+
+- Ubuntu 20.04, 22.04, 24.04, and 26.04 LTS: `tools/install_node.sh`
+- RHEL-compatible releases 8-10, including CentOS Stream, Rocky Linux, AlmaLinux, and RHEL: `tools/install_node_centos.sh`
+
+Ubuntu 20.04 is supported by the script, but its standard security maintenance has ended. Use Ubuntu Pro or upgrade the operating system for continued security updates.
+
+Run an installer as root from the official download URL and select the network, Git branch, and Node.js major version as needed:
+
+```sh
+sudo bash -c "$(wget -O - https://adamant.im/install_node.sh)" -O -b dev -n mainnet -j 24
+sudo bash -c "$(wget -O - https://adamant.im/install_node_centos.sh)" -O -b dev -n mainnet -j 24
+```
+
+Both installers update system packages, preserve existing ADAMANT configuration files and local Git changes, and reuse existing users and databases. A blockchain image is skipped when the selected database already contains tables. Installation logs are written to `/var/log/adamant_<network>_install.log`.
+
+To replace an Ubuntu node database with a newly downloaded blockchain image, use:
+
+```sh
+sudo bash tools/fix_node.sh -n mainnet
+```
+
+The repair tool drops the database to free disk space, downloads and validates the replacement image, then recreates the database and restores it from the snapshot. Back up any required data first. Repair logs are written to `/var/log/adamant_<network>_fix.log`.
 
 ### Critical Shutdown Notice
 
-Stop the node with graceful shutdown. When running in the foreground, press `Ctrl+C` and wait until cleanup finishes. Do not use `kill -9`, forced terminal termination, or any other uncatchable process kill unless the process is already unrecoverably stuck.
+Always stop the node gracefully. When running it in the foreground, press `Ctrl+C` and wait for cleanup to finish. Do not use `kill -9`, forced terminal termination, or any other uncatchable process kill unless the process is already unrecoverably stuck.
 
 The node stores derived consensus state in memory mirror tables such as `mem_accounts` and `mem_round`. A forced kill can interrupt block, transaction, or round writes and leave those tables inconsistent with the persisted blockchain. On the next startup this may force a full memory-state rebuild from the beginning of the chain:
 
@@ -48,7 +74,7 @@ If this happens, do not try to repair `mem_*` tables with manual SQL edits. The 
 
 ## Development and Tests
 
-Refer to [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
+Refer to [CONTRIBUTING.md](./.github/CONTRIBUTING.md).
 
 ## Authors
 
