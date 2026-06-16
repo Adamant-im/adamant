@@ -136,7 +136,7 @@ exec > >(tee -a "$LOGFILE") 2>&1
 if [[ -s "$LOGFILE" ]]; then
   printf "\n\n\n===========================\n"
 fi
-printf "%s ADAMANT %s node installation started\n" \
+printf "\n%s ADAMANT %s node installation started\n" \
   "$(date -u '+%Y-%m-%d %H:%M UTC')" "$network"
 
 printf "\nWelcome to the ADAMANT Node Installer v%s for RHEL-compatible releases 8-10.\n" \
@@ -150,7 +150,7 @@ printf "Installation guide: https://docs.adamant.im/own-node/installation.html\n
 printf "Operating system:  %s\n" "$PRETTY_NAME"
 printf "Selected network:  %s\n" "$network"
 printf "Selected branch:   %s\n" "$branch"
-printf "Selected Node.js:  %s (24 is recommended for production)\n\n" "$nodejs"
+printf "Selected Node.js:  %s\n\n" "$nodejs"
 
 read -r -p "The script will upgrade packages, may restart services, and configure ADAMANT. Type \"yes\" to continue: " agreement
 if [[ "$agreement" != "yes" ]]; then

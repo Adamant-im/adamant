@@ -41,11 +41,11 @@ The bundled installers support:
 
 Ubuntu 20.04 is supported by the script, but its standard security maintenance has ended. Use Ubuntu Pro or upgrade the operating system for continued security updates.
 
-Run an installer as root and select the network, Git branch, and Node.js major version as needed:
+Run an installer as root from the official download URL and select the network, Git branch, and Node.js major version as needed:
 
 ```sh
-sudo bash tools/install_node.sh -n mainnet -b master -j 24
-sudo bash tools/install_node_centos.sh -n testnet -b dev -j 24
+curl -fsSL https://adamant.im/install_node.sh | sudo bash -s -- -n mainnet -b master -j 24
+curl -fsSL https://adamant.im/install_node_centos.sh | sudo bash -s -- -n testnet -b dev -j 24
 ```
 
 Both installers update system packages, preserve existing ADAMANT configuration files and local Git changes, and reuse existing users and databases. A blockchain image is skipped when the selected database already contains tables. Installation logs are written to `/var/log/adamant_<network>_install.log`.
