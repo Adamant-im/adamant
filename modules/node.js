@@ -3,6 +3,7 @@
 var _ = require('lodash');
 var async = require('async');
 var constants = require('../helpers/constants.js');
+var slots = require('../helpers/slots.js');
 var jobsQueue = require('../helpers/jobsQueue.js');
 var extend = require('extend');
 var pgp = require('pg-promise')(); // We also initialize library here
@@ -18,7 +19,7 @@ __private.blockReward = new BlockReward();
 /**
  * Initializes library with scope content.
  * @memberof module:node
- * @class
+ * @constructor
  * @classdesc Main node methods.
  * @param {function} cb - Callback function.
  * @param {scope} scope - App instance.
@@ -61,16 +62,10 @@ Node.prototype.onBind = function (scope) {
     blocks: scope.blocks,
     transport: scope.transport,
     system: scope.system,
-    loader: scope.loader,
+    loader: scope.loader
   };
 };
 
-/**
- * Triggers onPeersReady after:
- * - Ping to every member of peers list.
- * - Load peers from database and checks every peer state and updated time.
- * - Discover peers by getting list and validates them.
- */
 Node.prototype.onBlockchainReady = function () {
 };
 
@@ -111,6 +106,7 @@ Node.prototype.shared = {
    */
   getStatus: function (req, cb) {
     var lastBlock = modules.blocks.lastBlock.get();
+    var nodeTimestampMs = slots.getTimeMs();
     var wsClientOptions = {
       enabled: false
     };
@@ -128,23 +124,25 @@ Node.prototype.shared = {
             syncing: modules.loader.syncing(),
             consensus: modules.transport.consensus(),
             blocks: modules.loader.getBlocksToSync(),
-            blocksCount: modules.loader.getTotalBlocks(),
+            blocksCount: modules.loader.getTotalBlocks()
           },
           network: {
             broadhash: modules.system.getBroadhash(),
             epoch: constants.epochTime,
             height: lastBlock.height,
             fee: library.logic.block.calculateFee(),
-            milestone: __private.blockReward.calcMilestone(lastBlock.height),
+            milestone: lastBlock.height ? __private.blockReward.calcMilestone(lastBlock.height) : undefined,
             nethash: modules.system.getNethash(),
-            reward: __private.blockReward.calcReward(lastBlock.height),
-            supply: __private.blockReward.calcSupply(lastBlock.height)
+            reward: lastBlock.height ? __private.blockReward.calcReward(lastBlock.height) : undefined,
+            supply: lastBlock.height ? __private.blockReward.calcSupply(lastBlock.height) : undefined
           },
           version: {
             build: library.build,
             commit: library.lastCommit,
             version: library.config.version
           },
+          nodeTimestampMs: nodeTimestampMs,
+          unixTimestampMs: constants.epochTime.getTime() + nodeTimestampMs,
           wsClient: wsClientOptions
         });
   }

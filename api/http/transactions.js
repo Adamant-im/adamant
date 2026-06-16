@@ -17,19 +17,26 @@ var httpApi = require('../../helpers/httpApi');
  *    - get    /multisignatures
  *    - get    /unconfirmed/get
  *    - get    /unconfirmed
- *    - put    /
- *    - post   /normalize
  *    - post   /process
  * @memberof module:transactions
  * @requires helpers/Router
  * @requires helpers/httpApi
  * @constructor
- * @param {Object} transactionsModule - Module transaction instance.
+ * @param {object} transactionsModule - Module transaction instance.
  * @param {scope} app - Network app.
+ * @param {Logger} logger - Application logger.
+ * @param {Cache} cache - API response cache.
  */
 // Constructor
 function TransactionsHttpApi (transactionsModule, app, logger, cache) {
   var router = new Router();
+
+  router.use('/multisignatures', (req, res) => {
+    res.status(404).send({
+      success: false,
+      error: 'API endpoint not found'
+    });
+  });
 
   // attach a middleware to endpoints
   router.attachMiddlwareForUrls(httpApi.middleware.useCache.bind(null, logger, cache), [
@@ -47,8 +54,6 @@ function TransactionsHttpApi (transactionsModule, app, logger, cache) {
     'get /multisignatures': 'getMultisignatureTransactions',
     'get /unconfirmed/get': 'getUnconfirmedTransaction',
     'get /unconfirmed': 'getUnconfirmedTransactions',
-    'put /': 'addTransactions',
-    'post /normalize': 'normalizeTransactions',
     'post /process': 'processTransactions'
   });
 

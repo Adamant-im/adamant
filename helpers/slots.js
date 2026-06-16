@@ -28,7 +28,7 @@ function getEpochTime (time) {
   var d = beginEpochTime();
   var t = d.getTime();
 
-  return Math.floor((time - t) / 1000);
+  return time - t;
 }
 /**
  * @namespace
@@ -45,11 +45,22 @@ module.exports = {
   delegates: constants.activeDelegates,
 
   /**
-   * @method
-   * @param {number} time
-   * @return {number} ADAMANT epoch time constant.
+   * Converts a timestamp in ms to ADAMANT epoch time in seconds.
+   * Returns the current time if the `time` parameter is omitted.
+   * @param {number?} time - Timestamp in ms
+   * @return {number} ADAMANT epoch time (passed since ADM blockchain creation) constant in sec.
    */
   getTime: function (time) {
+    return Math.floor(getEpochTime(time) / 1000);
+  },
+
+  /**
+   * Converts a timestamp in ms to ADAMANT epoch time in ms.
+   * Returns the current time if the `time` parameter is omitted.
+   * @param {number?} time - Timestamp in ms
+   * @return {number} ADAMANT epoch time (passed since ADM blockchain creation) constant in ms.
+   */
+  getTimeMs: function (time) {
     return getEpochTime(time);
   },
 

@@ -10,7 +10,6 @@
  * @property {number} blockReceiptTimeOut
  * @property {number} confirmationLength
  * @property {Date} epochTime
- * @property {number} fairSystemActivateBlock
  * @property {object} fees - The default values for fees.
  * @property {number} fees.send
  * @property {number} fees.vote
@@ -50,7 +49,15 @@ module.exports = {
   blockReceiptTimeOut: 20, // 2 blocks
   confirmationLength: 77,
   epochTime: new Date(Date.UTC(2017, 8, 2, 17, 0, 0, 0)),
-  fairSystemActivateBlock: 4359464,
+  maxTimestampMsDelta: 1000,
+  maxTransactionFutureMs: 500,
+  maxTransactionAgeSec: 5,
+  wsNodeClient: {
+    rotationPercentage: 0.2, // Rotate 20%
+    rotationInterval: 1000 * 60 * 30, // every 30 minutes
+    maxReconnectDelay: 60000,
+    defaultReconnectionDelay: 5000
+  },
   fees: {
     send: 50000000,
     vote: 5000000000,

@@ -3,10 +3,10 @@
 /**
  * Validates sort options, methods and fields.
  * @memberof module:helpers
- * @function
- * @param {array} orderBy
- * @param {string} options
- * @return {Object} error | {sortField, sortMethod}.
+ * @method
+ * @param {Array} orderBy
+ * @param {object} options
+ * @return {object} error | {sortField, sortMethod}.
  */
 function OrderBy (orderBy, options) {
   options = (typeof options === 'object') ? options : {};
@@ -30,6 +30,8 @@ function OrderBy (orderBy, options) {
       sortMethod = sort[1] === 'desc' ? 'DESC' : 'ASC';
     }
   }
+
+  const originalField = sortField || options.sortField;
 
   function prefixField (sortField) {
     if (!sortField) {
@@ -72,9 +74,27 @@ function OrderBy (orderBy, options) {
   }
 
   return {
+    originalField,
     sortField: quoteField(sortField),
     sortMethod: sortMethod
   };
 }
+
+OrderBy.formatSQLSorting = (params) => {
+  const {
+    originalField,
+    sortField,
+    sortMethod,
+    timestampField = '"timestamp"',
+    timestampMsField = '"timestampMs"'
+  } = params;
+
+  if (originalField === 'timestamp') {
+    // prefer timestampMs then fallback to timestamp
+    return `COALESCE(${timestampMsField}, (${timestampField})::bigint * 1000) ${sortMethod}, ${timestampField} ${sortMethod}`;
+  }
+
+  return `${sortField} ${sortMethod}`;
+};
 
 module.exports = OrderBy;

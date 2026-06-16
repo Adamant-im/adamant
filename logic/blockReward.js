@@ -11,7 +11,7 @@ var __private = {};
  * - distance
  * - rewardOffset
  * @memberof module:blocks
- * @class
+ * @constructor
  * @classdesc Main BlockReward logic.
  */
 // Constructor

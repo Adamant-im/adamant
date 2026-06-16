@@ -2,5 +2,5 @@
 
 module.exports = {
   dummyBlock,
-  randomPeer,
+  randomPeer
 };

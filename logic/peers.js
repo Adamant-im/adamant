@@ -13,9 +13,9 @@ var modules;
 /**
  * Initializes library.
  * @memberof module:peers
- * @class
+ * @constructor
  * @classdesc Main peers logic.
- * @param {Object} logger
+ * @param {object} logger
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} Callback function with `this` as data.
  */
@@ -28,6 +28,14 @@ function Peers (logger, cb) {
   __private.peers = {};
   return setImmediate(cb, null, this);
 }
+
+/**
+ * Finds the peer by nonce
+ * @param {string} nonce
+ */
+Peers.prototype.getByNonce = function (nonce) {
+  return Object.values(__private.peers).find((peer) => peer.nonce === nonce);
+};
 
 /**
  * Returns a peer instance.
@@ -77,9 +85,9 @@ Peers.prototype.upsert = function (peer, insertOnly) {
     if (!_.isEmpty(modules.peers.acceptable([peer]))) {
       peer.updated = Date.now();
       __private.peers[peer.string] = peer;
-      library.logger.info('Added new peer', peer.string);
+      library.logger.info('peers', 'Added new peer', peer.string);
     } else {
-      library.logger.debug('Rejecting unacceptable peer', peer.string);
+      library.logger.debug('peers', 'Rejecting unacceptable peer', peer.string);
     }
   };
 
@@ -87,9 +95,12 @@ Peers.prototype.upsert = function (peer, insertOnly) {
   var update = function (peer) {
     peer.updated = Date.now();
 
+    const existingPeer = __private.peers[peer.string];
+
     var diff = {};
     _.each(peer, function (value, key) {
-      if (key !== 'updated' && __private.peers[peer.string][key] !== value) {
+      const isImmutableProperty = existingPeer.immutable.includes(key);
+      if (key !== 'updated' && !isImmutableProperty && existingPeer[key] !== value) {
         diff[key] = value;
       }
     });
@@ -97,16 +108,16 @@ Peers.prototype.upsert = function (peer, insertOnly) {
     __private.peers[peer.string].update(peer);
 
     if (Object.keys(diff).length) {
-      library.logger.debug('Updated peer ' + peer.string, diff);
+      library.logger.debug('peers', 'Updated peer ' + peer.string, diff);
     } else {
-      library.logger.trace('Peer not changed', peer.string);
+      library.logger.trace('peers', 'Peer not changed', peer.string);
     }
   };
 
   peer = self.create(peer);
 
   if (!peer.string) {
-    library.logger.warn('Upsert invalid peer rejected', { peer: peer });
+    library.logger.warn('peers', 'Upsert invalid peer rejected', { peer: peer });
     return false;
   }
 
@@ -141,7 +152,7 @@ Peers.prototype.upsert = function (peer, insertOnly) {
     }
   });
 
-  library.logger.trace('Peer stats', { total: cnt_total, alive: cnt_active, empty_height: cnt_empty_height, empty_broadhash: cnt_empty_broadhash });
+  library.logger.trace('peers', 'Peer stats', { total: cnt_total, alive: cnt_active, empty_height: cnt_empty_height, empty_broadhash: cnt_empty_broadhash });
 
   return true;
 };
@@ -155,13 +166,13 @@ Peers.prototype.remove = function (peer) {
   peer = self.create(peer);
   // Remove peer if exists
   if (self.exists(peer)) {
-    library.logger.info('Removed peer', peer.string);
-    library.logger.debug('Removed peer', { peer: __private.peers[peer.string] });
+    library.logger.info('peers', 'Removed peer', peer.string);
+    library.logger.debug('peers', 'Removed peer', { peer: __private.peers[peer.string] });
     __private.peers[peer.string] = null; // Possible memory leak prevention
     delete __private.peers[peer.string];
     return true;
   } else {
-    library.logger.debug('Failed to remove peer', { err: 'AREMOVED', peer: peer });
+    library.logger.debug('peers', 'Failed to remove peer', { err: 'AREMOVED', peer: peer });
     return false;
   }
 };
@@ -174,9 +185,9 @@ Peers.prototype.remove = function (peer) {
  */
 Peers.prototype.recordRequest = function (data, error) {
   if (!self.exists(data)) {
-    library.logger.debug('Failed to update request success rate for peer', {
+    library.logger.debug('peers', 'Failed to update request success rate for peer', {
       peer: data,
-      err: error,
+      err: error
     });
     return false;
   }
@@ -200,10 +211,18 @@ Peers.prototype.list = function (normalize) {
   }
 };
 
+/**
+ * Returns amount of peers that are connected via socket
+ * @return {number}
+ */
+Peers.prototype.getSocketCount = function () {
+  return Object.values(__private.peers).reduce((acc, peer) => acc + (peer.isBroadcastingViaSocket ? 1 : 0), 0);
+};
+
 // Public methods
 /**
  * Modules are not required in this file.
- * @param {Object} __modules - Peers module.
+ * @param {object} __modules - Peers module.
  */
 Peers.prototype.bindModules = function (__modules) {
   modules = {

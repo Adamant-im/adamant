@@ -19,12 +19,12 @@ describe('node', function () {
   const dummyBlock = {
     id: '9314232245035524467',
     height: 1,
-    timestamp: 0,
+    timestamp: 0
   };
 
   const library = {
     lastCommit: '07757855c143e69e417da6e3918e0e57a3dd1864',
-    build: '',
+    build: ''
   };
 
   before(function (done) {
@@ -40,20 +40,20 @@ describe('node', function () {
 
       const scope = {
         ...modulesLoader.scope,
-        ...library,
+        ...library
       };
 
       modulesLoader.initModuleWithDb(
-        Node,
-        (err, module) => {
-          if (err) {
-            return done(err);
-          }
+          Node,
+          (err, module) => {
+            if (err) {
+              return done(err);
+            }
 
-          nodeModule = module;
-          done();
-        },
-        scope
+            nodeModule = module;
+            done();
+          },
+          scope
       );
     });
   });
@@ -78,7 +78,14 @@ describe('node', function () {
       it('should return valid node status', (done) => {
         nodeModule.shared.getStatus({}, (err, response) => {
           expect(err).not.to.exist;
-          const keys = ['loader', 'network', 'version', 'wsClient'];
+          const keys = [
+            'loader',
+            'network',
+            'version',
+            'nodeTimestampMs',
+            'unixTimestampMs',
+            'wsClient'
+          ];
           expect(response).to.have.keys(keys);
 
           const loaderKeys = [
@@ -87,7 +94,7 @@ describe('node', function () {
             'syncing',
             'consensus',
             'blocks',
-            'blocksCount',
+            'blocksCount'
           ];
           expect(response.loader).to.be.an('object').that.has.keys(loaderKeys);
 
@@ -110,6 +117,8 @@ describe('node', function () {
           expect(response.version.build).to.equal(library.build);
 
           expect(semver.valid(response.version.version)).not.to.be.null;
+          expect(response.nodeTimestampMs).to.be.a('number');
+          expect(response.unixTimestampMs).to.equal(constants.epochTime.getTime() + response.nodeTimestampMs);
 
           done();
         });

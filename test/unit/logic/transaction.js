@@ -3,6 +3,7 @@
 const async = require('async');
 const { expect } = require('chai');
 const _ = require('lodash');
+const sinon = require('sinon');
 
 const constants = require('../../../helpers/constants.js');
 const bignum = require('../../../helpers/bignum.js');
@@ -32,81 +33,91 @@ const {
   validTransaction,
   validUnconfirmedTransaction,
   rawValidTransaction,
-  validTransactionData,
+  validTransactionData
 } = require('../../common/stubs/transactions/transfer.js');
 const {
   testAccountKeypair,
   delegateAccount,
   genesisAccount,
   delegateAccountKeypair,
-  genesisKeypair,
+  genesisKeypair
 } = require('../../common/stubs/account.js');
+const defaultConfig = require('../../../config.default.json');
+
+const consensusActivationHeights = defaultConfig.consensusActivationHeights;
 
 const validKeypair = testAccountKeypair;
 
 const testSender = {
   ...senderDefault,
-  ...delegateAccount,
+  ...delegateAccount
 };
 const testSenderKeypair = delegateAccountKeypair;
 
 const genesis = {
   ...senderDefault,
-  ...genesisAccount,
+  ...genesisAccount
 };
 
 describe('transaction', () => {
   let transaction;
   let accountModule;
 
-  function attachTransferAsset(transaction, accountLogic, rounds, done) {
+  function attachTransferAsset (transaction, accountLogic, rounds, done) {
     modulesLoader.initModuleWithDb(
-      AccountModule,
-      (err, __accountModule) => {
-        const transfer = new Transfer();
-        transfer.bind(__accountModule, rounds);
-        transaction.attachAssetType(transactionTypes.SEND, transfer);
-        accountModule = __accountModule;
-        done();
-      },
-      {
-        logic: {
-          account: accountLogic,
-          transaction: transaction,
+        AccountModule,
+        (err, __accountModule) => {
+          const transfer = new Transfer();
+          transfer.bind(__accountModule, rounds);
+          transaction.attachAssetType(transactionTypes.SEND, transfer);
+          accountModule = __accountModule;
+          done();
         },
-      }
+        {
+          logic: {
+            account: accountLogic,
+            transaction: transaction
+          }
+        }
     );
   };
 
+  let dummyHeight = 1;
+
   before((done) => {
     async.auto(
-      {
-        rounds(cb) {
-          modulesLoader.initModule(Rounds, modulesLoader.scope, cb);
-        },
-        accountLogic(cb) {
-          modulesLoader.initLogicWithDb(AccountLogic, cb);
-        },
-        transaction: [
-          'accountLogic',
-          (result, cb) => {
-            modulesLoader.initLogicWithDb(Transaction, cb, {
-              ed: require('../../../helpers/ed'),
-              account: result.accountLogic,
-            });
+        {
+          rounds (cb) {
+            modulesLoader.initModule(Rounds, modulesLoader.scope, cb);
           },
-        ],
-      },
-      (err, result) => {
-        transaction = result.transaction;
-        transaction.bindModules(result);
-        attachTransferAsset(
-          transaction,
-          result.accountLogic,
-          result.rounds,
-          done
-        );
-      }
+          accountLogic (cb) {
+            modulesLoader.initLogicWithDb(AccountLogic, cb);
+          },
+          transaction: [
+            'accountLogic',
+            (result, cb) => {
+              modulesLoader.initLogicWithDb(Transaction, cb, {
+                ed: require('../../../helpers/ed'),
+                account: result.accountLogic,
+                consensus: {
+                  loader: {
+                    getHeight: () => dummyHeight
+                  }
+                }
+              });
+            }
+          ]
+        },
+        (err, result) => {
+          transaction = result.transaction;
+          transaction.bindModules(result);
+          attachTransferAsset(
+              transaction,
+              result.accountLogic,
+              result.rounds,
+              done
+          );
+        }
     );
   });
 
@@ -140,48 +151,48 @@ describe('transaction', () => {
     it('should attach all transaction types', () => {
       let appliedLogic;
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.VOTE,
-        new Vote()
+          transactionTypes.VOTE,
+          new Vote()
       );
       expect(appliedLogic).to.be.an.instanceof(Vote);
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.SEND,
-        new Transfer()
+          transactionTypes.SEND,
+          new Transfer()
       );
       expect(appliedLogic).to.be.an.instanceof(Transfer);
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.DELEGATE,
-        new Delegate()
+          transactionTypes.DELEGATE,
+          new Delegate()
       );
       expect(appliedLogic).to.be.an.instanceof(Delegate);
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.SIGNATURE,
-        new Signature()
+          transactionTypes.SIGNATURE,
+          new Signature()
       );
       expect(appliedLogic).to.be.an.instanceof(Signature);
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.MULTI,
-        new Multisignature()
+          transactionTypes.MULTI,
+          new Multisignature()
       );
       expect(appliedLogic).to.be.an.instanceof(Multisignature);
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.IN_TRANSFER,
-        new InTransfer()
+          transactionTypes.IN_TRANSFER,
+          new InTransfer()
       );
       expect(appliedLogic).to.be.an.instanceof(InTransfer);
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.OUT_TRANSFER,
-        new OutTransfer()
+          transactionTypes.OUT_TRANSFER,
+          new OutTransfer()
       );
       expect(appliedLogic).to.be.an.instanceof(OutTransfer);
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.CHAT_MESSAGE,
-        new Chat()
+          transactionTypes.CHAT_MESSAGE,
+          new Chat()
       );
       expect(appliedLogic).to.be.an.instanceof(Chat);
       appliedLogic = transaction.attachAssetType(
-        transactionTypes.STATE,
-        new State()
+          transactionTypes.STATE,
+          new State()
       );
       expect(appliedLogic).to.be.an.instanceof(State);
       return transaction;
@@ -208,8 +219,16 @@ describe('transaction', () => {
       const notSignedTx = _.cloneDeep(validTransaction);
       delete notSignedTx.signature;
       expect(transaction.sign(genesisKeypair, notSignedTx))
-        .to.be.a('string')
-        .which.is.equal(validTransaction.signature);
+          .to.be.a('string')
+          .which.is.equal(validTransaction.signature);
+    });
+
+    it('should not include timestampMs in signature bytes', () => {
+      const notSignedTx = _.cloneDeep(validTransaction);
+      delete notSignedTx.signature;
+      const signature = transaction.sign(genesisKeypair, notSignedTx);
+      notSignedTx.timestampMs += 999;
+      expect(transaction.sign(genesisKeypair, notSignedTx)).to.equal(signature);
     });
   });
 
@@ -235,8 +254,8 @@ describe('transaction', () => {
 
     it('should generate the id of the trs', () => {
       expect(transaction.getId(validTransaction))
-        .to.be.a('string')
-        .which.is.equal(validTransaction.id);
+          .to.be.a('string')
+          .which.is.equal(validTransaction.id);
     });
 
     it('should update id if a field in trs value changes', () => {
@@ -244,6 +263,13 @@ describe('transaction', () => {
       const trs = _.cloneDeep(validTransaction);
       trs.amount = 4000;
       expect(transaction.getId(trs)).to.not.equal(id);
+    });
+
+    it('should not include timestampMs in transaction id', () => {
+      const trs = _.cloneDeep(validTransaction);
+      const id = transaction.getId(trs);
+      trs.timestampMs += 999;
+      expect(transaction.getId(trs)).to.equal(id);
     });
   });
 
@@ -257,8 +283,8 @@ describe('transaction', () => {
       const expectedHash =
         '8d847c2495f790ee1f203c572f998b02376c37be57a8853bbbdcbc882d07b639';
       expect(transaction.getHash(trs).toString('hex'))
-        .to.be.a('string')
-        .which.is.equal(expectedHash);
+          .to.be.a('string')
+          .which.is.equal(expectedHash);
     });
 
     it('should update hash if a field is trs value changes', () => {
@@ -267,8 +293,15 @@ describe('transaction', () => {
       const trs = _.cloneDeep(validTransaction);
       trs.amount = 4000;
       expect(transaction.getHash(trs).toString('hex')).to.not.equal(
-        originalTrsHash
+          originalTrsHash
       );
+    });
+
+    it('should not include timestampMs in transaction hash', () => {
+      const trs = _.cloneDeep(validTransaction);
+      const hash = transaction.getHash(trs).toString('hex');
+      trs.timestampMs += 999;
+      expect(transaction.getHash(trs).toString('hex')).to.equal(hash);
     });
   });
 
@@ -351,7 +384,7 @@ describe('transaction', () => {
 
     it('should return error for transaction which is already confirmed', (done) => {
       const dummyConfirmedTrs = {
-        id: '17190511997607511181',
+        id: '17190511997607511181'
       };
       transaction.checkConfirmed(dummyConfirmedTrs, (err) => {
         expect(err || []).to.include('Transaction is already confirmed');
@@ -371,10 +404,10 @@ describe('transaction', () => {
       let sender = _.cloneDeep(testSender);
       sender.balance = 0;
       const res = transaction.checkBalance(
-        amount,
-        balanceKey,
-        validUnconfirmedTransaction,
-        sender
+          amount,
+          balanceKey,
+          validUnconfirmedTransaction,
+          sender
       );
       expect(res.exceeded).to.be.true;
       expect(res.error).to.include('Account does not have enough ADM:');
@@ -386,10 +419,10 @@ describe('transaction', () => {
       let sender = _.cloneDeep(genesis);
       sender.balance = 0;
       const res = transaction.checkBalance(
-        amount,
-        balanceKey,
-        validTransaction,
-        sender
+          amount,
+          balanceKey,
+          validTransaction,
+          sender
       );
       expect(res.exceeded).to.be.false;
       expect(res.error).to.not.exist;
@@ -400,10 +433,10 @@ describe('transaction', () => {
       let sender = _.cloneDeep(senderDefault);
       sender.balance = 100000001;
       const res = transaction.checkBalance(
-        validTransaction.amount,
-        balanceKey,
-        validTransaction,
-        sender
+          validTransaction.amount,
+          balanceKey,
+          validTransaction,
+          sender
       );
       expect(res.exceeded).to.be.false;
       expect(res.error).to.not.exist;
@@ -433,7 +466,7 @@ describe('transaction', () => {
 
     it('should return error when failed to generate id', (done) => {
       const trs = {
-        type: 0,
+        type: 0
       };
       transaction.process(trs, senderDefault, function (err, res) {
         expect(err).to.equal('Failed to get transaction id');
@@ -452,7 +485,7 @@ describe('transaction', () => {
   });
 
   describe('verify()', () => {
-    function createAndProcess(trsData, sender, cb) {
+    function createAndProcess (trsData, sender, cb) {
       const trs = transaction.create(trsData);
       transaction.process(trs, sender, (err, __trs) => {
         expect(err).to.not.exist;
@@ -507,7 +540,7 @@ describe('transaction', () => {
       const trs = _.cloneDeep(validTransaction);
       const dummyRequester = {
         secondSignature:
-          'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f',
+          'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f'
       };
       trs.requesterPublicKey =
         '839eba0f811554b9f935e39a68b3078f90bea22c5424d3ad16630f027a48362f78349ddc3948360045d6460404f5bc8e25b662d4fd09e60c89453776962df40d';
@@ -526,12 +559,12 @@ describe('transaction', () => {
 
       transaction.verify(trs, genesis, {}, (err) => {
         expect(err).to.include(
-          [
-            'Invalid sender public key:',
-            invalidPublicKey,
-            'expected:',
-            senderDefault.publicKey,
-          ].join(' ')
+            [
+              'Invalid sender public key:',
+              invalidPublicKey,
+              'expected:',
+              senderDefault.publicKey
+            ].join(' ')
         );
         done();
       });
@@ -548,7 +581,7 @@ describe('transaction', () => {
       vs.address = 'U15365455923155964650';
       transaction.verify(trs, vs, {}, (err) => {
         expect(err).to.include(
-          'Invalid sender. Can not send from genesis account'
+            'Invalid sender. Can not send from genesis account'
         );
         done();
       });
@@ -682,7 +715,12 @@ describe('transaction', () => {
 
     it('should verify transaction with correct fee (without data field)', (done) => {
       let trs = _.cloneDeep(validUnconfirmedTransaction);
+
+      trs.timestamp = slots.getTime();
+      trs.timestampMs = slots.getTimeMs();
+
       trs.signature = transaction.sign(testSenderKeypair, trs);
+
       transaction.verify(trs, testSender, {}, (err) => {
         expect(err).to.not.exist;
         done();
@@ -709,17 +747,6 @@ describe('transaction', () => {
       });
     });
 
-    it('should return error on timestamp smaller than the int32 range', (done) => {
-      const trs = _.cloneDeep(validUnconfirmedTransaction);
-      trs.timestamp = -2147483648 - 1;
-      delete trs.signature;
-      trs.signature = transaction.sign(testSenderKeypair, trs);
-      transaction.verify(trs, testSender, {}, (err) => {
-        expect(err).to.include('Invalid transaction timestamp');
-        done();
-      });
-    });
-
     it('should return error on timestamp bigger than the int32 range', (done) => {
       const trs = _.cloneDeep(validUnconfirmedTransaction);
       trs.timestamp = 2147483647 + 1;
@@ -731,19 +758,74 @@ describe('transaction', () => {
       });
     });
 
-    it('should return error on future timestamp', (done) => {
+    it('should return error when timestampMs is before timestamp second', (done) => {
       const trs = _.cloneDeep(validUnconfirmedTransaction);
-      trs.timestamp = slots.getTime() + 100;
+
+      trs.timestamp = slots.getTime();
+      const timestampMs = trs.timestamp * 1000;
+      trs.timestampMs = timestampMs - 1;
+
       delete trs.signature;
       trs.signature = transaction.sign(testSenderKeypair, trs);
+
       transaction.verify(trs, testSender, {}, (err) => {
-        expect(err).to.include('Invalid transaction timestamp');
+        expect(err).to.equal('Invalid transaction timestamp. timestampMs must be within the same second as timestamp, from 0 to 999ms');
+        done();
+      });
+    });
+
+    it('should return error when timestampMs reaches the next timestamp second', (done) => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+
+      trs.timestamp = slots.getTime();
+      const timestampMs = trs.timestamp * 1000;
+      trs.timestampMs = timestampMs + 1000;
+
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+
+      transaction.verify(trs, testSender, {}, (err) => {
+        expect(err).to.equal('Invalid transaction timestamp. timestampMs must be within the same second as timestamp, from 0 to 999ms');
+        done();
+      });
+    });
+
+    it('should verify timestampMs at the first millisecond of timestamp second', (done) => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+
+      trs.timestamp = slots.getTime();
+      trs.timestampMs = trs.timestamp * 1000;
+
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+
+      transaction.verify(trs, testSender, {}, (err) => {
+        expect(err).to.not.be.ok;
+        done();
+      });
+    });
+
+    it('should verify timestampMs at the last millisecond of timestamp second', (done) => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+
+      trs.timestamp = slots.getTime();
+      trs.timestampMs = trs.timestamp * 1000 + 999;
+
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+
+      transaction.verify(trs, testSender, {}, (err) => {
+        expect(err).to.not.be.ok;
         done();
       });
     });
 
     it('should verify proper transaction with proper sender', (done) => {
       let trs = _.cloneDeep(validUnconfirmedTransaction);
+
+      trs.timestamp = slots.getTime();
+      trs.timestampMs = slots.getTimeMs();
+
       trs.signature = transaction.sign(testSenderKeypair, trs);
       transaction.verify(trs, testSender, {}, (err) => {
         expect(err).to.not.be.ok;
@@ -756,6 +838,372 @@ describe('transaction', () => {
     });
   });
 
+  describe('publish()', () => {
+    afterEach(() => {
+      sinon.restore();
+    });
+
+    it('should return error on future timestamp', () => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestamp = slots.getTime() + 100;
+      trs.timestampMs = trs.timestamp * 1000;
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+      expect(() => transaction.publish(trs)).to.throw(
+          'Transaction timestamp is in the future'
+      );
+    });
+
+    it('should accept next-slot transaction within future timestamp grace', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestampMs = slots.getTimeMs() + constants.maxTransactionFutureMs;
+      trs.timestamp = Math.floor(trs.timestampMs / 1000);
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+
+      expect(() => transaction.publish(trs)).to.not.throw();
+    });
+
+    it('should reject next-slot transaction beyond future timestamp grace', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestampMs = slots.getTimeMs() + constants.maxTransactionFutureMs + 1;
+      trs.timestamp = Math.floor(trs.timestampMs / 1000);
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+
+      expect(() => transaction.publish(trs)).to.throw(
+          'Transaction timestamp is in the future'
+      );
+    });
+
+    it('should accept timestamp that is 16 seconds in the past for transfer transactions', () => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestamp = slots.getTime() - 16;
+      trs.timestampMs = trs.timestamp * 1000;
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+      expect(() => transaction.publish(trs)).to.not.throw();
+    });
+
+    it('should return error on timestamp that is 16 seconds in the past for chat messages', () => {
+      transaction.attachAssetType(transactionTypes.CHAT_MESSAGE, new Chat());
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.CHAT_MESSAGE;
+      trs.amount = 0;
+      trs.recipientId = 'U810656636599221322';
+      trs.asset = {
+        chat: {
+          message: '75582d940f2c4093929c99a6c1911b4753',
+          own_message: '58dceaa227b3fb1dd1c7d3fbf3eb5db6aeb6a03cb7e2ec91',
+          type: 1
+        }
+      };
+      trs.timestamp = slots.getTime() - 16;
+      trs.timestampMs = trs.timestamp * 1000;
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+      expect(() => transaction.publish(trs)).to.throw(
+          'Transaction timestamp is more than 5 seconds in the past'
+      );
+    });
+
+    it('should return error on timestamp that is 16 seconds in the past for state transactions', () => {
+      transaction.attachAssetType(transactionTypes.STATE, new State());
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.STATE;
+      trs.amount = 0;
+      trs.recipientId = null;
+      trs.asset = {
+        state: {
+          key: 'test:key',
+          value: '74657374',
+          type: 0
+        }
+      };
+      trs.timestamp = slots.getTime() - 16;
+      trs.timestampMs = trs.timestamp * 1000;
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+      expect(() => transaction.publish(trs)).to.throw(
+          'Transaction timestamp is more than 5 seconds in the past'
+      );
+    });
+  });
+
+  describe('checkFutureTimestamp()', () => {
+    afterEach(() => {
+      sinon.restore();
+    });
+
+    it('should not error for a transaction in the current slot', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestamp = slots.getTime();
+      trs.timestampMs = slots.getTimeMs();
+
+      expect(transaction.checkFutureTimestamp(trs)).to.be.undefined;
+    });
+
+    it('should not error for a transaction with a timestamp in the past', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestamp = slots.getTime() - 1000;
+      trs.timestampMs = trs.timestamp * 1000;
+
+      expect(transaction.checkFutureTimestamp(trs)).to.be.undefined;
+    });
+
+    it('should not error when still in the current slot, even if the derived future ms would exceed the grace window', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestamp = 104; // same slot (20) as current time, despite a large ms gap
+      trs.timestampMs = 104999;
+
+      expect(transaction.checkFutureTimestamp(trs)).to.be.undefined;
+    });
+
+    it('should accept a next-slot transaction exactly at the future grace boundary, with timestampMs present (post-spaceship)', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestampMs = slots.getTimeMs() + constants.maxTransactionFutureMs;
+      trs.timestamp = Math.floor(trs.timestampMs / 1000);
+
+      expect(transaction.checkFutureTimestamp(trs)).to.be.undefined;
+    });
+
+    it('should reject a next-slot transaction 1ms beyond the future grace boundary, with timestampMs present (post-spaceship)', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestampMs = slots.getTimeMs() + constants.maxTransactionFutureMs + 1;
+      trs.timestamp = Math.floor(trs.timestampMs / 1000);
+
+      expect(transaction.checkFutureTimestamp(trs)).to.equal('Transaction timestamp is in the future');
+    });
+
+    it('should accept a next-slot transaction within grace when timestampMs is absent, falling back to timestamp * 1000 (pre-spaceship)', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      delete trs.timestampMs;
+      trs.timestamp = 105; // next slot; timestamp * 1000 is only 1ms ahead of current time
+
+      expect(transaction.checkFutureTimestamp(trs)).to.be.undefined;
+    });
+
+    it('should reject a next-slot transaction beyond grace when timestampMs is absent, falling back to timestamp * 1000 (pre-spaceship)', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      delete trs.timestampMs;
+      trs.timestamp = 106; // next slot; timestamp * 1000 is 1001ms ahead of current time
+
+      expect(transaction.checkFutureTimestamp(trs)).to.equal('Transaction timestamp is in the future');
+    });
+
+    it('should accept a clearly in-grace future transaction the same way whether timestampMs is present or absent', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const withMs = _.cloneDeep(validUnconfirmedTransaction);
+      withMs.timestamp = 105;
+      withMs.timestampMs = 105000;
+
+      const withoutMs = _.cloneDeep(validUnconfirmedTransaction);
+      withoutMs.timestamp = 105;
+      delete withoutMs.timestampMs;
+
+      expect(transaction.checkFutureTimestamp(withMs)).to.be.undefined;
+      expect(transaction.checkFutureTimestamp(withoutMs)).to.be.undefined;
+    });
+
+    it('should reject a clearly out-of-grace future transaction the same way whether timestampMs is present or absent', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const withMs = _.cloneDeep(validUnconfirmedTransaction);
+      withMs.timestamp = 110;
+      withMs.timestampMs = 110000;
+
+      const withoutMs = _.cloneDeep(validUnconfirmedTransaction);
+      withoutMs.timestamp = 110;
+      delete withoutMs.timestampMs;
+
+      expect(transaction.checkFutureTimestamp(withMs)).to.equal('Transaction timestamp is in the future');
+      expect(transaction.checkFutureTimestamp(withoutMs)).to.equal('Transaction timestamp is in the future');
+    });
+
+    it('should reject the same future transaction both before and after spaceship activation via objectNormalize', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const buildTrs = () => {
+        const trs = _.cloneDeep(validUnconfirmedTransaction);
+        trs.timestamp = 110;
+        trs.timestampMs = 110000;
+        delete trs.signature;
+        trs.signature = transaction.sign(testSenderKeypair, trs);
+        return trs;
+      };
+
+      dummyHeight = consensusActivationHeights.spaceship - 1;
+      const preSpaceship = transaction.objectNormalize(buildTrs());
+      expect(preSpaceship).to.not.have.property('timestampMs');
+      expect(transaction.checkFutureTimestamp(preSpaceship)).to.equal('Transaction timestamp is in the future');
+
+      dummyHeight = consensusActivationHeights.spaceship;
+      const postSpaceship = transaction.objectNormalize(buildTrs());
+      expect(postSpaceship).to.have.property('timestampMs');
+      expect(transaction.checkFutureTimestamp(postSpaceship)).to.equal('Transaction timestamp is in the future');
+
+      dummyHeight = 1;
+    });
+  });
+
+  describe('checkPastTimestampWindow()', () => {
+    afterEach(() => {
+      sinon.restore();
+    });
+
+    it('should not error for SEND transactions regardless of how old the timestamp is', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.SEND;
+      trs.timestamp = 1;
+
+      expect(transaction.checkPastTimestampWindow(trs)).to.be.undefined;
+    });
+
+    it('should not error for a CHAT_MESSAGE transaction within the allowed past window', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.CHAT_MESSAGE;
+      trs.timestamp = 96; // earliest valid slot (19) is seconds 95-99
+
+      expect(transaction.checkPastTimestampWindow(trs)).to.be.undefined;
+    });
+
+    it('should not error for a CHAT_MESSAGE transaction exactly at the earliest valid boundary', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.CHAT_MESSAGE;
+      trs.timestamp = 95; // start of earliest valid slot (19)
+
+      expect(transaction.checkPastTimestampWindow(trs)).to.be.undefined;
+    });
+
+    it('should error for a CHAT_MESSAGE transaction 1 slot before the earliest valid boundary', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.CHAT_MESSAGE;
+      trs.timestamp = 94; // slot 18, just before the earliest valid slot (19)
+
+      expect(transaction.checkPastTimestampWindow(trs)).to.equal(
+          `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`
+      );
+    });
+
+    it('should error for a CHAT_MESSAGE transaction well beyond the allowed past window', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.CHAT_MESSAGE;
+      trs.timestamp = 50;
+
+      expect(transaction.checkPastTimestampWindow(trs)).to.equal(
+          `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`
+      );
+    });
+
+    it('should not error for a STATE transaction within the allowed past window', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.STATE;
+      trs.timestamp = 99;
+
+      expect(transaction.checkPastTimestampWindow(trs)).to.be.undefined;
+    });
+
+    it('should error for a STATE transaction beyond the allowed past window', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.STATE;
+      trs.timestamp = 50;
+
+      expect(transaction.checkPastTimestampWindow(trs)).to.equal(
+          `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`
+      );
+    });
+
+    it('should behave identically whether timestampMs is present or absent, since the past-window check ignores it', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const withMs = _.cloneDeep(validUnconfirmedTransaction);
+      withMs.type = transactionTypes.CHAT_MESSAGE;
+      withMs.timestamp = 50;
+      withMs.timestampMs = 50000;
+
+      const withoutMs = _.cloneDeep(validUnconfirmedTransaction);
+      withoutMs.type = transactionTypes.CHAT_MESSAGE;
+      withoutMs.timestamp = 50;
+      delete withoutMs.timestampMs;
+
+      const expectedError = `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`;
+
+      expect(transaction.checkPastTimestampWindow(withMs)).to.equal(expectedError);
+      expect(transaction.checkPastTimestampWindow(withoutMs)).to.equal(expectedError);
+    });
+
+    it('should reject the same stale chat transaction both before and after spaceship activation via objectNormalize', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+      transaction.attachAssetType(transactionTypes.CHAT_MESSAGE, new Chat());
+
+      const buildTrs = () => {
+        const trs = _.cloneDeep(validUnconfirmedTransaction);
+        trs.type = transactionTypes.CHAT_MESSAGE;
+        trs.amount = 0;
+        trs.recipientId = 'U810656636599221322';
+        trs.asset = {
+          chat: {
+            message: '75582d940f2c4093929c99a6c1911b4753',
+            own_message: '58dceaa227b3fb1dd1c7d3fbf3eb5db6aeb6a03cb7e2ec91',
+            type: 1
+          }
+        };
+        trs.timestamp = 50;
+        trs.timestampMs = 50000;
+        delete trs.signature;
+        trs.signature = transaction.sign(testSenderKeypair, trs);
+        return trs;
+      };
+
+      const expectedError = `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`;
+
+      dummyHeight = consensusActivationHeights.spaceship - 1;
+      const preSpaceship = transaction.objectNormalize(buildTrs());
+      expect(preSpaceship).to.not.have.property('timestampMs');
+      expect(transaction.checkPastTimestampWindow(preSpaceship)).to.equal(expectedError);
+
+      dummyHeight = consensusActivationHeights.spaceship;
+      const postSpaceship = transaction.objectNormalize(buildTrs());
+      expect(postSpaceship).to.have.property('timestampMs');
+      expect(transaction.checkPastTimestampWindow(postSpaceship)).to.equal(expectedError);
+
+      dummyHeight = 1;
+    });
+  });
+
   describe('verifySignature()', () => {
     it('should throw an error with no param', () => {
       expect(transaction.verifySignature).to.throw();
@@ -765,21 +1213,21 @@ describe('transaction', () => {
       const trs = _.cloneDeep(validTransactionData);
       trs.amount = 1001;
       expect(
-        transaction.verifySignature(trs, testSender.publicKey, trs.signature)
+          transaction.verifySignature(trs, testSender.publicKey, trs.signature)
       ).to.be.false;
     });
 
     it('should return false if signature not provided', () => {
       const trs = _.cloneDeep(validTransaction);
       expect(
-        transaction.verifySignature(trs, senderDefault.publicKey, null)
+          transaction.verifySignature(trs, senderDefault.publicKey, null)
       ).to.be.false;
     });
 
     it('should return valid signature for correct trs', () => {
       const trs = _.cloneDeep(validTransaction);
       expect(
-        transaction.verifySignature(trs, genesis.publicKey, trs.signature)
+          transaction.verifySignature(trs, genesis.publicKey, trs.signature)
       ).to.be.true;
     });
 
@@ -800,11 +1248,11 @@ describe('transaction', () => {
     it('should verify the second signature correctly', () => {
       const signature = transaction.sign(validKeypair, validTransaction);
       expect(
-        transaction.verifySecondSignature(
-          validTransaction,
-          validKeypair.publicKey.toString('hex'),
-          signature
-        )
+          transaction.verifySecondSignature(
+              validTransaction,
+              validKeypair.publicKey.toString('hex'),
+              signature
+          )
       ).to.be.true;
     });
   });
@@ -819,11 +1267,11 @@ describe('transaction', () => {
       const invalidPublicKey =
         'addb0e15a44b0fdc6ff291be28d8c98f5551d0cd9218d749e30ddb87c6e31ca9';
       expect(
-        transaction.verifyBytes(
-          trsBytes,
-          invalidPublicKey,
-          validTransaction.signature
-        )
+          transaction.verifyBytes(
+              trsBytes,
+              invalidPublicKey,
+              validTransaction.signature
+          )
       ).to.be.false;
     });
 
@@ -833,9 +1281,9 @@ describe('transaction', () => {
         'iddb0e15a44b0fdc6ff291be28d8c98f5551d0cd9218d749e30ddb87c6e31ca9';
       expect(() => {
         transaction.verifyBytes(
-          trsBytes,
-          invalidPublicKey,
-          validTransaction.signature
+            trsBytes,
+            invalidPublicKey,
+            validTransaction.signature
         );
       }).to.throw();
     });
@@ -843,16 +1291,16 @@ describe('transaction', () => {
     it('should be okay for valid bytes', () => {
       const trsBytes = transaction.getBytes(validTransaction, true, true);
       const res = transaction.verifyBytes(
-        trsBytes,
-        validTransaction.senderPublicKey,
-        validTransaction.signature
+          trsBytes,
+          validTransaction.senderPublicKey,
+          validTransaction.signature
       );
       expect(res).to.be.true;
     });
   });
 
   describe('apply()', () => {
-    function undoTransaction(trs, sender, done) {
+    function undoTransaction (trs, sender, done) {
       transaction.undo(trs, dummyBlock, sender, done);
     }
 
@@ -880,44 +1328,44 @@ describe('transaction', () => {
 
     it('should subtract balance from sender account on valid transaction', (done) => {
       accountModule.getAccount(
-        { publicKey: validUnconfirmedTransaction.senderPublicKey },
-        function (err, accountBefore) {
-          const amount = new bignum(
-            validUnconfirmedTransaction.amount.toString()
-          ).plus(validUnconfirmedTransaction.fee.toString());
-          const balanceBefore = new bignum(accountBefore.balance.toString());
+          { publicKey: validUnconfirmedTransaction.senderPublicKey },
+          function (err, accountBefore) {
+            const amount = new bignum(
+                validUnconfirmedTransaction.amount.toString()
+            ).plus(validUnconfirmedTransaction.fee.toString());
+            const balanceBefore = new bignum(accountBefore.balance.toString());
 
-          transaction.apply(
-            validUnconfirmedTransaction,
-            dummyBlock,
-            testSender,
-            (err) => {
-              accountModule.getAccount(
-                { publicKey: validUnconfirmedTransaction.senderPublicKey },
-                function (err, accountAfter) {
-                  expect(err).to.not.exist;
-                  const balanceAfter = new bignum(
-                    accountAfter.balance.toString()
-                  );
-                  expect(balanceAfter.plus(amount).toString()).to.equal(
-                    balanceBefore.toString()
-                  );
-                  undoTransaction(
-                    validUnconfirmedTransaction,
-                    testSender,
-                    done
+            transaction.apply(
+                validUnconfirmedTransaction,
+                dummyBlock,
+                testSender,
+                (err) => {
+                  accountModule.getAccount(
+                      { publicKey: validUnconfirmedTransaction.senderPublicKey },
+                      function (err, accountAfter) {
+                        expect(err).to.not.exist;
+                        const balanceAfter = new bignum(
+                            accountAfter.balance.toString()
+                        );
+                        expect(balanceAfter.plus(amount).toString()).to.equal(
+                            balanceBefore.toString()
+                        );
+                        undoTransaction(
+                            validUnconfirmedTransaction,
+                            testSender,
+                            done
+                        );
+                      }
                   );
                 }
-              );
-            }
-          );
-        }
+            );
+          }
       );
     });
   });
 
   describe('undo()', () => {
-    function applyTransaction(trs, sender, done) {
+    function applyTransaction (trs, sender, done) {
       transaction.apply(trs, dummyBlock, sender, done);
     }
 
@@ -931,27 +1379,27 @@ describe('transaction', () => {
       delete trs.recipientId;
 
       accountModule.getAccount(
-        { publicKey: trs.senderPublicKey },
-        function (err, accountBefore) {
-          const balanceBefore = new bignum(accountBefore.balance.toString());
+          { publicKey: trs.senderPublicKey },
+          function (err, accountBefore) {
+            const balanceBefore = new bignum(accountBefore.balance.toString());
 
-          transaction.undo(trs, dummyBlock, testSender, (err) => {
-            accountModule.getAccount(
-              { publicKey: trs.senderPublicKey },
-              function (err, accountAfter) {
-                const balanceAfter = new bignum(accountAfter.balance.toString());
+            transaction.undo(trs, dummyBlock, testSender, (err) => {
+              accountModule.getAccount(
+                  { publicKey: trs.senderPublicKey },
+                  function (err, accountAfter) {
+                    const balanceAfter = new bignum(accountAfter.balance.toString());
 
-                expect(
-                  balanceBefore.plus(amount.multipliedBy(2)).toString()
-                ).to.not.equal(balanceAfter.toString());
-                expect(balanceBefore.toString()).to.equal(
-                  balanceAfter.toString()
-                );
-                done();
-              }
-            );
-          });
-        }
+                    expect(
+                        balanceBefore.plus(amount.multipliedBy(2)).toString()
+                    ).to.not.equal(balanceAfter.toString());
+                    expect(balanceBefore.toString()).to.equal(
+                        balanceAfter.toString()
+                    );
+                    done();
+                  }
+              );
+            });
+          }
       );
     });
 
@@ -960,31 +1408,31 @@ describe('transaction', () => {
       const amount = new bignum(trs.amount.toString()).plus(trs.fee.toString());
 
       accountModule.getAccount(
-        { publicKey: trs.senderPublicKey },
-        function (err, accountBefore) {
-          const balanceBefore = new bignum(accountBefore.balance.toString());
+          { publicKey: trs.senderPublicKey },
+          function (err, accountBefore) {
+            const balanceBefore = new bignum(accountBefore.balance.toString());
 
-          transaction.undo(trs, dummyBlock, testSender, (err) => {
-            accountModule.getAccount(
-              { publicKey: trs.senderPublicKey },
-              function (err, accountAfter) {
-                expect(err).to.not.exist;
+            transaction.undo(trs, dummyBlock, testSender, (err) => {
+              accountModule.getAccount(
+                  { publicKey: trs.senderPublicKey },
+                  function (err, accountAfter) {
+                    expect(err).to.not.exist;
 
-                const balanceAfter = new bignum(accountAfter.balance.toString());
-                expect(balanceBefore.plus(amount).toString()).to.equal(
-                  balanceAfter.toString()
-                );
-                applyTransaction(trs, testSender, done);
-              }
-            );
-          });
-        }
+                    const balanceAfter = new bignum(accountAfter.balance.toString());
+                    expect(balanceBefore.plus(amount).toString()).to.equal(
+                        balanceAfter.toString()
+                    );
+                    applyTransaction(trs, testSender, done);
+                  }
+              );
+            });
+          }
       );
     });
   });
 
   describe('applyUnconfirmed()', () => {
-    function undoUnconfirmedTransaction(trs, sender, done) {
+    function undoUnconfirmedTransaction (trs, sender, done) {
       transaction.undoUnconfirmed(trs, sender, done);
     }
 
@@ -1011,22 +1459,22 @@ describe('transaction', () => {
 
     it('should okay for valid params', (done) => {
       transaction.applyUnconfirmed(
-        validUnconfirmedTransaction,
-        testSender,
-        (err) => {
-          expect(err).to.not.exist;
-          undoUnconfirmedTransaction(
-            validUnconfirmedTransaction,
-            testSender,
-            done
-          );
-        }
+          validUnconfirmedTransaction,
+          testSender,
+          (err) => {
+            expect(err).to.not.exist;
+            undoUnconfirmedTransaction(
+                validUnconfirmedTransaction,
+                testSender,
+                done
+            );
+          }
       );
     });
   });
 
   describe('undoUnconfirmed()', () => {
-    function applyUnconfirmedTransaction(trs, sender, done) {
+    function applyUnconfirmedTransaction (trs, sender, done) {
       transaction.applyUnconfirmed(trs, sender, done);
     }
 
@@ -1036,16 +1484,16 @@ describe('transaction', () => {
 
     it('should be okay with valid params', (done) => {
       transaction.undoUnconfirmed(
-        validUnconfirmedTransaction,
-        testSender,
-        (err) => {
-          expect(err).to.not.exist;
-          applyUnconfirmedTransaction(
-            validUnconfirmedTransaction,
-            testSender,
-            done
-          );
-        }
+          validUnconfirmedTransaction,
+          testSender,
+          (err) => {
+            expect(err).to.not.exist;
+            applyUnconfirmedTransaction(
+                validUnconfirmedTransaction,
+                testSender,
+                done
+            );
+          }
       );
     });
   });
@@ -1075,18 +1523,21 @@ describe('transaction', () => {
       expect(saveQuery).to.have.length(1);
       const trsValues = saveQuery[0].values;
       expect(trsValues)
-        .to.have.property('signatures')
-        .which.is.equal(trs.signatures.join(','));
+          .to.have.property('signatures')
+          .which.is.equal(trs.signatures.join(','));
     });
 
-    it('should return promise object for valid parameters', () => {
+    it('should return query object for valid parameters', () => {
       const saveQuery = transaction.dbSave(validTransaction);
       const keys = ['table', 'fields', 'values'];
       const valuesKeys = [
         'id',
         'blockId',
+        'blockTimestamp',
+        'height',
         'type',
         'timestamp',
+        'timestampMs',
         'senderPublicKey',
         'requesterPublicKey',
         'senderId',
@@ -1095,7 +1546,7 @@ describe('transaction', () => {
         'fee',
         'signature',
         'signSignature',
-        'signatures',
+        'signatures'
       ];
       expect(saveQuery).to.be.an('array');
       expect(saveQuery).to.have.length(1);
@@ -1125,10 +1576,51 @@ describe('transaction', () => {
       expect(_.keys(transaction.objectNormalize(trs))).to.not.include('amount');
     });
 
+    it('should remove timestampMs when height is below consensus', () => {
+      dummyHeight = consensusActivationHeights.spaceship - 1;
+
+      const trs = _.cloneDeep(validTransaction);
+      expect(_.keys(transaction.objectNormalize(trs))).to.not.include('timestampMs');
+    });
+
+    it('should keep timestampMs when height meets consensus', () => {
+      dummyHeight = consensusActivationHeights.spaceship;
+
+      const trs = _.cloneDeep(validTransaction);
+      expect(_.keys(transaction.objectNormalize(trs))).to.include('timestampMs');
+    });
+
+    it('should use explicit block height for timestampMs activation', () => {
+      dummyHeight = consensusActivationHeights.spaceship;
+
+      const trs = _.cloneDeep(validTransaction);
+      expect(_.keys(transaction.objectNormalize(trs, consensusActivationHeights.spaceship - 1))).to.not.include('timestampMs');
+    });
+
+    it('should remove invalid timestampMs before activation so old history remains valid', (done) => {
+      dummyHeight = consensusActivationHeights.spaceship - 1;
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestamp = slots.getTime();
+      trs.timestampMs = trs.timestamp * 1000 - 1;
+      delete trs.signature;
+      trs.signature = transaction.sign(testSenderKeypair, trs);
+
+      const normalized = transaction.objectNormalize(trs);
+
+      expect(normalized).to.not.have.property('timestampMs');
+      transaction.verify(normalized, testSender, {}, (err) => {
+        expect(err).to.not.be.ok;
+        done();
+      });
+    });
+
     it('should not remove any keys with valid entries', () => {
+      dummyHeight = consensusActivationHeights.spaceship;
+
       expect(
-        _.keys(transaction.objectNormalize(validTransaction))
-      ).to.have.length(11);
+          _.keys(transaction.objectNormalize(validTransaction))
+      ).to.have.length(12);
     });
 
     it('should throw error for invalid schema types', () => {
@@ -1162,6 +1654,7 @@ describe('transaction', () => {
         'block_timestamp',
         'type',
         'timestamp',
+        'timestampMs',
         'senderPublicKey',
         'requesterPublicKey',
         'senderId',
@@ -1173,10 +1666,21 @@ describe('transaction', () => {
         'signSignature',
         'signatures',
         'confirmations',
-        'asset',
+        'asset'
       ];
       expect(trs).to.be.an('object');
       expect(trs).to.have.keys(expectedKeys);
+    });
+
+    it('should parse timestampMs from string and number values', () => {
+      const rawStringTimestampMs = _.cloneDeep(rawValidTransaction);
+      rawStringTimestampMs.t_timestampMs = '33363661001';
+
+      const rawNumberTimestampMs = _.cloneDeep(rawValidTransaction);
+      rawNumberTimestampMs.t_timestampMs = 33363661002;
+
+      expect(transaction.dbRead(rawStringTimestampMs).timestampMs).to.equal(33363661001);
+      expect(transaction.dbRead(rawNumberTimestampMs).timestampMs).to.equal(33363661002);
     });
   });
 });

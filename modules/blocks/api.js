@@ -14,10 +14,10 @@ __private.blockReward = new BlockReward();
 /**
  * Initializes library.
  * @memberof module:blocks
- * @class
+ * @constructor
  * @classdesc Main API logic.
  * Allows get information.
- * @param {Object} logger
+ * @param {object} logger
  * @param {Database} db
  * @param {Block} block
  * @param {ZSchema} schema
@@ -35,7 +35,7 @@ function API (logger, db, block, schema, dbSequence) {
   };
   self = this;
 
-  library.logger.trace('Blocks->API: Submodule initialized.');
+  library.logger.trace('api-blocks', 'Blocks->API: Submodule initialized.');
   return self;
 }
 
@@ -48,8 +48,8 @@ function API (logger, db, block, schema, dbSequence) {
  * @param  {string}   id Block ID
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
- * @return {Object}   cb.block Block object
+ * @return {object}   cb.err Error if occurred
+ * @return {object}   cb.block Block object
  */
 __private.getById = function (id, cb) {
   library.db.query(sql.getById, { id: id }).then(function (rows) {
@@ -62,7 +62,7 @@ __private.getById = function (id, cb) {
 
     return setImmediate(cb, null, block);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-blocks', `Failed to get block ${id} from database: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Blocks#getById error');
   });
 };
@@ -73,7 +73,7 @@ __private.getById = function (id, cb) {
  * @private
  * @async
  * @method list
- * @param  {Object}   filter Conditions to filter with
+ * @param  {object}   filter Conditions to filter with
  * @param  {string}   filter.generatorPublicKey Public key of delegate who generates the block
  * @param  {number}   filter.numberOfTransactions Number of transactions
  * @param  {string}   filter.previousBlock Previous block ID
@@ -86,8 +86,8 @@ __private.getById = function (id, cb) {
  * @param  {string}   filter.orderBy Sort order, default: height:desc
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
- * @return {Object}   cb.data List of normalized blocks
+ * @return {object}   cb.err Error if occurred
+ * @return {object}   cb.data List of normalized blocks
  */
 __private.list = function (filter, cb) {
   var params = {}, where = [];
@@ -168,7 +168,7 @@ __private.list = function (filter, cb) {
 
     return setImmediate(cb, null, { blocks });
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-blocks', `Failed to get blocks from database: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Blocks#list error');
   });
 };
@@ -314,7 +314,7 @@ API.prototype.getStatus = function (req, cb) {
  * @param {modules} scope Exposed modules
  */
 API.prototype.onBind = function (scope) {
-  library.logger.trace('Blocks->API: Shared modules bind.');
+  library.logger.trace('api-blocks', 'Blocks->API: Shared modules bind.');
   modules = {
     blocks: scope.blocks,
     system: scope.system

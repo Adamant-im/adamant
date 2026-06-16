@@ -6,10 +6,18 @@ ssl/
 # Config files
 config.json
 test/config.json
+test/config.overrides.json
+test/config.overrides.env
 sftp-config.json
 
 # Logs
 logs/*.log
+logs-mainnet/*.log
+logs-testnet/*.log
+logs-localnet/*.log
+logs-localnet/
+reports/
+reports/live-test/
 stacktrace*
 
 # Code Editors
@@ -27,6 +35,7 @@ test/.nyc_output
 
 # Temporary data
 tmp
+.localnet/
 *.swp
 *.swo
 
@@ -34,3 +43,6 @@ tmp
 node_modules
 npm-debug.log
 nodejs
+
+# ai
+.ai-ignored/

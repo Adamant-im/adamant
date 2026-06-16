@@ -1,9 +1,34 @@
 {
   "port": 36666,
   "address": "0.0.0.0",
-  "fileLogLevel": "warn",
-  "logFileName": "logs/adamant.log",
-  "consoleLogLevel": "info",
+  "generalLog": {
+    "enabled": true,
+    "fileName": "logs-mainnet/adamant.log",
+    "level": "warn",
+    "rotate": {
+      "enabled": true,
+      "maxSize": "300M",
+      "retain": 5,
+      "rotateInterval": "0 0 0 1 *",
+      "rotateOnRestart": true
+    }
+  },
+  "debugLog": {
+    "enabled": true,
+    "fileName": "logs-mainnet/adamant_debug.log",
+    "level": "trace",
+    "rotate": {
+      "enabled": true,
+      "maxSize": "300M",
+      "retain": 7,
+      "rotateInterval": "0 0 * * *",
+      "rotateOnRestart": true
+    }
+  },
+  "consoleLog": {
+    "enabled": true,
+    "level": "info"
+  },
   "trustProxy": false,
   "topAccounts": false,
   "cacheEnabled": false,
@@ -45,15 +70,11 @@
     "enabled": true,
     "list": [
       {
-        "ip": "5.161.68.61",
+        "ip": "95.216.114.252",
         "port": 36666
       },
       {
         "ip": "149.102.157.15",
-        "port": 36666
-      },
-      {
-        "ip": "78.47.205.206",
         "port": 36666
       },
       {
@@ -69,8 +90,12 @@
         "port": 45555
       },
       {
-        "ip": "207.244.243.23",
-        "port": 45555
+        "ip": "5.104.87.219",
+        "port": 36666
+      },
+      {
+        "ip": "200.69.21.176",
+        "port": 36666
       }
     ],
     "access": {
@@ -96,6 +121,10 @@
   "transactions": {
     "maxTxsPerQueue": 1000
   },
+  "consensusActivationHeights": {
+    "fairSystem": 4359465,
+    "spaceship": 100000000
+  },
   "forging": {
     "force": false,
     "secret": [],
@@ -106,7 +135,6 @@
     }
   },
   "loading": {
-    "verifyOnLoading": false,
     "loadPerIteration": 5000
   },
   "ssl": {
@@ -126,6 +154,11 @@
   "wsClient": {
     "portWS": 36668,
     "enabled": true
+  },
+  "wsNode": {
+    "enabled": true,
+    "maxBroadcastConnections": 15,
+    "maxReceiveConnections": 25
   },
   "nethash": "bd330166898377fb28743ceef5e43a5d9d0a3efd9b3451fb7bc53530bb0a6d64"
 }

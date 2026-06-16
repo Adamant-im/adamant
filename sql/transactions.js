@@ -1,5 +1,13 @@
 'use strict';
 
+const { formatSQLSorting } = require('../helpers/orderBy.js');
+
+const formatTransactionSorting = (params) => formatSQLSorting({
+  ...params,
+  timestampField: '"t_timestamp"',
+  timestampMsField: '"t_timestampMs"'
+});
+
 var TransactionsSql = {
   sortFields: [
     'id',
@@ -21,7 +29,7 @@ var TransactionsSql = {
 
   countList: function (params) {
     return [
-      'SELECT COUNT(1) FROM trs_list',
+      'SELECT COUNT(1)::INT FROM trs_list',
       (params.where.length || params.owner ? 'WHERE' : ''),
       (params.where.length ? '(' + params.where.join(' ') + ')' : ''),
       // FIXME: Backward compatibility, should be removed after transitional period
@@ -31,7 +39,7 @@ var TransactionsSql = {
 
   list: function (params) {
     return [
-      'SELECT "t_id", "b_height", "t_blockId", "t_type", "t_timestamp", "b_timestamp" as "block_timestamp", "t_senderId", "t_recipientId",',
+      'SELECT "t_id", "b_height", "t_blockId", "t_type", "t_timestamp", "t_timestampMs", "b_timestamp" as "block_timestamp", "t_senderId", "t_recipientId",',
       '"t_amount", "t_fee", "t_signature", "t_SignSignature", "t_signatures", "confirmations",',
       'ENCODE ("t_senderPublicKey", \'hex\') AS "t_senderPublicKey", ENCODE ("m_recipientPublicKey", \'hex\') AS "m_recipientPublicKey"',
       'FROM trs_list',
@@ -39,13 +47,13 @@ var TransactionsSql = {
       (params.where.length ? '(' + params.where.join(' ') + ')' : ''),
       // FIXME: Backward compatibility, should be removed after transitional period
       (params.where.length && params.owner ? ' AND ' + params.owner : params.owner),
-      (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
+      (params.sortField ? 'ORDER BY ' + formatTransactionSorting(params) : ''),
       'LIMIT ${limit} OFFSET ${offset}'
     ].filter(Boolean).join(' ');
   },
   listFull: function (params) {
     return [
-      'SELECT "t_id", "b_height", "t_blockId", "t_type", "t_timestamp", "b_timestamp" as "block_timestamp", "t_senderId", "t_recipientId",',
+      'SELECT "t_id", "b_height", "t_blockId", "t_type", "t_timestamp", "t_timestampMs", "b_timestamp" as "block_timestamp", "t_senderId", "t_recipientId",',
       '"t_amount", "t_fee", "t_signature", "t_SignSignature", "t_signatures", "confirmations",',
       'ENCODE ("t_senderPublicKey", \'hex\') AS "t_senderPublicKey", ENCODE ("m_recipientPublicKey", \'hex\') AS "m_recipientPublicKey",',
       '"d_username", "v_votes", "m_min", "m_lifetime", "m_keysgroup", "c_message", "c_own_message", "c_type", "st_type", "st_stored_value", "st_stored_key" ',
@@ -54,7 +62,7 @@ var TransactionsSql = {
       (params.where.length ? '(' + params.where.join(' ') + ')' : ''),
       // FIXME: Backward compatibility, should be removed after transitional period
       (params.where.length && params.owner ? ' AND ' + params.owner : params.owner),
-      (params.sortField ? 'ORDER BY ' + [params.sortField, params.sortMethod].join(' ') : ''),
+      (params.sortField ? 'ORDER BY ' + formatTransactionSorting(params) : ''),
       'LIMIT ${limit} OFFSET ${offset}'
     ].filter(Boolean).join(' ');
   },

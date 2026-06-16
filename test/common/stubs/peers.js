@@ -6,9 +6,9 @@ const validPeer = {
   os: 'unknown',
   port: 4000,
   state: 2,
-  version: '0.0.0',
+  version: '0.0.0'
 };
 
 module.exports = {
-  validPeer,
+  validPeer
 };

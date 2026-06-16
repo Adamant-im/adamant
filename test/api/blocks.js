@@ -2,6 +2,7 @@
 
 var node = require('./../node.js');
 var modulesLoader = require('./../common/initModule.js').modulesLoader;
+const { expect } = require('chai');
 
 var block = {
   blockHeight: 0,
@@ -135,8 +136,11 @@ describe('GET /blocks (cache)', function () {
 
   before(function (done) {
     modulesLoader.initCache(function (err, __cache) {
+      if (err) {
+        return done(err);
+      }
+
       cache = __cache;
-      node.expect(err).to.not.exist;
       node.expect(__cache).to.be.an('object');
       return done(err, __cache);
     });
@@ -148,7 +152,10 @@ describe('GET /blocks (cache)', function () {
 
   afterEach(function (done) {
     cache.flushDb(function (err, status) {
-      node.expect(err).to.not.exist;
+      if (err) {
+        return done(err);
+      }
+
       node.expect(status).to.equal('OK');
       done(err, status);
     });
@@ -163,7 +170,9 @@ describe('GET /blocks (cache)', function () {
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
       var response = res.body;
       cache.getJsonForKey(url + params, function (err, res) {
-        node.expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
         node.expect(res).to.eql(response);
         done();
       });
@@ -177,14 +186,17 @@ describe('GET /blocks (cache)', function () {
     node.get(url + params, function (err, res) {
       node.expect(res.body).to.have.property('success').to.not.be.ok;
       cache.getJsonForKey(url + params, function (err, res) {
-        node.expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         node.expect(res).to.be.null;
         done();
       });
     });
   });
 
-  it('should update entry from cache on new block', function (done) {
+  it('should invalidate blocks cache on new block', function (done) {
     var url, params;
     url = '/api/blocks?';
     params = 'height=' + block.blockHeight;
@@ -193,13 +205,21 @@ describe('GET /blocks (cache)', function () {
       node.expect(res.body).to.have.property('blocks').that.is.an('array');
       var response = res.body;
       cache.getJsonForKey(url + params, function (err, cachedResponseBefore) {
-        node.expect(err).to.not.exist;
+        if (err) {
+          return done(err);
+        }
+
         node.expect(cachedResponseBefore).to.eql(response);
-        node.onNewBlock(function (err) {
+        // Trigger the cache lifecycle hook directly. Waiting for public testnet
+        // blocks makes this cache test depend on external forging and sync timing.
+        cache.onNewBlock(null, null, function (err) {
           node.expect(err).to.not.exist;
           cache.getJsonForKey(url + params, function (err, cachedResponseAfter) {
-            node.expect(err).to.not.exist;
-            node.expect(cachedResponseAfter).not.to.eql(cachedResponseBefore);
+            if (err) {
+              return done(err);
+            }
+
+            node.expect(cachedResponseAfter).to.be.null;
             done();
           });
         });

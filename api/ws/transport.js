@@ -1,0 +1,375 @@
+'use strict';
+
+const { io } = require('socket.io-client');
+const Peer = require('../../logic/peer.js');
+
+const { wsNodeClient: wsConstants } = require('../../helpers/constants.js');
+
+/**
+ * Connects to random peers via WebSocket to receive transactions/blocks/signature changes
+ */
+class TransportWsApi {
+  /**
+   * Creates a WebSocket peer client.
+   * @param {object} modules - Bound node modules.
+   * @param {object} library - Bound logic/library scope with logger and system helpers.
+   * @param {object} options - WebSocket node configuration.
+   * @param {number} options.maxReceiveConnections - Maximum inbound peer sockets to maintain.
+   */
+  constructor (modules, library, options) {
+    this.modules = modules;
+    this.library = library;
+    this.peers = modules.peers;
+    this.system = modules.system;
+    this.transportModule = modules.transport;
+    this.logger = library.logger;
+
+    this.maxConnections = options.maxReceiveConnections;
+    this.reconnectionDelay = wsConstants.defaultReconnectionDelay;
+
+    this.connections = new Map();
+
+    // Update connections when peer list changes
+    this.peers.events.on('peers:update', () => this.updatePeers());
+
+    // Schedule rotation
+    this.startRotation();
+
+    const self = this;
+    self.logger.info('ws-node-client', `Created TransportWsApi`);
+  }
+
+  /**
+   * Clear connection list and connect to random peers
+   */
+  initialize () {
+    const self = this;
+
+    self.logger.info('ws-node-client', `Connecting to random peers via WebSocket…`);
+
+    // Clear existing connections
+    self.connections.forEach(({ socket }) => {
+      socket.removeAllListeners();
+      socket.disconnect();
+    });
+    self.connections.clear();
+
+    // Connect to multiple peers
+    self.getRandomPeers(self.maxConnections, (err, peers) => {
+      if (err || !peers.length) {
+        const reason = err ?? 'No suitable peers found';
+        self.logger.info(
+            'ws-node-client', `Unable to initialize peers: ${reason}. Scheduling reconnection…`
+        );
+        return self.scheduleReconnect();
+      }
+
+      this.reconnectionDelay = wsConstants.defaultReconnectionDelay;
+
+      peers.forEach((peer) => self.connectToPeer(peer));
+    });
+  }
+
+  /**
+   * Connect to the peer and save the socket connection
+   * @param {Peer} peer peer to connect to
+   */
+  connectToPeer (peer) {
+    const self = this;
+    const peerUrl = `ws://${peer.ip}:${peer.port}`;
+
+    if (this.connections.has(peerUrl)) {
+      return;
+    }
+
+    self.logger.debug('ws-node-client', `Connecting to WebSocket peer ${peerUrl}…`, { direction: 'outbound' });
+
+    const socket = io(peerUrl, {
+      reconnection: false,
+      transports: ['websocket'],
+      auth: {
+        nonce: this.system.getNonce()
+      }
+    });
+
+    socket.on('connect', () => self.handleConnect(socket, peer));
+    socket.on('connect_error', (err) => self.handleConnectError(peer, err));
+    socket.on('disconnect', (reason) => self.handleDisconnect(peer, reason));
+    socket.on('disconnect_reason', (reason) => {
+      this.logger.debug('ws-node-client', `${peer.ip}:${peer.port} rejected connection`, reason);
+    });
+
+    self.connections.set(peerUrl, { socket, peer });
+  }
+
+  /**
+   * Setup event handlers for the peer and change its connection type
+   * @param {Socket} socket socket.io socket instance
+   * @param {Peer} peer target peer
+   */
+  handleConnect (socket, peer) {
+    this.logger.info('ws-node-client', `Connected to WebSocket peer at ${peer.ip}:${peer.port}`, {
+      direction: 'outbound'
+    });
+
+    this.peers.switchToWs(peer);
+    this.peers.recordRequest(peer.ip, peer.port, null);
+
+    this.setupEventHandlers(socket, peer);
+  }
+
+  /**
+   * Changes connection type of the peer and chooses a random one to replace it
+   * @param {Peer} peer target peer to replace
+   * @param {string} err error message
+   */
+  handleConnectError (peer, err) {
+    this.logger.debug('ws-node-client', `Connection error with ${peer.ip}:${peer.port}`, err.message);
+
+    this.peers.switchToHttp(peer);
+    this.peers.recordRequest(peer.ip, peer.port, err);
+
+    this.replacePeer(peer);
+  }
+
+  /**
+   * Changes connection type to http and finds a replacement for the peer
+   * @param {Peer} peer target peer to replace
+   * @param {string} reason disconnection reason
+   */
+  handleDisconnect (peer, reason) {
+    this.logger.info('ws-node-client', `Disconnected from ${peer.ip}:${peer.port}`, reason);
+    this.peers.switchToHttp(peer);
+    this.replacePeer(peer);
+  }
+
+  /**
+   * Replaces the provided peer with a random one
+   * @param {Peer} peer peer to replace
+   */
+  replacePeer (peer) {
+    const self = this;
+
+    // Remove the disconnected peer
+    const disconnectedPeer = `ws://${peer.ip}:${peer.port}`;
+    self.connections.delete(disconnectedPeer);
+
+    // Find a new peer to replace it
+    self.getRandomPeer((err, newPeer) => {
+      if (err || !newPeer) {
+        const reason = err ?? 'No suitable peers found';
+        self.logger.debug('ws-node-client', `Failed to find replacement peer for ${disconnectedPeer}. ${reason}`);
+        return;
+      }
+
+      self.connectToPeer(newPeer);
+    });
+  }
+
+  /**
+   * Schedules reconnection to all peers
+   */
+  scheduleReconnect () {
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+    }
+
+    this.reconnectTimeout = setTimeout(() => {
+      this.initialize();
+    }, this.reconnectionDelay);
+
+    this.reconnectionDelay = Math.min(
+        this.reconnectionDelay * 2,
+        wsConstants.maxReconnectDelay
+    );
+  }
+
+  /**
+   * Finds random peers that aren't connected via WebSocket
+   * @param {number} limit max amount of peers to retrieve
+   * @param {Function} callback callback with the result peers
+   */
+  getRandomPeers (limit, callback) {
+    this.peers.list({
+      limit,
+      allowedStates: [Peer.STATE.CONNECTED],
+      syncProtocol: 'http',
+      broadhash: this.modules.system.getBroadhash()
+    }, callback);
+  }
+
+  /**
+   * Returns a random peer that isn't connected via WebSocket
+   * @param {Function} callback callback with a random peer
+   */
+  getRandomPeer (callback) {
+    this.getRandomPeers(1, (err, peers) => {
+      if (err || !peers.length) {
+        return callback(err || new Error('No peers available'));
+      }
+      callback(null, peers[0]);
+    });
+  }
+
+  /**
+   * Setups event handlers and redirects the data to transport module
+   * @param {Socket} socket socket.io socket instance
+   * @param {Peer} peer target peer
+   */
+  setupEventHandlers (socket, peer) {
+    const self = this;
+
+    socket.on('transactions/change', (data) => {
+      self.transportModule.internal.postTransactions({
+        transaction: data
+      }, peer, 'websocket /transactions', (err) => {
+        if (err) {
+          self.peers.recordRequest(peer.ip, peer.port, err);
+        }
+      });
+    });
+
+    socket.on('blocks/change', (data) => {
+      self.transportModule.internal.postBlock(data, peer, 'websocket /blocks', (err) => {
+        if (err) {
+          self.peers.recordRequest(peer.ip, peer.port, err);
+        }
+      });
+    });
+
+    socket.on('signature/change', (data) => {
+      self.transportModule.internal.postSignatures({
+        signature: data
+      }, (err) => {
+        if (err) {
+          self.peers.recordRequest(peer.ip, peer.port, err);
+        }
+      });
+    });
+  }
+
+  /**
+   * Fills the empty slots for WebSocket connections and removes banned peers.
+   * Logs connection counts so operators can distinguish a full pool from
+   * missing candidate peers.
+   */
+  updatePeers () {
+    const self = this;
+
+    self.logger.info('ws-node-client', 'Updating peers…', {
+      connectedPeers: this.connections.size,
+      maxConnections: this.maxConnections
+    });
+
+    this.connections.forEach(({ peer }) => {
+      if (self.peers.isBanned(peer)) {
+        self.logger.info('ws-node-client', `Disconnecting from banned peer ws://${peer.ip}:${peer.port}…`);
+        self.cleanupConnection(peer);
+      }
+    });
+
+    const availableSlots = this.maxConnections - this.connections.size;
+
+    if (availableSlots <= 0) {
+      self.logger.info('ws-node-client', 'Max connections reached. No peers updated.', {
+        connectedPeers: this.connections.size,
+        maxConnections: this.maxConnections
+      });
+      return;
+    }
+
+    this.getRandomPeers(availableSlots, (err, candidates) => {
+      if (err || !candidates.length) {
+        const reason = err ?? 'Every peer is already connected via WebSocket';
+        self.logger.info('ws-node-client', `${reason}. No peers updated.`);
+        return;
+      }
+
+      candidates.forEach((peer) => {
+        self.connectToPeer(peer);
+      });
+    });
+  }
+
+  /**
+   * Disconnects from the peer and removes its event listeners
+   * @param {Peer} peer target peer
+   */
+  cleanupConnection (peer) {
+    const peerUrl = `ws://${peer.ip}:${peer.port}`;
+    const connection = this.connections.get(peerUrl);
+
+    if (connection) {
+      connection.socket.removeAllListeners();
+      connection.socket.disconnect();
+      this.connections.delete(peerUrl);
+    }
+  }
+
+  /**
+   * Replace a specific % of the connected peers to avoid centralization.
+   * Logs the connected peer count before rotation because the resulting
+   * replacement count is derived from the live connection map.
+   */
+  rotatePeers () {
+    const self = this;
+
+    self.logger.info('ws-node-client', 'Rotating peers…', {
+      connectedPeers: self.connections.size,
+      rotationPercentage: wsConstants.rotationPercentage
+    });
+
+    const totalConnections = self.connections.size;
+
+    if (totalConnections === 0) {
+      return;
+    }
+
+    const countToRotate = Math.ceil(totalConnections * wsConstants.rotationPercentage);
+    const connectionsArray = Array.from(self.connections.values());
+
+    const shuffled = connectionsArray.sort(() => Math.random() - 0.5);
+
+    self.getRandomPeers(countToRotate, (err, newPeers) => {
+      if (err || !newPeers.length) {
+        const reason = err ?? 'No suitable peers found';
+        self.logger.info('ws-node-client', `Could not rotate peers: ${reason}`);
+        return;
+      }
+
+      self.logger.info('ws-node-client', `Rotating ${newPeers.length} out of ${totalConnections} peers.`);
+
+      const peersToRotate = shuffled.slice(0, newPeers.length).map((connection) => connection.peer);
+
+      peersToRotate.forEach((peer) => {
+        self.logger.debug('ws-node-client', `Rotating peer ${peer.ip}:${peer.port}`);
+        self.cleanupConnection(peer);
+      });
+
+      newPeers.forEach((newPeer) => {
+        self.connectToPeer(newPeer);
+      });
+    });
+  }
+
+  /**
+   * Start rotating peers every 30 minutes
+   */
+  startRotation () {
+    this.rotationInterval = setInterval(() => {
+      this.rotatePeers();
+    }, wsConstants.rotationInterval);
+  }
+
+  /**
+   * Stops interval rotation
+   */
+  stopRotation () {
+    if (this.rotationInterval) {
+      clearInterval(this.rotationInterval);
+      this.rotationInterval = null;
+    }
+  }
+}
+
+module.exports = TransportWsApi;

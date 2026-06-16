@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS "outtransfer"(
 CREATE TABLE IF NOT EXISTS "peers"(
   "id" SERIAL NOT NULL PRIMARY KEY,
   "ip" INET NOT NULL,
-  "port" SMALLINT NOT NULL,
+  "port" INT NOT NULL,
   "state" SMALLINT NOT NULL,
   "os" VARCHAR(64),
   "version" VARCHAR(11),

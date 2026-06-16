@@ -7,9 +7,6 @@ var httpApi = require('../../helpers/httpApi');
 /**
  * Binds api with modules and creates common url.
  * - End point: `/api/states`
- * - Private API:
- *   - post  /normalize
- *   - post  /finalize
  *
  * - Sanitized
  *   - get  /get
@@ -17,7 +14,7 @@ var httpApi = require('../../helpers/httpApi');
  * @requires helpers/Router
  * @requires helpers/httpApi
  * @constructor
- * @param {Object} statesModule - Module storing options state
+ * @param {object} statesModule - Module storing options state
  * @param {scope} app - Network app.
  */
 // Constructor
@@ -27,7 +24,6 @@ function StatesHttpApi (statesModule, app) {
   router.map(statesModule.internal, {
     'get /get': 'getTransactions',
     'post /get': 'getTransactions',
-    'post /normalize': 'normalize',
     'post /store': 'store'
   });
 

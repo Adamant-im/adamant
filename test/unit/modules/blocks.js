@@ -28,20 +28,20 @@ describe('blocks', function () {
 
   before(function (done) {
     modulesLoader.initModules(
-      [{ blocks: Blocks }],
-      [
-        { transaction: require('../../../logic/transaction') },
-        { block: require('../../../logic/block') },
-        { peers: require('../../../logic/peers.js') },
-      ],
-      {},
-      function (err, __blocks) {
-        if (err) {
-          return done(err);
+        [{ blocks: Blocks }],
+        [
+          { transaction: require('../../../logic/transaction') },
+          { block: require('../../../logic/block') },
+          { peers: require('../../../logic/peers.js') }
+        ],
+        {},
+        function (err, __blocks) {
+          if (err) {
+            return done(err);
+          }
+          blocks = __blocks.blocks;
+          done();
         }
-        blocks = __blocks.blocks;
-        done();
-      }
     );
   });
 
@@ -125,7 +125,7 @@ describe('blocks', function () {
       expect(tracker.applied).to.equals(5);
 
       expect(tracker.applyNext.bind(tracker)).to.throw(
-        'Cannot apply transaction over the limit: 5'
+          'Cannot apply transaction over the limit: 5'
       );
     });
   });

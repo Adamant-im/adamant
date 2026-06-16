@@ -21,11 +21,6 @@ function Sequence (config) {
   this.isTicking = false;
 
   this.nextSequenceTick = function () {
-    if (!self.sequence.length) {
-      self.isTicking = false;
-      return;
-    }
-
     if (_default.onWarning && self.sequence.length >= _default.warningLimit) {
       _default.onWarning(self.sequence.length, _default.warningLimit);
     }
@@ -42,7 +37,10 @@ function Sequence (config) {
 Sequence.prototype.__tick = function (cb) {
   var task = this.sequence.shift();
   if (!task) {
-    return setImmediate(cb);
+    this.isTicking = false;
+
+    // don't continue ticking
+    return;
   }
   var args = [function (err, res) {
     if (task.done) {
@@ -53,7 +51,15 @@ Sequence.prototype.__tick = function (cb) {
   if (task.args) {
     args = args.concat(task.args);
   }
-  task.worker.apply(task.worker, args);
+
+  try {
+    task.worker.apply(task.worker, args);
+  } catch (err) {
+    if (task.done) {
+      setImmediate(task.done, err);
+    }
+    setImmediate(cb);
+  }
 };
 
 /**
@@ -69,7 +75,7 @@ Sequence.prototype.add = function (worker, args, done) {
   }
   if (worker && typeof(worker) === 'function') {
     var task = { worker: worker, done: done };
-    if (util.isArray(args)) {
+    if (Array.isArray(args)) {
       task.args = args;
     }
     this.sequence.push(task);

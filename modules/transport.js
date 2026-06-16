@@ -25,7 +25,7 @@ __private.messages = {};
 /**
  * Initializes library with scope content and generates a Broadcaster instance.
  * @memberof module:transport
- * @class
+ * @constructor
  * @classdesc Main Transport methods.
  * @param {function} cb - Callback function.
  * @param {scope} scope - App instance.
@@ -72,7 +72,7 @@ function Transport (cb, scope) {
  * @private
  * @implements {crypto.createHash}
  * @implements {bignum.fromBuffer}
- * @param {Object} obj
+ * @param {object} obj
  * @return {string} Buffer array to string
  */
 __private.hashsum = function (obj) {
@@ -90,11 +90,11 @@ __private.hashsum = function (obj) {
  * Removes a peer based on ip and port.
  * @private
  * @implements {modules.peers.remove}
- * @param {Object} options - Contains code and peer
+ * @param {object} options - Contains code and peer
  * @param {string} extraMessage
  */
 __private.removePeer = function (options, extraMessage) {
-  library.logger.debug([options.code, 'Removing peer', options.peer.string, extraMessage].join(' '));
+  library.logger.debug('peers', [options.code, 'Removing peer', options.peer.string, extraMessage].join(' '));
   modules.peers.remove(options.peer.ip, options.peer.port);
 };
 
@@ -107,18 +107,18 @@ __private.removePeer = function (options, extraMessage) {
  */
 __private.recordRequest = function (options) {
   return modules.peers.recordRequest(
-    options.peer.ip,
-    options.peer.port,
-    options.error,
+      options.peer.ip,
+      options.peer.port,
+      options.error
   );
-}
+};
 
 /**
  * Validates signatures body and for each signature calls receiveSignature.
  * @private
  * @implements {library.schema.validate}
  * @implements {__private.receiveSignature}
- * @param {Object} query
+ * @param {object} query
  * @param {function} cb
  * @return {setImmediateCallback} cb, err
  */
@@ -141,7 +141,7 @@ __private.receiveSignatures = function (query, cb) {
       async.eachSeries(signatures, function (signature, eachSeriesCb) {
         __private.receiveSignature(signature, function (err) {
           if (err) {
-            library.logger.debug(err, signature);
+            library.logger.debug('transport', `Failed to verify signature ${signature}: ${err?.message || err}`, err.stack);
           }
 
           return setImmediate(eachSeriesCb);
@@ -183,7 +183,7 @@ __private.receiveSignature = function (signature, cb) {
  * @private
  * @implements {library.schema.validate}
  * @implements {__private.receiveTransaction}
- * @param {Object} query - Contains transactions
+ * @param {object} query - Contains transactions
  * @param {peer} peer
  * @param {string} extraLogMessage
  * @param {function} cb
@@ -210,7 +210,7 @@ __private.receiveTransactions = function (query, peer, extraLogMessage, cb) {
 
         __private.receiveTransaction(transaction, peer, extraLogMessage, function (err) {
           if (err) {
-            library.logger.debug(err, transaction);
+            library.logger.debug('transactions', err, transaction);
           }
 
           return setImmediate(eachSeriesCb);
@@ -243,19 +243,34 @@ __private.receiveTransaction = function (transaction, peer, extraLogMessage, cb)
   try {
     transaction = library.logic.transaction.objectNormalize(transaction);
   } catch (e) {
-    library.logger.debug('Transaction normalization failed', { id: id, err: e.toString(), module: 'transport', tx: transaction });
+    library.logger.debug('transport', 'Transaction normalization failed', { id: id, err: e.toString(), module: 'transport', tx: transaction });
 
     __private.removePeer({ peer: peer, code: 'ETRANSACTION' }, extraLogMessage);
 
     return setImmediate(cb, 'Invalid transaction body - ' + e.toString());
   }
 
+  // Real-time admission grace, mirroring the Public API's `publish()` boundary.
+  // This is a wall-clock spam/pool-poisoning guard, not a consensus rule, so it
+  // belongs here - the boundary where a transaction first enters the network from a
+  // peer - and not inside `transaction.verify()`, which also replays historical,
+  // already-confirmed transactions during block processing and sync. See AGENTS.md
+  // "Current Activation Switches" for why wall-clock checks must stay out of verify().
+  var timestampWindowError = library.logic.transaction.checkFutureTimestamp(transaction) ||
+      library.logic.transaction.checkPastTimestampWindow(transaction);
+
+  if (timestampWindowError) {
+    library.logger.debug('transactions', 'Rejected transaction ' + transaction.id + ' from peer ' + peer.string, timestampWindowError);
+
+    return setImmediate(cb, timestampWindowError);
+  }
+
   library.balancesSequence.add(function (cb) {
-    library.logger.debug('Received transaction ' + transaction.id + ' from peer ' + peer.string);
+    library.logger.debug('transactions', 'Received transaction ' + transaction.id + ' from peer ' + peer.string);
     modules.transactions.processUnconfirmedTransaction(transaction, true, function (err) {
       if (err) {
-        library.logger.debug(['Transaction', id].join(' '), err.toString());
-        if (transaction) { library.logger.debug('Transaction', transaction); }
+        library.logger.debug('transactions', ['Transaction', id].join(' '), err.toString());
+        if (transaction) { library.logger.debug('transport', 'Transaction', transaction); }
 
         return setImmediate(cb, err.toString());
       } else {
@@ -268,8 +283,8 @@ __private.receiveTransaction = function (transaction, peer, extraLogMessage, cb)
 // Public methods
 /**
  * Sets or gets headers
- * @param {Object} [headers]
- * @return {Object} private variable with headers
+ * @param {object} [headers]
+ * @return {object} private variable with headers
  */
 Transport.prototype.headers = function (headers) {
   if (headers) {
@@ -303,7 +318,7 @@ Transport.prototype.poorConsensus = function () {
 /**
  * Calls getPeers method from Broadcaster class.
  * @implements {Broadcaster.getPeers}
- * @param {Object} params
+ * @param {object} params
  * @param {function} cb
  * @return {Broadcaster.getPeers} calls getPeers
  */
@@ -316,7 +331,7 @@ Transport.prototype.getPeers = function (params, cb) {
  * with first peer from list.
  * @implements {modules.peers.list}
  * @implements {getFromPeer}
- * @param {Object} config
+ * @param {object} config
  * @param {function|Object} options
  * @param {function} cb
  * @return {setImmediateCallback|getFromPeer} error | calls getFromPeer
@@ -353,9 +368,9 @@ Transport.prototype.getFromRandomPeer = function (config, options, cb) {
  * @implements {modules.peers.update}
  * @implements {__private.removePeer}
  * @param {peer} peer
- * @param {Object} options
+ * @param {object} options
  * @param {function} cb
- * @return {setImmediateCallback|Object} error message | {body, peer}
+ * @return {setImmediateCallback | object} error message | {body, peer}
  * @todo implements secure http request with https
  */
 Transport.prototype.getFromPeer = function (peer, options, cb) {
@@ -413,7 +428,7 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
           }
 
           modules.peers.update(peer);
-          __private.recordRequest({ peer })
+          __private.recordRequest({ peer });
 
           return setImmediate(cb, null, { body: res.data, peer: peer });
         }
@@ -474,15 +489,15 @@ Transport.prototype.onBlockchainReady = function () {
  * Calls enqueue signatures and emits a 'signature/change' socket message.
  * @implements {Broadcaster.maxRelays}
  * @implements {Broadcaster.enqueue}
- * @implements {library.network.io.sockets.emit}
+ * @implements {library.network.wsServer.emit}
  * @param {signature} signature
- * @param {Object} broadcast
+ * @param {object} broadcast
  * @emits signature/change
  */
 Transport.prototype.onSignature = function (signature, broadcast) {
   if (broadcast && !__private.broadcaster.maxRelays(signature)) {
     __private.broadcaster.enqueue({}, { api: '/signatures', data: { signature: signature }, method: 'POST' });
-    library.network.io.sockets.emit('signature/change', signature);
+    library.network.wsServer.emit('signature/change', signature);
   }
 };
 
@@ -490,15 +505,15 @@ Transport.prototype.onSignature = function (signature, broadcast) {
  * Calls enqueue transactions and emits a 'transactions/change' socket message.
  * @implements {Broadcaster.maxRelays}
  * @implements {Broadcaster.enqueue}
- * @implements {library.network.io.sockets.emit}
+ * @implements {library.network.wsServer.emit}
  * @param {transaction} transaction
- * @param {Object} broadcast
+ * @param {object} broadcast
  * @emits transactions/change
  */
 Transport.prototype.onUnconfirmedTransaction = function (transaction, broadcast) {
   if (broadcast && !__private.broadcaster.maxRelays(transaction)) {
     __private.broadcaster.enqueue({}, { api: '/transactions', data: { transaction: transaction }, method: 'POST' });
-    library.network.io.sockets.emit('transactions/change', transaction);
+    library.network.wsServer.emit('transactions/change', transaction);
   }
 };
 
@@ -507,9 +522,9 @@ Transport.prototype.onUnconfirmedTransaction = function (transaction, broadcast)
  * @implements {modules.system.getBroadhash}
  * @implements {Broadcaster.maxRelays}
  * @implements {Broadcaster.broadcast}
- * @implements {library.network.io.sockets.emit}
+ * @implements {library.network.wsServer.emit}
  * @param {block} block
- * @param {Object} broadcast
+ * @param {object} broadcast
  * @emits blocks/change
  */
 Transport.prototype.onNewBlock = function (block, broadcast) {
@@ -520,7 +535,7 @@ Transport.prototype.onNewBlock = function (block, broadcast) {
       if (!__private.broadcaster.maxRelays(block)) {
         __private.broadcaster.broadcast({ limit: constants.maxPeers, broadhash: broadhash }, { api: '/blocks', data: { block: block }, method: 'POST', immediate: true });
       }
-      library.network.io.sockets.emit('blocks/change', block);
+      library.network.wsServer.emit('blocks/change', block);
     });
   }
 };
@@ -529,8 +544,8 @@ Transport.prototype.onNewBlock = function (block, broadcast) {
  * Calls broadcast '/dapp/message'.
  * @implements {Broadcaster.maxRelays}
  * @implements {Broadcaster.broadcast}
- * @param {Object} msg
- * @param {Object} broadcast
+ * @param {object} msg
+ * @param {object} broadcast
  */
 Transport.prototype.onMessage = function (msg, broadcast) {
   if (broadcast && !__private.broadcaster.maxRelays(msg)) {
@@ -574,7 +589,7 @@ Transport.prototype.internal = {
         });
 
     if (!escapedIds.length) {
-      library.logger.debug('Common block request validation failed', { err: 'ESCAPE', req: ids });
+      library.logger.debug('transport', 'Common block request validation failed', { err: 'ESCAPE', req: ids });
 
       __private.removePeer({ peer: peer, code: 'ECOMMON' }, extraLogMessage);
 
@@ -584,7 +599,7 @@ Transport.prototype.internal = {
     library.db.query(sql.getCommonBlock, escapedIds).then(function (rows) {
       return setImmediate(cb, null, { success: true, common: rows[0] || null });
     }).catch(function (err) {
-      library.logger.error(err.stack);
+      library.logger.error('api-transport', `Failed to get common block: ${err?.message || err}`, err.stack);
       return setImmediate(cb, 'Failed to get common block');
     });
   },
@@ -610,7 +625,7 @@ Transport.prototype.internal = {
     try {
       block = library.logic.block.objectNormalize(block);
     } catch (e) {
-      library.logger.debug('Block normalization failed', { err: e.toString(), module: 'transport', block: block });
+      library.logger.debug('api-transport', 'Block normalization failed', { err: e.toString(), module: 'transport', block: block });
 
       __private.removePeer({ peer: peer, code: 'EBLOCK' }, extraLogMessage);
 
@@ -714,7 +729,7 @@ Transport.prototype.internal = {
         return setImmediate(cb, null, { success: false, message: 'Invalid hash sum' });
       }
     } catch (e) {
-      library.logger.error(e.stack);
+      library.logger.error('api-transport', e.stack);
       return setImmediate(cb, null, { success: false, message: e.toString() });
     }
 
@@ -752,7 +767,7 @@ Transport.prototype.internal = {
         return setImmediate(cb, null, { success: false, message: 'Invalid hash sum' });
       }
     } catch (e) {
-      library.logger.error(e.stack);
+      library.logger.error('api-transport', e.stack);
       return setImmediate(cb, null, { success: false, message: e.toString() });
     }
 

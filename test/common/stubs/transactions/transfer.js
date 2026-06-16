@@ -9,7 +9,7 @@ const validTransactionData = {
   senderPublicKey: delegateAccount.publicKey,
   recipientId: 'U7771441689362721578',
   fee: 50000000,
-  timestamp: 1000,
+  timestamp: 1000
 };
 
 const validTransaction = {
@@ -18,6 +18,7 @@ const validTransaction = {
   type: 0,
   block_timestamp: null,
   timestamp: 0,
+  timestampMs: 0,
   senderPublicKey:
     'b80bb6459608dcdeb9a98d1f2b0111b2bf11e53ef2933e6769bb0198e3a97aae',
   senderId: 'U15365455923155964650',
@@ -27,7 +28,7 @@ const validTransaction = {
   signature:
     '85dc703a2b82698193ecbd86fd7aff1b057dfeb86e2a390ef42c1998bf1e9269c0048f42285e208a1e14a63843defbabece1bc96730f317f0cc16e23bb1b4d01',
   signatures: [],
-  asset: {},
+  asset: {}
 };
 
 const rawValidTransaction = {
@@ -45,7 +46,7 @@ const rawValidTransaction = {
   t_fee: 0,
   t_signature:
     '85dc703a2b82698193ecbd86fd7aff1b057dfeb86e2a390ef42c1998bf1e9269c0048f42285e208a1e14a63843defbabece1bc96730f317f0cc16e23bb1b4d01',
-  confirmations: 8343,
+  confirmations: 8343
 };
 
 const validUnconfirmedTransaction = {
@@ -56,6 +57,7 @@ const validUnconfirmedTransaction = {
   recipientId: 'U7771441689362721578',
   fee: 50000000,
   timestamp: 1000,
+  timestampMs: 1000000,
   asset: {}
 };
 
@@ -63,5 +65,5 @@ module.exports = {
   validUnconfirmedTransaction,
   rawValidTransaction,
   validTransaction,
-  validTransactionData,
+  validTransactionData
 };

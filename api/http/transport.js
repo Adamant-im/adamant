@@ -24,9 +24,10 @@ var schema = require('../../schema/transport');
  * @requires helpers/Router
  * @requires helpers/httpApi
  * @constructor
- * @param {Object} transportModule - Module transport instance.
+ * @param {object} transportModule - Module transport instance.
  * @param {scope} app - Network app.
- * @param {function} logger
+ * @param {Logger} logger - Application logger.
+ * @param {Cache} cache - API response cache.
  */
 // Constructor
 function TransportHttpApi (transportModule, app, logger, cache) {
@@ -101,11 +102,11 @@ function TransportHttpApi (transportModule, app, logger, cache) {
   function getCommonBlocksMiddleware (req, res, next) {
     req.sanitize(req.query, schema.commonBlock, function (err, report, query) {
       if (err) {
-        logger.debug('Common block request validation failed', { err: err.toString(), req: req.query });
+        logger.debug('transport-api', 'Common block request validation failed', { err: err.toString(), req: req.query });
         return next(err);
       }
       if (!report.isValid) {
-        logger.debug('Common block request validation failed', { err: report, req: req.query });
+        logger.debug('transport-api', 'Common block request validation failed', { err: report, req: req.query });
         return res.json({ success: false, error: report.issues });
       }
 

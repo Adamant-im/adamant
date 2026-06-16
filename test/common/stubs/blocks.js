@@ -1,7 +1,7 @@
 const dummyBlock = {
   id: '9314232245035524467',
   height: 1,
-  timestamp: 0,
+  timestamp: 0
 };
 
 const validBlock = {
@@ -23,7 +23,7 @@ const validBlock = {
   blockSignature:
     '2efc3964ff1bfe5913ccdac97aefa88514091557011760d29de28abb36a8345533dfbe28f407fd8d2a5f75af87d2bd342f913ef527bacb9537c0a4714fe0b30b',
   confirmations: 13,
-  totalForged: '100200000',
+  totalForged: '100200000'
 };
 
 const firstTransfer = {
@@ -33,6 +33,7 @@ const firstTransfer = {
   type: 0,
   block_timestamp: 224138470,
   timestamp: 224138454,
+  timestampMs: 224138454000,
   senderPublicKey:
     'b0b4d346382aa07b23c0b733d040424532201b9eb22004b66a79d4b44e9d1449',
   senderId: 'U9781760580710719871',
@@ -45,7 +46,7 @@ const firstTransfer = {
     '1e21c8a786b802794e137fd964a72b17618a720e85e7df98244bfee854950ece5e3c9fe8bdf23b2ef27cbf1ed3ecaa7e7829a6cfd8b3a4d51e45ecdc5c716905',
   signatures: [],
   confirmations: 61,
-  asset: {},
+  asset: {}
 };
 
 const secondTransfer = {
@@ -55,6 +56,7 @@ const secondTransfer = {
   type: 0,
   block_timestamp: 224138470,
   timestamp: 224138455,
+  timestampMs: 224138455000,
   senderPublicKey:
     'b0b4d346382aa07b23c0b733d040424532201b9eb22004b66a79d4b44e9d1449',
   senderId: 'U9781760580710719871',
@@ -67,7 +69,7 @@ const secondTransfer = {
     'd4d9ae872ae30a35ef5f0c0fc5cb0b9098dcc71b15b287d7e890c9d9c9d5493348dfaf3ad14f7ccae25214dc987e5a0f5440ebdfb0e2e93b6798b2aedc0f8a04',
   signatures: [],
   confirmations: 61,
-  asset: {},
+  asset: {}
 };
 
 const firstMessage = {
@@ -77,6 +79,7 @@ const firstMessage = {
   type: 8,
   block_timestamp: 224138470,
   timestamp: 224138456,
+  timestampMs: 224138456000,
   senderPublicKey:
     'b0b4d346382aa07b23c0b733d040424532201b9eb22004b66a79d4b44e9d1449',
   senderId: 'U9781760580710719871',
@@ -93,9 +96,9 @@ const firstMessage = {
     chat: {
       message: 'fd38e525f10ff6980cab97d7edb8a78f6b12b445480f',
       own_message: '44738b0599ff450d0d3d4ac86aa6c0f859fb033a8a74fb4a',
-      type: 1,
-    },
-  },
+      type: 1
+    }
+  }
 };
 
 const secondMessage = {
@@ -105,6 +108,7 @@ const secondMessage = {
   type: 8,
   block_timestamp: 224138470,
   timestamp: 224138458,
+  timestampMs: 224138458000,
   senderPublicKey:
     'b0b4d346382aa07b23c0b733d040424532201b9eb22004b66a79d4b44e9d1449',
   senderId: 'U9781760580710719871',
@@ -121,16 +125,16 @@ const secondMessage = {
     chat: {
       message: 'b5e490e0e284cd779e8e86e638a0d9497fcd396abe934a',
       own_message: '2f58bb7bcbe7cc5f6c1e1d9a7c7b81fdc5513f96cc8c1a0f',
-      type: 1,
-    },
-  },
+      type: 1
+    }
+  }
 };
 
 const validBlockTransactions = [
   firstTransfer,
   secondTransfer,
   firstMessage,
-  secondMessage,
+  secondMessage
 ];
 
 const validPreviousBlock = {
@@ -152,7 +156,7 @@ const validPreviousBlock = {
   blockSignature:
     'f8c1e2b69c78fa3aa242879db25c40b19f70393f3a3408a78de4db986c157646df6ab5d9a4beeac8d184036254684b7cffbc22f470c3733324f9375b33787301',
   confirmations: 169,
-  totalForged: '0',
+  totalForged: '0'
 };
 
 const validPreviousBlockTransactions = [];
@@ -169,5 +173,5 @@ module.exports = {
   secondTransfer,
   firstMessage,
   secondMessage,
-  genesisBlockId,
+  genesisBlockId
 };

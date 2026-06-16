@@ -12,10 +12,10 @@ __private.loaded = false;
 /**
  * Initializes Server.
  * @memberof module:server
- * @class
+ * @constructor
  * @classdesc Main server methods.
- * @param {scope} scope - App instance.
  * @param {function} cb - Callback function.
+ * @param {scope} scope - App instance.
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
@@ -30,7 +30,7 @@ function Server (cb, scope) {
  * Calls helpers.sandbox.callMethod().
  * @implements {sandboxHelper.callMethod}
  * @param {function} call - Method to call.
- * @param {} args - List of arguments.
+ * @param {*} args - List of arguments.
  * @param {function} cb - Callback function.
  */
 Server.prototype.sandboxApi = function (call, args, cb) {

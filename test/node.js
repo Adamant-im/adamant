@@ -6,18 +6,19 @@
 var node = {};
 var slots = require('../helpers/slots.js');
 const _ = require('lodash');
-const sodium = require('sodium-browserify-tweetnacl');
 const crypto = require('crypto');
 const bignum = require('../helpers/bignum.js');
 const ByteBuffer = require('bytebuffer');
 const Mnemonic = require('bitcore-mnemonic');
 const transactionTypes = require('../helpers/transactionTypes.js');
+const testLogger = require('./logger.js');
 var packageJson = require('../package.json');
 
 // Requires
 node.bignum = require('../helpers/bignum.js');
 node.config = require('./config.json'); // use Testnet config
 node.constants = require('../helpers/constants.js');
+node.ed = require('../helpers/ed.js');
 node.txTypes = require('../helpers/transactionTypes.js');
 node.accounts = require('../helpers/accounts.js');
 
@@ -52,7 +53,8 @@ node.fees = {
   delegateRegistrationFee: node.constants.fees.delegate,
   multisignatureRegistrationFee: node.constants.fees.multisignature,
   dappAddFee: node.constants.fees.dapp,
-  messageFee: node.constants.fees.chat_message
+  messageFee: node.constants.fees.chat_message,
+  stateFee: node.constants.fees.state_store
 };
 
 // Test application
@@ -171,7 +173,7 @@ node.createAddressFromPublicKey = function (publicKey) {
 // sign transaction
 node.transactionSign = function (trs, keypair) {
   const hash = this.getHash(trs);
-  return sodium.crypto_sign_detached(hash, Buffer.from(keypair.privateKey, 'hex')).toString('hex');
+  return node.ed.sign(hash, keypair).toString('hex');
 };
 
 // return a basic transaction
@@ -255,6 +257,32 @@ node.createVoteTransaction = function (data) {
   transaction.id = this.getId(transaction);
   transaction.fee = node.fees.voteFee;
   return transaction;
+};
+
+node.createStateTransaction = function (data) {
+  const details = {
+    ...data,
+    transactionType: transactionTypes.STATE
+  };
+
+  const transaction = {
+    ...this.createBasicTransaction(details),
+    recipientId: null,
+    asset: {
+      state: {
+        key: details.key,
+        value: details.value,
+        type: 0
+      }
+    }
+  };
+
+  const signature = this.transactionSign(transaction, details.keyPair);
+
+  return {
+    ...transaction,
+    signature
+  };
 };
 
 // Returns a random property from the given object
@@ -531,7 +559,6 @@ node.waitForNewBlock = function (height, blocksToWait, cb) {
   var actualHeight = height;
   var counter = 1;
   var target = height + blocksToWait;
-
   node.async.doWhilst(
       function (cb) {
         node.axios.get(node.baseUrl + '/api/blocks/getHeight')
@@ -540,7 +567,12 @@ node.waitForNewBlock = function (height, blocksToWait, cb) {
                 return cb(['Received bad response code', res.status, res.config.url].join(' '));
               }
 
-              node.debug('== Waiting for block:'.grey, 'Height:'.grey, res.data.height, 'Target:'.grey, target, 'Second:'.grey, counter++);
+              testLogger.logUpdate(
+                  '== Waiting for block:'.grey,
+                  'Height:'.grey, `${res.data.height}`.yellow,
+                  'Target:'.grey, `${target}`.yellow,
+                  'Second:'.grey, `${counter++}`.yellow
+              );
 
               if (res.data.height >= target) {
                 height = res.data.height;
@@ -556,6 +588,7 @@ node.waitForNewBlock = function (height, blocksToWait, cb) {
         return testCb(null, target > height);
       },
       function (err) {
+        console.log('\n');
         if (err) {
           return setImmediate(cb, err);
         } else {
@@ -731,18 +764,18 @@ function abstractRequest (options, done) {
   }
 
   var verb = options.verb.toUpperCase();
-  node.debug(['> Path:'.grey, verb, options.path].join(' '));
+  testLogger.log(['> Path:'.grey, verb, options.path].join(' '));
   if (verb === 'POST' || verb === 'PUT') {
-    node.debug(['> Data:'.grey, JSON.stringify(options.params)].join(' '));
+    testLogger.log('> Data:'.grey, options.params);
   }
 
   if (done) {
     request.end(function (err, res) {
       if (!res) {
-        console.log(err, res)
+        console.log(err, res);
       }
 
-      node.debug('> Response:'.grey, JSON.stringify(res.body));
+      testLogger.log('> Response:'.grey, res.body);
       done(err, res);
     });
   } else {

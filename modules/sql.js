@@ -16,7 +16,7 @@ __private.DOUBLE_QUOTES_DOUBLED = '""';
 
 /**
  * Initializes library with scope content.
- * @class
+ * @constructor
  * @classdesc Main Sql methods.
  * @param {setImmediateCallback} cb - Callback function.
  * @param {scope} scope - App instance.
@@ -77,7 +77,7 @@ __private.escape2 = function (str) {
 
 /**
  * @private
- * @param {Object} obj
+ * @param {object} obj
  * @param {string} dappid
  */
 __private.pass = function (obj, dappid) {
@@ -117,7 +117,7 @@ __private.pass = function (obj, dappid) {
  * @implements {library.db.query}
  * @implements {async.until}
  * @param {string} action
- * @param {Object} config
+ * @param {object} config
  * @param {function} cb
  * @return {setImmediateCallback} cb, err, data
  */
@@ -153,7 +153,7 @@ __private.query = function (action, config, cb) {
           break;
       }
 
-      library.logger.trace('sql.query:', sql);
+      library.logger.trace('sql', 'sql.query:', sql);
     } catch (e) {
       return done(e);
     }
@@ -161,32 +161,32 @@ __private.query = function (action, config, cb) {
     library.db.query(sql.toString() + ';').then(function (rows) {
       return done(null, rows);
     }).catch(function (err) {
-      library.logger.error(err.stack);
+      library.logger.error('sql', err.stack);
       return done('Sql#query error');
     });
   } else {
     var batchPack = [];
     async.until(
-      function (testCb) {
-        batchPack = config.values.splice(0, 10);
-        return testCb(null, batchPack.length === 0);
-      }, function (cb) {
-        var fields = Object.keys(config.fields).map(function (field) {
-          return __private.escape2(config.fields[field]);
-        });
-        var rows = [];
-        batchPack.forEach(function (value) {
-          var currentRow = value.map(__private.escape);
-          rows.push('SELECT ' + currentRow.join(','));
-        });
-        sql = knex.raw('INSERT INTO ?? (' + fields.join(',') + ') ' + rows.join(' UNION '), ['dapp_' + config.dappid + '_' + config.table]).toString();
-        library.db.none(sql).then(function () {
-          return setImmediate(cb);
-        }).catch(function (err) {
-          library.logger.error(err.stack);
-          return setImmediate(cb, 'Sql#query error');
-        });
-      }, done);
+        function (testCb) {
+          batchPack = config.values.splice(0, 10);
+          return testCb(null, batchPack.length === 0);
+        }, function (cb) {
+          var fields = Object.keys(config.fields).map(function (field) {
+            return __private.escape2(config.fields[field]);
+          });
+          var rows = [];
+          batchPack.forEach(function (value) {
+            var currentRow = value.map(__private.escape);
+            rows.push('SELECT ' + currentRow.join(','));
+          });
+          sql = knex.raw('INSERT INTO ?? (' + fields.join(',') + ') ' + rows.join(' UNION '), ['dapp_' + config.dappid + '_' + config.table]).toString();
+          library.db.none(sql).then(function () {
+            return setImmediate(cb);
+          }).catch(function (err) {
+            library.logger.error('sql', err.stack);
+            return setImmediate(cb, 'Sql#query error');
+          });
+        }, done);
   }
 };
 
@@ -196,7 +196,7 @@ __private.query = function (action, config, cb) {
  * @implements {async.eachSeries}
  * @implements {library.db.none}
  * @param {string} dappid
- * @param {Object} config
+ * @param {object} config
  * @param {function} cb
  * @return {setImmediateCallback} err message | cb
  */
@@ -257,7 +257,7 @@ Sql.prototype.createTables = function (dappid, config, cb) {
  * @implements {async.eachSeries}
  * @implements {library.db.none}
  * @param {string} dappid
- * @param {Object} config
+ * @param {object} config
  * @param {function} cb
  * @return {setImmediateCallback} err message | cb
  */
@@ -272,14 +272,14 @@ Sql.prototype.dropTables = function (dappid, config, cb) {
       library.db.none('DROP TABLE IF EXISTS ' + table.name + ' CASCADE').then(function () {
         return setImmediate(cb, null);
       }).catch(function (err) {
-        library.logger.error(err.stack);
+        library.logger.error('sql', err.stack);
         return setImmediate(cb, 'Sql#dropTables error');
       });
     } else if (table.type === 'index') {
       library.db.none('DROP INDEX IF EXISTS ' + table.name).then(function () {
         return setImmediate(cb, null);
       }).catch(function (err) {
-        library.logger.error(err.stack);
+        library.logger.error('sql', err.stack);
         return setImmediate(cb, 'Sql#dropTables error');
       });
     } else {
@@ -317,7 +317,7 @@ Sql.prototype.onBlockchainReady = function () {
 // Shared API
 /**
  * @implements {__private.query.call}
- * @param {Object} req
+ * @param {object} req
  * @param {function} cb
  */
 shared.select = function (req, cb) {
@@ -327,7 +327,7 @@ shared.select = function (req, cb) {
 
 /**
  * @implements {__private.query.call}
- * @param {Object} req
+ * @param {object} req
  * @param {function} cb
  */
 shared.batch = function (req, cb) {
@@ -337,7 +337,7 @@ shared.batch = function (req, cb) {
 
 /**
  * @implements {__private.query.call}
- * @param {Object} req
+ * @param {object} req
  * @param {function} cb
  */
 shared.insert = function (req, cb) {
@@ -347,7 +347,7 @@ shared.insert = function (req, cb) {
 
 /**
  * @implements {__private.query.call}
- * @param {Object} req
+ * @param {object} req
  * @param {function} cb
  */
 shared.update = function (req, cb) {
@@ -357,7 +357,7 @@ shared.update = function (req, cb) {
 
 /**
  * @implements {__private.query.call}
- * @param {Object} req
+ * @param {object} req
  * @param {function} cb
  */
 shared.remove = function (req, cb) {

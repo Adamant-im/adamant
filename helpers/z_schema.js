@@ -17,14 +17,114 @@ var ip = require('neoip');
  * - os
  * - version
  * @see {@link https://github.com/zaggino/z-schema}
+ *
+ * @constructor
  * @memberof module:helpers
  * @requires ip
- * @constructor
- * @return {Boolean} True if the format is valid
+ * @return {boolean} True if the format is valid
  */
-const z_schema = require('z-schema');
+const zSchemaModule = require('z-schema');
+const ZSchema = zSchemaModule.default;
 const semver = require('semver');
 const { isPublicKey } = require('./publicKey.js');
+
+if (typeof ZSchema !== 'function' || typeof ZSchema.create !== 'function') {
+  throw new Error('z-schema module shape mismatch: expected .default to expose ZSchema.create()');
+}
+
+/**
+ * Preserves the legacy z-schema v6 API used throughout the node.
+ * Validation remains synchronous, non-throwing, and pinned to Draft-04.
+ * @param {object} options
+ * @constructor
+ */
+function z_schema (options) {
+  this.validator = ZSchema.create({
+    ...options,
+    safe: true,
+    version: 'draft-04'
+  });
+  this.lastErrors = null;
+}
+
+/**
+ * Restores error messages exposed by z-schema v6.
+ * @param {object} error
+ * @return {object}
+ */
+function normalizeError (error) {
+  if (error.code === 'INVALID_FORMAT' && typeof error.params[1] === 'string') {
+    try {
+      const value = JSON.parse(error.params[1]);
+      error.params[1] = value;
+      error.message = `Object didn't pass validation for format ${error.params[0]}: ${value}`;
+    } catch (err) {
+      // Keep the upstream message when the value is not JSON-encoded.
+    }
+  }
+
+  return error;
+}
+
+/**
+ * Converts validation failures to the legacy error-array contract.
+ * @param {object} result
+ * @param {*} value
+ * @param {object} schema
+ * @return {Array}
+ */
+function getValidationErrors (result, value, schema) {
+  if (Array.isArray(result.err && result.err.details)) {
+    return result.err.details.map(normalizeError);
+  }
+
+  if (schema && schema.format) {
+    return [{
+      code: 'INVALID_FORMAT',
+      params: [schema.format, value],
+      message: `Object didn't pass validation for format ${schema.format}: ${value}`,
+      path: '#/'
+    }];
+  }
+
+  return [{
+    code: 'VALIDATION_ERROR',
+    params: [],
+    message: result.err && result.err.message ? result.err.message : 'Validation failed',
+    path: '#/'
+  }];
+}
+
+/**
+ * Validates a value using the legacy boolean/callback contract.
+ * @param {*} value
+ * @param {object} schema
+ * @param {Function} callback
+ *
+ * @return {boolean}
+ */
+z_schema.prototype.validate = function (value, schema, callback) {
+  const result = this.validator.validate(value, schema);
+  this.lastErrors = result.valid ? null : getValidationErrors(result, value, schema);
+
+  if (typeof callback === 'function') {
+    callback(this.lastErrors, result.valid);
+  }
+
+  return result.valid;
+};
+
+/**
+ * Returns errors from the latest validation attempt.
+ * @return {Array|null}
+ */
+z_schema.prototype.getLastErrors = function () {
+  return this.lastErrors;
+};
+
+z_schema.registerFormat = zSchemaModule.registerFormat;
+z_schema.unregisterFormat = zSchemaModule.unregisterFormat;
+z_schema.getRegisteredFormats = zSchemaModule.getRegisteredFormats;
 
 z_schema.registerFormat('id', function (str) {
   if (str.length === 0) {
@@ -64,7 +164,7 @@ z_schema.registerFormat('publicKey', function (str) {
     return true;
   }
 
-  return isPublicKey(str)
+  return isPublicKey(str);
 });
 
 z_schema.registerFormat('csv', function (str) {
@@ -104,11 +204,11 @@ z_schema.registerFormat('delegatesList', function (obj) {
 });
 
 z_schema.registerFormat('parsedInt', function (value) {
-  /* eslint-disable eqeqeq */
+  // Loose equality intentionally accepts integer-like strings such as "1.0".
   if (isNaN(value) || parseInt(value) != value || isNaN(parseInt(value, 10))) {
     return false;
   }
-  /* eslint-enable eqeqeq */
+
   value = parseInt(value);
   return true;
 });

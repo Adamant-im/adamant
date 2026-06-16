@@ -14,7 +14,7 @@ const httpApi = require('../../helpers/httpApi');
  * @requires helpers/Router
  * @requires helpers/httpApi
  * @constructor
- * @param {Object} chatroomsModule - Module chats instance.
+ * @param {object} chatroomsModule - Module chats instance.
  * @param {scope} app - Network app.
  */
 // Constructor
@@ -22,8 +22,8 @@ function ChatroomsHttpApi (chatroomsModule, app) {
   const router = new Router({ caseSensitive: false });
 
   router.map(chatroomsModule.internal, {
-    'get /U*/U*': 'getMessages',
-    'get /U*': 'getChats'
+    'get /U:address1/U:address2': 'getMessages',
+    'get /U:address': 'getChats'
   });
 
 

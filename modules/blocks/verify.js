@@ -23,7 +23,7 @@ function Verify (logger, block, transaction, db) {
   };
   self = this;
 
-  library.logger.trace('Blocks->Verify: Submodule initialized.');
+  library.logger.trace('blocks', 'Blocks->Verify: Submodule initialized.');
   return self;
 }
 
@@ -34,11 +34,11 @@ function Verify (logger, block, transaction, db) {
  * @private
  * @async
  * @method checkTransaction
- * @param  {Object}   block Block object
- * @param  {Object}   transaction Transaction object
+ * @param  {object}   block Block object
+ * @param  {object}   transaction Transaction object
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
+ * @return {object}   cb.err Error if occurred
  */
 __private.checkTransaction = function (block, transaction, cb) {
   async.waterfall([
@@ -93,9 +93,9 @@ __private.checkTransaction = function (block, transaction, cb) {
  * @private
  * @method verifyBlock
  * @method verifyReceipt
- * @param  {Object}  block Target block
- * @param  {Object}  lastBlock Last block
- * @return {Object}  block Target block
+ * @param  {object}  block Target block
+ * @param  {object}  lastBlock Last block
+ * @return {object}  block Target block
  */
 __private.setHeight = function (block, lastBlock) {
   block.height = lastBlock.height + 1;
@@ -109,9 +109,9 @@ __private.setHeight = function (block, lastBlock) {
  * @private
  * @method verifyBlock
  * @method verifyReceipt
- * @param  {Object}  block Target block
- * @param  {Object}  result Verification results
- * @return {Object}  result Verification results
+ * @param  {object}  block Target block
+ * @param  {object}  result Verification results
+ * @return {object}  result Verification results
  * @return {boolean} result.verified Indicator that verification passed
  * @return {Array}   result.errors Array of validation errors
  */
@@ -137,9 +137,9 @@ __private.verifySignature = function (block, result) {
  * @private
  * @method verifyBlock
  * @method verifyReceipt
- * @param  {Object}  block Target block
- * @param  {Object}  result Verification results
- * @return {Object}  result Verification results
+ * @param  {object}  block Target block
+ * @param  {object}  result Verification results
+ * @return {object}  result Verification results
  * @return {boolean} result.verified Indicator that verification passed
  * @return {Array}   result.errors Array of validation errors
  */
@@ -157,9 +157,9 @@ __private.verifyPreviousBlock = function (block, result) {
  * @private
  * @method verifyBlock
  * @method verifyReceipt
- * @param  {Object}  block Target block
- * @param  {Object}  result Verification results
- * @return {Object}  result Verification results
+ * @param  {object}  block Target block
+ * @param  {object}  result Verification results
+ * @return {object}  result Verification results
  * @return {boolean} result.verified Indicator that verification passed
  * @return {Array}   result.errors Array of validation errors
  */
@@ -177,9 +177,9 @@ __private.verifyVersion = function (block, result) {
  * @private
  * @method verifyBlock
  * @method verifyReceipt
- * @param  {Object}  block Target block
- * @param  {Object}  result Verification results
- * @return {Object}  result Verification results
+ * @param  {object}  block Target block
+ * @param  {object}  result Verification results
+ * @return {object}  result Verification results
  * @return {boolean} result.verified Indicator that verification passed
  * @return {Array}   result.errors Array of validation errors
  */
@@ -199,9 +199,9 @@ __private.verifyReward = function (block, result) {
  * @private
  * @method verifyBlock
  * @method verifyReceipt
- * @param  {Object}  block Target block
- * @param  {Object}  result Verification results
- * @return {Object}  result Verification results
+ * @param  {object}  block Target block
+ * @param  {object}  result Verification results
+ * @return {object}  result Verification results
  * @return {boolean} result.verified Indicator that verification passed
  * @return {Array}   result.errors Array of validation errors
  */
@@ -223,9 +223,9 @@ __private.verifyId = function (block, result) {
  * @private
  * @method verifyBlock
  * @method verifyReceipt
- * @param  {Object}  block Target block
- * @param  {Object}  result Verification results
- * @return {Object}  result Verification results
+ * @param  {object}  block Target block
+ * @param  {object}  result Verification results
+ * @return {object}  result Verification results
  * @return {boolean} result.verified Indicator that verification passed
  * @return {Array}   result.errors Array of validation errors
  */
@@ -287,10 +287,10 @@ __private.verifyPayload = function (block, result) {
  *
  * @private
  * @method verifyBlock
- * @param  {Object}  block Target block
- * @param  {Object}  lastBlock Last block
- * @param  {Object}  result Verification results
- * @return {Object}  result Verification results
+ * @param  {object}  block Target block
+ * @param  {object}  lastBlock Last block
+ * @param  {object}  result Verification results
+ * @return {object}  result Verification results
  * @return {boolean} result.verified Indicator that verification passed
  * @return {Array}   result.errors Array of validation errors
  */
@@ -308,10 +308,10 @@ __private.verifyForkOne = function (block, lastBlock, result) {
  *
  * @private
  * @method verifyBlock
- * @param  {Object}  block Target block
- * @param  {Object}  lastBlock Last block
- * @param  {Object}  result Verification results
- * @return {Object}  result Verification results
+ * @param  {object}  block Target block
+ * @param  {object}  lastBlock Last block
+ * @param  {object}  result Verification results
+ * @return {object}  result Verification results
  * @return {boolean} result.verified Indicator that verification passed
  * @return {Array}   result.errors Array of validation errors
  */
@@ -331,8 +331,8 @@ __private.verifyBlockSlot = function (block, lastBlock, result) {
  *
  * @public
  * @method verifyReceipt
- * @param  {Object}  block Full block
- * @return {Object}  result Verification results
+ * @param  {object}  block Full block
+ * @return {object}  result Verification results
  * @return {boolean} result.verified Indicator that verification passed
  * @return {Array}   result.errors Array of validation errors
  */
@@ -361,8 +361,8 @@ Verify.prototype.verifyReceipt = function (block) {
  *
  * @public
  * @method verifyBlock
- * @param  {Object}  block Full block
- * @return {Object}  result Verification results
+ * @param  {object}  block Full block
+ * @return {object}  result Verification results
  * @return {boolean} result.verified Indicator that verification passed
  * @return {Array}   result.errors Array of validation errors
  */
@@ -398,13 +398,12 @@ Verify.prototype.verifyBlock = function (block) {
  * @async
  * @public
  * @method processBlock
- * @param  {Object}   block Full block
+ * @param  {object}   block Full block
  * @param  {boolean}  broadcast Indicator that block needs to be broadcasted
  * @param  {Function} cb Callback function
  * @param  {boolean}  saveBlock Indicator that block needs to be saved to database
- * @param  {boolean}  checked Indicator that block was previously checked
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
+ * @return {object}   cb.err Error if occurred
  */
 Verify.prototype.processBlock = function (block, broadcast, cb, saveBlock) {
   if (modules.blocks.isCleaning.get()) {
@@ -431,7 +430,7 @@ Verify.prototype.processBlock = function (block, broadcast, cb, saveBlock) {
       var check = self.verifyBlock(block);
 
       if (!check.verified) {
-        library.logger.error(['Block', block.id, 'verification failed'].join(' '), check.errors.join(', '));
+        library.logger.error('blocks', ['Block', block.id, 'verification failed'].join(' '), check.errors.join(', '));
         return setImmediate(seriesCb, check.errors[0]);
       }
 
@@ -492,7 +491,7 @@ Verify.prototype.processBlock = function (block, broadcast, cb, saveBlock) {
  * @param {modules} scope Exposed modules
  */
 Verify.prototype.onBind = function (scope) {
-  library.logger.trace('Blocks->Verify: Shared modules bind.');
+  library.logger.trace('blocks', 'Blocks->Verify: Shared modules bind.');
   modules = {
     accounts: scope.accounts,
     blocks: scope.blocks,

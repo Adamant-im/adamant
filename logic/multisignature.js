@@ -13,13 +13,14 @@ __private.unconfirmedSignatures = {};
 
 /**
  * Initializes library.
- * @memberof module:multisignatures
- * @class
- * @classdesc Main multisignature logic.
  * @param {ZSchema} schema
- * @param {Object} network
+ * @param {object} network
  * @param {Transaction} transaction
- * @param {Object} logger
+ * @param {object} logger
+ *
+ * @memberof module:multisignatures
+ * @constructor
+ * @classdesc Main multisignature logic.
  */
 // Constructor
 function Multisignature (schema, network, transaction, logger) {
@@ -66,9 +67,10 @@ Multisignature.prototype.create = function (data, trs) {
 
 /**
  * Obtains constant fee multisignature and multiply by quantity of signatures.
- * @see {@link module:helpers~constants}
  * @param {transaction} trs
  * @param {account} sender - Unnecessary parameter.
+ * @see {@link module:helpers~constants}
+ *
  * @return {number} Quantity of multisignature keysgroup * multisignature fees.
  */
 Multisignature.prototype.calculateFee = function (trs, sender) {
@@ -77,11 +79,11 @@ Multisignature.prototype.calculateFee = function (trs, sender) {
 
 /**
  * Verifies multisignature fields from transaction asset and sender.
- * @implements module:transactions#Transaction~verifySignature
  * @param {transaction} trs
  * @param {account} sender
- * @param {function} cb - Callback function.
- * @returns {setImmediateCallback|transaction} returns error string if invalid parameter |
+ * @param {Function} cb - Callback function.
+ * @implements module:transactions#Transaction~verifySignature
+ * @return {setImmediateCallback|transaction} returns error string if invalid parameter |
  * trs validated.
  */
 Multisignature.prototype.verify = function (trs, sender, cb) {
@@ -106,8 +108,8 @@ Multisignature.prototype.verify = function (trs, sender, cb) {
     var err = 'Invalid multisignature min. Must be less than or equal to keysgroup size';
 
     if (exceptions.multisignatures.indexOf(trs.id) > -1) {
-      this.scope.logger.debug(err);
-      this.scope.logger.debug(JSON.stringify(trs));
+      this.scope.logger.debug('multisignatures', err);
+      this.scope.logger.debug('multisignatures', 'Known multisignature exception', trs);
     } else {
       return setImmediate(cb, err);
     }
@@ -143,7 +145,7 @@ Multisignature.prototype.verify = function (trs, sender, cb) {
         }
       }
     } catch (e) {
-      library.logger.error(e.stack);
+      library.logger.error('multisignatures', e.stack);
       return setImmediate(cb, 'Failed to verify signature in multisignature keysgroup');
     }
   }
@@ -170,7 +172,7 @@ Multisignature.prototype.verify = function (trs, sender, cb) {
         return setImmediate(cb, 'Invalid public key in multisignature keysgroup');
       }
     } catch (e) {
-      library.logger.error(e.stack);
+      library.logger.error('multisignatures', e.stack);
       return setImmediate(cb, 'Invalid public key in multisignature keysgroup');
     }
 
@@ -197,9 +199,10 @@ Multisignature.prototype.verify = function (trs, sender, cb) {
  * Returns transaction with setImmediate.
  * @param {transaction} trs
  * @param {account} sender
- * @param {function} cb - Callback function.
- * @return {setImmediateCallback} Null error
+ * @param {Function} cb - Callback function.
  * @todo check extra parameter sender.
+ *
+ * @return {setImmediateCallback} Null error
  */
 Multisignature.prototype.process = function (trs, sender, cb) {
   return setImmediate(cb, null, trs);
@@ -207,10 +210,11 @@ Multisignature.prototype.process = function (trs, sender, cb) {
 
 /**
  * Returns a buffer with bytes from transaction asset information.
- * @requires bytebuffer
- * @see {@link https://github.com/dcodeIO/bytebuffer.js/wiki/API}
  * @param {transaction} trs - Uses multisignature from asset.
  * @param {boolean} skip
+ * @see {@link https://github.com/dcodeIO/bytebuffer.js/wiki/API}
+ *
+ * @requires bytebuffer
  * @return {!Array} Contents as an ArrayBuffer.
  */
 Multisignature.prototype.getBytes = function (trs, skip) {
@@ -230,11 +234,11 @@ Multisignature.prototype.getBytes = function (trs, skip) {
 /**
  * Merges transaction data into mem_accounts table.
  * Checks public keys from multisignature and creates accounts.
- * @implements module:accounts#Accounts~setAccountAndGet
  * @param {transaction} trs - Uses multisignature from asset.
  * @param {block} block
  * @param {account} sender
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
+ * @implements module:accounts#Accounts~setAccountAndGet
  * @return {setImmediateCallback} for errors
  */
 Multisignature.prototype.apply = function (trs, block, sender, cb) {
@@ -273,7 +277,8 @@ Multisignature.prototype.apply = function (trs, block, sender, cb) {
  * @param {transaction} trs - Uses multisignature from asset.
  * @param {block} block
  * @param {account} sender
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
+ *
  * @return {setImmediateCallback} For error.
  */
 Multisignature.prototype.undo = function (trs, block, sender, cb) {
@@ -297,7 +302,8 @@ Multisignature.prototype.undo = function (trs, block, sender, cb) {
  * Merges into sender address transaction asset to unconfirmed fields.
  * @param {transaction} trs - Uses multisignature from asset.
  * @param {account} sender
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
+ *
  * @return {setImmediateCallback} For error.
  */
 Multisignature.prototype.applyUnconfirmed = function (trs, sender, cb) {
@@ -320,10 +326,9 @@ Multisignature.prototype.applyUnconfirmed = function (trs, sender, cb) {
  * Turns off unconfirmedSignatures for sender address.
  * Inverts multisignature signs and merges into sender address
  * to unconfirmed fields.
- *
  * @param {transaction} trs - Uses multisignature from asset.
  * @param {account} sender
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
  * @return {setImmediateCallback} For error.
  */
 Multisignature.prototype.undoUnconfirmed = function (trs, sender, cb) {
@@ -341,7 +346,8 @@ Multisignature.prototype.undoUnconfirmed = function (trs, sender, cb) {
 };
 
 /**
- * @typedef {Object} multisignature
+ * @typedef {object} multisignature
+ *
  * @property {number} min - From 1 to 15
  * @property {Array} keysgroup - Between 1 and 16 keys
  * @property {number} lifetime - From 1 to 72
@@ -372,8 +378,8 @@ Multisignature.prototype.schema = {
 /**
  * Validates multisignature schema.
  * @param {transaction} trs - Uses multisignature from asset.
- * @return {transaction} Transaction validated.
  * @throws {string} Error message.
+ * @return {transaction} Transaction validated.
  */
 Multisignature.prototype.objectNormalize = function (trs) {
   var report = library.schema.validate(trs.asset.multisignature, Multisignature.prototype.schema);
@@ -389,9 +395,10 @@ Multisignature.prototype.objectNormalize = function (trs) {
 
 /**
  * Creates multisignature object based on raw data.
- * @param {Object} raw - Data from database.
- * @return {multisignature} multisignature Object.
+ * @param {object} raw - Data from database.
  * @todo check if this function is called.
+ *
+ * @return {multisignature} multisignature Object.
  */
 Multisignature.prototype.dbRead = function (raw) {
   if (!raw.m_keysgroup) {
@@ -424,8 +431,9 @@ Multisignature.prototype.dbFields = [
 /**
  * Creates database Object based on trs data.
  * @param {transaction} trs - Contains multisignature object.
- * @return {Object} {table:multisignatures, values: multisignature and transaction id}.
  * @todo check if this function is called.
+ *
+ * @return {object} {table:multisignatures, values: multisignature and transaction id}.
  */
 Multisignature.prototype.dbSave = function (trs) {
   return {
@@ -443,11 +451,12 @@ Multisignature.prototype.dbSave = function (trs) {
 /**
  * Emits a 'multisignatures/change' socket signal with transaction info.
  * @param {transaction} trs
- * @param {function} cb
+ * @param {Function} cb
+ *
  * @return {setImmediateCallback} cb
  */
 Multisignature.prototype.afterSave = function (trs, cb) {
-  library.network.io.sockets.emit('multisignatures/change', trs);
+  library.network.wsServer.emit('multisignatures/change', trs);
   return setImmediate(cb);
 };
 

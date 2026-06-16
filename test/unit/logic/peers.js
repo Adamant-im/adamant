@@ -22,28 +22,28 @@ describe('peers', () => {
       __modules.peers.onBind(__modules);
 
       modulesLoader.initLogic(
-        Peers,
-        modulesLoader.scope,
-        function (err, __peers) {
-          if (err) {
-            return done(err);
-          }
+          Peers,
+          modulesLoader.scope,
+          function (err, __peers) {
+            if (err) {
+              return done(err);
+            }
 
-          peers = __peers;
-          peers.bindModules({ peers: __modules.peers });
-          done();
-        }
+            peers = __peers;
+            peers.bindModules({ peers: __modules.peers });
+            done();
+          }
       );
     });
   });
 
-  function removeAll() {
+  function removeAll () {
     peers.list().forEach((peer) => peers.remove(peer));
 
     expect(peers.list()).to.be.an('array').and.empty;
   }
 
-  function arePeersEqual(peerA, peerB) {
+  function arePeersEqual (peerA, peerB) {
     const allPeersProperties = (peer) => {
       return _.keys(peer).every((property) => {
         return (
@@ -67,7 +67,7 @@ describe('peers', () => {
       commonProperties.indexOf('port') === -1
     ) {
       throw new Error(
-        'Insufficient data to compare the peers (no port or ip provided)'
+          'Insufficient data to compare the peers (no port or ip provided)'
       );
     }
 

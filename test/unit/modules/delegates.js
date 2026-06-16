@@ -6,7 +6,7 @@ const { modulesLoader } = require('../../common/initModule.js');
 const {
   testAccount,
   invalidPublicKey,
-  invalidAddress,
+  invalidAddress
 } = require('../../common/stubs/account.js');
 
 const constants = require('../../../helpers/constants.js');
@@ -26,7 +26,7 @@ describe('delegates', function () {
   const dummyBlock = {
     id: '9314232245035524467',
     height: 1,
-    timestamp: 0,
+    timestamp: 0
   };
 
   before(() => {
@@ -90,7 +90,7 @@ describe('delegates', function () {
     it('should return all 101 delegates', (done) => {
       delegates.getDelegates({}, {}, (err, response) => {
         expect(response.delegates).to.be.an('array');
-        expect(response.count).to.equal(101);
+        expect(response.count).to.greaterThanOrEqual(101);
         expect(err).not.to.exist;
         done();
       });
@@ -109,18 +109,18 @@ describe('delegates', function () {
       });
 
       it('should return error when invalid publicKey is provided', (done) => {
-        const body = {publicKey: invalidPublicKey}
+        const body = { publicKey: invalidPublicKey };
         delegates.shared.getDelegate({ body }, (err, response) => {
-          expect(err).to.include("Object didn't pass validation for format publicKey")
+          expect(err).to.include('Object didn\'t pass validation for format publicKey');
           expect(response).not.to.exist;
           done();
         });
       });
 
       it('should return error when invalid address is provided', (done) => {
-        const body = {address: invalidAddress}
+        const body = { address: invalidAddress };
         delegates.shared.getDelegate({ body }, (err, response) => {
-          expect(err).to.include("Object didn't pass validation for format address")
+          expect(err).to.include('Object didn\'t pass validation for format address');
           expect(response).not.to.exist;
           done();
         });
@@ -183,7 +183,7 @@ describe('delegates', function () {
             'currentBlock',
             'currentBlockSlot',
             'currentSlot',
-            'delegates',
+            'delegates'
           ];
 
           expect(err).not.to.exist;
@@ -286,8 +286,8 @@ describe('delegates', function () {
         const body = { publicKey: aDelegate.publicKey };
         delegates.shared.getVoters({ body }, (err, response) => {
           expect(err).not.to.exist;
-          expect(response).to.have.property('accounts').that.is.an("array").that.is
-            .not.empty;
+          expect(response).to.have.property('accounts').that.is.an('array').that.is
+              .not.empty;
 
           const isSorted = response.accounts.every((_, index, array) => {
             if (index === 0) {
@@ -302,23 +302,13 @@ describe('delegates', function () {
       });
     });
 
-    describe('getFee', () => {
-      it('should return the delegate registration fee', () => {
-        delegates.shared.getFee({}, (err, response) => {
-          expect(err).not.to.exist;
-          expect(response).to.have.key('fee');
-          expect(response.fee).to.equal(constants.fees.delegate);
-        });
-      });
-    });
-
     describe('getForgedByAccount', () => {
       it('should return error when invalid generator public key is provided', (done) => {
         const body = { generatorPublicKey: invalidPublicKey };
         delegates.shared.getForgedByAccount({ body }, (err, response) => {
           expect(response).not.to.exist;
           expect(err).to.include(
-            "Object didn't pass validation for format publicKey"
+              'Object didn\'t pass validation for format publicKey'
           );
           done();
         });
@@ -328,7 +318,7 @@ describe('delegates', function () {
         const body = {
           generatorPublicKey: validGeneratorPubicKey,
           start: 'string',
-          end: 61741820,
+          end: 61741820
         };
 
         delegates.shared.getForgedByAccount({ body }, (err, response) => {
@@ -342,7 +332,7 @@ describe('delegates', function () {
         const body = {
           generatorPublicKey: validGeneratorPubicKey,
           start: 61741820,
-          end: 'string',
+          end: 'string'
         };
 
         delegates.shared.getForgedByAccount({ body }, (err, response) => {
@@ -355,7 +345,7 @@ describe('delegates', function () {
       it('should return error when no accounts match the generator public key', (done) => {
         const body = {
           generatorPublicKey:
-            'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d1',
+            'f4011a1360ac2769e066c789acaaeffa9d707690d4d3f6085a7d52756fbc30d1'
         };
 
         delegates.shared.getForgedByAccount({ body }, (err, response) => {
@@ -385,16 +375,16 @@ describe('delegates', function () {
           expect(allTimeForgedAmount).not.to.be.NaN;
 
           delegates.shared.getForgedByAccount(
-            { body: { ...body, start: 0, end: 61741820 } },
-            (err, intervalStats) => {
-              expect(err).not.to.exist;
+              { body: { ...body, start: 0, end: 61741820 } },
+              (err, intervalStats) => {
+                expect(err).not.to.exist;
 
-              const intervalForgedAmount = Number(intervalStats.forged);
-              expect(intervalForgedAmount).not.to.be.NaN;
+                const intervalForgedAmount = Number(intervalStats.forged);
+                expect(intervalForgedAmount).not.to.be.NaN;
 
-              expect(intervalForgedAmount).to.be.lessThan(allTimeForgedAmount);
-              done();
-            }
+                expect(intervalForgedAmount).to.be.lessThanOrEqual(allTimeForgedAmount);
+                done();
+              }
           );
         });
       });

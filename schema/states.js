@@ -121,31 +121,6 @@ module.exports = {
     },
     required: ['id']
   },
-  normalize: {
-    id: 'states.normalize',
-    type: 'object',
-    properties: {
-      value: {
-        type: 'string',
-        minLength: 1
-      },
-      key: {
-        type: 'string',
-        minLength: 0
-      },
-      recipientId: {
-        type: 'string',
-        format: 'address',
-        minLength: 1,
-        maxLength: 40
-      },
-      publicKey: {
-        type: 'string',
-        format: 'publicKey'
-      }
-    },
-    required: ['value', 'publicKey']
-  },
   store: {
     id: 'states.store',
     type: 'object',

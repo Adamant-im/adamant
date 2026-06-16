@@ -8,7 +8,7 @@ var modules;
 /**
  * Main transfer logic.
  * @memberof module:transactions
- * @class
+ * @constructor
  * @classdesc Main transfer logic.
  */
 // Constructor
@@ -29,7 +29,7 @@ Transfer.prototype.bind = function (accounts, rounds) {
 
 /**
  * Assigns data to transaction recipientId and amount.
- * @param {Object} data
+ * @param {object} data
  * @param {transaction} trs
  * @return {transaction} trs with assigned data
  */
@@ -177,7 +177,7 @@ Transfer.prototype.objectNormalize = function (trs) {
 };
 
 /**
- * @param {Object} raw
+ * @param {object} raw
  * @return {null}
  */
 Transfer.prototype.dbRead = function (raw) {

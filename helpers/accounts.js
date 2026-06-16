@@ -3,9 +3,7 @@
 var crypto = require('crypto');
 
 var bignum = require('./bignum.js');
-
-// let sodium = require('sodium');
-var sodium = require('sodium-browserify-tweetnacl');
+var ed = require('./ed.js');
 
 let Mnemonic = require('bitcore-mnemonic');
 const { isPublicKey } = require('./publicKey.js');
@@ -36,12 +34,7 @@ accounts.getAddressByPublicKey = function (publicKey) {
 };
 
 accounts.makeKeypair = function (hash) {
-  let keypair = sodium.crypto_sign_seed_keypair(hash);
-
-  return {
-    publicKey: keypair.publicKey,
-    privateKey: keypair.secretKey
-  };
+  return ed.makeKeypair(hash);
 };
 
 accounts.createPassPhraseHash = function (passPhrase) {

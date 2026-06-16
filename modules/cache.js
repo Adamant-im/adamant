@@ -1,58 +1,63 @@
 var async = require('async');
 var transactionTypes = require('../helpers/transactionTypes.js');
-var cacheReady = true;
 var errorCacheDisabled = 'Cache Unavailable';
-var client;
-var self;
-var logger;
-var cacheEnabled;
+var apiCachePattern = '/api/*';
 
 /**
- * Cache module
+ * Creates an isolated Redis cache module.
  * @constructor
- * @param {Function} cb
- * @param {Object} scope
+ * @param {Function} cb - Callback invoked with the initialized cache.
+ * @param {object} scope - Application scope containing cache and logger instances.
  */
 function Cache (cb, scope) {
-  self = this;
-  client = scope.cache.client;
-  logger = scope.logger;
-  cacheEnabled = scope.cache.cacheEnabled;
-  setImmediate(cb, null, self);
+  this.client = scope.cache.client;
+  this.logger = scope.logger;
+  this.cacheEnabled = scope.cache.cacheEnabled;
+  this.cacheReady = true;
+
+  // The application bus invokes lifecycle handlers with the handler function
+  // as its receiver, so bind handlers that depend on this Cache instance.
+  this.onNewBlock = this.onNewBlock.bind(this);
+  this.onFinishRound = this.onFinishRound.bind(this);
+  this.onTransactionsSaved = this.onTransactionsSaved.bind(this);
+  this.onSyncStarted = this.onSyncStarted.bind(this);
+  this.onSyncFinished = this.onSyncFinished.bind(this);
+
+  setImmediate(cb, null, this);
 }
 
 /**
- * It gets the status of the redis connection
- * @return {Boolean} status
+ * Returns whether this cache instance has a ready Redis connection.
+ * @return {boolean} Whether Redis caching is enabled and connected.
  */
 Cache.prototype.isConnected = function () {
-  // using client.ready because this variable is updated on client connected
-  return cacheEnabled && client && client.ready;
+  // The cache helper updates client.ready when the Redis connection is established.
+  return this.cacheEnabled && this.client && this.client.ready;
 };
 
 /**
- * It gets the caching readiness and the connection of redis
- * @return {Boolean} status
+ * Returns whether cache mutations are allowed and Redis is connected.
+ * @return {boolean} Whether this cache instance is ready.
  */
 Cache.prototype.isReady = function () {
-  return cacheReady && self.isConnected();
+  return this.cacheReady && this.isConnected();
 };
 
 /**
- * It gets the json value for a key from redis
- * @param {String} key
- * @param {Function} cb
- * @return {Function} cb
+ * Reads and parses a JSON value from Redis.
+ * @param {string} key - Redis key.
+ * @param {Function} cb - Callback receiving the parsed value.
+ * @return {Promise<void>} Promise resolved after the callback is invoked.
  */
 Cache.prototype.getJsonForKey = async function (key, cb) {
-  if (!self.isConnected()) {
+  if (!this.isConnected()) {
     return cb(errorCacheDisabled);
   }
 
   let parsedValue;
 
   try {
-    const value = await client.get(key);
+    const value = await this.client.get(key);
     parsedValue = JSON.parse(value);
   } catch (err) {
     cb(err, key);
@@ -63,13 +68,14 @@ Cache.prototype.getJsonForKey = async function (key, cb) {
 };
 
 /**
- * It sets json value for a key in redis
- * @param {String} key
- * @param {Object} value
- * @param {Function} cb
+ * Serializes and stores a JSON value in Redis.
+ * @param {string} key - Redis key.
+ * @param {object} value - JSON-compatible value.
+ * @param {Function} [cb] - Optional completion callback.
+ * @return {Promise<void>} Promise resolved after the write attempt.
  */
 Cache.prototype.setJsonForKey = async function (key, value, cb) {
-  if (!self.isConnected()) {
+  if (!this.isConnected()) {
     if (typeof cb === 'function') {
       cb(errorCacheDisabled);
     }
@@ -79,11 +85,12 @@ Cache.prototype.setJsonForKey = async function (key, value, cb) {
   let res;
   try {
     // redis calls toString on objects, which converts it to object [object] so calling stringify before saving
-    res = await client.set(key, JSON.stringify(value))
+    res = await this.client.set(key, JSON.stringify(value));
   } catch (err) {
     if (typeof cb === 'function') {
-      cb(err, value);
+      return cb(err, value);
     }
+    return;
   }
 
   if (typeof cb === 'function') {
@@ -92,103 +99,110 @@ Cache.prototype.setJsonForKey = async function (key, value, cb) {
 };
 
 /**
- * It deletes json value for a key in redis
- * @param {String} key
+ * Deletes a JSON value from Redis.
+ * @param {string} key - Redis key.
+ * @param {Function} cb - Completion callback.
+ * @return {void}
  */
 Cache.prototype.deleteJsonForKey = function (key, cb) {
-  if (!self.isConnected()) {
+  if (!this.isConnected()) {
     return cb(errorCacheDisabled);
   }
 
-  client.del(key)
+  this.client.del(key)
       .then((res) => cb(null, res))
       .catch((err) => cb(err, key));
 };
 
 /**
- * It scans keys with provided pattern in redis db and deletes the entries that match
- * @param {String} pattern
- * @param {Function} cb
+ * Deletes all Redis entries matching a scan pattern.
+ * @param {string} pattern - Redis scan pattern.
+ * @param {Function} cb - Completion callback.
+ * @return {Promise<void>} Promise resolved after matching entries are removed.
  */
-Cache.prototype.removeByPattern = function (pattern, cb) {
-  if (!self.isConnected()) {
+Cache.prototype.removeByPattern = async function (pattern, cb) {
+  if (!this.isConnected()) {
     return cb(errorCacheDisabled);
   }
-  var keys, cursor = 0;
-  async.doWhilst(function iteratee (whilstCb) {
-    client.scan(cursor, { MATCH: pattern })
-        .then((res) => {
-          cursor = res.cursor;
-          keys = res.keys;
-          if (keys.length > 0) {
-            client.del(keys)
-                .then((res) => whilstCb(null, res))
-                .catch((err) => whilstCb(err));
-          } else {
-            return whilstCb();
-          }
-        })
-        .catch((err) => {
-          return whilstCb(err);
-        });
-  }, function test (...args) {
-    return args[args.length - 1](null, cursor > 0);
-  }, cb);
+
+  try {
+    const keysToDelete = [];
+
+    for await (const keys of this.client.scanIterator({ MATCH: pattern })) {
+      for (const key of keys) {
+        keysToDelete.push(key);
+      }
+    }
+
+    if (keysToDelete.length > 0) {
+      await this.client.del(keysToDelete);
+    }
+
+    cb(null);
+  } catch (err) {
+    cb(err);
+  }
 };
 
 /**
- * It removes all entries from redis db
- * @param {Function} cb
+ * Removes all entries from the configured Redis database.
+ * @param {Function} cb - Completion callback.
+ * @return {void}
  */
 Cache.prototype.flushDb = function (cb) {
-  if (!self.isConnected()) {
+  if (!this.isConnected()) {
     return cb(errorCacheDisabled);
   }
 
-  client.flushDb()
+  this.client.flushDb()
       .then((res) => cb(null, res))
       .catch((err) => cb(err));
 };
 
 /**
- * On application clean event, it quits the redis connection
- * @param {Function} cb
+ * Closes the Redis connection during application cleanup.
+ * @param {Function} cb - Completion callback.
+ * @return {void}
  */
 Cache.prototype.cleanup = function (cb) {
-  self.quit(cb);
+  this.quit(cb);
 };
 
 /**
- * it quits the redis connection
- * @param {Function} cb
+ * Closes this cache instance's Redis connection.
+ * @param {Function} cb - Completion callback.
+ * @return {void}
  */
 Cache.prototype.quit = function (cb) {
-  if (!self.isConnected()) {
+  if (!this.isConnected()) {
     // because connection isn't established in the first place.
     return cb();
   }
 
-  client.quit()
+  this.client.quit()
       .then((res) => cb(null, res))
       .catch((err) => cb(err));
 };
 
 /**
- * This function will be triggered on new block, it will clear all cache entires.
- * @param {Block} block
- * @param {Broadcast} broadcast
- * @param {Function} cb
+ * Invalidates block and transaction cache entries after a new block.
+ * @param {Block} block - Applied block.
+ * @param {Broadcast} broadcast - Block broadcast flag.
+ * @param {Function} cb - Completion callback.
+ * @return {void}
  */
 Cache.prototype.onNewBlock = function (block, broadcast, cb) {
   cb = cb || function () { };
 
-  if (!self.isReady()) { return cb(errorCacheDisabled); }
+  if (!this.isReady()) { return cb(errorCacheDisabled); }
+  const cache = this;
+
   async.map(['/api/blocks*', '/api/transactions*'], function (pattern, mapCb) {
-    self.removeByPattern(pattern, function (err) {
+    cache.removeByPattern(pattern, function (err) {
       if (err) {
-        logger.error(['Error clearing keys with pattern:', pattern, ' on new block'].join(' '));
+        cache.logger.error('cache', ['Error clearing keys with pattern:', pattern, ' on new block'].join(' '));
       } else {
-        logger.debug(['keys with pattern:', pattern, 'cleared from cache on new block'].join(' '));
+        cache.logger.trace('cache', ['Keys with pattern:', pattern, 'cleared from cache on new block'].join(' '));
       }
       mapCb(err);
     });
@@ -196,20 +210,23 @@ Cache.prototype.onNewBlock = function (block, broadcast, cb) {
 };
 
 /**
- * This function will be triggered when a round finishes, it will clear all cache entires.
- * @param {Round} round
- * @param {Function} cb
+ * Invalidates delegate cache entries after a round finishes.
+ * @param {Round} round - Completed round.
+ * @param {Function} cb - Completion callback.
+ * @return {void}
  */
 Cache.prototype.onFinishRound = function (round, cb) {
   cb = cb || function () { };
 
-  if (!self.isReady()) { return cb(errorCacheDisabled); }
+  if (!this.isReady()) { return cb(errorCacheDisabled); }
   var pattern = '/api/delegates*';
-  self.removeByPattern(pattern, function (err) {
+  const cache = this;
+
+  cache.removeByPattern(pattern, function (err) {
     if (err) {
-      logger.error(['Error clearing keys with pattern:', pattern, ' round finish'].join(' '));
+      cache.logger.error('cache', ['Error clearing keys with pattern:', pattern, ' round finish'].join(' '));
     } else {
-      logger.debug(['keys with pattern: ', pattern, 'cleared from cache new Round'].join(' '));
+      cache.logger.trace('cache', ['Keys with pattern: ', pattern, 'cleared from cache new Round'].join(' '));
     }
     return cb(err);
   });
@@ -217,26 +234,28 @@ Cache.prototype.onFinishRound = function (round, cb) {
 
 
 /**
- * This function will be triggered when transactions are processed, it will clear all cache entires if there is a delegate type transaction.
- * @param {Transactions[]} transactions
- * @param {Function} cb
+ * Invalidates delegate cache entries after saving a delegate transaction.
+ * @param {Transactions[]} transactions - Saved transactions.
+ * @param {Function} cb - Completion callback.
+ * @return {void}
  */
 Cache.prototype.onTransactionsSaved = function (transactions, cb) {
   cb = cb || function () { };
 
-  if (!self.isReady()) { return cb(errorCacheDisabled); }
+  if (!this.isReady()) { return cb(errorCacheDisabled); }
   var pattern = '/api/delegates*';
+  const cache = this;
 
   var delegateTransaction = transactions.find(function (trs) {
     return !!trs && trs.type === transactionTypes.DELEGATE;
   });
 
   if (!!delegateTransaction) {
-    self.removeByPattern(pattern, function (err) {
+    cache.removeByPattern(pattern, function (err) {
       if (err) {
-        logger.error(['Error clearing keys with pattern:', pattern, ' on delegate trs'].join(' '));
+        cache.logger.error('cache', ['Error clearing keys with pattern:', pattern, ' on delegate trs'].join(' '));
       } else {
-        logger.debug(['keys with pattern:', pattern, 'cleared from cache on delegate trs'].join(' '));
+        cache.logger.trace('cache', ['Keys with pattern:', pattern, 'cleared from cache on delegate trs'].join(' '));
       }
       return cb(err);
     });
@@ -246,17 +265,40 @@ Cache.prototype.onTransactionsSaved = function (transactions, cb) {
 };
 
 /**
- * Disable any changes in cache while syncing
+ * Disables cache mutations while blockchain synchronization is active.
+ * @return {void}
  */
 Cache.prototype.onSyncStarted = function () {
-  cacheReady = false;
+  this.cacheReady = false;
 };
 
 /**
- * Enable changes in cache after syncing finished
+ * Clears stale API entries and enables cache mutations after synchronization.
+ * API response keys are generated from `req.originalUrl` and use the `/api/`
+ * namespace; unrelated keys in a shared Redis database are preserved.
+ * @param {Function} [cb] - Optional completion callback.
+ * @return {void}
  */
-Cache.prototype.onSyncFinished = function () {
-  cacheReady = true;
+Cache.prototype.onSyncFinished = function (cb) {
+  cb = cb || function () { };
+
+  if (!this.isConnected()) {
+    this.cacheReady = true;
+    return cb();
+  }
+
+  const cache = this;
+
+  cache.removeByPattern(apiCachePattern, function (err) {
+    if (err) {
+      cache.logger.error('cache', 'Failed to clear cache after blockchain synchronization', err);
+      return cb(err);
+    }
+
+    cache.cacheReady = true;
+    cache.logger.trace('cache', 'Cache cleared after blockchain synchronization');
+    return cb();
+  });
 };
 
 module.exports = Cache;

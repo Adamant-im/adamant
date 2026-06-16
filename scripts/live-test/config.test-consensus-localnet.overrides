@@ -1,0 +1,5 @@
+# Two complete 101-delegate rounds before each activation.
+consensusActivationHeights.fairSystem=203
+consensusActivationHeights.spaceship=405
+# Three fresh nodes must stay below common local PostgreSQL connection limits.
+db.poolSize=20

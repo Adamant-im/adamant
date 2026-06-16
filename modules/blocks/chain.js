@@ -12,14 +12,14 @@ var modules, library, self, __private = {};
 /**
  * Initializes library.
  * @memberof module:blocks
- * @class
+ * @constructor
  * @classdesc Main Chain logic.
  * Allows set information.
- * @param {Object} logger
+ * @param {object} logger
  * @param {Block} block
  * @param {Transaction} transaction
  * @param {Database} db
- * @param {Object} genesisblock
+ * @param {object} genesisblock
  * @param {bus} bus
  * @param {Sequence} balancesSequence
  */
@@ -37,7 +37,7 @@ function Chain (logger, block, transaction, db, genesisblock, bus, balancesSeque
   };
   self = this;
 
-  library.logger.trace('Blocks->Chain: Submodule initialized.');
+  library.logger.trace('blocks', 'Blocks->Chain: Submodule initialized.');
   return self;
 }
 
@@ -47,7 +47,7 @@ function Chain (logger, block, transaction, db, genesisblock, bus, balancesSeque
  * @async
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
+ * @return {object}   cb.err Error if occurred
  */
 Chain.prototype.saveGenesisBlock = function (cb) {
   // Check if genesis block ID already exists in the database
@@ -65,7 +65,7 @@ Chain.prototype.saveGenesisBlock = function (cb) {
       return setImmediate(cb);
     }
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('blocks', `An error occurred while trying to get genesis block id: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Blocks#saveGenesisBlock error');
   });
 };
@@ -74,17 +74,17 @@ Chain.prototype.saveGenesisBlock = function (cb) {
  * Save block with transactions to database
  *
  * @async
- * @param  {Object}   block Full normalized block
+ * @param  {object}   block Full normalized block
  * @param  {Function} cb Callback function
  * @return {Function|afterSave} cb If SQL transaction was OK - returns afterSave execution,
  *                                 if not returns callback function from params (through setImmediate)
- * @return {String}   cb.err Error if occurred
+ * @return {string}   cb.err Error if occurred
  */
 Chain.prototype.saveBlock = function (block, cb) {
   // Prepare and execute SQL transaction
   // WARNING: DB_WRITE
   library.db.tx(function (t) {
-    // Create bytea fields (buffers), and returns pseudo-row object promise-like
+    // Create byte fields (buffers), and returns pseudo-row object promise-like
     var promise = library.logic.block.dbSave(block);
     // Initialize insert helper
     var inserts = new Inserts(promise, promise.values);
@@ -102,7 +102,7 @@ Chain.prototype.saveBlock = function (block, cb) {
     // Execute afterSave for transactions
     return __private.afterSave(block, cb);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('blocks', `An error occurred while trying to save block ${block?.id || block}: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Blocks#saveBlock error');
   });
 };
@@ -113,10 +113,10 @@ Chain.prototype.saveBlock = function (block, cb) {
  * @private
  * @async
  * @method afterSave
- * @param  {Object}   block Full normalized block
+ * @param  {object}   block Full normalized block
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
+ * @return {object}   cb.err Error if occurred
  */
 __private.afterSave = function (block, cb) {
   library.bus.message('transactionsSaved', block.transactions);
@@ -135,10 +135,10 @@ __private.afterSave = function (block, cb) {
  *
  * @private
  * @method promiseTransactions
- * @param  {Object} t SQL connection object
- * @param  {Object} block Full normalized block
- * @param  {Object} blockPromises Not used
- * @return {Object} t SQL connection object filled with inserts
+ * @param  {object} t SQL connection object
+ * @param  {object} block Full normalized block
+ * @param  {object} blockPromises Not used
+ * @return {object} t SQL connection object filled with inserts
  * @throws Will throw 'Invalid promise' when no promise, promise.values or promise.table
  */
 __private.promiseTransactions = function (t, block, blockPromises) {
@@ -149,7 +149,9 @@ __private.promiseTransactions = function (t, block, blockPromises) {
   var transactionIterator = function (transaction) {
     // Apply block ID to transaction
     transaction.blockId = block.id;
-    // Create bytea fields (buffers), and returns pseudo-row promise-like object
+    transaction.height = block.height;
+    transaction.block_timestamp = block.timestamp;
+    // Create byte fields (buffers), and returns pseudo-row promise-like object
     return library.logic.transaction.dbSave(transaction);
   };
 
@@ -193,7 +195,7 @@ __private.promiseTransactions = function (t, block, blockPromises) {
  * @param  {number}   blockId ID of block to delete
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err String if SQL error occurred, null if success
+ * @return {object}   cb.err String if SQL error occurred, null if success
  */
 Chain.prototype.deleteBlock = function (blockId, cb) {
   // Delete block with ID from blocks table
@@ -201,7 +203,7 @@ Chain.prototype.deleteBlock = function (blockId, cb) {
   library.db.none(sql.deleteBlock, { id: blockId }).then(function () {
     return setImmediate(cb);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('blocks', `An error occurred while trying to delete block ${blockId}: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Blocks#deleteBlock error');
   });
 };
@@ -215,14 +217,14 @@ Chain.prototype.deleteBlock = function (blockId, cb) {
  * @param  {number}   blockId ID of block to begin with
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err SQL error
- * @return {Object}   cb.res SQL response
+ * @return {object}   cb.err SQL error
+ * @return {object}   cb.res SQL response
  */
 Chain.prototype.deleteAfterBlock = function (blockId, cb) {
   library.db.query(sql.deleteAfterBlock, { id: blockId }).then(function (res) {
     return setImmediate(cb, null, res);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('blocks', `An error occurred while trying to delete all blocks with height greater than ${blockId}: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Blocks#deleteAfterBlock error');
   });
 };
@@ -234,10 +236,10 @@ Chain.prototype.deleteAfterBlock = function (blockId, cb) {
  * @private
  * @async
  * @method applyGenesisBlock
- * @param  {Object}   block Full normalized genesis block
+ * @param  {object}   block Full normalized genesis block
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
+ * @return {object}   cb.err Error if occurred
  */
 Chain.prototype.applyGenesisBlock = function (block, cb) {
   // Sort transactions included in block
@@ -288,12 +290,12 @@ Chain.prototype.applyGenesisBlock = function (block, cb) {
  * @private
  * @async
  * @method applyTransaction
- * @param  {Object}   block Block object
- * @param  {Object}   transaction Transaction object
- * @param  {Object}   sender Sender account
+ * @param  {object}   block Block object
+ * @param  {object}   transaction Transaction object
+ * @param  {object}   sender Sender account
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
+ * @return {object}   cb.err Error if occurred
  */
 __private.applyTransaction = function (block, transaction, sender, cb) {
   // FIXME: Not sure about flow here, when nodes have different transactions - 'applyUnconfirmed' can fail but 'apply' can be ok
@@ -326,12 +328,12 @@ __private.applyTransaction = function (block, transaction, sender, cb) {
  * @async
  * @method applyBlock
  * @emits  SIGTERM
- * @param  {Object}   block Full normalized block
+ * @param  {object}   block Full normalized block
  * @param  {boolean}  broadcast Indicator that block needs to be broadcasted
  * @param  {Function} cb Callback function
  * @param  {boolean}  saveBlock Indicator that block needs to be saved to database
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
+ * @return {object}   cb.err Error if occurred
  */
 Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
   // Prevent shutdown during database writes.
@@ -351,7 +353,7 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
       modules.transactions.undoUnconfirmedList(function (err, ids) {
         if (err) {
           // Fatal error, memory tables will be inconsistent
-          library.logger.error('Failed to undo unconfirmed list', err);
+          library.logger.error('transactions', 'Failed to undo unconfirmed list', err);
 
           return process.exit(0);
         } else {
@@ -369,8 +371,7 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
           modules.transactions.applyUnconfirmed(transaction, sender, function (err) {
             if (err) {
               err = ['Failed to apply transaction:', transaction.id, '-', err].join(' ');
-              library.logger.error(err);
-              library.logger.error('Transaction', transaction);
+              library.logger.error('transactions', err, transaction);
               return setImmediate(eachSeriesCb, err);
             }
 
@@ -418,8 +419,7 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
           if (err) {
             // Fatal error, memory tables will be inconsistent
             err = ['Failed to apply transaction:', transaction.id, '-', err].join(' ');
-            library.logger.error(err);
-            library.logger.error('Transaction', transaction);
+            library.logger.error('transactions', err, transaction);
 
             return process.exit(0);
           }
@@ -428,8 +428,7 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
             if (err) {
               // Fatal error, memory tables will be inconsistent
               err = ['Failed to apply transaction:', transaction.id, '-', err].join(' ');
-              library.logger.error(err);
-              library.logger.error('Transaction', transaction);
+              library.logger.error('transactions', err, transaction);
 
               return process.exit(0);
             }
@@ -451,13 +450,17 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
         self.saveBlock(block, function (err) {
           if (err) {
             // Fatal error, memory tables will be inconsistent
-            library.logger.error('Failed to save block...');
-            library.logger.error('Block', block);
+            library.logger.error('blocks', 'Failed to save a block.', block);
 
             return process.exit(0);
           }
 
-          library.logger.debug('Block applied correctly with ' + block.transactions.length + ' transactions');
+          library.logger.debug('blocks', 'Block applied correctly', {
+            id: block.id,
+            height: block.height,
+            round: modules.rounds.calc(block.height),
+            transactions: block.transactions.length
+          });
           library.bus.message('newBlock', block, broadcast);
 
           // DATABASE write. Update delegates accounts
@@ -489,7 +492,7 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
     // Finish here if snapshotting.
     // FIXME: Not the best place to do that
     if (err === 'Snapshot finished') {
-      library.logger.info(err);
+      library.logger.info('snapshot', err);
       process.emit('SIGTERM');
     }
 
@@ -504,10 +507,11 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
  * @private
  * @async
  * @method popLastBlock
+ * @param {block} oldLastBlock
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error
- * @return {Object}   cb.obj New last block
+ * @return {object}   cb.err Error
+ * @return {object}   cb.obj New last block
  */
 __private.popLastBlock = function (oldLastBlock, cb) {
   // Execute in sequence via balancesSequence
@@ -544,7 +548,7 @@ __private.popLastBlock = function (oldLastBlock, cb) {
       }, function (err) {
         if (err) {
           // Fatal error, memory tables will be inconsistent
-          library.logger.error('Failed to undo transactions', err);
+          library.logger.error('transactions', 'Failed to undo transactions', err);
 
           return process.exit(0);
         }
@@ -554,7 +558,7 @@ __private.popLastBlock = function (oldLastBlock, cb) {
         modules.rounds.backwardTick(oldLastBlock, previousBlock, function (err) {
           if (err) {
             // Fatal error, memory tables will be inconsistent
-            library.logger.error('Failed to perform backwards tick', err);
+            library.logger.error('transactions', 'Failed to perform backwards tick', err);
 
             return process.exit(0);
           }
@@ -564,7 +568,7 @@ __private.popLastBlock = function (oldLastBlock, cb) {
           self.deleteBlock(oldLastBlock.id, function (err) {
             if (err) {
               // Fatal error, memory tables will be inconsistent
-              library.logger.error('Failed to delete block', err);
+              library.logger.error('blocks', 'Failed to delete block', err);
 
               return process.exit(0);
             }
@@ -585,12 +589,12 @@ __private.popLastBlock = function (oldLastBlock, cb) {
  * @method deleteLastBlock
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
- * @return {Object}   cb.obj New last block
+ * @return {object}   cb.err Error if occurred
+ * @return {object}   cb.obj New last block
  */
 Chain.prototype.deleteLastBlock = function (cb) {
   var lastBlock = modules.blocks.lastBlock.get();
-  library.logger.warn('Deleting last block', lastBlock);
+  library.logger.warn('blocks', 'Deleting last block', lastBlock);
 
   if (lastBlock.height === 1) {
     return setImmediate(cb, 'Cannot delete genesis block');
@@ -599,7 +603,7 @@ Chain.prototype.deleteLastBlock = function (cb) {
   // Delete last block, replace last block with previous block, undo things
   __private.popLastBlock(lastBlock, function (err, newLastBlock) {
     if (err) {
-      library.logger.error('Error deleting last block', lastBlock);
+      library.logger.error('blocks', 'An error occurred while deleting last block', lastBlock);
     } else {
       // Replace last block with previous
       lastBlock = modules.blocks.lastBlock.set(newLastBlock);
@@ -609,22 +613,31 @@ Chain.prototype.deleteLastBlock = function (cb) {
 };
 
 /**
- * Recover chain - wrapper for deleteLastBlock
+ * Recover chain - wrapper for deleteLastBlock.
+ * Logs the removed and replacement blocks so recovery decisions can be audited.
  *
  * @private
  * @async
  * @method recoverChain
  * @param  {Function} cb Callback function
  * @return {Function} cb Callback function from params (through setImmediate)
- * @return {Object}   cb.err Error if occurred
+ * @return {object}   cb.err Error if occurred
  */
 Chain.prototype.recoverChain = function (cb) {
-  library.logger.warn('Chain comparison failed, starting recovery');
+  var lastBlock = modules.blocks.lastBlock.get();
+
+  library.logger.warn('blocks', 'Chain comparison failed, deleting last block', {
+    lastBlockId: lastBlock.id,
+    lastBlockHeight: lastBlock.height
+  });
   self.deleteLastBlock(function (err, newLastBlock) {
     if (err) {
-      library.logger.error('Recovery failed');
+      library.logger.error('blocks', 'Recovery failed', err);
     } else {
-      library.logger.info('Recovery complete, new last block', newLastBlock.id);
+      library.logger.info('blocks', 'Last block deleted, new last block', {
+        id: newLastBlock.id,
+        height: newLastBlock.height
+      });
     }
     return setImmediate(cb, err);
   });
@@ -639,7 +652,7 @@ Chain.prototype.recoverChain = function (cb) {
  * @param {modules} scope Exposed modules
  */
 Chain.prototype.onBind = function (scope) {
-  library.logger.trace('Blocks->Chain: Shared modules bind.');
+  library.logger.trace('blocks', 'Blocks->Chain: Shared modules bind.');
   modules = {
     accounts: scope.accounts,
     blocks: scope.blocks,

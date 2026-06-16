@@ -18,11 +18,11 @@ __private.assetTypes = {};
 /**
  * Initializes library with scope content and generates a Multisignature instance.
  * Calls logic.transaction.attachAssetType().
- * @memberof module:multisignatures
- * @class
- * @classdesc Main multisignatures methods.
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
  * @param {scope} scope - App instance.
+ * @memberof module:multisignatures
+ * @constructor
+ * @classdesc Main multisignatures methods.
  * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
@@ -58,10 +58,10 @@ function Multisignatures (cb, scope) {
 // Public methods
 /**
  * Gets transaction from transaction id and add it to sequence and bus.
- * @param {Object} tx - Contains transaction and signature.
- * @param {function} cb - Callback function.
- * @return {setImmediateCallback} err messages| cb
+ * @param {object} tx - Contains transaction and signature.
+ * @param {Function} cb - Callback function.
  * @todo test function!.
+ * @return {setImmediateCallback} err messages| cb
  */
 Multisignatures.prototype.processSignature = function (tx, cb) {
   var transaction = modules.transactions.getMultisignatureTransaction(tx.transaction);
@@ -113,7 +113,7 @@ Multisignatures.prototype.processSignature = function (tx, cb) {
         verify = library.logic.transaction.verifySignature(transaction, key, tx.signature);
       }
     } catch (e) {
-      library.logger.error(e.stack);
+      library.logger.error('multisignatures', e.stack);
       return setImmediate(cb, 'Failed to verify signature');
     }
 
@@ -152,7 +152,7 @@ Multisignatures.prototype.processSignature = function (tx, cb) {
           verify = library.logic.transaction.verifySignature(transaction, multisignatures[i], tx.signature);
         }
       } catch (e) {
-        library.logger.error(e.stack);
+        library.logger.error('multisignatures', e.stack);
         return setImmediate(cb, 'Failed to verify signature');
       }
 
@@ -160,7 +160,7 @@ Multisignatures.prototype.processSignature = function (tx, cb) {
         return setImmediate(cb, 'Failed to verify signature');
       }
 
-      library.network.io.sockets.emit('multisignatures/signature/change', transaction);
+      library.network.wsServer.emit('multisignatures/signature/change', transaction);
       return done(cb);
     });
   }
@@ -168,10 +168,11 @@ Multisignatures.prototype.processSignature = function (tx, cb) {
 
 /**
  * Calls helpers.sandbox.callMethod().
+ * @param {Function} call - Method to call.
+ * @param {*} args - List of arguments.
+ * @param {Function} cb - Callback function.
+ *
  * @implements module:helpers#callMethod
- * @param {function} call - Method to call.
- * @param {} args - List of arguments.
- * @param {function} cb - Callback function.
  */
 Multisignatures.prototype.sandboxApi = function (call, args, cb) {
   sandboxHelper.callMethod(shared, call, args, cb);
@@ -180,8 +181,9 @@ Multisignatures.prototype.sandboxApi = function (call, args, cb) {
 // Events
 /**
  * Calls Multisignature.bind() with modules params.
- * @implements module:multisignatures#Multisignature~bind
  * @param {modules} scope - Loaded modules.
+ *
+ * @implements module:multisignatures#Multisignature~bind
  */
 Multisignatures.prototype.onBind = function (scope) {
   modules = {
@@ -205,8 +207,8 @@ Multisignatures.prototype.isLoaded = function () {
 
 // Shared API
 /**
- * @todo implement API comments with apidoc.
  * @see {@link http://apidocjs.com/}
+ * @todo implement API comments with apidoc.
  */
 Multisignatures.prototype.shared = {
   getAccounts: function (req, cb) {
@@ -227,7 +229,7 @@ Multisignatures.prototype.shared = {
           scope.accountIds = Array.isArray(row.accountIds) ? row.accountIds : [];
           return setImmediate(seriesCb);
         }).catch(function (err) {
-          library.logger.error(err.stack);
+          library.logger.error('api-multisignatures', err.stack);
           return setImmediate(seriesCb, 'Multisignature#getAccountIds error');
         });
       },
@@ -307,7 +309,7 @@ Multisignatures.prototype.shared = {
               try {
                 verify = library.logic.transaction.verifySignature(transaction, req.body.publicKey, transaction.signatures[i]);
               } catch (e) {
-                library.logger.error(e.stack);
+                library.logger.error('api-multisignatures', e.stack);
                 verify = false;
               }
 
@@ -362,7 +364,7 @@ Multisignatures.prototype.shared = {
   sign: function (req, cb) {
     var scope = {};
 
-    function checkGroupPermisions (cb) {
+    function checkGroupPermissions (cb) {
       var permissionDenied = (
         scope.transaction.asset.multisignature.keysgroup.indexOf('+' + scope.keypair.publicKey.toString('hex')) === -1
       );
@@ -457,7 +459,7 @@ Multisignatures.prototype.shared = {
         },
         checkPermissions: function (seriesCb) {
           if (scope.transaction.type === transactionTypes.MULTI) {
-            return checkGroupPermisions(seriesCb);
+            return checkGroupPermissions(seriesCb);
           } else {
             return checkTransactionPermissions(seriesCb);
           }
@@ -478,7 +480,7 @@ Multisignatures.prototype.shared = {
         transaction.ready = Multisignature.prototype.ready(transaction, scope.sender);
 
         library.bus.message('signature', { transaction: transaction.id, signature: scope.signature }, true);
-        library.network.io.sockets.emit('multisignatures/signature/change', transaction);
+        library.network.wsServer.emit('multisignatures/signature/change', transaction);
 
         return setImmediate(cb, null, { transactionId: transaction.id });
       });
@@ -554,7 +556,7 @@ Multisignatures.prototype.shared = {
         if (err) {
           return setImmediate(cb, err);
         } else {
-          library.network.io.sockets.emit('multisignatures/change', scope.transaction);
+          library.network.wsServer.emit('multisignatures/change', scope.transaction);
           return setImmediate(cb, null, { transactionId: scope.transaction.id });
         }
       });

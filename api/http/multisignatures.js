@@ -15,13 +15,20 @@ var httpApi = require('../../helpers/httpApi');
  * @requires helpers/Router
  * @requires helpers/httpApi
  * @constructor
- * @param {Object} mutlisignaturesModule - Module multisignatures instance.
+ * @param {object} mutlisignaturesModule - Module multisignatures instance.
  * @param {scope} app - Network app.
  * @todo correct typo mutlisignaturesModule
  */
 // Constructor
 function MultisignaturesHttpApi (mutlisignaturesModule, app) {
   var router = new Router();
+
+  router.all(/(.*)/, (req, res) => {
+    res.status(404).send({
+      success: false,
+      error: 'API endpoint not found'
+    });
+  });
 
   router.map(mutlisignaturesModule.shared, {
     'get /pending': 'pending',

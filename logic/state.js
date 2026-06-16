@@ -16,12 +16,14 @@ __private.unconfirmedAscii = {};
 /**
  * Initializes library.
  * @memberof module:states
- * @class
+ * @constructor
  * @classdesc Main state logic.
  * @param {Database} db
- * @param {Object} logger
+ * @param {object} ed
  * @param {ZSchema} schema
- * @param {Object} network
+ * @param {Account} account
+ * @param {Logger} logger
+ * @param {Function} cb
  */
 // Constructor
 function State (db, ed, schema, account, logger, cb) {
@@ -197,7 +199,7 @@ State.prototype.undoUnconfirmed = function (trs, sender, cb) {
 
 
 /**
- * @typedef {Object} state
+ * @typedef {object} state
  * @property {string} key - Between 0 and 20 chars
  * @property {string} value - Between 1 and 20480 chars
  * @property {integer} type - Number, minimum 0
@@ -252,7 +254,7 @@ State.prototype.objectNormalize = function (trs) {
 
 /**
  * Creates chat object based on raw data.
- * @param {Object} raw
+ * @param {object} raw
  * @return {null|state} state object
  */
 State.prototype.dbRead = function (raw) {
@@ -326,7 +328,7 @@ State.prototype.normalize = function (data) {
  * Creates db operation object based on dapp data.
  * @see privateTypes
  * @param {transaction} trs
- * @return {Object[]} table, fields, values.
+ * @return {object[]} table, fields, values.
  */
 State.prototype.dbSave = function (trs) {
   return {

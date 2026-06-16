@@ -31,7 +31,7 @@ var schema = require('../../schema/dapps');
  * @requires helpers/Router
  * @requires helpers/httpApi
  * @constructor
- * @param {Object} dappsModule - Module dapps instance.
+ * @param {object} dappsModule - Module dapps instance.
  * @param {scope} app - Network app.
  */
 // Constructor

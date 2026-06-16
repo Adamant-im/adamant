@@ -13,14 +13,14 @@ var modules, library, self, __private = {};
  * Initializes variables, sets Broadcast routes and timer based on
  * broadcast interval from config file.
  * @memberof module:transport
- * @class
+ * @constructor
  * @classdesc Main Broadcaster logic.
  * @implements {__private.releaseQueue}
- * @param {Object} broadcasts
+ * @param {object} broadcasts
  * @param {boolean} force
  * @param {Peers} peers - from logic, Peers instance
  * @param {Transaction} transaction - from logic, Transaction instance
- * @param {Object} logger
+ * @param {object} logger
  */
 // Constructor
 function Broadcaster (broadcasts, force, peers, transaction, logger) {
@@ -67,7 +67,7 @@ function Broadcaster (broadcasts, force, peers, transaction, logger) {
   function nextRelease (cb) {
     __private.releaseQueue(function (err) {
       if (err) {
-        library.logger.log('Broadcaster timer', err);
+        library.logger.log('broadcaster', 'Broadcaster timer error:', err);
       }
       return setImmediate(cb);
     });
@@ -92,9 +92,9 @@ Broadcaster.prototype.bind = function (peers, transport, transactions) {
 };
 
 /**
- * Calls peers.list function to get peers.
+ * Calls peers.list function to get peers and removes peers that are connected using WebSocket.
  * @implements {modules.peers.list}
- * @param {Object} params
+ * @param {object} params
  * @param {function} cb
  * @return {setImmediateCallback} err | peers
  */
@@ -110,7 +110,7 @@ Broadcaster.prototype.getPeers = function (params, cb) {
     }
 
     if (self.consensus !== undefined && originalLimit === constants.maxPeers) {
-      library.logger.info(['Broadhash consensus now', consensus, '%'].join(' '));
+      library.logger.info('peers', ['Broadhash consensus now', consensus, '%'].join(' '));
       self.consensus = consensus;
     }
 
@@ -120,9 +120,9 @@ Broadcaster.prototype.getPeers = function (params, cb) {
 
 /**
  * Adds new object {params, options} to queue array .
- * @param {Object} params
- * @param {Object} options
- * @return {Object[]} queue private variable with new data
+ * @param {object} params
+ * @param {object} options
+ * @return {object[]} queue private variable with new data
  */
 Broadcaster.prototype.enqueue = function (params, options) {
   options.immediate = false;
@@ -131,11 +131,12 @@ Broadcaster.prototype.enqueue = function (params, options) {
 
 /**
  * Gets peers and for each peer create it and broadcast.
+ * Logs selected peer counts and request limits for broadcast diagnostics.
  * @implements {getPeers}
  * @implements {library.logic.peers.create}
- * @param {Object} params
- * @param {Object} options
- * @param {function} cb
+ * @param {object} params - Broadcast peer selection parameters.
+ * @param {object} options - Transport request options.
+ * @param {Function} cb - Callback function.
  * @return {setImmediateCallback} err | peers
  */
 Broadcaster.prototype.broadcast = function (params, options, cb) {
@@ -151,7 +152,14 @@ Broadcaster.prototype.broadcast = function (params, options, cb) {
       }
     },
     function getFromPeer (peers, waterCb) {
-      library.logger.debug('Begin broadcast', options);
+      library.logger.debug('broadcaster', 'Begin broadcast', {
+        api: options.api,
+        method: options.method,
+        peerCount: peers.length,
+        limit: params.limit,
+        broadcastLimit: self.config.broadcastLimit,
+        parallelLimit: self.config.parallelLimit
+      });
 
       if (params.limit === self.config.peerLimit) {
         peers = peers.slice(0, self.config.broadcastLimit);
@@ -162,12 +170,16 @@ Broadcaster.prototype.broadcast = function (params, options, cb) {
 
         modules.transport.getFromPeer(peer, options, function (err) {
           if (err) {
-            library.logger.debug('Failed to broadcast to peer: ' + peer.string, err);
+            library.logger.debug('broadcaster', 'Failed to broadcast to peer: ' + peer.string, err);
           }
           return setImmediate(eachLimitCb);
         });
       }, function (err) {
-        library.logger.debug('End broadcast');
+        library.logger.debug('broadcaster', 'End broadcast', {
+          api: options.api,
+          method: options.method,
+          peerCount: peers.length
+        });
         return setImmediate(waterCb, err, peers);
       });
     }
@@ -180,7 +192,7 @@ Broadcaster.prototype.broadcast = function (params, options, cb) {
 
 /**
  * Counts relays and valid limit.
- * @param {Object} object
+ * @param {object} object
  * @return {boolean} True if Broadcast relays exhausted
  */
 Broadcaster.prototype.maxRelays = function (object) {
@@ -189,7 +201,7 @@ Broadcaster.prototype.maxRelays = function (object) {
   }
 
   if (Math.abs(object.relays) >= self.config.relayLimit) {
-    library.logger.debug('Broadcast relays exhausted', object);
+    library.logger.debug('broadcaster', 'Broadcast relays exhausted', object);
     return true;
   } else {
     object.relays++; // Next broadcast
@@ -206,7 +218,7 @@ Broadcaster.prototype.maxRelays = function (object) {
  * @return {setImmediateCallback} cb
  */
 __private.filterQueue = function (cb) {
-  library.logger.debug('Broadcasts before filtering: ' + self.queue.length);
+  library.logger.debug('broadcaster', 'Broadcasts queue size before filtering: ' + self.queue.length);
 
   async.filter(self.queue, function (broadcast, filterCb) {
     if (broadcast.options.immediate) {
@@ -220,7 +232,7 @@ __private.filterQueue = function (cb) {
   }, function (err, broadcasts) {
     self.queue = broadcasts;
 
-    library.logger.debug('Broadcasts after filtering: ' + self.queue.length);
+    library.logger.debug('broadcaster', 'Broadcasts queue size after filtering: ' + self.queue.length);
     return setImmediate(cb);
   });
 };
@@ -251,8 +263,8 @@ __private.filterTransaction = function (transaction, cb) {
 /**
  * Groups broadcasts by api.
  * @private
- * @param {Object} broadcasts
- * @return {Object[]} squashed routes
+ * @param {object} broadcasts
+ * @return {object[]} squashed routes
  */
 __private.squashQueue = function (broadcasts) {
   var grouped = _.groupBy(broadcasts, function (broadcast) {
@@ -284,19 +296,24 @@ __private.squashQueue = function (broadcasts) {
  * - filterQueue
  * - squashQueue
  * - broadcast
+ * Logs queue length before release so skipped releases can be explained.
  * @private
  * @implements {__private.filterQueue}
  * @implements {__private.squashQueue}
  * @implements {getPeers}
  * @implements {broadcast}
- * @param {function} cb
+ * @param {Function} cb - Callback function.
  * @return {setImmediateCallback} cb
  */
 __private.releaseQueue = function (cb) {
-  library.logger.debug('Releasing enqueued broadcasts');
+  library.logger.debug('broadcaster', 'Releasing enqueued broadcasts', {
+    queueLength: self.queue.length
+  });
 
   if (!self.queue.length) {
-    library.logger.debug('Queue empty');
+    library.logger.debug('broadcaster', 'Queue empty', {
+      queueLength: self.queue.length
+    });
     return setImmediate(cb);
   }
 
@@ -322,9 +339,9 @@ __private.releaseQueue = function (cb) {
     }
   ], function (err, broadcasts) {
     if (err) {
-      library.logger.debug('Failed to release broadcast queue', err);
+      library.logger.debug('broadcaster', 'Failed to release broadcast queue', err);
     } else {
-      library.logger.debug('Broadcasts released: ' + broadcasts.length);
+      library.logger.debug('broadcaster', 'Broadcasts released: ' + broadcasts.length);
     }
     return setImmediate(cb);
   });

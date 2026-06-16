@@ -8,6 +8,7 @@ const transactionTypes = require('../helpers/transactionTypes.js');
 const schema = require('../schema/chatrooms.js');
 const Transfer = require('../logic/transfer.js');
 const OrderBy = require('../helpers/orderBy.js');
+const { preparePaging } = require('../helpers/pagination.js');
 
 // Private fields
 let modules, library, self, __private = {}, shared = {};
@@ -22,7 +23,7 @@ __private.assetTypes = {};
  * Listens `exit` signal.
  * Checks 'public/chat' folder and created it if doesn't exists.
  * @memberof module:chatrooms
- * @class
+ * @constructor
  * @classdesc Main chatrooms methods.
  * @param {function} cb - Callback function.
  * @param {scope} scope - App instance.
@@ -67,10 +68,21 @@ __private.listChats = function (filter, cb) {
     where.push('"c_type" = ${type}');
     params.type = filter.type;
   }
-  if (filter.withoutDirectTransfers) {
-    where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
-  } else {
+
+  let includeDirectTransfers = true;
+
+  if (typeof filter.includeDirectTransfers !== 'undefined') {
+    includeDirectTransfers = Boolean(filter.includeDirectTransfers);
+  }
+
+  if (typeof filter.withoutDirectTransfers !== 'undefined') {
+    includeDirectTransfers = !filter.withoutDirectTransfers;
+  }
+
+  if (includeDirectTransfers) {
     where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
+  } else {
+    where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
   }
   where.push(`(NOT("c_type" = ${transactionTypes.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE}) OR c_type IS NULL) `);
   if (filter.senderId) {
@@ -112,6 +124,29 @@ __private.listChats = function (filter, cb) {
   if (orderBy.error) {
     return setImmediate(cb, orderBy.error);
   }
+
+  let unconfirmedTransactions = [];
+
+  if (filter.returnUnconfirmed) {
+    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions({
+      isIn: filter.userId
+    });
+
+
+    const userOffset = params.offset;
+    const userLimit = params.limit;
+    const utxs = unconfirmedTransactions.length;
+
+    const confirmedOffset = Math.max(0, userOffset - utxs);
+    const confirmedLimit = userLimit + Math.min(userOffset, utxs);
+
+    params.offset = confirmedOffset;
+    params.limit = confirmedLimit;
+
+    params.mergingOffset = userOffset - confirmedOffset;
+    params.mergingLimit = userLimit;
+  }
+
   library.db.query(sql.countChats({
     where: where,
     whereOr: whereOr
@@ -120,37 +155,50 @@ __private.listChats = function (filter, cb) {
     library.db.query(sql.listChats({
       where: where,
       whereOr: whereOr,
+      originalField: orderBy.originalField,
       sortField: orderBy.sortField,
       sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {
-      let transactions = [], chats = {};
-      for (let i = 0; i < rows.length; i++) {
-        let trs = {};
-        trs.lastTransaction = library.logic.transaction.dbRead(rows[i]);
-        trs.participants = [
-          { address: trs.lastTransaction.senderId, publicKey: trs.lastTransaction.senderPublicKey },
-          { address: trs.lastTransaction.recipientId, publicKey: trs.lastTransaction.recipientPublicKey }
-        ];
-        const uid = trs.lastTransaction.senderId !== filter.userId ? trs.lastTransaction.senderId : trs.lastTransaction.recipientId;
-        if (!chats[uid]) {
-          chats[uid] = [];
-        }
-        chats[uid].push(trs);
+      let transactions = rows.map(library.logic.transaction.dbRead);
+
+      if (filter.returnUnconfirmed) {
+        transactions = modules.transactions.mergeUnconfirmedTransactions(
+            transactions,
+            unconfirmedTransactions,
+            {
+              orderBy,
+              includeDirectTransfers,
+              limit: params.mergingLimit,
+              offset: params.mergingOffset
+            }
+        );
       }
-      for (const uid in chats) {
-        transactions.push(chats[uid][0]);
+
+      const chats = {};
+
+      for (const trs of transactions) {
+        const uid = trs.senderId !== filter.userId ? trs.senderId : trs.recipientId;
+
+        chats[uid] = {
+          lastTransaction: trs,
+          participants: [
+            { address: trs.senderId, publicKey: trs.senderPublicKey },
+            { address: trs.recipientId, publicKey: trs.recipientPublicKey }
+          ]
+        };
       }
+
       const data = {
-        chats: transactions,
-        count: count
+        chats: Object.values(chats),
+        count: count + unconfirmedTransactions.length
       };
       return setImmediate(cb, null, data);
     }).catch(function (err) {
-      library.logger.error(err.stack);
+      library.logger.error('api-chatrooms', `An error occurred while getting list of chats: ${err?.message || err}`, err.stack);
       return setImmediate(cb, err);
     });
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-chatrooms', `An error occurred while getting chats count: ${err?.message || err}`, err.stack);
     return setImmediate(cb, err);
   });
 };
@@ -164,10 +212,21 @@ __private.listMessages = function (filter, cb) {
   } else {
     where.push(`(NOT("c_type" = ${transactionTypes.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE}) OR c_type IS NULL)`);
   }
-  if (filter.withoutDirectTransfers) {
-    where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
-  } else {
+
+  let includeDirectTransfers = true;
+
+  if (typeof filter.includeDirectTransfers !== 'undefined') {
+    includeDirectTransfers = Boolean(filter.includeDirectTransfers);
+  }
+
+  if (typeof filter.withoutDirectTransfers !== 'undefined') {
+    includeDirectTransfers = !filter.withoutDirectTransfers;
+  }
+
+  if (includeDirectTransfers) {
     where.push(`("t_type" = ${transactionTypes.CHAT_MESSAGE} OR "t_type" = ${transactionTypes.SEND})`);
+  } else {
+    where.push('"t_type" = ' + transactionTypes.CHAT_MESSAGE);
   }
 
   if (filter.senderId) {
@@ -210,6 +269,33 @@ __private.listMessages = function (filter, cb) {
   if (orderBy.error) {
     return setImmediate(cb, orderBy.error);
   }
+
+  let unconfirmedTransactions = [];
+
+  if (filter.returnUnconfirmed) {
+    unconfirmedTransactions = modules.transactions.getUnconfirmedTransactions(filter, {
+      allowedFilters: [
+        'type'
+      ],
+      aliases: {
+        type: 'assetChatType'
+      },
+      important: {
+        senderIds: [filter.companionId, filter.userId],
+        recipientIds: [filter.companionId, filter.userId],
+        type: transactionTypes.CHAT_MESSAGE
+      }
+    });
+
+    const paging = preparePaging(params, unconfirmedTransactions.length);
+
+    params.offset = paging.db.offset;
+    params.limit = paging.db.limit;
+
+    params.mergingOffset = paging.merge.offset;
+    params.mergingLimit = paging.merge.limit;
+  }
+
   library.db.query(sql.countList({
     where: where,
     whereOr: whereOr
@@ -218,6 +304,7 @@ __private.listMessages = function (filter, cb) {
     library.db.query(sql.listMessages({
       where: where,
       whereOr: whereOr,
+      originalField: orderBy.originalField,
       sortField: orderBy.sortField,
       sortMethod: orderBy.sortMethod
     }), params).then(function (rows) {
@@ -226,21 +313,35 @@ __private.listMessages = function (filter, cb) {
         const trs = library.logic.transaction.dbRead(rows[i]);
         transactions.push(trs);
       }
+
+      if (filter.returnUnconfirmed) {
+        transactions = modules.transactions.mergeUnconfirmedTransactions(
+            transactions,
+            unconfirmedTransactions,
+            {
+              orderBy,
+              includeDirectTransfers,
+              limit: params.mergingLimit,
+              offset: params.mergingOffset
+            }
+        );
+      }
+
       const data = {
         messages: transactions,
         participants: transactions.length ? [
           { address: transactions[0].senderId, publicKey: transactions[0].senderPublicKey },
           { address: transactions[0].recipientId, publicKey: transactions[0].recipientPublicKey }
         ] : [],
-        count: count
+        count: count + unconfirmedTransactions.length
       };
       return setImmediate(cb, null, data);
     }).catch(function (err) {
-      library.logger.error(err.stack);
+      library.logger.error('api-chatrooms', `An error occurred while getting list of messages: ${err?.message || err}`, err.stack);
       return setImmediate(cb, err);
     });
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-chatrooms', `An error occurred while getting messages count: ${err?.message || err}`, err.stack);
     return setImmediate(cb, err);
   });
 };
@@ -300,7 +401,7 @@ Chatrooms.prototype.internal = {
             return setImmediate(waterCb, 'Failed to get transactions: ' + err);
           } else {
             return setImmediate(waterCb, null, {
-              chats: _.uniqBy(data.chats, (x) => x.lastTransaction.id),
+              chats: data.chats,
               count: data.count
             });
           }

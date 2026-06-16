@@ -2,7 +2,7 @@
 const validTransactionData = {
   value: '0x84609a38fedbcd02b657233340e6a8cb09db61a8',
   key: 'eth:address',
-  state_type: 0,
+  state_type: 0
 };
 
 const validTransaction = {
@@ -26,17 +26,17 @@ const validTransaction = {
   signSignature: null,
   signatures: [],
   confirmations: null,
-  asset: {},
+  asset: {}
 };
 
 const rawValidTransaction = {
   st_stored_value: '0x84609a38fedbcd02b657233340e6a8cb09db61a8',
   st_stored_key: 'eth:address',
-  st_type: 0,
+  st_type: 0
 };
 
 module.exports = {
   validTransactionData,
   validTransaction,
   rawValidTransaction
-}
+};

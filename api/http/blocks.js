@@ -23,8 +23,10 @@ var httpApi = require('../../helpers/httpApi');
  * @requires helpers/Router
  * @requires helpers/httpApi
  * @constructor
- * @param {Object} blocksModule - Module blocks instance.
+ * @param {object} blocksModule - Module blocks instance.
  * @param {scope} app - Network app.
+ * @param {Logger} logger - Application logger.
+ * @param {Cache} cache - API response cache.
  */
 // Constructor
 function BlocksHttpApi (blocksModule, app, logger, cache) {

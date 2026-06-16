@@ -18,7 +18,7 @@ const rawValidTransaction = {
   t_type: 8,
   b_height: 541701,
   confirmations: 18,
-  b_id: '17768103885289794518',
+  b_id: '17768103885289794518'
 };
 
 const validTransactionData = {
@@ -26,7 +26,7 @@ const validTransactionData = {
   recipientId: 'U2707535059340134112',
   message:
     '9ae819297240f00bdc3627133c2e41efd27b022fcd0d011dfdda0941ba08399697f3e3bb5c46a43aff714ae1bac616b84617ce446d808523a14f278e5d88909837848e7aa69d9d4f9a95baae56df6ad4c274248d3d01a2cfccae51367dfab265a055d5ce991af654ee418839f94885876638863d172226b0369cd488c5727e6b1a42ba46fed014c1bf586dd2cab3afe7f10cb54864c099a680d5963778c9c4052df305497edc43082a7d60193650c331c6db9c9d9c0c8bbc004e53ac56586331453164b984c57a495810d709c9b984e4f367888d8a8ce1b26f528c1abdec08747e',
-  own_message: '6802a9e744aa3ba570d7e48fce5fe0f49184d0ce38ea40f7',
+  own_message: '6802a9e744aa3ba570d7e48fce5fe0f49184d0ce38ea40f7'
 };
 
 const validTransaction = {
@@ -47,7 +47,7 @@ const validTransaction = {
     '287dc2554025d8074d674d50ec785d530588e2b828f2d3f29687a4f05c8afc623e185896abc739ea2af8db199ec6e31c57426937343ff5ec154341cee8f72f0a',
   signatures: [],
   confirmations: 32801518,
-  asset: {},
+  asset: {}
 };
 
 const validUnconfirmedTransaction = {
@@ -60,8 +60,8 @@ const validUnconfirmedTransaction = {
     chat: {
       message: '75582d940f2c4093929c99a6c1911b4753',
       own_message: '58dceaa227b3fb1dd1c7d3fbf3eb5db6aeb6a03cb7e2ec91',
-      type: 1,
-    },
+      type: 1
+    }
   },
   recipientId: 'U810656636599221322',
   timestamp: 63137661,
@@ -70,12 +70,12 @@ const validUnconfirmedTransaction = {
   id: '8958126469643732641',
   fee: 100000,
   relays: 1,
-  receivedAt: '2019-09-03T11:14:22.638Z',
+  receivedAt: '2019-09-03T11:14:22.638Z'
 };
 
 module.exports = {
   rawValidTransaction,
   validTransactionData,
   validTransaction,
-  validUnconfirmedTransaction,
+  validUnconfirmedTransaction
 };

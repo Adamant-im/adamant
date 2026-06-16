@@ -6,8 +6,8 @@ var extend = require('extend');
 /**
  * Express.js router wrapper.
  * @memberof module:helpers
- * @function
- * @return {Object} router express
+ * @method
+ * @return {object} router express
  * @throws {Error} If config is invalid
  */
 var Router = function () {
@@ -27,14 +27,14 @@ var Router = function () {
           method: req.method,
           path: req.path
         };
-        root[config[params]](extend({}, reqRelevantInfo, { 'body': route[0] === 'get' ? req.query : req.body }), httpApi.respond.bind(null, res));
+        root[config[params]](extend({}, reqRelevantInfo, { 'body': route[0] === 'get' ? req.parsedQuery : req.body }), httpApi.respond.bind(null, res));
       });
     });
   };
   /**
    * Adds one middleware to an array of routes.
    * @param {Function} middleware
-   * @param {String} routes
+   * @param {string} routes
    */
   router.attachMiddlwareForUrls = function (middleware, routes) {
     routes.forEach(function (entry) {

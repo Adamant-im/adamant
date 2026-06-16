@@ -22,7 +22,7 @@ var rcRegExp = /[a-z]+$/;
  * - broadhash
  * - minVersion
  * - nonce
- * @class
+ * @constructor
  * @classdesc Main System methods.
  * @implements {os}
  * @param {setImmediateCallback} cb - Callback function.
@@ -65,7 +65,7 @@ function System (cb, scope) {
 // Public methods
 /**
  * Returns private variables object content.
- * @return {Object}
+ * @return {object}
  */
 System.prototype.headers = function () {
   return __private;
@@ -120,7 +120,7 @@ System.prototype.getNonce = function () {
 };
 /**
  * Gets private variable `nethash` and compares with input param.
- * @param {hash}
+ * @param {hash} nethash
  * @return {boolean} True if input param is equal to private value.
  */
 System.prototype.networkCompatible = function (nethash) {
@@ -181,7 +181,7 @@ System.prototype.getBroadhash = function (cb) {
       return setImmediate(cb, null, hash.toString('hex'));
     }
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('system', `Failed to get broadhash from database: ${err?.message || err}`, err.stack);
     return setImmediate(cb, err);
   });
 };
@@ -211,7 +211,7 @@ System.prototype.update = function (cb) {
       return setImmediate(seriesCb);
     }
   }, function (err) {
-    library.logger.debug('System headers', __private);
+    library.logger.debug('system', 'System headers', __private);
     modules.transport.headers(__private);
     return setImmediate(cb, err);
   });

@@ -23,7 +23,7 @@ __private.isActive = false;
  * Initializes submodules with scope content.
  * Calls submodules.chain.saveGenesisBlock.
  * @memberof module:blocks
- * @class
+ * @constructor
  * @classdesc Main Blocks methods.
  * @param {function} cb - Callback function.
  * @param {scope} scope - App instance.
@@ -90,8 +90,8 @@ Blocks.prototype.lastBlock = {
   /**
    * Returns status of last block - if it fresh or not
    *
-   * @function isFresh
-   * @return {Boolean} Fresh status of last block
+   * @method isFresh
+   * @return {boolean} Fresh status of last block
    */
   isFresh: function () {
     if (!__private.lastBlock) { return false; }
@@ -120,7 +120,7 @@ Blocks.prototype.lastReceipt = {
    *
    * @public
    * @method lastReceipt.isStale
-   * @return {Boolean} Stale status of last receipt
+   * @return {boolean} Stale status of last receipt
    */
   isStale: function () {
     if (!__private.lastReceipt) { return true; }
@@ -153,7 +153,7 @@ Blocks.prototype.isCleaning = {
  * @async
  * @method sandboxApi
  * @param  {string}   call Name of the function to be called
- * @param  {Object}   args Arguments
+ * @param  {object}   args Arguments
  * @param  {Function} cb Callback function
  */
 Blocks.prototype.sandboxApi = function (call, args, cb) {
@@ -172,7 +172,8 @@ Blocks.prototype.onBind = function (scope) {
 };
 
 /**
- * Handle node shutdown request
+ * Handle node shutdown request.
+ * Logs active cleanup state while waiting for block processing to drain.
  *
  * @public
  * @method cleanup
@@ -191,7 +192,10 @@ Blocks.prototype.cleanup = function (cb) {
     // Module is not ready, repeat
     setImmediate(function nextWatch () {
       if (__private.isActive) {
-        library.logger.info('Waiting for block processing to finish...');
+        library.logger.info('cleanup', 'Waiting for block processing to finish...', {
+          active: __private.isActive,
+          cleanup: __private.cleanup
+        });
         setTimeout(nextWatch, 10000); // 10 sec
       } else {
         return setImmediate(cb);

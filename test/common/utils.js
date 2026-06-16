@@ -6,7 +6,7 @@ exports.randomAccount = function () {
     balance: '1000'
   };
 
-  const passphrase = new Mnemonic(Mnemonic.Words.ENGLISH).toString()
+  const passphrase = new Mnemonic(Mnemonic.Words.ENGLISH).toString();
   const keypair = accounts.makeKeypair(accounts.createPassPhraseHash(account.password));
 
   account.password = passphrase;

@@ -4,8 +4,8 @@ var async = require('async');
 var pgp = require('pg-promise');
 var path = require('path');
 
-const knex = require("knex")({
-  client: "pg", // Specify the client to use PostgreSQL syntax
+const knex = require('knex')({
+  client: 'pg' // Specify the client to use PostgreSQL syntax
 });
 
 var constants = require('../helpers/constants.js');
@@ -17,11 +17,11 @@ var self, library, __private = {};
 /**
  * Main account logic.
  * @memberof module:accounts
- * @class
+ * @constructor
  * @classdesc Main account logic.
  * @param {Database} db
  * @param {ZSchema} schema
- * @param {Object} logger
+ * @param {object} logger
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} With `this` as data.
  */
@@ -38,7 +38,7 @@ function Account (db, schema, logger, cb) {
 
   this.table = 'mem_accounts';
   /**
-   * @typedef {Object} account
+   * @typedef {object} account
    * @property {string} username - Lowercase, between 1 and 20 chars.
    * @property {boolean} isDelegate
    * @property {boolean} u_isDelegate
@@ -52,10 +52,10 @@ function Account (db, schema, logger, cb) {
    * @property {number} u_balance - Between 0 and totalAmount from constants.
    * @property {number} vote
    * @property {number} rate
-   * @property {String[]} delegates - From mem_account2delegates table, filtered by address.
-   * @property {String[]} u_delegates - From mem_account2u_delegates table, filtered by address.
-   * @property {String[]} multisignatures - From mem_account2multisignatures table, filtered by address.
-   * @property {String[]} u_multisignatures - From mem_account2u_multisignatures table, filtered by address.
+   * @property {string[]} delegates - From mem_account2delegates table, filtered by address.
+   * @property {string[]} u_delegates - From mem_account2u_delegates table, filtered by address.
+   * @property {string[]} multisignatures - From mem_account2multisignatures table, filtered by address.
+   * @property {string[]} u_multisignatures - From mem_account2u_multisignatures table, filtered by address.
    * @property {number} multimin - Between 0 and 17.
    * @property {number} u_multimin - Between 0 and 17.
    * @property {number} multilifetime - Between 1 and 72.
@@ -430,12 +430,13 @@ function Account (db, schema, logger, cb) {
  * @return {setImmediateCallback} cb|error.
  */
 Account.prototype.createTables = function (cb) {
-  var sql = new pgp.QueryFile(path.join(process.cwd(), 'sql', 'memoryTables.sql'), { minify: true });
+  const filename = path.join(process.cwd(), 'sql', 'memoryTables.sql');
+  var sql = new pgp.QueryFile(filename, { minify: true });
 
   this.scope.db.query(sql).then(function () {
     return setImmediate(cb);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('accounts', `An error occurred while trying to create memory tables from ${filename}: ${err?.message || err}.`, err.stack);
     return setImmediate(cb, 'Account#createTables error');
   });
 };
@@ -466,7 +467,7 @@ Account.prototype.removeTables = function (cb) {
   this.scope.db.query(sqles.join('')).then(function () {
     return setImmediate(cb);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('accounts', `An error occurred while trying to delete memory tables: ${err?.message || err}.`, err.stack);
     return setImmediate(cb, 'Account#removeTables error');
   });
 };
@@ -517,8 +518,8 @@ Account.prototype.verifyPublicKey = function (publicKey) {
 
 /**
  * Normalizes address and creates binary buffers to insert.
- * @param {Object} raw - with address and public key.
- * @return {Object} Normalized address.
+ * @param {object} raw - with address and public key.
+ * @return {object} Normalized address.
  */
 Account.prototype.toDB = function (raw) {
   const values = {};
@@ -538,7 +539,7 @@ Account.prototype.toDB = function (raw) {
 
 /**
  * Gets account information for specified fields and filter criteria.
- * @param {Object} filter - Contains address.
+ * @param {object} filter - Contains address.
  * @param {Object|function} fields - Table fields.
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} Returns null or Object with database data.
@@ -558,7 +559,7 @@ Account.prototype.get = function (filter, fields, cb) {
 
 /**
  * Gets accounts information from mem_accounts.
- * @param {Object} filter - Contains address.
+ * @param {object} filter - Contains address.
  * @param {Object|function} fields - Table fields.
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} data with rows | 'Account#getAll error'.
@@ -572,18 +573,18 @@ Account.prototype.getAll = function (filter, fields, cb) {
   }
 
   var realFields = this.fields
-    .filter(function (field) {
-      return fields.indexOf(field.alias || field.field) !== -1;
-    })
-    .map(function (field) {
-      if (field.expression) {
-        return knex.raw(`${field.expression} as "${field.alias || field.name}"`);
-      }
-      if (field.alias) {
-        return `${field.field} as ${field.alias}`;
-      }
-      return field.field;
-    });
+      .filter(function (field) {
+        return fields.indexOf(field.alias || field.field) !== -1;
+      })
+      .map(function (field) {
+        if (field.expression) {
+          return knex.raw(`${field.expression} as "${field.alias || field.name}"`);
+        }
+        if (field.alias) {
+          return `${field.field} as ${field.alias}`;
+        }
+        return field.field;
+      });
 
   // todo: what does it do?
   var realConv = {};
@@ -620,12 +621,12 @@ Account.prototype.getAll = function (filter, fields, cb) {
   }
   delete filter.sort;
 
-  query = query.where(filter)
+  query = query.where(filter);
 
   this.scope.db.query(query.toString() + ';').then(function (rows) {
     return setImmediate(cb, null, rows);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('accounts', `An error occurred while trying to query mem_accounts table: ${err?.message || err}.`, err.stack);
     return setImmediate(cb, 'Account#getAll error');
   });
 };
@@ -633,7 +634,7 @@ Account.prototype.getAll = function (filter, fields, cb) {
 /**
  * Sets fields for specific address in mem_accounts table.
  * @param {address} address
- * @param {Object} fields
+ * @param {object} rawFields
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} cb | 'Account#set error'.
  */
@@ -646,16 +647,16 @@ Account.prototype.set = function (address, rawFields, cb) {
   rawFields.address = address;
 
   const fields = this.toDB(rawFields);
-  const query =  knex(this.table)
-    .insert(fields.raw)
-    .onConflict('address')
-    .merge(fields.raw)
-    .toString() + ';'
+  const query = knex(this.table)
+      .insert(fields.raw)
+      .onConflict('address')
+      .merge(fields.raw)
+      .toString() + ';';
 
   this.scope.db.none(query, fields.values).then(function () {
     return setImmediate(cb);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('accounts', `An error occurred while trying to set fields for the mem_accounts table: ${err?.message || err}.`, err.stack);
     return setImmediate(cb, 'Account#set error');
   });
 };
@@ -665,7 +666,7 @@ Account.prototype.set = function (address, rawFields, cb) {
  * Inserts into mem_round "address", "amount", "delegate", "blockId", "round"
  * based on field balance or delegates.
  * @param {address} address
- * @param {Object} diff - Must contains only mem_account editable fields.
+ * @param {object} diff - Must contains only mem_account editable fields.
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback|cb|done} Multiple returns: done() or error.
  */
@@ -689,11 +690,11 @@ Account.prototype.merge = function (address, diff, cb) {
           break;
         case Number:
           if (isNaN(trueValue) || trueValue === Infinity) {
-            const error = new Error(`Encountered unsafe number: ${trueValue}`)
-            library.logger.error(error.stack, diff);
+            const error = new Error(`Encountered unsafe number: ${trueValue}`);
+            library.logger.error('accounts', `${error.message}; While trying to merge: ${JSON.stringify(diff)}`, error.stack);
             return setImmediate(cb, error.message);
           } else if (Math.abs(trueValue) === trueValue && trueValue !== 0) {
-            update[value] = knex.raw('?? + ?', [value, Math.floor(trueValue)])
+            update[value] = knex.raw('?? + ?', [value, Math.floor(trueValue)]);
 
             if (value === 'balance') {
               round.push({
@@ -707,7 +708,7 @@ Account.prototype.merge = function (address, diff, cb) {
               });
             }
           } else if (trueValue < 0) {
-            update[value] = knex.raw('?? - ?', [value, Math.floor(Math.abs(trueValue))])
+            update[value] = knex.raw('?? - ?', [value, Math.floor(Math.abs(trueValue))]);
 
             // If decrementing u_balance on account
             if (update.u_balance) {
@@ -807,10 +808,10 @@ Account.prototype.merge = function (address, diff, cb) {
   if (Object.keys(remove).length) {
     Object.keys(remove).forEach(function (el) {
       const sql = knex(self.table + '2' + el)
-        .whereIn('dependentId', remove[el])
-        .andWhere('accountId', address)
-        .del()
-        .toString() + ';';
+          .whereIn('dependentId', remove[el])
+          .andWhere('accountId', address)
+          .del()
+          .toString() + ';';
 
       sqles.push(sql);
     });
@@ -820,11 +821,11 @@ Account.prototype.merge = function (address, diff, cb) {
     Object.keys(insert).forEach(function (el) {
       for (var i = 0; i < insert[el].length; i++) {
         const sql = knex(self.table + '2' + el)
-          .insert({
-            accountId: address,
-            dependentId: insert[el][i]
-          })
-          .toString() + ';';
+            .insert({
+              accountId: address,
+              dependentId: insert[el][i]
+            })
+            .toString() + ';';
 
         sqles.push(sql);
       }
@@ -850,8 +851,8 @@ Account.prototype.merge = function (address, diff, cb) {
       insert_object[el].accountId = address;
       for (var i = 0; i < insert_object[el].length; i++) {
         const sql = knex(self.table + '2' + el)
-          .insert(insert_object[el])
-          .toString() + ';';
+            .insert(insert_object[el])
+            .toString() + ';';
 
         sqles.push(sql);
       }
@@ -860,9 +861,9 @@ Account.prototype.merge = function (address, diff, cb) {
 
   if (Object.keys(update).length) {
     const sql = knex(this.table)
-      .update(update)
-      .where({ address: address })
-      .toString() + ';';
+        .update(update)
+        .where({ address: address })
+        .toString() + ';';
 
     sqles.push(sql);
   }
@@ -897,7 +898,7 @@ Account.prototype.merge = function (address, diff, cb) {
   this.scope.db.none(queries).then(function () {
     return done();
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('account', `An error occurred while trying to merge account data: ${err?.message || err}`, err.stack);
     return done('Account#merge error');
   });
 };
@@ -910,14 +911,14 @@ Account.prototype.merge = function (address, diff, cb) {
  */
 Account.prototype.remove = function (address, cb) {
   const sql = knex(this.table)
-    .where({ address: address })
-    .del()
-    .toString() + ';';
+      .where({ address: address })
+      .del()
+      .toString() + ';';
 
   this.scope.db.none(sql).then(function () {
     return setImmediate(cb, null, address);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('account', `An error occurred while trying to remove an account: ${err?.message || err}`, err.stack);
     return setImmediate(cb, 'Account#remove error');
   });
 };

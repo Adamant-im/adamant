@@ -10,10 +10,11 @@ var path = require('path');
 
 /**
  * Migrator functions
- * @class
+ * @constructor
  * @private
- * @param {Object} pgp - pg promise
- * @param {Object} db - pg connection
+ * @param {object} pgp - pg promise
+ * @param {object} db - pg connection
+ * @param {Logger} logger - Application logger.
  */
 function Migrator (pgp, db, logger) {
   /**
@@ -33,7 +34,7 @@ function Migrator (pgp, db, logger) {
   /**
    * Gets last migration record from `migrations` table.
    * @method
-   * @param {Boolean} hasMigrations
+   * @param {boolean} hasMigrations
    * @param {function} waterCb - Callback function
    * @return {function} waterCb with error | row data
    */
@@ -55,7 +56,7 @@ function Migrator (pgp, db, logger) {
    * Reads folder `sql/migrations` and returns files rather than
    * lastMigration id.
    * @method
-   * @param {Object} lastMigration
+   * @param {object} lastMigration
    * @param {function} waterCb - Callback function
    * @return {function} waterCb with error | pendingMigrations
    */
@@ -109,7 +110,7 @@ function Migrator (pgp, db, logger) {
    */
   this.applyPendingMigrations = function (pendingMigrations, waterCb) {
     if (pendingMigrations.length) {
-      logger.info(`Found ${pendingMigrations.length} pending migrations. Start executing, this may take a while…`);
+      logger.info('migrator', `Found ${pendingMigrations.length} pending migrations. Start executing, this may take a while…`);
     }
 
     var appliedMigrations = [];
@@ -125,7 +126,7 @@ function Migrator (pgp, db, logger) {
       });
     }, function (err) {
       if (pendingMigrations.length && !err) {
-        logger.info('Migrations have been successfully completed.');
+        logger.info('migrator', 'Migrations have been successfully completed.');
       }
 
       return waterCb(err, appliedMigrations);
@@ -181,15 +182,15 @@ function Migrator (pgp, db, logger) {
  * @requires pg-promise
  * @requires pg-monitor
  * @implements Migrator
- * @function connect
- * @param {Object} config
+ * @method connect
+ * @param {object} config
  * @param {function} logger
  * @param {function} cb
  * @return {function} error|cb
  */
 module.exports.connect = function (config, logger, cb) {
   var pgOptions = {
-    pgNative: true
+    pgNative: process.env.PG_NATIVE !== 'false'
   };
 
   var pgp = require('pg-promise')(pgOptions);
@@ -199,7 +200,11 @@ module.exports.connect = function (config, logger, cb) {
   monitor.setTheme('matrix');
 
   monitor.setLog(function (msg, info) {
-    logger.log(info.event, info.text);
+    if (info.event === 'error') {
+      logger.error('pg-monitor', info.text);
+    } else {
+      logger.info('pg-monitor', `${info.event}: ${info.text}`);
+    }
     info.display = false;
   });
 

@@ -1,0 +1,84 @@
+{
+  "address": "127.0.0.1",
+  "generalLog": {
+    "enabled": true,
+    "fileName": "logs-localnet/node-1/adamant_localnet.log",
+    "level": "info",
+    "rotate": {
+      "enabled": true,
+      "maxSize": "300M",
+      "retain": 5,
+      "rotateInterval": "0 0 0 1 *",
+      "rotateOnRestart": true
+    }
+  },
+  "debugLog": {
+    "enabled": true,
+    "fileName": "logs-localnet/node-1/adamant_localnet_debug.log",
+    "level": "trace",
+    "rotate": {
+      "enabled": true,
+      "maxSize": "300M",
+      "retain": 7,
+      "rotateInterval": "0 0 * * *",
+      "rotateOnRestart": true
+    }
+  },
+  "consoleLog": {
+    "enabled": false,
+    "level": "info"
+  },
+  "topAccounts": true,
+  "cacheEnabled": true,
+  "db": {
+    "host": "localhost",
+    "port": 5432,
+    "database": "adamant_localnet_node_1",
+    "user": "adamanttest",
+    "password": "password",
+    "poolSize": 25,
+    "poolIdleTimeout": 30000,
+    "reapIntervalMillis": 1000,
+    "logEvents": [
+      "error"
+    ]
+  },
+  "redis": {
+    "url": "redis://127.0.0.1:6379/10",
+    "password": null
+  },
+  "api": {
+    "access": {
+      "public": false,
+      "whiteList": [
+        "127.0.0.1"
+      ]
+    }
+  },
+  "peers": {
+    "list": [],
+    "options": {
+      "allowPrivatePeers": true
+    },
+    "access": {
+      "blackList": []
+    }
+  },
+  "forging": {
+    "force": false,
+    "secret": [],
+    "access": {
+      "whiteList": [
+        "127.0.0.1"
+      ]
+    }
+  },
+  "ssl": {
+    "enabled": false
+  },
+  "dapp": {
+    "masterrequired": false,
+    "masterpassword": "",
+    "autoexec": []
+  }
+}

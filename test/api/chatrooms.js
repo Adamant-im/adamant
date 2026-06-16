@@ -4,15 +4,7 @@ const node = require('./../node.js');
 const Mnemonic = require('bitcore-mnemonic');
 const _ = require('lodash');
 
-function sendADM (params, done) {
-  node.put('/api/transactions/', params, function (err, res) {
-    done(err, res);
-  });
-}
-
-function postMessage (transaction, done) {
-  node.post('/api/transactions', { transaction: transaction }, done);
-}
+const { postMessage, sendADM } = require('../common/api.js');
 
 function getChats (senderId, done, params) {
   const args = _.keys(params).map((key) => `${key}=${params[key]}`);
@@ -192,7 +184,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the chat list for sender with no parameters', function (done) {
     getChats(sender.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('3'); // 2 chats and 1 direct transfer from iAccount
+      node.expect(res.body).to.have.property('count').to.equal(3); // 2 chats and 1 direct transfer from iAccount
       node.expect(res.body).to.have.property('chats').to.have.lengthOf(3);
       for (let i = 0; i < res.body.chats.length; i++) {
         node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
@@ -223,7 +215,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the chat list for recipient1', function (done) {
     getChats(recipient1.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('3'); // 2 chats and 1 direct transfer from iAccount
+      node.expect(res.body).to.have.property('count').to.equal(3); // 2 chats and 1 direct transfer from iAccount
       node.expect(res.body).to.have.property('chats').to.have.lengthOf(3);
       for (let i = 0; i < res.body.chats.length; i++) {
         node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
@@ -245,7 +237,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the chat list for recipient2', function (done) {
     getChats(recipient2.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('3'); // 2 chats and 1 direct transfer from iAccount
+      node.expect(res.body).to.have.property('count').to.equal(3); // 2 chats and 1 direct transfer from iAccount
       node.expect(res.body).to.have.property('chats').to.have.lengthOf(3);
       for (let i = 0; i < res.body.chats.length; i++) {
         node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
@@ -263,7 +255,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the chat list for sender with limit', function (done) {
     getChats(sender.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('3');
+      node.expect(res.body).to.have.property('count').to.equal(3);
       node.expect(res.body).to.have.property('chats').to.have.lengthOf(1);
       for (let i = 0; i < res.body.chats.length; i++) {
         node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
@@ -278,7 +270,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the chat list for sender with offset', function (done) {
     getChats(sender.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('3');
+      node.expect(res.body).to.have.property('count').to.equal(3);
       node.expect(res.body).to.have.property('chats').to.have.lengthOf(2);
       for (let i = 0; i < res.body.chats.length; i++) {
         node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
@@ -293,7 +285,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the chat list for sender with both limit and offset', function (done) {
     getChats(sender.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('3');
+      node.expect(res.body).to.have.property('count').to.equal(3);
       node.expect(res.body).to.have.property('chats').to.have.lengthOf(1);
       for (let i = 0; i < res.body.chats.length; i++) {
         node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
@@ -308,7 +300,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the chat list for sender with orderBy=timestamp:desc', function (done) {
     getChats(sender.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('3');
+      node.expect(res.body).to.have.property('count').to.equal(3);
       node.expect(res.body).to.have.property('chats').to.have.lengthOf(3);
       for (let i = 0; i < res.body.chats.length; i++) {
         node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
@@ -327,7 +319,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the chat list for sender with orderBy=timestamp:asc', function (done) {
     getChats(sender.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('3');
+      node.expect(res.body).to.have.property('count').to.equal(3);
       node.expect(res.body).to.have.property('chats').to.have.lengthOf(3);
       for (let i = 0; i < res.body.chats.length; i++) {
         node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
@@ -346,7 +338,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the chat list for recipient1', function (done) {
     getChats(recipient1.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('3');
+      node.expect(res.body).to.have.property('count').to.equal(3);
       node.expect(res.body).to.have.property('chats').to.have.lengthOf(3);
       for (let i = 0; i < res.body.chats.length; i++) {
         node.expect(res.body.chats[i]).to.have.property('participants').to.have.lengthOf(2);
@@ -361,7 +353,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the messages between sender and recipient1', function (done) {
     getMessages(sender.address, recipient1.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('3'); // 2 messages and 1 direct transfer
+      node.expect(res.body).to.have.property('count').to.equal(3); // 2 messages and 1 direct transfer
       node.expect(res.body).to.have.property('messages').to.have.lengthOf(3);
       node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
       node.expect(res.body.participants[0].address).to.equal(sender.address);
@@ -375,7 +367,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the messages between sender and recipient1 with a limit', function (done) {
     getMessages(sender.address, recipient1.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('3');
+      node.expect(res.body).to.have.property('count').to.equal(3);
       node.expect(res.body).to.have.property('messages').to.have.lengthOf(1);
       node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
       node.expect(res.body.participants[0].address).to.equal(sender.address);
@@ -391,7 +383,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the messages between sender and recipient1 with an offset', function (done) {
     getMessages(sender.address, recipient1.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('3');
+      node.expect(res.body).to.have.property('count').to.equal(3);
       node.expect(res.body).to.have.property('messages').to.have.lengthOf(2);
       node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
       node.expect(res.body.participants[0].address).to.equal(sender.address);
@@ -407,7 +399,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the messages between sender and recipient1 with an orderBy=timestamp:desc', function (done) {
     getMessages(sender.address, recipient1.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('3');
+      node.expect(res.body).to.have.property('count').to.equal(3);
       node.expect(res.body).to.have.property('messages').to.have.lengthOf(3);
       node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
       node.expect(res.body.participants[0].address).to.equal(sender.address);
@@ -427,7 +419,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the messages between sender and recipient1 with an orderBy=timestamp:asc', function (done) {
     getMessages(sender.address, recipient1.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('3');
+      node.expect(res.body).to.have.property('count').to.equal(3);
       node.expect(res.body).to.have.property('messages').to.have.lengthOf(3);
       node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
       node.expect(res.body.participants[0].address).to.equal(sender.address);
@@ -447,7 +439,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the messages between sender and recipient1 without direct transfers', function (done) {
     getMessages(sender.address, recipient1.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('2');
+      node.expect(res.body).to.have.property('count').to.equal(2);
       node.expect(res.body).to.have.property('messages').to.have.lengthOf(2);
       node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
       node.expect(res.body.participants[0].address).to.equal(sender.address);
@@ -463,7 +455,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the messages between sender and recipient1 without direct transfers with a limit', function (done) {
     getMessages(sender.address, recipient1.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('2');
+      node.expect(res.body).to.have.property('count').to.equal(2);
       node.expect(res.body).to.have.property('messages').to.have.lengthOf(1);
       node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
       node.expect(res.body.participants[0].address).to.equal(sender.address);
@@ -480,7 +472,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the messages between sender and recipient1 without direct transfers with an offset', function (done) {
     getMessages(sender.address, recipient1.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('2');
+      node.expect(res.body).to.have.property('count').to.equal(2);
       node.expect(res.body).to.have.property('messages').to.have.lengthOf(1);
       node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
       node.expect(res.body.participants[0].address).to.equal(sender.address);
@@ -497,7 +489,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the messages between sender and recipient1 without direct transfers with an orderBy=timestamp:desc', function (done) {
     getMessages(sender.address, recipient1.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('2');
+      node.expect(res.body).to.have.property('count').to.equal(2);
       node.expect(res.body).to.have.property('messages').to.have.lengthOf(2);
       node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
       node.expect(res.body.participants[0].address).to.equal(sender.address);
@@ -518,7 +510,7 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
   it('should return the messages between sender and recipient1 without direct transfers with an orderBy=timestamp:asc', function (done) {
     getMessages(sender.address, recipient1.address, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('count').to.equal('2');
+      node.expect(res.body).to.have.property('count').to.equal(2);
       node.expect(res.body).to.have.property('messages').to.have.lengthOf(2);
       node.expect(res.body).to.have.property('participants').to.have.lengthOf(2);
       node.expect(res.body.participants[0].address).to.equal(sender.address);

@@ -10,7 +10,6 @@ var extend = require('extend');
 var fs = require('fs');
 var ip = require('neoip');
 var InTransfer = require('../logic/inTransfer.js');
-var execa = require('execa');
 var OrderBy = require('../helpers/orderBy.js');
 var OutTransfer = require('../logic/outTransfer.js');
 var path = require('path');
@@ -45,14 +44,14 @@ __private.routes = {};
  *
  * Listens `exit` signal.
  * Checks 'public/dapp' folder and created it if doesn't exists.
- * @memberof module:dapps
- * @class
- * @classdesc Main dapps methods.
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
  * @param {scope} scope - App instance.
- * @return {setImmediateCallback} Callback function with `self` as data.
  * @todo apply node pattern for callbacks: callback always at the end.
  * @todo add 'use strict';
+ * @memberof module:dapps
+ * @constructor
+ * @classdesc Main dapps methods.
+ * @return {setImmediateCallback} Callback function with `self` as data.
  */
 // Constructor
 function DApps (cb, scope) {
@@ -104,34 +103,24 @@ function DApps (cb, scope) {
    * @listens exit
    */
   process.on('exit', function () {
-    var keys = Object.keys(__private.launched);
-
-    async.eachSeries(keys, function (id, eachSeriesCb) {
-      if (!__private.launched[id]) {
-        return setImmediate(eachSeriesCb);
+    __private.stopLaunchedDApps(function (err) {
+      if (err) {
+        library.logger.error('dapps', err);
       }
-
-      __private.stopDApp({
-        transactionId: id
-      }, function (err) {
-        return setImmediate(eachSeriesCb, err);
-      });
-    }, function (err) {
-      library.logger.error(err);
     });
   });
 
   fs.exists(path.join('.', 'public', 'dapps'), function (exists) {
     if (exists) {
       rimraf(path.join('.', 'public', 'dapps'))
-        .catch(function(err) {
-          library.logger.error(err);
-        })
-        .finally(function() {
-          __private.createBasePaths(function (err) {
-            return setImmediate(cb, err, self);
+          .catch(function (err) {
+            library.logger.error('dapps', err);
+          })
+          .finally(function () {
+            __private.createBasePaths(function (err) {
+              return setImmediate(cb, err, self);
+            });
           });
-        });
     } else {
       __private.createBasePaths(function (err) {
         return setImmediate(cb, null, self);
@@ -143,10 +132,10 @@ function DApps (cb, scope) {
 // Private methods
 /**
  * Gets record from `dapps` table based on id
+ * @param {string} id
+ * @param {Function} cb
  * @private
  * @implements {library.db.query}
- * @param {string} id
- * @param {function} cb
  * @return {setImmediateCallback} error description | row data
  */
 __private.get = function (id, cb) {
@@ -157,35 +146,36 @@ __private.get = function (id, cb) {
       return setImmediate(cb, null, rows[0]);
     }
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-dapps', err.stack);
     return setImmediate(cb, 'DApp#get error');
   });
 };
 
 /**
  * Gets records from `dapps` table based on id list
+ * @param {string[]} ids
+ * @param {Function} cb
  * @private
  * @implements {library.db.query}
- * @param {string[]} ids
- * @param {function} cb
  * @return {setImmediateCallback} error description | rows data
  */
 __private.getByIds = function (ids, cb) {
   library.db.query(sql.getByIds, [ids]).then(function (rows) {
     return setImmediate(cb, null, rows);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-dapps', err.stack);
     return setImmediate(cb, 'DApp#getByIds error');
   });
 };
 
 /**
  * Gets records from `dapps` table based on filter
+ * @param {object} filter - Could contains type, name, category, link, limit,
+ * offset, orderBy
+ * @param {Function} cb
+ *
  * @private
  * @implements {library.db.query}
- * @param {Object} filter - Could contains type, name, category, link, limit,
- * offset, orderBy
- * @param {function} cb
  * @return {setImmediateCallback} error description | rows data
  */
 __private.list = function (filter, cb) {
@@ -249,7 +239,7 @@ __private.list = function (filter, cb) {
   }), params).then(function (rows) {
     return setImmediate(cb, null, rows);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-dapps', err.stack);
     return setImmediate(cb, err);
   });
 };
@@ -259,8 +249,8 @@ __private.list = function (filter, cb) {
  * - /dapps
  * - /public/dapps
  * - /public/images/dapps
+ * @param {Function} cb
  * @private
- * @param {function} cb
  * @return {setImmediateCallback} if error
  */
 __private.createBasePaths = function (cb) {
@@ -288,15 +278,18 @@ __private.createBasePaths = function (cb) {
  * - /dapps
  * - /public/dapps
  * - /public/images/dapps
- * @private
  * @param {dapp} dapp
- * @param {function} cb
+ * @param {Function} cb
+ * @private
  * @return {setImmediateCallback} if error
  */
 __private.installDependencies = function (dapp, cb) {
   var dappPath = path.join(__private.dappsPath, dapp.transactionId);
 
-  execa('npm', ['install', `-g --prefix ${dappPath}`])
+  import('execa')
+      .then(function (execaModule) {
+        return execaModule.execa('npm', ['install', '-g', '--prefix', dappPath]);
+      })
       .then(function () {
         return setImmediate(cb, null);
       })
@@ -307,8 +300,8 @@ __private.installDependencies = function (dapp, cb) {
 
 /**
  * Gets ids from installed dapps, based in folder content
+ * @param {Function} cb
  * @private
- * @param {function} cb
  * @return {setImmediateCallback} error | ids
  */
 __private.getInstalledIds = function (cb) {
@@ -329,29 +322,29 @@ __private.getInstalledIds = function (cb) {
 
 /**
  * Removes application folder and drops application tables.
- * @private
- * @implements {modules.sql.dropTables}
  * @param {dapp} dapp
- * @param {function} cb
- * @return {setImmediateCallback} error message | cb
+ * @param {Function} cb
  * @todo Fix this logic,triggers remove with err always.
  * @todo Implement dropTables
+ * @private
+ * @implements {modules.sql.dropTables}
+ * @return {setImmediateCallback} error message | cb
  */
 __private.removeDApp = function (dapp, cb) {
   var dappPath = path.join(__private.dappsPath, dapp.transactionId);
 
   function remove (err) {
     if (err) {
-      library.logger.error('Failed to uninstall application');
+      library.logger.error('dapps', 'Failed to uninstall application', err);
     }
 
     rimraf(dappPath)
-      .then(function() {
-        return setImmediate(cb);
-      })
-      .catch(function (err) {
-        return setImmediate(cb, "Failed to remove application folder");
-      });
+        .then(function () {
+          return setImmediate(cb);
+        })
+        .catch(function (err) {
+          return setImmediate(cb, 'Failed to remove application folder');
+        });
   }
 
   fs.exists(dappPath, function (exists) {
@@ -368,7 +361,7 @@ __private.removeDApp = function (dapp, cb) {
 
       modules.sql.dropTables(dapp.transactionId, blockchain, function (err) {
         if (err) {
-          library.logger.error('Failed to drop application tables');
+          library.logger.error('dapps', 'Failed to drop application tables', err);
         }
         remove(err);
       });
@@ -378,12 +371,12 @@ __private.removeDApp = function (dapp, cb) {
 
 /**
  * Creates a temp dir, downloads the dapp as stream and decompress it.
+ * @param {dapp} dapp
+ * @param {string} dappPath
+ * @param {Function} cb
  * @private
  * @implements {axios}
  * @implements {unzipper}
- * @param {dapp} dapp
- * @param {string} dappPath
- * @param {function} cb
  * @return {setImmediateCallback} error message | cb
  */
 __private.downloadLink = function (dapp, dappPath, cb) {
@@ -407,10 +400,10 @@ __private.downloadLink = function (dapp, dappPath, cb) {
       });
     },
     performDownload: function (serialCb) {
-      library.logger.info(dapp.transactionId, 'Downloading: ' + dapp.link);
+      library.logger.info('dapps', 'Downloading dapp ' + dapp.transactionId + ': ' + dapp.link);
 
       function cleanup (err) {
-        library.logger.error(dapp.transactionId, 'Download failed: ' + err.message);
+        library.logger.error('dapps', 'Download failed for dapp ' + dapp.transactionId + ': ' + err.message);
 
         fs.exists(tmpPath, function (exists) {
           if (exists) { fs.unlink(tmpPath); }
@@ -433,7 +426,7 @@ __private.downloadLink = function (dapp, dappPath, cb) {
             stream.on('error', cleanup);
 
             stream.on('finish', function () {
-              library.logger.info(dapp.transactionId, 'Finished downloading');
+              library.logger.info('dapps', 'Finished downloading dapp ' + dapp.transactionId);
               stream.close(serialCb);
             });
 
@@ -442,7 +435,7 @@ __private.downloadLink = function (dapp, dappPath, cb) {
           .catch(cleanup);
     },
     decompressZip: function (serialCb) {
-      library.logger.info(dapp.transactionId, 'Decompressing zip file');
+      library.logger.info('dapps', 'Decompressing zip file for dapp ' + dapp.transactionId);
 
       fs.createReadStream(tmpPath)
           .pipe(unzipper.Parse())
@@ -472,7 +465,7 @@ __private.downloadLink = function (dapp, dappPath, cb) {
                 });
               }
 
-              library.logger.info(dapp.transactionId, `Extracted file: ${strippedPath}`);
+              library.logger.info('dapps', `Extracted file for dapp ${dapp.transactionId}: ${strippedPath}`);
               entry.pipe(fs.createWriteStream(path.resolve(dappPath, strippedPath)));
             } else {
               entry.autodrain();
@@ -480,14 +473,14 @@ __private.downloadLink = function (dapp, dappPath, cb) {
           })
           .promise()
           .then(() => {
-            library.logger.info(dapp.transactionId, 'Finished extracting');
+            library.logger.info('dapps', 'Finished extracting dapp ' + dapp.transactionId);
             fs.exists(tmpPath, function (exists) {
               if (exists) { fs.unlink(tmpPath); }
               return setImmediate(serialCb, null);
             });
           })
           .catch((error) => {
-            library.logger.error(dapp.transactionId, 'Decompression failed: ' + error);
+            library.logger.error('dapps', 'Decompression failed for dapp ' + dapp.transactionId + ': ' + error);
             fs.exists(tmpPath, function (exists) {
               if (exists) { fs.unlink(tmpPath); }
               return setImmediate(serialCb, 'Failed to decompress zip file');
@@ -505,10 +498,10 @@ __private.downloadLink = function (dapp, dappPath, cb) {
  * - checks if the dapp is already installed
  * - makes an application directory
  * - performs install by calling downloadLink function
+ * @param {dapp} dapp
+ * @param {Function} cb
  * @private
  * @implements {__private.downloadLink}
- * @param {dapp} dapp
- * @param {function} cb
  * @return {setImmediateCallback} error message | cb
  */
 __private.installDApp = function (dapp, cb) {
@@ -549,9 +542,9 @@ __private.installDApp = function (dapp, cb) {
 /**
  * Creates a public link (symbolic link) between public path and
  * public dapps with transaction id.
- * @private
  * @param {dapp} dapp
- * @param {function} cb
+ * @param {Function} cb
+ * @private
  * @return {setImmediateCallback} cb
  */
 __private.createSymlink = function (dapp, cb) {
@@ -576,10 +569,11 @@ __private.createSymlink = function (dapp, cb) {
 
 /**
  * Gets module in parameter and calls `sandboxApi` with message args and dappid.
+ * @param {object} message
+ * @param {Function} callback
+ *
  * @private
  * @implements {sandboxApi} based on module
- * @param {Object} message
- * @param {function} callback
  * @return {setImmediateCallback} error messages
  */
 __private.apiHandler = function (message, callback) {
@@ -603,11 +597,11 @@ __private.apiHandler = function (message, callback) {
 
 /**
  * Gets `routes.json` file and creates the router
+ * @param {dapp} dapp
+ * @param {Function} cb
  * @private
  * @implements {Router}
  * @implements {library.network.app.use}
- * @param {dapp} dapp
- * @param {function} cb
  * @return {setImmediateCallback} error messages | cb
  */
 __private.createRoutes = function (dapp, cb) {
@@ -646,7 +640,7 @@ __private.createRoutes = function (dapp, cb) {
       library.network.app.use('/api/dapps/' + dapp.transactionId + '/api/', __private.routes[dapp.transactionId]);
       library.network.app.use(function (err, req, res, next) {
         if (!err) { return next(); }
-        library.logger.error('API error ' + req.url, err.message);
+        library.logger.error('api-dapps', 'API error ' + req.url, err.message);
         res.status(500).send({ success: false, error: 'API error: ' + err.message });
       });
 
@@ -666,6 +660,9 @@ __private.createRoutes = function (dapp, cb) {
  * - create public link
  * - create sandbox
  * - create application routes
+ * @param {object} body
+ * @param {Function} cb
+ *
  * @private
  * @implements {library.schema.validate}
  * @implements {__private.get}
@@ -674,8 +671,6 @@ __private.createRoutes = function (dapp, cb) {
  * @implements {__private.createSandbox}
  * @implements {__private.createRoutes}
  * @implements {__private.stopDApp}
- * @param {Object} body
- * @param {function} cb
  * @return {setImmediateCallback} cb, err
  */
 __private.launchDApp = function (body, cb) {
@@ -765,9 +760,9 @@ __private.launchDApp = function (body, cb) {
     }
   ], function (err, dapp) {
     if (err) {
-      library.logger.error('Failed to launch application', err);
+      library.logger.error('dapps', 'Failed to launch application', err);
     } else {
-      library.logger.info('Application launched successfully');
+      library.logger.info('dapps', 'Application launched successfully');
     }
     return setImmediate(cb, err);
   });
@@ -778,14 +773,15 @@ __private.launchDApp = function (body, cb) {
  * Once all peers are updated, opens `blockchain.json` file, calls
  * createTables and creates sandbox.
  * Listens sandbox events 'exit' and 'error' to stop dapp.
+ * @param {dapp} dapp
+ * @param {object} params
+ * @param {Function} cb
+ *
  * @private
  * @implements {modules.peers.update}
  * @implements {modules.sql.createTables}
  * @implements {Sandbox}
  * @implements {__private.stopDApp}
- * @param {dapp} dapp
- * @param {Object} params
- * @param {function} cb
  * @return {setImmediateCallback} cb, error
  */
 __private.createSandbox = function (dapp, params, cb) {
@@ -839,20 +835,20 @@ __private.createSandbox = function (dapp, params, cb) {
       sandbox.on('exit', function () {
         __private.stopDApp(dapp, function (err) {
           if (err) {
-            library.logger.error('Failed to stop application', dapp.transactionId);
+            library.logger.error('dapps', 'Failed to stop application', dapp.transactionId);
           } else {
-            library.logger.info(['Application', dapp.transactionId, 'closed'].join(' '));
+            library.logger.info('dapps', ['Application', dapp.transactionId, 'closed'].join(' '));
           }
         });
       });
 
       sandbox.on('error', function (err) {
-        library.logger.error(['Encountered error in application', dapp.transactionId].join(' '), err);
+        library.logger.error('dapps', ['Encountered error in application', dapp.transactionId].join(' '), err);
         __private.stopDApp(dapp, function (err) {
           if (err) {
-            library.logger.error('Failed to stop application', dapp.transactionId);
+            library.logger.error('dapps', 'Failed to stop application', dapp.transactionId);
           } else {
-            library.logger.info(['Application', dapp.transactionId, 'closed'].join(' '));
+            library.logger.info('dapps', ['Application', dapp.transactionId, 'closed'].join(' '));
           }
         });
       });
@@ -869,10 +865,10 @@ __private.createSandbox = function (dapp, params, cb) {
  * - check public/dapps id is installed
  * - delete sandbox after exit() from sandbox
  * - delete routes
+ * @param {dapp} dapp
+ * @param {Function} cb
  * @private
  * @implements {sandboxes.exit}
- * @param {dapp} dapp
- * @param {function} cb
  * @return {setImmediateCallback} cb, error
  */
 __private.stopDApp = function (dapp, cb) {
@@ -905,13 +901,32 @@ __private.stopDApp = function (dapp, cb) {
   });
 };
 
+__private.stopLaunchedDApps = function (cb) {
+  var keys = Object.keys(__private.launched);
+
+  async.eachSeries(keys, function (id, eachSeriesCb) {
+    if (!__private.launched[id]) {
+      return setImmediate(eachSeriesCb);
+    }
+
+    __private.stopDApp({
+      transactionId: id
+    }, function (err) {
+      return setImmediate(eachSeriesCb, err);
+    });
+  }, function (err) {
+    return setImmediate(cb, err);
+  });
+};
+
 // Public methods
 /**
  * Calls helpers.sandbox.callMethod().
- * @implements module:helpers#callMethod
- * @param {function} call - Method to call.
+ * @param {Function} call - Method to call.
  * @param {*} args - List of arguments.
- * @param {function} cb - Callback function.
+ * @param {Function} cb - Callback function.
+ *
+ * @implements module:helpers#callMethod
  */
 DApps.prototype.sandboxApi = function (call, args, cb) {
   sandboxHelper.callMethod(shared, call, args, cb);
@@ -919,10 +934,11 @@ DApps.prototype.sandboxApi = function (call, args, cb) {
 
 /**
  * Calls request with 'post' method and '/message' path.
- * @implements {request}
  * @param {string} dappid
- * @param {Object} body
- * @param {function} cb
+ * @param {object} body
+ * @param {Function} cb
+ *
+ * @implements {request}
  */
 DApps.prototype.message = function (dappid, body, cb) {
   self.request(dappid, 'post', '/message', body, cb);
@@ -930,12 +946,13 @@ DApps.prototype.message = function (dappid, body, cb) {
 
 /**
  * Calls sendMessage for sandboxes dapp.
- * @implements {request}
  * @param {string} dappid
  * @param {string} method
  * @param {string} path
- * @param {Object} query
- * @param {function} cb
+ * @param {object} query
+ * @param {Function} cb
+ *
+ * @implements {request}
  * @return {setImmediateCallback} for errors
  */
 DApps.prototype.request = function (dappid, method, path, query, cb) {
@@ -956,8 +973,9 @@ DApps.prototype.request = function (dappid, method, path, query, cb) {
 /**
  * Bounds used scope modules to private modules variable and sets params
  * to private Dapp, InTransfer and OutTransfer instances.
- * @implements module:transactions#Transfer~bind
  * @param {modules} scope - Loaded modules.
+ *
+ * @implements module:transactions#Transfer~bind
  */
 DApps.prototype.onBind = function (scope) {
   modules = {
@@ -980,6 +998,10 @@ DApps.prototype.onBind = function (scope) {
   );
 };
 
+DApps.prototype.cleanup = function (cb) {
+  __private.stopLaunchedDApps(cb);
+};
+
 /**
  * Waits a second and for each library.config.dapp.autoexec calls launchDApp.
  * @implements {__private.launchDApp}
@@ -995,9 +1017,9 @@ DApps.prototype.onBlockchainReady = function () {
         master: library.config.dapp.masterpassword
       }, function (err) {
         if (err) {
-          library.logger.error('Failed to launch application', err);
+          library.logger.error('dapps', 'Failed to launch application', err);
         } else {
-          library.logger.info('Application launched successfully');
+          library.logger.info('dapps', 'Application launched successfully');
         }
 
         return setImmediate(cb);
@@ -1008,8 +1030,9 @@ DApps.prototype.onBlockchainReady = function () {
 
 /**
  * For each sandbox sends a post message with rollback and block information.
- * @implements {request}
  * @param {block} block
+ *
+ * @implements {request}
  */
 DApps.prototype.onDeleteBlocksBefore = function (block) {
   Object.keys(__private.sandboxes).forEach(function (dappId) {
@@ -1018,7 +1041,7 @@ DApps.prototype.onDeleteBlocksBefore = function (block) {
       message: { pointId: block.id, pointHeight: block.height }
     }, function (err) {
       if (err) {
-        library.logger.error('DApps#onDeleteBlocksBefore error', err);
+        library.logger.error('dapps', 'DApps#onDeleteBlocksBefore error', err);
       }
     });
   });
@@ -1026,9 +1049,9 @@ DApps.prototype.onDeleteBlocksBefore = function (block) {
 
 /**
  * For each sandbox sends a post message with point and block information.
- * @implements {request}
  * @param {block} block
- * @param {Object} broadcast
+ * @param {object} broadcast
+ * @implements {request}
  */
 DApps.prototype.onNewBlock = function (block, broadcast) {
   Object.keys(__private.sandboxes).forEach(function (dappId) {
@@ -1038,7 +1061,7 @@ DApps.prototype.onNewBlock = function (block, broadcast) {
         message: { id: block.id, height: block.height }
       }, function (err) {
         if (err) {
-          library.logger.error('DApps#onNewBlock error:', err);
+          library.logger.error('dapps', 'DApps#onNewBlock error:', err);
         }
       });
     }
@@ -1057,8 +1080,8 @@ DApps.prototype.isLoaded = function () {
  * Internal & Shared
  * - DApps.prototype.internal
  * - shared.
- * @todo implement API comments with apidoc.
  * @see {@link http://apidocjs.com/}
+ * @todo implement API comments with apidoc.
  */
 DApps.prototype.internal = {
   put: function (dapp, cb) {
@@ -1146,7 +1169,7 @@ DApps.prototype.internal = {
   installed: function (req, cb) {
     __private.getInstalledIds(function (err, ids) {
       if (err) {
-        library.logger.error(err);
+        library.logger.error('api-dapps', err);
         return setImmediate(cb, 'Failed to get installed application ids');
       }
 
@@ -1156,7 +1179,7 @@ DApps.prototype.internal = {
 
       __private.getByIds(ids, function (err, dapps) {
         if (err) {
-          library.logger.error(err);
+          library.logger.error('api-dapps', err);
           return setImmediate(cb, 'Failed to get applications by id');
         } else {
           return setImmediate(cb, null, { success: true, dapps: dapps });
@@ -1168,7 +1191,7 @@ DApps.prototype.internal = {
   search: function (query, cb) {
     __private.getInstalledIds(function (err, ids) {
       if (err) {
-        library.logger.error(err);
+        library.logger.error('api-dapps', err);
         return setImmediate(cb, 'Failed to get installed application ids');
       }
 
@@ -1226,7 +1249,7 @@ DApps.prototype.internal = {
           });
         }
       }).catch(function (err) {
-        library.logger.error(err.stack);
+        library.logger.error('api-dapps', err.stack);
         return setImmediate(cb, 'Database search failed');
       });
     });
@@ -1235,7 +1258,7 @@ DApps.prototype.internal = {
   installedIds: function (req, cb) {
     __private.getInstalledIds(function (err, ids) {
       if (err) {
-        library.logger.error(err);
+        library.logger.error('api-dapps', err);
         return setImmediate(cb, 'Failed to get installed application ids');
       } else {
         return setImmediate(cb, null, { success: true, ids: ids });
@@ -1254,13 +1277,13 @@ DApps.prototype.internal = {
 
     __private.get(params.id, function (err, dapp) {
       if (err) {
-        library.logger.error(err);
+        library.logger.error('api-dapps', err);
         return setImmediate(cb, null, { success: false, error: err });
       }
 
       __private.getInstalledIds(function (err, ids) {
         if (err) {
-          library.logger.error(err);
+          library.logger.error('api-dapps', err);
           return setImmediate(cb, null, { success: false, error: err });
         }
 
@@ -1282,13 +1305,13 @@ DApps.prototype.internal = {
             if (dapp.type === 0) {
               __private.installDependencies(dapp, function (err) {
                 if (err) {
-                  library.logger.error(err);
+                  library.logger.error('api-dapps', err);
                   __private.uninstalling[params.id] = true;
                   __private.removeDApp(dapp, function (err) {
                     __private.uninstalling[params.id] = false;
 
                     if (err) {
-                      library.logger.error(err);
+                      library.logger.error('api-dapps', err);
                     }
 
                     __private.loading[params.id] = false;
@@ -1298,14 +1321,14 @@ DApps.prototype.internal = {
                     });
                   });
                 } else {
-                  library.network.io.sockets.emit('dapps/change', dapp);
+                  library.network.wsServer.emit('dapps/change', dapp);
 
                   __private.loading[params.id] = false;
                   return setImmediate(cb, null, { success: true, path: dappPath });
                 }
               });
             } else {
-              library.network.io.sockets.emit('dapps/change', dapp);
+              library.network.wsServer.emit('dapps/change', dapp);
 
               __private.loading[params.id] = false;
               return setImmediate(cb, null, { success: true, path: dappPath });
@@ -1323,7 +1346,7 @@ DApps.prototype.internal = {
 
     __private.get(params.id, function (err, dapp) {
       if (err) {
-        library.logger.error(err);
+        library.logger.error('api-dapps', err);
         return setImmediate(cb, null, { success: false, error: err });
       }
 
@@ -1336,7 +1359,7 @@ DApps.prototype.internal = {
       if (__private.launched[params.id]) {
         __private.stopDApp(dapp, function (err) {
           if (err) {
-            library.logger.error(err);
+            library.logger.error('api-dapps', err);
             return setImmediate(cb, 'Failed to stop application');
           } else {
             __private.launched[params.id] = false;
@@ -1346,7 +1369,7 @@ DApps.prototype.internal = {
               if (err) {
                 return setImmediate(cb, null, { success: false, error: err });
               } else {
-                library.network.io.sockets.emit('dapps/change', dapp);
+                library.network.wsServer.emit('dapps/change', dapp);
 
                 return setImmediate(cb, null, { success: true });
               }
@@ -1360,7 +1383,7 @@ DApps.prototype.internal = {
           if (err) {
             return setImmediate(cb, null, { success: false, error: err });
           } else {
-            library.network.io.sockets.emit('dapps/change', dapp);
+            library.network.wsServer.emit('dapps/change', dapp);
 
             return setImmediate(cb, null, { success: true });
           }
@@ -1378,7 +1401,7 @@ DApps.prototype.internal = {
       if (err) {
         return setImmediate(cb, null, { 'success': false, 'error': err });
       } else {
-        library.network.io.sockets.emit('dapps/change', {});
+        library.network.wsServer.emit('dapps/change', {});
         return setImmediate(cb, null, { 'success': true });
       }
     });
@@ -1432,15 +1455,15 @@ DApps.prototype.internal = {
 
     __private.get(params.id, function (err, dapp) {
       if (err) {
-        library.logger.error(err);
+        library.logger.error('api-dapps', err);
         return setImmediate(cb, 'Application not found');
       } else {
         __private.stopDApp(dapp, function (err) {
           if (err) {
-            library.logger.error(err);
+            library.logger.error('api-dapps', err);
             return setImmediate(cb, 'Failed to stop application');
           } else {
-            library.network.io.sockets.emit('dapps/change', dapp);
+            library.network.wsServer.emit('dapps/change', dapp);
             __private.launched[params.id] = false;
             return setImmediate(cb, null, { success: true });
           }
@@ -1720,7 +1743,7 @@ shared.getGenesis = function (req, cb) {
       });
     }
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-dapps', err.stack);
     return setImmediate(cb, 'DApp#getGenesis error');
   });
 };
@@ -1737,7 +1760,7 @@ shared.getCommonBlock = function (req, cb) {
   }).then(function (rows) {
     return setImmediate(cb, null, rows);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-dapps', err.stack);
     return setImmediate(cb, 'DApp#getCommonBlock error');
   });
 };
@@ -1753,7 +1776,7 @@ shared.getWithdrawalLastTransaction = function (req, cb) {
   }).then(function (rows) {
     return setImmediate(cb, null, rows[0]);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-dapps', err.stack);
     return setImmediate(cb, 'DApp#getWithdrawalLastTransaction error');
   });
 };
@@ -1768,7 +1791,7 @@ shared.getBalanceTransactions = function (req, cb) {
   }).then(function (rows) {
     return setImmediate(cb, null, rows);
   }).catch(function (err) {
-    library.logger.error(err.stack);
+    library.logger.error('api-dapps', err.stack);
     return setImmediate(cb, 'DApp#getBalanceTransaction error');
   });
 };

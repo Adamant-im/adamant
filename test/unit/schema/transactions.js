@@ -1,6 +1,6 @@
 var expect = require('chai').expect;
 
-const { testAccount, delegateAccount } = require('../../common/stubs/account.js')
+const { testAccount, delegateAccount } = require('../../common/stubs/account.js');
 
 var ZSchema = require('../../../helpers/z_schema.js');
 var schema = require('../../../schema/transactions.js');
