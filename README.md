@@ -56,7 +56,7 @@ To replace an Ubuntu node database with a newly downloaded blockchain image, use
 sudo bash tools/fix_node.sh -n mainnet
 ```
 
-The repair tool validates the downloaded image before dropping the database, but the database replacement itself is destructive. Back up any required data first. Repair logs are written to `/var/log/adamant_<network>_fix.log`.
+The repair tool drops the database to free disk space, downloads and validates the replacement image, then recreates the database and restores it from the snapshot. Back up any required data first. Repair logs are written to `/var/log/adamant_<network>_fix.log`.
 
 ### Critical Shutdown Notice
 
