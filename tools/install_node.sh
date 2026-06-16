@@ -8,7 +8,7 @@ on_error() {
 }
 trap on_error ERR
 
-readonly INSTALLER_VERSION="2.4.5"
+readonly INSTALLER_VERSION="2.4.7"
 readonly NVM_VERSION="0.40.5"
 
 branch="master"
@@ -161,7 +161,6 @@ case "${VERSION_ID:-}" in
 esac
 
 image_filename="$(basename "$image_url")"
-image_unzipped_filename="${image_filename%.gz}"
 LOGFILE="/var/log/adamant_${network}_install.log"
 
 # Send all output to both the terminal and a persistent log file.
@@ -246,6 +245,9 @@ unset DB_PASSWORD
 printf "\nUpdating package indexes and installing package-management prerequisites.\n"
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
+# Skip needrestart hooks during installer-managed apt runs. Some VPS images ship
+# a broken needrestart.conf, which can print scary Perl parse errors after dpkg.
+export NEEDRESTART_SUSPEND=1
 APT_OPTIONS=(-y -o Dpkg::Options::=--force-confold)
 apt-get update
 apt-get "${APT_OPTIONS[@]}" install ca-certificates curl gnupg
@@ -451,7 +453,6 @@ runuser -u "$username" -- env \
   USE_IMAGE="$IMAGE" \
   IMAGE_URL="$image_url" \
   IMAGE_FILENAME="$image_filename" \
-  IMAGE_UNZIPPED_FILENAME="$image_unzipped_filename" \
   bash <<'EOSU'
 set -Eeuo pipefail
 trap 'status=$?; printf "\n[ERROR] User setup failed at line %s.\n\n" "$LINENO" >&2; exit "$status"' ERR
@@ -563,14 +564,13 @@ unset DB_PASSWORD_DECODED DB_PASSWORD_BASE64
 
 if [[ "$USE_IMAGE" == "true" ]]; then
   printf "\nDownloading the %s blockchain image.\n" "$NETWORK"
-  rm -f "${IMAGE_FILENAME}.part" "$IMAGE_FILENAME" "$IMAGE_UNZIPPED_FILENAME"
+  rm -f "${IMAGE_FILENAME}.part" "$IMAGE_FILENAME"
   wget --progress=dot:giga "$IMAGE_URL" -O "${IMAGE_FILENAME}.part"
   mv "${IMAGE_FILENAME}.part" "$IMAGE_FILENAME"
   gzip --test "$IMAGE_FILENAME"
-  printf "Extracting and loading the blockchain image.\n"
-  gunzip "$IMAGE_FILENAME"
-  psql -X --set=ON_ERROR_STOP=1 "$DATABASE_NAME" < "$IMAGE_UNZIPPED_FILENAME"
-  rm -f "$IMAGE_UNZIPPED_FILENAME"
+  printf "Streaming the blockchain image into PostgreSQL.\n"
+  gzip -dc "$IMAGE_FILENAME" | psql -X --set=ON_ERROR_STOP=1 "$DATABASE_NAME"
+  rm -f "$IMAGE_FILENAME"
 fi
 
 printf "\nStarting the ADAMANT %s node.\n" "$NETWORK"

@@ -8,7 +8,7 @@ on_error() {
 }
 trap on_error ERR
 
-readonly TOOL_VERSION="1.4.3"
+readonly TOOL_VERSION="1.4.5"
 
 network="mainnet"
 username="adamant"
@@ -121,7 +121,6 @@ case "${VERSION_ID:-}" in
 esac
 
 image_filename="$(basename "$image_url")"
-image_unzipped_filename="${image_filename%.gz}"
 LOGFILE="/var/log/adamant_${network}_fix.log"
 
 exec > >(tee -a "$LOGFILE") 2>&1
@@ -134,7 +133,7 @@ printf "%s ADAMANT %s node repair started\n" \
 printf "\nADAMANT Node Repair and Bootstrap Tool v%s for Ubuntu 20.04-26.04 LTS.\n" \
   "$TOOL_VERSION"
 printf "Make sure you obtained this script from adamant.im or the official GitHub repository.\n"
-printf "This tool downloads and validates a trusted blockchain image, resets the selected database, and restarts the node.\n"
+printf "This tool drops the selected database first to free disk space, downloads a trusted blockchain image, and restarts the node.\n"
 printf "Installation and recovery guide: https://docs.adamant.im/own-node/installation.html\n\n"
 
 printf "Operating system: %s\n" "$PRETTY_NAME"
@@ -144,7 +143,7 @@ printf "Database:         %s\n" "$databasename"
 printf "PM2 process:      %s\n\n" "$processname"
 
 require_interactive_tty
-agreement="$(read_from_tty "WARNING: This will permanently replace database '$databasename'. Type \"yes\" to continue: ")"
+agreement="$(read_from_tty "WARNING: This will stop the node and drop database '$databasename' before downloading the replacement image. Type \"yes\" to continue: ")"
 if [[ "$agreement" != "yes" ]]; then
   printf "\nRepair cancelled.\n\n"
   exit 1
@@ -179,6 +178,9 @@ fi
 printf "\nUpdating required repair packages.\n"
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
+# Skip needrestart hooks during repair-managed apt runs. Some VPS images ship
+# a broken needrestart.conf, which can print scary Perl parse errors after dpkg.
+export NEEDRESTART_SUSPEND=1
 APT_OPTIONS=(-y -o Dpkg::Options::=--force-confold)
 apt-get update
 apt-get "${APT_OPTIONS[@]}" install gzip jq postgresql-client wget
@@ -251,23 +253,6 @@ runuser -u "$username" -- env HOME="$NODE_HOME" PROCESS_NAME="$processname" bash
   fi
 '
 
-# Download to a partial file and validate gzip before touching the database.
-printf "\nDownloading and validating the %s blockchain image before database reset.\n" "$network"
-runuser -u "$username" -- env \
-  HOME="$NODE_HOME" \
-  REPO_DIR="$REPO_DIR" \
-  IMAGE_URL="$image_url" \
-  IMAGE_FILENAME="$image_filename" \
-  IMAGE_UNZIPPED_FILENAME="$image_unzipped_filename" \
-  bash <<'EOSU'
-set -Eeuo pipefail
-cd "$REPO_DIR"
-rm -f "${IMAGE_FILENAME}.part" "$IMAGE_FILENAME" "$IMAGE_UNZIPPED_FILENAME"
-wget --progress=dot:giga "$IMAGE_URL" -O "${IMAGE_FILENAME}.part"
-mv "${IMAGE_FILENAME}.part" "$IMAGE_FILENAME"
-gzip --test "$IMAGE_FILENAME"
-EOSU
-
 # PM2 sends a catchable signal and allows the node to run its graceful shutdown
 # handlers before the database is replaced.
 printf "\nStopping ADAMANT %s process '%s' through pm2.\n" "$network" "$processname"
@@ -289,27 +274,41 @@ runuser -u postgres -- psql -X --set=ON_ERROR_STOP=1 -c \
   "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${databasename}' AND pid <> pg_backend_pid();" \
   postgres
 
-printf "Dropping and recreating database '%s'.\n" "$databasename"
+printf "Dropping database '%s' to free disk space before downloading the image.\n" "$databasename"
 runuser -u postgres -- psql -X --set=ON_ERROR_STOP=1 -c \
   "DROP DATABASE IF EXISTS ${databasename} WITH (FORCE);" postgres || \
 runuser -u postgres -- psql -X --set=ON_ERROR_STOP=1 -c \
   "DROP DATABASE IF EXISTS ${databasename};" postgres
-runuser -u postgres -- createdb -O "$username" "$databasename"
+# DROP DATABASE removes the database files from PostgreSQL storage; VACUUM is
+# only useful for live tables, not for a database that no longer exists.
 
-printf "\nExtracting and loading the validated blockchain image.\n"
+printf "\nDownloading and validating the %s blockchain image after freeing database space.\n" "$network"
+runuser -u "$username" -- env \
+  HOME="$NODE_HOME" \
+  REPO_DIR="$REPO_DIR" \
+  IMAGE_URL="$image_url" \
+  IMAGE_FILENAME="$image_filename" \
+  bash <<'EOSU'
+set -Eeuo pipefail
+cd "$REPO_DIR"
+rm -f "${IMAGE_FILENAME}.part" "$IMAGE_FILENAME"
+wget --progress=dot:giga "$IMAGE_URL" -O "${IMAGE_FILENAME}.part"
+mv "${IMAGE_FILENAME}.part" "$IMAGE_FILENAME"
+gzip --test "$IMAGE_FILENAME"
+EOSU
+
+printf "\nCreating database '%s' and streaming the validated blockchain image.\n" "$databasename"
+runuser -u postgres -- createdb -O "$username" "$databasename"
 runuser -u "$username" -- env \
   HOME="$NODE_HOME" \
   REPO_DIR="$REPO_DIR" \
   DATABASE_NAME="$databasename" \
   IMAGE_FILENAME="$image_filename" \
-  IMAGE_UNZIPPED_FILENAME="$image_unzipped_filename" \
   bash <<'EOSU'
 set -Eeuo pipefail
 cd "$REPO_DIR"
-rm -f "$IMAGE_UNZIPPED_FILENAME"
-gunzip -f "$IMAGE_FILENAME"
-psql -X --set=ON_ERROR_STOP=1 "$DATABASE_NAME" < "$IMAGE_UNZIPPED_FILENAME"
-rm -f "$IMAGE_UNZIPPED_FILENAME"
+gzip -dc "$IMAGE_FILENAME" | psql -X --set=ON_ERROR_STOP=1 "$DATABASE_NAME"
+rm -f "$IMAGE_FILENAME"
 EOSU
 
 printf "\nRestarting ADAMANT %s process '%s'.\n" "$network" "$processname"
