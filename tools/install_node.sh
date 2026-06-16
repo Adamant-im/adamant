@@ -600,7 +600,7 @@ else
 fi
 
 minutes=$(( (SECONDS + 59) / 60 ))
-printf "\nADAMANT %s node installation completed successfully.\n" "$network"
+printf "\n\nADAMANT %s node installation completed successfully.\n" "$network"
 printf "Total installation time: %d minutes.\n" "$minutes"
 printf "Installation log: %s\n\n" "$LOGFILE"
 printf "Check the node as user '%s':\n" "$username"
@@ -612,10 +612,10 @@ printf "Query the current blockchain height:\n"
 printf "    curl http://localhost:%s/api/blocks/getHeight\n\n" "$port"
 
 if [[ "$network" == "mainnet" ]]; then
-  printf "Mainnet and testnet use separate users, ports, databases, and pm2 processes.\n"
+  printf "Mainnet and testnet use separate users, ports, databases, and pm2 processes.\n\n"
 fi
 
 if [[ -n "${STY:-}" ]]; then
   printf "\nThis command is running inside screen session '%s'.\n" "$STY"
-  printf "Detach with Ctrl-A D, or exit the shell to close the session.\n"
+  printf "Detach with Ctrl-A D, or exit the shell to close the session.\n\n"
 fi

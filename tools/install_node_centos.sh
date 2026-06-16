@@ -572,7 +572,7 @@ else
 fi
 
 minutes=$(( (SECONDS + 59) / 60 ))
-printf "\nADAMANT %s node installation completed successfully.\n" "$network"
+printf "\n\nADAMANT %s node installation completed successfully.\n" "$network"
 printf "Total installation time: %d minutes.\n" "$minutes"
 printf "Installation log: %s\n\n" "$LOGFILE"
 printf "Check the node as user '%s':\n" "$username"
