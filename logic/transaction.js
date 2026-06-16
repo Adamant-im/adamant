@@ -120,6 +120,53 @@ Transaction.prototype.create = function (data) {
 };
 
 /**
+ * Checks a transaction's timestamp against the future-timestamp grace period used
+ * after `spaceship` activation (`maxTransactionFutureMs`).
+ * Shared by `publish()` (Public API submissions) and `verify()` (every other
+ * admission path: peer-relayed transactions and transactions inside received blocks,
+ * including historical ones replayed during sync) so a future-dated transaction can't
+ * bypass this check by entering through a path other than the Public API.
+ * @param {object} trs - The transaction object
+ * @return {string|undefined} Error message if the timestamp is too far in the future
+ */
+Transaction.prototype.checkFutureTimestamp = function (trs) {
+  const currentTimeMs = slots.getTimeMs();
+  const currentTime = Math.floor(currentTimeMs / 1000);
+
+  const currentSlotNumber = slots.getSlotNumber(currentTime);
+  const transactionSlotNumber = slots.getSlotNumber(trs.timestamp);
+  const transactionTimeMs = typeof trs.timestampMs === 'number' ? trs.timestampMs : trs.timestamp * 1000;
+  const transactionFutureMs = transactionTimeMs - currentTimeMs;
+
+  if (transactionSlotNumber > currentSlotNumber && transactionFutureMs > constants.maxTransactionFutureMs) {
+    return 'Transaction timestamp is in the future';
+  }
+};
+
+/**
+ * Checks that a chat/state transaction's timestamp isn't more than `maxTransactionAgeSec`
+ * in the past. Only meaningful for freshly submitted transactions - `verify()` also
+ * replays historical, long-confirmed transactions (e.g. during sync), which legitimately
+ * have timestamps far in the past, so this is only called from `publish()`.
+ * @param {object} trs - The transaction object
+ * @return {string|undefined} Error message if the timestamp is too far in the past
+ */
+Transaction.prototype.checkPastTimestampWindow = function (trs) {
+  if (trs.type !== transactionTypes.CHAT_MESSAGE && trs.type !== transactionTypes.STATE) {
+    return;
+  }
+
+  const currentTime = Math.floor(slots.getTimeMs() / 1000);
+  const transactionSlotNumber = slots.getSlotNumber(trs.timestamp);
+  const earliestValidTime = currentTime - constants.maxTransactionAgeSec;
+  const earliestValidSlotNumber = slots.getSlotNumber(earliestValidTime);
+
+  if (transactionSlotNumber < earliestValidSlotNumber) {
+    return `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`;
+  }
+};
+
+/**
  * Modifies a transaction by adding the calculated fee and transaction ID,
  * and validates public-API admission timestamps.
  * Chat and state transactions must not be more than `maxTransactionAgeSec` in the past.
@@ -141,25 +188,16 @@ Transaction.prototype.publish = function (data) {
     throw 'Invalid signature';
   }
 
-  const currentTimeMs = slots.getTimeMs();
-  const currentTime = Math.floor(currentTimeMs / 1000);
+  const futureTimestampError = this.checkFutureTimestamp(data);
 
-  const currentSlotNumber = slots.getSlotNumber(currentTime);
-  const transactionSlotNumber = slots.getSlotNumber(data.timestamp);
-  const transactionTimeMs = typeof data.timestampMs === 'number' ? data.timestampMs : data.timestamp * 1000;
-  const transactionFutureMs = transactionTimeMs - currentTimeMs;
-
-  if (transactionSlotNumber > currentSlotNumber && transactionFutureMs > constants.maxTransactionFutureMs) {
-    throw 'Transaction timestamp is in the future';
+  if (futureTimestampError) {
+    throw futureTimestampError;
   }
 
-  if (data.type === transactionTypes.CHAT_MESSAGE || data.type === transactionTypes.STATE) {
-    const earliestValidTime = currentTime - constants.maxTransactionAgeSec;
-    const earliestValidSlotNumber = slots.getSlotNumber(earliestValidTime);
+  const pastTimestampError = this.checkPastTimestampWindow(data);
 
-    if (transactionSlotNumber < earliestValidSlotNumber) {
-      throw `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`;
-    }
+  if (pastTimestampError) {
+    throw pastTimestampError;
   }
 
   var trs = data;
@@ -712,6 +750,25 @@ Transaction.prototype.verify = function (trs, sender, requester, cb) {
     if (timestampMsDelta < 0 || timestampMsDelta >= maxTimestampMsDelta) {
       return setImmediate(cb, `Invalid transaction timestamp. timestampMs must be within the same second as timestamp, from 0 to ${maxTimestampMsDelta - 1}ms`);
     }
+  }
+
+  // `verify()` is the universal gate (peer-relayed transactions and transactions
+  // inside received blocks, including historical ones replayed during sync) -
+  // enforce the future-timestamp check here too so it can't be bypassed by entering
+  // through a path other than the Public API. Only the future check applies here:
+  // the past-age window (`checkPastTimestampWindow`) is for freshly submitted
+  // transactions only and would wrongly reject long-confirmed historical chat/state
+  // transactions replayed during sync. Pre-`spaceship` nodes keep the original
+  // strict rule so a block accepted by an upgraded node isn't forked away by one
+  // that isn't.
+  if (this.scope.consensus.isActivated('spaceship')) {
+    const futureTimestampError = this.checkFutureTimestamp(trs);
+
+    if (futureTimestampError) {
+      return setImmediate(cb, futureTimestampError);
+    }
+  } else if (slots.getSlotNumber(timestamp) > slots.getSlotNumber()) {
+    return setImmediate(cb, 'Invalid transaction timestamp. Timestamp is in the future');
   }
 
   // Call verify on transaction type
