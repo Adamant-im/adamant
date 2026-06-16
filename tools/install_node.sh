@@ -3,12 +3,15 @@ set -Eeuo pipefail
 
 on_error() {
   local exit_status=$?
+  if [[ -n "${db_password_file:-}" ]]; then
+    rm -f -- "$db_password_file"
+  fi
   printf "\n[ERROR] Line %s failed. Installation stopped.\n\n" "${BASH_LINENO[0]}" >&2
   exit "$exit_status"
 }
 trap on_error ERR
 
-readonly INSTALLER_VERSION="2.4.7"
+readonly INSTALLER_VERSION="2.4.8"
 readonly NVM_VERSION="0.40.5"
 
 branch="master"
@@ -20,6 +23,7 @@ processname="adamant"
 port="36666"
 nodejs="24"
 image_url="https://explorer.adamant.im/db_backup.sql.gz"
+db_password_file=""
 
 usage() {
   printf "Usage: %s [-h] [-b branch] [-n mainnet|testnet] [-j 22|24|26]\n" "${0##*/}"
@@ -239,8 +243,6 @@ get_database_password() {
 
 DB_PASSWORD="$(get_database_password)"
 DB_PASSWORD_SQL=${DB_PASSWORD//\'/\'\'}
-DB_PASSWORD_BASE64="$(printf '%s' "$DB_PASSWORD" | base64 | tr -d '\n')"
-unset DB_PASSWORD
 
 printf "\nUpdating package indexes and installing package-management prerequisites.\n"
 export DEBIAN_FRONTEND=noninteractive
@@ -401,6 +403,11 @@ if [[ -z "$NODE_HOME" || ! -d "$NODE_HOME" ]]; then
 fi
 REPO_DIR="${NODE_HOME}/adamant"
 repair_node_user_permissions
+db_password_file="$(mktemp "${NODE_HOME}/.adamant-db-password.XXXXXX")"
+chmod 0600 "$db_password_file"
+printf '%s' "$DB_PASSWORD" > "$db_password_file"
+chown "$username:$username" "$db_password_file"
+unset DB_PASSWORD
 
 # Create or update the PostgreSQL role and database without masking SQL errors.
 role_exists="$(runuser -u postgres -- psql -XAtqc \
@@ -449,7 +456,7 @@ runuser -u "$username" -- env \
   CONFIG_FILE="$configfile" \
   PROCESS_NAME="$processname" \
   DATABASE_NAME="$databasename" \
-  DB_PASSWORD_BASE64="$DB_PASSWORD_BASE64" \
+  DB_PASSWORD_FILE="$db_password_file" \
   USE_IMAGE="$IMAGE" \
   IMAGE_URL="$image_url" \
   IMAGE_FILENAME="$image_filename" \
@@ -554,13 +561,13 @@ else
   printf "Configuration file '%s' already exists; preserving its settings.\n" "$CONFIG_FILE"
 fi
 
-DB_PASSWORD_DECODED="$(printf '%s' "$DB_PASSWORD_BASE64" | base64 --decode)"
+DB_PASSWORD_DECODED="$(cat "$DB_PASSWORD_FILE")"
 export DB_PASSWORD_DECODED
 config_tmp="$(mktemp "${CONFIG_FILE}.tmp.XXXXXX")"
 jq '.db.password = env.DB_PASSWORD_DECODED' "$CONFIG_FILE" > "$config_tmp"
 chmod 0600 "$config_tmp"
 mv "$config_tmp" "$CONFIG_FILE"
-unset DB_PASSWORD_DECODED DB_PASSWORD_BASE64
+unset DB_PASSWORD_DECODED
 
 if [[ "$USE_IMAGE" == "true" ]]; then
   printf "\nDownloading the %s blockchain image.\n" "$NETWORK"
@@ -585,7 +592,9 @@ fi
 pm2 save
 EOSU
 
-unset DB_PASSWORD_BASE64 DB_PASSWORD_SQL
+rm -f -- "$db_password_file"
+db_password_file=""
+unset DB_PASSWORD_SQL
 
 # Configure boot startup directly when systemd is available.
 if command -v systemctl >/dev/null 2>&1 && [[ "$(ps -p 1 -o comm=)" == "systemd" ]]; then
