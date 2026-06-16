@@ -8,7 +8,7 @@ on_error() {
 }
 trap on_error ERR
 
-readonly INSTALLER_VERSION="2.4.1"
+readonly INSTALLER_VERSION="2.4.2"
 readonly NVM_VERSION="0.40.5"
 readonly POSTGRESQL_VERSION="18"
 
@@ -53,6 +53,22 @@ read_secret_from_tty() {
   IFS= read -r -s response < /dev/tty
   printf "\n" > /dev/tty
   printf "%s" "$response"
+}
+
+detect_installed_postgresql_services() {
+  rpm -qa --qf '%{NAME}\n' \
+    | awk '
+        /^postgresql[0-9]+-server$/ {
+          service = $0
+          sub(/^postgresql/, "", service)
+          sub(/-server$/, "", service)
+          print "postgresql-" service
+        }
+        /^postgresql-server$/ {
+          print "postgresql"
+        }
+      ' \
+    | sort -Vu
 }
 
 while getopts ":b:n:j:h" OPTION; do
@@ -265,18 +281,24 @@ if ! git check-ref-format --branch "$branch" >/dev/null 2>&1; then
 fi
 
 postgresql_service=""
-if rpm -qa | grep -Eq '^postgresql([0-9]+)?-server-'; then
+postgresql_installed_services="$(detect_installed_postgresql_services || true)"
+if [[ -n "$postgresql_installed_services" ]]; then
   printf "Existing PostgreSQL server installation detected; preserving its major version.\n"
-  while IFS= read -r service_name; do
-    if systemctl is-active --quiet "$service_name"; then
-      postgresql_service="$service_name"
-      break
-    fi
-    if [[ -z "$postgresql_service" ]]; then
-      postgresql_service="$service_name"
-    fi
-  done < <(systemctl list-unit-files --type=service --no-legend \
-    | awk '$1 ~ /^postgresql(-[0-9]+)?\.service$/ { sub(/\.service$/, "", $1); print $1 }')
+  if command -v systemctl >/dev/null 2>&1 && [[ "$(ps -p 1 -o comm=)" == "systemd" ]]; then
+    while IFS= read -r service_name; do
+      if systemctl is-active --quiet "$service_name"; then
+        postgresql_service="$service_name"
+        break
+      fi
+      if [[ -z "$postgresql_service" ]]; then
+        postgresql_service="$service_name"
+      fi
+    done < <(systemctl list-unit-files --type=service --no-legend \
+      | awk '$1 ~ /^postgresql(-[0-9]+)?\.service$/ { sub(/\.service$/, "", $1); print $1 }')
+  fi
+  if [[ -z "$postgresql_service" ]]; then
+    postgresql_service="$(printf '%s\n' "$postgresql_installed_services" | tail -1)"
+  fi
 else
   if [[ "$pgdg_enabled" == "true" ]]; then
     printf "Installing PostgreSQL %s from the official PGDG repository.\n" "$POSTGRESQL_VERSION"

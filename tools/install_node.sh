@@ -8,7 +8,7 @@ on_error() {
 }
 trap on_error ERR
 
-readonly INSTALLER_VERSION="2.4.1"
+readonly INSTALLER_VERSION="2.4.3"
 readonly NVM_VERSION="0.40.5"
 
 branch="master"
@@ -52,6 +52,15 @@ read_secret_from_tty() {
   IFS= read -r -s response < /dev/tty
   printf "\n" > /dev/tty
   printf "%s" "$response"
+}
+
+detect_installed_postgresql_server_majors() {
+  dpkg-query -W -f='${db:Status-Status} ${Package}\n' 'postgresql-[0-9]*' 2>/dev/null \
+    | awk '$1 == "installed" && $2 ~ /^postgresql-[0-9]+$/ {
+        sub(/^postgresql-/, "", $2)
+        print $2
+      }' \
+    | sort -Vu
 }
 
 # Parse command-line options before creating the network-specific log file.
@@ -296,15 +305,13 @@ fi
 
 # Keep an existing PostgreSQL major version. On a fresh host, install the latest
 # stable server supplied by the configured repository.
-postgresql_major_packages="$(dpkg-query -W -f='${Package}\n' 'postgresql-[0-9]*' 2>/dev/null \
-  | sed -n 's/^postgresql-\([0-9][0-9]*\)$/\1/p' | sort -Vu || true)"
+postgresql_major_packages="$(detect_installed_postgresql_server_majors || true)"
 if [[ -n "$postgresql_major_packages" ]]; then
   printf "Existing PostgreSQL server installation detected; preserving its major version.\n"
 else
   printf "Installing PostgreSQL server package '%s'.\n" "$postgresql_package"
   apt-get "${APT_OPTIONS[@]}" install "$postgresql_package"
-  postgresql_major_packages="$(dpkg-query -W -f='${Package}\n' 'postgresql-[0-9]*' 2>/dev/null \
-    | sed -n 's/^postgresql-\([0-9][0-9]*\)$/\1/p' | sort -Vu || true)"
+  postgresql_major_packages="$(detect_installed_postgresql_server_majors || true)"
 fi
 
 postgresql_major="$(printf '%s\n' "$postgresql_major_packages" | tail -1)"
