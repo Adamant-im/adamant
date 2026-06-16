@@ -8,7 +8,7 @@ on_error() {
 }
 trap on_error ERR
 
-readonly TOOL_VERSION="1.4.0"
+readonly TOOL_VERSION="1.4.1"
 
 network="mainnet"
 username="adamant"
@@ -173,10 +173,43 @@ APT_OPTIONS=(-y -o Dpkg::Options::=--force-confold)
 apt-get update
 apt-get "${APT_OPTIONS[@]}" install gzip jq postgresql-client wget
 
-if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files postgresql.service >/dev/null 2>&1; then
-  systemctl start postgresql
+postgresql_started=false
+if command -v pg_lsclusters >/dev/null 2>&1 && command -v pg_ctlcluster >/dev/null 2>&1; then
+  while read -r cluster_version cluster_name _ cluster_status _; do
+    if [[ -n "$cluster_version" && -n "$cluster_name" && "$cluster_status" != "online" ]]; then
+      pg_ctlcluster "$cluster_version" "$cluster_name" start
+    fi
+  done < <(pg_lsclusters -h)
+  postgresql_started=true
+elif command -v systemctl >/dev/null 2>&1 && [[ "$(ps -p 1 -o comm=)" == "systemd" ]]; then
+  postgresql_units="$(systemctl list-units --all --type=service 'postgresql*' --no-legend 2>/dev/null \
+    | awk '$1 ~ /^postgresql(@.+|-[0-9]+)?\.service$/ && $1 != "postgresql@.service" { print $1 }' || true)"
+  if [[ -z "$postgresql_units" ]]; then
+    postgresql_units="$(systemctl list-unit-files --type=service --no-legend 'postgresql*' 2>/dev/null \
+      | awk '$1 ~ /^postgresql(@.+|-[0-9]+)?\.service$/ && $1 != "postgresql@.service" { print $1 }' || true)"
+  fi
+
+  if [[ -n "$postgresql_units" ]]; then
+    while read -r postgresql_unit; do
+      [[ -n "$postgresql_unit" ]] || continue
+      systemctl start "$postgresql_unit"
+    done <<< "$postgresql_units"
+    postgresql_started=true
+  elif systemctl list-unit-files postgresql.service >/dev/null 2>&1; then
+    systemctl start postgresql
+    postgresql_started=true
+  fi
 else
-  service postgresql start
+  if [[ -x /etc/init.d/postgresql ]]; then
+    service postgresql start
+    postgresql_started=true
+  fi
+fi
+
+if [[ "$postgresql_started" != "true" ]]; then
+  printf "Cannot find a PostgreSQL cluster or service to start. Check installed PostgreSQL packages and cluster status.\n" >&2
+  printf "Useful diagnostics: dpkg -l 'postgresql-*'; pg_lsclusters; systemctl list-units --all 'postgresql*'\n" >&2
+  exit 1
 fi
 
 role_exists="$(runuser -u postgres -- psql -XAtqc \

@@ -8,7 +8,7 @@ on_error() {
 }
 trap on_error ERR
 
-readonly INSTALLER_VERSION="2.4.0"
+readonly INSTALLER_VERSION="2.4.1"
 readonly NVM_VERSION="0.40.5"
 readonly POSTGRESQL_VERSION="18"
 
