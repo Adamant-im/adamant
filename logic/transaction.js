@@ -120,6 +120,55 @@ Transaction.prototype.create = function (data) {
 };
 
 /**
+ * Checks a transaction's timestamp against the future-timestamp grace period used
+ * after `spaceship` activation (`maxTransactionFutureMs`).
+ * This is wall-clock-relative admission control for transactions freshly entering the
+ * network in real time, not a consensus rule - it must only be called at real-time
+ * ingestion boundaries (Public API `publish()`, P2P `modules/transport.js`), never from
+ * `verify()`, which also replays historical, long-confirmed transactions during sync
+ * and must stay replay-deterministic. See AGENTS.md "Current Activation Switches".
+ * @param {object} trs - The transaction object
+ * @return {string|undefined} Error message if the timestamp is too far in the future
+ */
+Transaction.prototype.checkFutureTimestamp = function (trs) {
+  const currentTimeMs = slots.getTimeMs();
+  const currentTime = Math.floor(currentTimeMs / 1000);
+
+  const currentSlotNumber = slots.getSlotNumber(currentTime);
+  const transactionSlotNumber = slots.getSlotNumber(trs.timestamp);
+  const transactionTimeMs = typeof trs.timestampMs === 'number' ? trs.timestampMs : trs.timestamp * 1000;
+  const transactionFutureMs = transactionTimeMs - currentTimeMs;
+
+  if (transactionSlotNumber > currentSlotNumber && transactionFutureMs > constants.maxTransactionFutureMs) {
+    return 'Transaction timestamp is in the future';
+  }
+};
+
+/**
+ * Checks that a chat/state transaction's timestamp isn't more than `maxTransactionAgeSec`
+ * in the past. Only meaningful for freshly submitted transactions - `verify()` also
+ * replays historical, long-confirmed transactions (e.g. during sync), which legitimately
+ * have timestamps far in the past, so this must only be called at real-time ingestion
+ * boundaries (Public API `publish()`, P2P `modules/transport.js`), never from `verify()`.
+ * @param {object} trs - The transaction object
+ * @return {string|undefined} Error message if the timestamp is too far in the past
+ */
+Transaction.prototype.checkPastTimestampWindow = function (trs) {
+  if (trs.type !== transactionTypes.CHAT_MESSAGE && trs.type !== transactionTypes.STATE) {
+    return;
+  }
+
+  const currentTime = Math.floor(slots.getTimeMs() / 1000);
+  const transactionSlotNumber = slots.getSlotNumber(trs.timestamp);
+  const earliestValidTime = currentTime - constants.maxTransactionAgeSec;
+  const earliestValidSlotNumber = slots.getSlotNumber(earliestValidTime);
+
+  if (transactionSlotNumber < earliestValidSlotNumber) {
+    return `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`;
+  }
+};
+
+/**
  * Modifies a transaction by adding the calculated fee and transaction ID,
  * and validates public-API admission timestamps.
  * Chat and state transactions must not be more than `maxTransactionAgeSec` in the past.
@@ -141,25 +190,16 @@ Transaction.prototype.publish = function (data) {
     throw 'Invalid signature';
   }
 
-  const currentTimeMs = slots.getTimeMs();
-  const currentTime = Math.floor(currentTimeMs / 1000);
+  const futureTimestampError = this.checkFutureTimestamp(data);
 
-  const currentSlotNumber = slots.getSlotNumber(currentTime);
-  const transactionSlotNumber = slots.getSlotNumber(data.timestamp);
-  const transactionTimeMs = typeof data.timestampMs === 'number' ? data.timestampMs : data.timestamp * 1000;
-  const transactionFutureMs = transactionTimeMs - currentTimeMs;
-
-  if (transactionSlotNumber > currentSlotNumber && transactionFutureMs > constants.maxTransactionFutureMs) {
-    throw 'Transaction timestamp is in the future';
+  if (futureTimestampError) {
+    throw futureTimestampError;
   }
 
-  if (data.type === transactionTypes.CHAT_MESSAGE || data.type === transactionTypes.STATE) {
-    const earliestValidTime = currentTime - constants.maxTransactionAgeSec;
-    const earliestValidSlotNumber = slots.getSlotNumber(earliestValidTime);
+  const pastTimestampError = this.checkPastTimestampWindow(data);
 
-    if (transactionSlotNumber < earliestValidSlotNumber) {
-      throw `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`;
-    }
+  if (pastTimestampError) {
+    throw pastTimestampError;
   }
 
   var trs = data;
