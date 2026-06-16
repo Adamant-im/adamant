@@ -8,7 +8,7 @@ on_error() {
 }
 trap on_error ERR
 
-readonly INSTALLER_VERSION="2.4.4"
+readonly INSTALLER_VERSION="2.4.5"
 readonly NVM_VERSION="0.40.5"
 
 branch="master"
@@ -456,15 +456,35 @@ runuser -u "$username" -- env \
 set -Eeuo pipefail
 trap 'status=$?; printf "\n[ERROR] User setup failed at line %s.\n\n" "$LINENO" >&2; exit "$status"' ERR
 
+run_quiet() {
+  local description="$1"
+  local log_file
+
+  shift
+  log_file="$(mktemp)"
+  printf "%s\n" "$description"
+  if "$@" > "$log_file" 2>&1; then
+    rm -f "$log_file"
+    return 0
+  fi
+  cat "$log_file" >&2
+  rm -f "$log_file"
+  return 1
+}
+
 cd "$HOME"
 printf "\nInstalling or updating nvm v%s and Node.js %s.\n" "$NVM_INSTALL_VERSION" "$NODEJS_VERSION"
 export NVM_DIR="$HOME/.nvm"
 if [[ -d "$NVM_DIR/.git" ]]; then
-  git -C "$NVM_DIR" fetch --tags --depth 1 origin "v${NVM_INSTALL_VERSION}"
+  run_quiet "Updating nvm source." \
+    git -C "$NVM_DIR" fetch --quiet --depth 1 origin \
+      "refs/tags/v${NVM_INSTALL_VERSION}:refs/tags/v${NVM_INSTALL_VERSION}"
   git -c advice.detachedHead=false -C "$NVM_DIR" checkout --quiet "v${NVM_INSTALL_VERSION}"
 else
   rm -rf "$NVM_DIR"
-  git -c advice.detachedHead=false clone --depth 1 --branch "v${NVM_INSTALL_VERSION}" https://github.com/nvm-sh/nvm.git "$NVM_DIR"
+  run_quiet "Cloning nvm source." \
+    git -c advice.detachedHead=false clone --quiet --depth 1 --branch "v${NVM_INSTALL_VERSION}" \
+      https://github.com/nvm-sh/nvm.git "$NVM_DIR"
 fi
 nvm_profile="$HOME/.bashrc"
 if ! grep -q 'NVM_DIR="$HOME/.nvm"' "$nvm_profile" 2>/dev/null; then
@@ -478,20 +498,21 @@ source "$NVM_DIR/nvm.sh"
 nvm install "$NODEJS_VERSION" --latest-npm
 nvm alias default "$NODEJS_VERSION"
 nvm use "$NODEJS_VERSION"
-npm install --global pm2@latest
-pm2 update
+run_quiet "Installing or updating pm2." npm install --global pm2@latest
+run_quiet "Refreshing the pm2 daemon." pm2 update
 printf "Using Node.js %s, npm %s, and pm2 %s.\n" "$(node --version)" "$(npm --version)" "$(pm2 --version)"
 
 printf "\nConfiguring pm2 log rotation.\n"
 if pm2 describe pm2-logrotate >/dev/null 2>&1; then
-  pm2 module:update pm2-logrotate
+  run_quiet "Updating pm2-logrotate module." pm2 module:update pm2-logrotate
 else
-  pm2 install pm2-logrotate
+  run_quiet "Installing pm2-logrotate module." pm2 install pm2-logrotate
 fi
-pm2 set pm2-logrotate:max_size 500M
-pm2 set pm2-logrotate:retain 5
-pm2 set pm2-logrotate:compress true
-pm2 set pm2-logrotate:rotateInterval '0 0 0 1 *'
+run_quiet "Setting pm2-logrotate:max_size=500M." pm2 set pm2-logrotate:max_size 500M
+run_quiet "Setting pm2-logrotate:retain=5." pm2 set pm2-logrotate:retain 5
+run_quiet "Setting pm2-logrotate:compress=true." pm2 set pm2-logrotate:compress true
+run_quiet "Setting pm2-logrotate:rotateInterval='0 0 0 1 *'." \
+  pm2 set pm2-logrotate:rotateInterval '0 0 0 1 *'
 
 if [[ ! -e "$REPO_DIR" ]]; then
   printf "\nCloning ADAMANT branch '%s'.\n" "$BRANCH"
