@@ -187,6 +187,68 @@ describe('POST /peer/transactions', function () {
     });
   });
 
+  it('using a chat message transaction with a timestamp far in the past should fail', function (done) {
+    var recipient = node.randomAccount();
+    var transaction = node.createChatTransaction({
+      keyPair: node.iAccount.keypair,
+      recipientId: recipient.address,
+      message: 'test message',
+      own_message: '',
+      type: 1
+    });
+
+    transaction.timestamp -= 16;
+    transaction.timestampMs = transaction.timestamp * 1000;
+    transaction.signature = node.transactionSign(transaction, node.iAccount.keypair);
+    transaction.id = node.getId(transaction);
+
+    postTransaction(transaction, function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('message').to.eql('Transaction timestamp is more than 5 seconds in the past');
+      done();
+    });
+  });
+
+  it('using a state transaction with a timestamp far in the past should fail', function (done) {
+    var transaction = node.createStateTransaction({
+      keyPair: node.iAccount.keypair,
+      key: 'test:key',
+      value: 'test-value'
+    });
+
+    transaction.fee = node.fees.stateFee;
+    transaction.timestamp -= 16;
+    transaction.timestampMs = transaction.timestamp * 1000;
+    transaction.signature = node.transactionSign(transaction, node.iAccount.keypair);
+    transaction.id = node.getId(transaction);
+
+    postTransaction(transaction, function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('message').to.eql('Transaction timestamp is more than 5 seconds in the past');
+      done();
+    });
+  });
+
+  it('using a send transaction with a timestamp far in the past should be ok (past-window check is chat/state only)', function (done) {
+    var account = node.randomAccount();
+    var transaction = node.createSendTransaction({
+      keyPair: node.iAccount.keypair,
+      amount: 1,
+      recipientId: account.address
+    });
+
+    transaction.timestamp -= 16;
+    transaction.timestampMs = transaction.timestamp * 1000;
+    transaction.signature = node.transactionSign(transaction, node.iAccount.keypair);
+    transaction.id = node.getId(transaction);
+
+    postTransaction(transaction, function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('transactionId').to.equal(transaction.id);
+      done();
+    });
+  });
+
   it('using transaction with undefined recipientId should fail', function (done) {
     var transaction = node.createSendTransaction({
       keyPair: node.iAccount.keypair,

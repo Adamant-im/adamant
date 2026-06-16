@@ -934,6 +934,276 @@ describe('transaction', () => {
     });
   });
 
+  describe('checkFutureTimestamp()', () => {
+    afterEach(() => {
+      sinon.restore();
+    });
+
+    it('should not error for a transaction in the current slot', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestamp = slots.getTime();
+      trs.timestampMs = slots.getTimeMs();
+
+      expect(transaction.checkFutureTimestamp(trs)).to.be.undefined;
+    });
+
+    it('should not error for a transaction with a timestamp in the past', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestamp = slots.getTime() - 1000;
+      trs.timestampMs = trs.timestamp * 1000;
+
+      expect(transaction.checkFutureTimestamp(trs)).to.be.undefined;
+    });
+
+    it('should not error when still in the current slot, even if the derived future ms would exceed the grace window', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestamp = 104; // same slot (20) as current time, despite a large ms gap
+      trs.timestampMs = 104999;
+
+      expect(transaction.checkFutureTimestamp(trs)).to.be.undefined;
+    });
+
+    it('should accept a next-slot transaction exactly at the future grace boundary, with timestampMs present (post-spaceship)', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestampMs = slots.getTimeMs() + constants.maxTransactionFutureMs;
+      trs.timestamp = Math.floor(trs.timestampMs / 1000);
+
+      expect(transaction.checkFutureTimestamp(trs)).to.be.undefined;
+    });
+
+    it('should reject a next-slot transaction 1ms beyond the future grace boundary, with timestampMs present (post-spaceship)', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.timestampMs = slots.getTimeMs() + constants.maxTransactionFutureMs + 1;
+      trs.timestamp = Math.floor(trs.timestampMs / 1000);
+
+      expect(transaction.checkFutureTimestamp(trs)).to.equal('Transaction timestamp is in the future');
+    });
+
+    it('should accept a next-slot transaction within grace when timestampMs is absent, falling back to timestamp * 1000 (pre-spaceship)', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      delete trs.timestampMs;
+      trs.timestamp = 105; // next slot; timestamp * 1000 is only 1ms ahead of current time
+
+      expect(transaction.checkFutureTimestamp(trs)).to.be.undefined;
+    });
+
+    it('should reject a next-slot transaction beyond grace when timestampMs is absent, falling back to timestamp * 1000 (pre-spaceship)', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      delete trs.timestampMs;
+      trs.timestamp = 106; // next slot; timestamp * 1000 is 1001ms ahead of current time
+
+      expect(transaction.checkFutureTimestamp(trs)).to.equal('Transaction timestamp is in the future');
+    });
+
+    it('should accept a clearly in-grace future transaction the same way whether timestampMs is present or absent', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const withMs = _.cloneDeep(validUnconfirmedTransaction);
+      withMs.timestamp = 105;
+      withMs.timestampMs = 105000;
+
+      const withoutMs = _.cloneDeep(validUnconfirmedTransaction);
+      withoutMs.timestamp = 105;
+      delete withoutMs.timestampMs;
+
+      expect(transaction.checkFutureTimestamp(withMs)).to.be.undefined;
+      expect(transaction.checkFutureTimestamp(withoutMs)).to.be.undefined;
+    });
+
+    it('should reject a clearly out-of-grace future transaction the same way whether timestampMs is present or absent', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const withMs = _.cloneDeep(validUnconfirmedTransaction);
+      withMs.timestamp = 110;
+      withMs.timestampMs = 110000;
+
+      const withoutMs = _.cloneDeep(validUnconfirmedTransaction);
+      withoutMs.timestamp = 110;
+      delete withoutMs.timestampMs;
+
+      expect(transaction.checkFutureTimestamp(withMs)).to.equal('Transaction timestamp is in the future');
+      expect(transaction.checkFutureTimestamp(withoutMs)).to.equal('Transaction timestamp is in the future');
+    });
+
+    it('should reject the same future transaction both before and after spaceship activation via objectNormalize', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 104999 });
+
+      const buildTrs = () => {
+        const trs = _.cloneDeep(validUnconfirmedTransaction);
+        trs.timestamp = 110;
+        trs.timestampMs = 110000;
+        delete trs.signature;
+        trs.signature = transaction.sign(testSenderKeypair, trs);
+        return trs;
+      };
+
+      dummyHeight = consensusActivationHeights.spaceship - 1;
+      const preSpaceship = transaction.objectNormalize(buildTrs());
+      expect(preSpaceship).to.not.have.property('timestampMs');
+      expect(transaction.checkFutureTimestamp(preSpaceship)).to.equal('Transaction timestamp is in the future');
+
+      dummyHeight = consensusActivationHeights.spaceship;
+      const postSpaceship = transaction.objectNormalize(buildTrs());
+      expect(postSpaceship).to.have.property('timestampMs');
+      expect(transaction.checkFutureTimestamp(postSpaceship)).to.equal('Transaction timestamp is in the future');
+
+      dummyHeight = 1;
+    });
+  });
+
+  describe('checkPastTimestampWindow()', () => {
+    afterEach(() => {
+      sinon.restore();
+    });
+
+    it('should not error for SEND transactions regardless of how old the timestamp is', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.SEND;
+      trs.timestamp = 1;
+
+      expect(transaction.checkPastTimestampWindow(trs)).to.be.undefined;
+    });
+
+    it('should not error for a CHAT_MESSAGE transaction within the allowed past window', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.CHAT_MESSAGE;
+      trs.timestamp = 96; // earliest valid slot (19) is seconds 95-99
+
+      expect(transaction.checkPastTimestampWindow(trs)).to.be.undefined;
+    });
+
+    it('should not error for a CHAT_MESSAGE transaction exactly at the earliest valid boundary', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.CHAT_MESSAGE;
+      trs.timestamp = 95; // start of earliest valid slot (19)
+
+      expect(transaction.checkPastTimestampWindow(trs)).to.be.undefined;
+    });
+
+    it('should error for a CHAT_MESSAGE transaction 1 slot before the earliest valid boundary', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.CHAT_MESSAGE;
+      trs.timestamp = 94; // slot 18, just before the earliest valid slot (19)
+
+      expect(transaction.checkPastTimestampWindow(trs)).to.equal(
+          `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`
+      );
+    });
+
+    it('should error for a CHAT_MESSAGE transaction well beyond the allowed past window', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.CHAT_MESSAGE;
+      trs.timestamp = 50;
+
+      expect(transaction.checkPastTimestampWindow(trs)).to.equal(
+          `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`
+      );
+    });
+
+    it('should not error for a STATE transaction within the allowed past window', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.STATE;
+      trs.timestamp = 99;
+
+      expect(transaction.checkPastTimestampWindow(trs)).to.be.undefined;
+    });
+
+    it('should error for a STATE transaction beyond the allowed past window', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.type = transactionTypes.STATE;
+      trs.timestamp = 50;
+
+      expect(transaction.checkPastTimestampWindow(trs)).to.equal(
+          `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`
+      );
+    });
+
+    it('should behave identically whether timestampMs is present or absent, since the past-window check ignores it', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+
+      const withMs = _.cloneDeep(validUnconfirmedTransaction);
+      withMs.type = transactionTypes.CHAT_MESSAGE;
+      withMs.timestamp = 50;
+      withMs.timestampMs = 50000;
+
+      const withoutMs = _.cloneDeep(validUnconfirmedTransaction);
+      withoutMs.type = transactionTypes.CHAT_MESSAGE;
+      withoutMs.timestamp = 50;
+      delete withoutMs.timestampMs;
+
+      const expectedError = `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`;
+
+      expect(transaction.checkPastTimestampWindow(withMs)).to.equal(expectedError);
+      expect(transaction.checkPastTimestampWindow(withoutMs)).to.equal(expectedError);
+    });
+
+    it('should reject the same stale chat transaction both before and after spaceship activation via objectNormalize', () => {
+      sinon.useFakeTimers({ now: constants.epochTime.getTime() + 100000 });
+      transaction.attachAssetType(transactionTypes.CHAT_MESSAGE, new Chat());
+
+      const buildTrs = () => {
+        const trs = _.cloneDeep(validUnconfirmedTransaction);
+        trs.type = transactionTypes.CHAT_MESSAGE;
+        trs.amount = 0;
+        trs.recipientId = 'U810656636599221322';
+        trs.asset = {
+          chat: {
+            message: '75582d940f2c4093929c99a6c1911b4753',
+            own_message: '58dceaa227b3fb1dd1c7d3fbf3eb5db6aeb6a03cb7e2ec91',
+            type: 1
+          }
+        };
+        trs.timestamp = 50;
+        trs.timestampMs = 50000;
+        delete trs.signature;
+        trs.signature = transaction.sign(testSenderKeypair, trs);
+        return trs;
+      };
+
+      const expectedError = `Transaction timestamp is more than ${constants.maxTransactionAgeSec} seconds in the past`;
+
+      dummyHeight = consensusActivationHeights.spaceship - 1;
+      const preSpaceship = transaction.objectNormalize(buildTrs());
+      expect(preSpaceship).to.not.have.property('timestampMs');
+      expect(transaction.checkPastTimestampWindow(preSpaceship)).to.equal(expectedError);
+
+      dummyHeight = consensusActivationHeights.spaceship;
+      const postSpaceship = transaction.objectNormalize(buildTrs());
+      expect(postSpaceship).to.have.property('timestampMs');
+      expect(transaction.checkPastTimestampWindow(postSpaceship)).to.equal(expectedError);
+
+      dummyHeight = 1;
+    });
+  });
+
   describe('verifySignature()', () => {
     it('should throw an error with no param', () => {
       expect(transaction.verifySignature).to.throw();
