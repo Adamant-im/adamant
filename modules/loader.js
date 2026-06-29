@@ -708,11 +708,28 @@ __private.sync = function (cb) {
   // sync state is released exactly once, and a later (abandoned) completion of
   // the series becomes a harmless no-op.
   var settled = false;
+  // True while a sync phase that mutates unconfirmed account/pool state is in
+  // flight. Block application is tracked separately by `modules.blocks.isActive`.
+  // The watchdog must not tear the run down while either is set, otherwise it
+  // could advance `library.sequence` while an abandoned mutation is still alive.
+  var mutatingState = false;
 
   // Shutdown or this run's watchdog abort both stop the in-flight series at its
   // next safe checkpoint.
   function shouldStop () {
     return __private.stopRequested || aborted;
+  }
+
+  // Wraps a state-mutating sync phase so the watchdog defers teardown until the
+  // phase's callback has actually returned.
+  function mutating (run) {
+    return function (next) {
+      mutatingState = true;
+      return run(function (err) {
+        mutatingState = false;
+        return next(err);
+      });
+    };
   }
 
   var watchdog = createSyncWatchdog({
@@ -733,21 +750,25 @@ __private.sync = function (cb) {
     }
   });
 
-  // Releases the sync state after a watchdog abort, but only once no block is
-  // mid-application. `applyBlock()` writes mem/account/round state outside
-  // `library.sequence`, so advancing the outer sequence while it runs could let
-  // a new sync or live block mutate the same state concurrently. We therefore
-  // wait for `modules.blocks.isActive` to clear before tearing down. If the
-  // in-flight series reaches a checkpoint first, it finishes the run itself and
-  // this becomes a no-op via the `settled` guard.
+  // Releases the sync state after a watchdog abort, but only once no state
+  // mutation is in flight. Block application (`applyBlock()`) and the unconfirmed
+  // undo/apply phases write mem/account/round/pool state outside
+  // `library.sequence`, so advancing the outer sequence while any of them runs
+  // could let a new sync or live block mutate the same state concurrently. We
+  // therefore wait for both `modules.blocks.isActive` and the run-local
+  // `mutatingState` to clear before tearing down. If the in-flight series reaches
+  // a checkpoint first, it finishes the run itself and this becomes a no-op via
+  // the `settled` guard.
   function finishStalled () {
     if (settled) {
       return;
     }
 
-    if (modules.blocks.isActive.get()) {
-      library.logger.warn('loader', 'Sync watchdog: waiting for in-flight block application to finish before recovery', {
-        height: modules.blocks.lastBlock.get().height
+    if (mutatingState || modules.blocks.isActive.get()) {
+      library.logger.warn('loader', 'Sync watchdog: waiting for in-flight state mutation to finish before recovery', {
+        height: modules.blocks.lastBlock.get().height,
+        unconfirmedMutation: mutatingState,
+        blockApplication: modules.blocks.isActive.get()
       });
       return setTimeout(finishStalled, 1000);
     }
@@ -795,12 +816,12 @@ __private.sync = function (cb) {
 
   async.series({
     undoUnconfirmedList: function (seriesCb) {
-      return skipOnStop(seriesCb, function (next) {
+      return skipOnStop(seriesCb, mutating(function (next) {
         library.logger.debug('loader', 'Undoing unconfirmed transactions before sync', {
           height: modules.blocks.lastBlock.get().height
         });
         return modules.transactions.undoUnconfirmedList(next);
-      });
+      }));
     },
     getPeersBefore: function (seriesCb) {
       return skipOnStop(seriesCb, function (next) {
@@ -831,12 +852,12 @@ __private.sync = function (cb) {
       });
     },
     applyUnconfirmedList: function (seriesCb) {
-      return skipOnStop(seriesCb, function (next) {
+      return skipOnStop(seriesCb, mutating(function (next) {
         library.logger.debug('loader', 'Applying unconfirmed transactions after sync', {
           height: modules.blocks.lastBlock.get().height
         });
         return modules.transactions.applyUnconfirmedList(next);
-      });
+      }));
     }
   }, function (err) {
     return finishSync(err);
