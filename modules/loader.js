@@ -2,6 +2,7 @@
 
 var async = require('async');
 var constants = require('../helpers/constants.js');
+var createSyncWatchdog = require('../helpers/syncWatchdog.js');
 var jobsQueue = require('../helpers/jobsQueue.js');
 var ip = require('neoip');
 var sandboxHelper = require('../helpers/sandbox.js');
@@ -25,6 +26,9 @@ __private.syncInterval = 10000;
 __private.retries = 5;
 __private.stopRequested = false;
 __private.shutdownRequested = false;
+// Maximum time a single sync run may go without block progress before it is
+// considered stalled and aborted so the loader can recover.
+__private.syncTimeout = constants.syncStallTimeout;
 
 /**
  * Initializes library with scope content.
@@ -595,9 +599,14 @@ __private.loadBlockChain = function () {
  * @implements {modules.blocks.getCommonBlock}
  * @return {setImmediateCallback} cb, err
  */
-__private.loadBlocksFromNetwork = function (cb) {
+__private.loadBlocksFromNetwork = function (cb, shouldStop) {
   var errorCount = 0;
   var loaded = false;
+
+  // Per-run stop predicate. Defaults to the shutdown signal; the sync watchdog
+  // passes a run-scoped predicate so an aborted run keeps its own stop signal
+  // and a fresh run cannot accidentally clear it.
+  shouldStop = shouldStop || __private.isStopRequested;
 
   self.getNetwork(function (err, network) {
     if (err) {
@@ -605,7 +614,7 @@ __private.loadBlocksFromNetwork = function (cb) {
     } else {
       async.whilst(
           function (testCb) {
-            return testCb(null, !__private.stopRequested && !loaded && errorCount < 5);
+            return testCb(null, !shouldStop() && !loaded && errorCount < 5);
           },
           function (next) {
             var peer = network.peers[Math.floor(Math.random() * network.peers.length)];
@@ -622,7 +631,7 @@ __private.loadBlocksFromNetwork = function (cb) {
                 loaded = lastValidBlock.id === lastBlock.id;
                 lastValidBlock = lastBlock = null;
                 next();
-              }, __private.isStopRequested);
+              }, shouldStop);
             }
 
             function getCommonBlock (cb) {
@@ -690,22 +699,133 @@ __private.sync = function (cb) {
   __private.isActive = true;
   __private.syncTrigger(true);
 
+  // Run-scoped abort flag. Kept local (not on `__private`) so a fresh sync run
+  // can never clear the stop signal of an earlier, still-alive run, and so it
+  // stays distinct from the shutdown-only `stopRequested`.
+  var aborted = false;
+  // Completion is funnelled through finishSync() and guarded by `settled` so the
+  // watchdog and the natural async.series completion are mutually exclusive: the
+  // sync state is released exactly once, and a later (abandoned) completion of
+  // the series becomes a harmless no-op.
+  var settled = false;
+  // True while a sync phase that mutates unconfirmed account/pool state is in
+  // flight. Block application is tracked separately by `modules.blocks.isActive`.
+  // The watchdog must not tear the run down while either is set, otherwise it
+  // could advance `library.sequence` while an abandoned mutation is still alive.
+  var mutatingState = false;
+
+  // Shutdown or this run's watchdog abort both stop the in-flight series at its
+  // next safe checkpoint.
+  function shouldStop () {
+    return __private.stopRequested || aborted;
+  }
+
+  // Wraps a state-mutating sync phase so the watchdog defers teardown until the
+  // phase's callback has actually returned.
+  function mutating (run) {
+    return function (next) {
+      mutatingState = true;
+      return run(function (err) {
+        mutatingState = false;
+        return next(err);
+      });
+    };
+  }
+
+  var watchdog = createSyncWatchdog({
+    timeoutMs: __private.syncTimeout,
+    getHeight: function () {
+      return modules.blocks.lastBlock.get().height;
+    },
+    onStall: function (height) {
+      library.logger.error('loader', 'Sync watchdog: no block progress, aborting stalled sync to allow recovery', {
+        height: height,
+        blocksToSync: __private.blocksToSync,
+        timeoutMs: __private.syncTimeout
+      });
+      // Set the run's abort flag, then release the sync state once any mutation
+      // that was already in progress has drained.
+      aborted = true;
+      finishStalled();
+    }
+  });
+
+  // Recovery rests on one invariant: once `aborted` is set, this run can never
+  // begin a new state mutation.
+  //   - New block apply is blocked because `shouldStop()` is threaded into
+  //     `processBlock()` and checked right before `applyBlock()`, so a block
+  //     parked anywhere in verification bails before mutating when it resumes.
+  //   - New unconfirmed undo/apply phases are blocked by `skipOnStop()`.
+  // That makes it safe to release `loader.syncing()` even while an abandoned
+  // flow is still parked. The only thing left to guard is a mutation that had
+  // *already started* before the abort: `applyBlock()` and the unconfirmed
+  // phases write mem/account/round/pool state outside `library.sequence`, so we
+  // wait for `modules.blocks.isActive` and the run-local `mutatingState` to
+  // clear before tearing down. If the in-flight series reaches a checkpoint
+  // first, it finishes the run itself and this becomes a no-op via `settled`.
+  function finishStalled () {
+    if (settled) {
+      return;
+    }
+
+    if (mutatingState || modules.blocks.isActive.get()) {
+      library.logger.warn('loader', 'Sync watchdog: waiting for in-flight state mutation to finish before recovery', {
+        height: modules.blocks.lastBlock.get().height,
+        unconfirmedMutation: mutatingState,
+        blockApplication: modules.blocks.isActive.get()
+      });
+      return setTimeout(finishStalled, 1000);
+    }
+
+    // Terminal for this attempt: report no error so the async.retry wrapper does
+    // not immediately restart the sync; the sync timer starts a fresh attempt.
+    return finishSync(null);
+  }
+
+  function finishSync (err) {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    watchdog.stop();
+
+    __private.isActive = false;
+    __private.syncTrigger(false);
+    __private.blocksToSync = 0;
+
+    // After an abort, drop the cached network so the next attempt re-selects peers.
+    if (aborted) {
+      __private.initialize();
+    }
+
+    library.logger.info('loader', __private.stopRequested ? 'Sync stopped for shutdown' : 'Finished sync', {
+      height: modules.blocks.lastBlock.get().height,
+      stopped: __private.stopRequested,
+      aborted: aborted,
+      error: err ? err.message || err : null
+    });
+    library.bus.message('syncFinished');
+    return setImmediate(cb, err);
+  }
+
   function skipOnStop (seriesCb, next) {
-    if (__private.stopRequested) {
+    if (shouldStop()) {
       return setImmediate(seriesCb);
     }
 
     return next(seriesCb);
   }
 
+  watchdog.start();
+
   async.series({
     undoUnconfirmedList: function (seriesCb) {
-      return skipOnStop(seriesCb, function (next) {
+      return skipOnStop(seriesCb, mutating(function (next) {
         library.logger.debug('loader', 'Undoing unconfirmed transactions before sync', {
           height: modules.blocks.lastBlock.get().height
         });
         return modules.transactions.undoUnconfirmedList(next);
-      });
+      }));
     },
     getPeersBefore: function (seriesCb) {
       return skipOnStop(seriesCb, function (next) {
@@ -717,7 +837,9 @@ __private.sync = function (cb) {
       });
     },
     loadBlocksFromNetwork: function (seriesCb) {
-      return skipOnStop(seriesCb, __private.loadBlocksFromNetwork);
+      return skipOnStop(seriesCb, function (next) {
+        return __private.loadBlocksFromNetwork(next, shouldStop);
+      });
     },
     updateSystem: function (seriesCb) {
       return skipOnStop(seriesCb, function (next) {
@@ -734,25 +856,15 @@ __private.sync = function (cb) {
       });
     },
     applyUnconfirmedList: function (seriesCb) {
-      return skipOnStop(seriesCb, function (next) {
+      return skipOnStop(seriesCb, mutating(function (next) {
         library.logger.debug('loader', 'Applying unconfirmed transactions after sync', {
           height: modules.blocks.lastBlock.get().height
         });
         return modules.transactions.applyUnconfirmedList(next);
-      });
+      }));
     }
   }, function (err) {
-    __private.isActive = false;
-    __private.syncTrigger(false);
-    __private.blocksToSync = 0;
-
-    library.logger.info('loader', __private.stopRequested ? 'Sync stopped for shutdown' : 'Finished sync', {
-      height: modules.blocks.lastBlock.get().height,
-      stopped: __private.stopRequested,
-      error: err ? err.message || err : null
-    });
-    library.bus.message('syncFinished');
-    return setImmediate(cb, err);
+    return finishSync(err);
   });
 };
 

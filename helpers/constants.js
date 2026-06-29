@@ -58,6 +58,10 @@ module.exports = {
     maxReconnectDelay: 60000,
     defaultReconnectionDelay: 5000
   },
+  // Maximum time a single sync run may go without applying a new block before it
+  // is treated as stalled and aborted so the loader can recover (liveness only,
+  // not a consensus parameter). Set to 0 to disable the sync watchdog.
+  syncStallTimeout: 1000 * 60 * 5, // 5 minutes without block progress
   fees: {
     send: 50000000,
     vote: 5000000000,
