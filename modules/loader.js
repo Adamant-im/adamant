@@ -26,10 +26,6 @@ __private.syncInterval = 10000;
 __private.retries = 5;
 __private.stopRequested = false;
 __private.shutdownRequested = false;
-// Set true when the watchdog aborts a stalled sync; signals the in-flight sync
-// to bail at its next safe checkpoint without disabling future syncs (unlike
-// `stopRequested`, which is reserved for shutdown).
-__private.abortSync = false;
 // Maximum time a single sync run may go without block progress before it is
 // considered stalled and aborted so the loader can recover.
 __private.syncTimeout = constants.syncStallTimeout;
@@ -127,14 +123,12 @@ __private.requestStop = function () {
 };
 
 /**
- * Checks whether in-flight loader work should stop at its next safe boundary.
- * True on shutdown (`stopRequested`) or when the watchdog aborted a stalled
- * sync (`abortSync`).
+ * Checks if shutdown was requested.
  * @private
  * @return {boolean}
  */
 __private.isStopRequested = function () {
-  return __private.stopRequested || __private.abortSync;
+  return __private.stopRequested;
 };
 
 /**
@@ -605,9 +599,14 @@ __private.loadBlockChain = function () {
  * @implements {modules.blocks.getCommonBlock}
  * @return {setImmediateCallback} cb, err
  */
-__private.loadBlocksFromNetwork = function (cb) {
+__private.loadBlocksFromNetwork = function (cb, shouldStop) {
   var errorCount = 0;
   var loaded = false;
+
+  // Per-run stop predicate. Defaults to the shutdown signal; the sync watchdog
+  // passes a run-scoped predicate so an aborted run keeps its own stop signal
+  // and a fresh run cannot accidentally clear it.
+  shouldStop = shouldStop || __private.isStopRequested;
 
   self.getNetwork(function (err, network) {
     if (err) {
@@ -615,7 +614,7 @@ __private.loadBlocksFromNetwork = function (cb) {
     } else {
       async.whilst(
           function (testCb) {
-            return testCb(null, !__private.isStopRequested() && !loaded && errorCount < 5);
+            return testCb(null, !shouldStop() && !loaded && errorCount < 5);
           },
           function (next) {
             var peer = network.peers[Math.floor(Math.random() * network.peers.length)];
@@ -632,7 +631,7 @@ __private.loadBlocksFromNetwork = function (cb) {
                 loaded = lastValidBlock.id === lastBlock.id;
                 lastValidBlock = lastBlock = null;
                 next();
-              }, __private.isStopRequested);
+              }, shouldStop);
             }
 
             function getCommonBlock (cb) {
@@ -697,15 +696,24 @@ __private.sync = function (cb) {
   });
   library.bus.message('syncStarted');
 
-  __private.abortSync = false;
   __private.isActive = true;
   __private.syncTrigger(true);
 
+  // Run-scoped abort flag. Kept local (not on `__private`) so a fresh sync run
+  // can never clear the stop signal of an earlier, still-alive run, and so it
+  // stays distinct from the shutdown-only `stopRequested`.
+  var aborted = false;
   // Completion is funnelled through finishSync() and guarded by `settled` so the
-  // watchdog and the natural async.series completion are mutually exclusive: a
-  // stalled sync that the watchdog aborts releases the sync state exactly once,
-  // and a later (abandoned) completion of the series becomes a harmless no-op.
+  // watchdog and the natural async.series completion are mutually exclusive: the
+  // sync state is released exactly once, and a later (abandoned) completion of
+  // the series becomes a harmless no-op.
   var settled = false;
+
+  // Shutdown or this run's watchdog abort both stop the in-flight series at its
+  // next safe checkpoint.
+  function shouldStop () {
+    return __private.stopRequested || aborted;
+  }
 
   var watchdog = createSyncWatchdog({
     timeoutMs: __private.syncTimeout,
@@ -718,12 +726,36 @@ __private.sync = function (cb) {
         blocksToSync: __private.blocksToSync,
         timeoutMs: __private.syncTimeout
       });
-      // Ask the in-flight series to bail at its next safe checkpoint, then
-      // release the sync state so the sync timer can start a fresh attempt.
-      __private.abortSync = true;
-      finishSync('Sync watchdog timeout: no block progress');
+      // Signal the in-flight series to bail at its next safe checkpoint, then
+      // release the sync state once block application is idle.
+      aborted = true;
+      finishStalled();
     }
   });
+
+  // Releases the sync state after a watchdog abort, but only once no block is
+  // mid-application. `applyBlock()` writes mem/account/round state outside
+  // `library.sequence`, so advancing the outer sequence while it runs could let
+  // a new sync or live block mutate the same state concurrently. We therefore
+  // wait for `modules.blocks.isActive` to clear before tearing down. If the
+  // in-flight series reaches a checkpoint first, it finishes the run itself and
+  // this becomes a no-op via the `settled` guard.
+  function finishStalled () {
+    if (settled) {
+      return;
+    }
+
+    if (modules.blocks.isActive.get()) {
+      library.logger.warn('loader', 'Sync watchdog: waiting for in-flight block application to finish before recovery', {
+        height: modules.blocks.lastBlock.get().height
+      });
+      return setTimeout(finishStalled, 1000);
+    }
+
+    // Terminal for this attempt: report no error so the async.retry wrapper does
+    // not immediately restart the sync; the sync timer starts a fresh attempt.
+    return finishSync(null);
+  }
 
   function finishSync (err) {
     if (settled) {
@@ -737,14 +769,14 @@ __private.sync = function (cb) {
     __private.blocksToSync = 0;
 
     // After an abort, drop the cached network so the next attempt re-selects peers.
-    if (__private.abortSync) {
+    if (aborted) {
       __private.initialize();
     }
 
     library.logger.info('loader', __private.stopRequested ? 'Sync stopped for shutdown' : 'Finished sync', {
       height: modules.blocks.lastBlock.get().height,
       stopped: __private.stopRequested,
-      aborted: __private.abortSync,
+      aborted: aborted,
       error: err ? err.message || err : null
     });
     library.bus.message('syncFinished');
@@ -752,7 +784,7 @@ __private.sync = function (cb) {
   }
 
   function skipOnStop (seriesCb, next) {
-    if (__private.isStopRequested()) {
+    if (shouldStop()) {
       return setImmediate(seriesCb);
     }
 
@@ -780,7 +812,9 @@ __private.sync = function (cb) {
       });
     },
     loadBlocksFromNetwork: function (seriesCb) {
-      return skipOnStop(seriesCb, __private.loadBlocksFromNetwork);
+      return skipOnStop(seriesCb, function (next) {
+        return __private.loadBlocksFromNetwork(next, shouldStop);
+      });
     },
     updateSystem: function (seriesCb) {
       return skipOnStop(seriesCb, function (next) {
