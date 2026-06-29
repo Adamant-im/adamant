@@ -558,7 +558,9 @@ __private.loadBlockChain = function () {
       return t.batch(promises);
     }
 
-    library.db.task(updateMemAccounts).then(function (results) {
+    // Returned so a rejection propagates to the outer .catch below instead of
+    // being swallowed (which would silently stall blockchain loading).
+    return library.db.task(updateMemAccounts).then(function (results) {
       if (__private.stopRequested) {
         return finishForShutdown();
       }

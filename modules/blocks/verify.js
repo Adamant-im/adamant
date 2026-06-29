@@ -461,6 +461,11 @@ Verify.prototype.processBlock = function (block, broadcast, cb, saveBlock, shoul
         } else {
           return setImmediate(seriesCb);
         }
+      }).catch(function (err) {
+        // Without this handler a rejected query never resolves the series step,
+        // which silently stalls block processing (and can wedge the sync loader).
+        library.logger.error('blocks', `Failed to check block existence for ${block.id}: ${err?.message || err}`, err && err.stack);
+        return setImmediate(seriesCb, 'Blocks#checkExists error');
       });
     },
     validateBlockSlot: function (seriesCb) {

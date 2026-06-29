@@ -53,6 +53,16 @@ describe('blocks verify - processBlock shouldStop gate', function () {
     });
   });
 
+  it('fails the series instead of hanging when the checkExists query rejects', function (done) {
+    db.query.rejects(new Error('db connection lost'));
+
+    process(() => false, function (err) {
+      expect(err).to.equal('Blocks#checkExists error');
+      expect(applyBlock.called).to.equal(false);
+      done();
+    });
+  });
+
   it('applies the block when shouldStop() returns false', function (done) {
     applyBlock = sinon.spy(function (block, broadcast, cb) {
       return cb(null);
