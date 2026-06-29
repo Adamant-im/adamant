@@ -743,22 +743,26 @@ __private.sync = function (cb) {
         blocksToSync: __private.blocksToSync,
         timeoutMs: __private.syncTimeout
       });
-      // Signal the in-flight series to bail at its next safe checkpoint, then
-      // release the sync state once block application is idle.
+      // Set the run's abort flag, then release the sync state once any mutation
+      // that was already in progress has drained.
       aborted = true;
       finishStalled();
     }
   });
 
-  // Releases the sync state after a watchdog abort, but only once no state
-  // mutation is in flight. Block application (`applyBlock()`) and the unconfirmed
-  // undo/apply phases write mem/account/round/pool state outside
-  // `library.sequence`, so advancing the outer sequence while any of them runs
-  // could let a new sync or live block mutate the same state concurrently. We
-  // therefore wait for both `modules.blocks.isActive` and the run-local
-  // `mutatingState` to clear before tearing down. If the in-flight series reaches
-  // a checkpoint first, it finishes the run itself and this becomes a no-op via
-  // the `settled` guard.
+  // Recovery rests on one invariant: once `aborted` is set, this run can never
+  // begin a new state mutation.
+  //   - New block apply is blocked because `shouldStop()` is threaded into
+  //     `processBlock()` and checked right before `applyBlock()`, so a block
+  //     parked anywhere in verification bails before mutating when it resumes.
+  //   - New unconfirmed undo/apply phases are blocked by `skipOnStop()`.
+  // That makes it safe to release `loader.syncing()` even while an abandoned
+  // flow is still parked. The only thing left to guard is a mutation that had
+  // *already started* before the abort: `applyBlock()` and the unconfirmed
+  // phases write mem/account/round/pool state outside `library.sequence`, so we
+  // wait for `modules.blocks.isActive` and the run-local `mutatingState` to
+  // clear before tearing down. If the in-flight series reaches a checkpoint
+  // first, it finishes the run itself and this becomes a no-op via `settled`.
   function finishStalled () {
     if (settled) {
       return;

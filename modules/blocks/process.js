@@ -292,7 +292,9 @@ Process.prototype.loadBlocksFromPeer = function (peer, cb, shouldStop) {
 
   // Process single block
   function processBlock (block, seriesCb) {
-    // Start block processing - broadcast: false, saveBlock: true
+    // Start block processing - broadcast: false, saveBlock: true.
+    // `shouldStop` is forwarded so an aborted sync run cannot apply the block
+    // even if the abort lands while it is mid-verification.
     modules.blocks.verify.processBlock(block, false, function (err) {
       if (!err) {
         // Update last valid block
@@ -304,7 +306,7 @@ Process.prototype.loadBlocksFromPeer = function (peer, cb, shouldStop) {
         library.logger.debug('loader', 'Block processing failed', { id: id, err: err.toString(), module: 'blocks', block: block });
       }
       return seriesCb(err);
-    }, true);
+    }, true, shouldStop);
   }
 
   async.waterfall([
