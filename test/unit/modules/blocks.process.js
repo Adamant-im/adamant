@@ -180,4 +180,16 @@ describe('blocks process', function () {
       done();
     });
   });
+
+  it('should forward the shouldStop predicate to verify.processBlock', function (done) {
+    blocks.verify.processBlock = sinon.stub().callsArgWith(2, null);
+    const shouldStop = function () { return false; };
+
+    process.loadBlocksFromPeer({ ip: '127.0.0.1', port: 36667 }, function () {
+      expect(blocks.verify.processBlock.calledOnce).to.equal(true);
+      // processBlock(block, broadcast, cb, saveBlock, shouldStop)
+      expect(blocks.verify.processBlock.firstCall.args[4]).to.equal(shouldStop);
+      done();
+    }, shouldStop);
+  });
 });

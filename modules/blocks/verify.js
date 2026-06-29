@@ -37,10 +37,13 @@ function Verify (logger, block, transaction, db) {
  * @param  {object}   block Block object
  * @param  {object}   transaction Transaction object
  * @param  {Function} cb Callback function
+ * @param  {Function} [shouldStop] Optional predicate; when it returns true the
+ *   fork-2 unconfirmed-pool write is skipped so an aborted sync run performs no
+ *   pre-apply state mutation.
  * @return {Function} cb Callback function from params (through setImmediate)
  * @return {object}   cb.err Error if occurred
  */
-__private.checkTransaction = function (block, transaction, cb) {
+__private.checkTransaction = function (block, transaction, cb, shouldStop) {
   async.waterfall([
     function (waterCb) {
       try {
@@ -61,6 +64,14 @@ __private.checkTransaction = function (block, transaction, cb) {
         if (err) {
           // Fork: Transaction already confirmed.
           modules.delegates.fork(block, 2);
+
+          if (shouldStop && shouldStop()) {
+            // Sync aborted: do not mutate the volatile unconfirmed pool. The
+            // block is rejected anyway and the pool is rebuilt on the next run.
+            library.logger.debug('blocks', 'Skipping unconfirmed undo: sync aborted', { id: transaction.id });
+            return setImmediate(waterCb, err);
+          }
+
           // Undo the offending transaction.
           // DATABASE: write
           modules.transactions.undoUnconfirmed(transaction, function (err2) {
@@ -468,7 +479,7 @@ Verify.prototype.processBlock = function (block, broadcast, cb, saveBlock, shoul
     checkTransactions: function (seriesCb) {
       // Check against the mem_* tables that we can perform the transactions included in the block
       async.eachSeries(block.transactions, function (transaction, eachSeriesCb) {
-        __private.checkTransaction(block, transaction, eachSeriesCb);
+        __private.checkTransaction(block, transaction, eachSeriesCb, shouldStop);
       }, function (err) {
         return setImmediate(seriesCb, err);
       });

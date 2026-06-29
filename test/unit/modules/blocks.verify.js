@@ -89,3 +89,71 @@ describe('blocks verify - processBlock shouldStop gate', function () {
     }, true);
   });
 });
+
+// The fork-2 branch in checkTransaction() writes to the volatile unconfirmed
+// pool (undoUnconfirmed) before the apply gate. When the run is aborted that
+// pre-apply write must be skipped too, so the abort boundary is explicit for
+// every pre-apply state mutation.
+describe('blocks verify - checkTransaction fork-2 shouldStop gate', function () {
+  let verify;
+  let logger;
+  let db;
+  let blockLogic;
+  let transactionLogic;
+  let transactions;
+  let delegates;
+  let applyBlock;
+
+  const block = { id: '2', height: 2, transactions: [{ id: 't1' }] };
+
+  beforeEach(function () {
+    logger = { trace: sinon.spy(), debug: sinon.spy(), error: sinon.spy(), info: sinon.spy() };
+    db = { query: sinon.stub().resolves([]) };
+    blockLogic = { objectNormalize: (b) => b };
+    transactionLogic = {
+      getId: sinon.stub().returns('t1'),
+      // checkConfirmed errors -> fork-2 path (transaction already confirmed)
+      checkConfirmed: sinon.stub().callsArgWith(1, 'Transaction is already confirmed'),
+      verify: sinon.stub().callsArgWith(2, null)
+    };
+    transactions = {
+      undoUnconfirmed: sinon.stub().callsArgWith(1, null),
+      removeUnconfirmedTransaction: sinon.spy()
+    };
+    delegates = {
+      validateBlockSlot: sinon.stub().callsArgWith(1, null),
+      fork: sinon.spy()
+    };
+    applyBlock = sinon.spy();
+
+    verify = new Verify(logger, blockLogic, transactionLogic, db);
+    sinon.stub(verify, 'verifyBlock').returns({ verified: true, errors: [] });
+    verify.onBind({
+      accounts: { getAccount: sinon.stub().callsArgWith(1, null, {}) },
+      blocks: { isCleaning: { get: () => false }, chain: { applyBlock } },
+      delegates,
+      transactions
+    });
+  });
+
+  it('skips the unconfirmed undo write when the run is aborted', function (done) {
+    verify.processBlock(block, false, function (err) {
+      expect(err).to.equal('Transaction is already confirmed');
+      expect(delegates.fork.calledWith(block, 2)).to.equal(true);
+      expect(transactions.undoUnconfirmed.called).to.equal(false);
+      expect(transactions.removeUnconfirmedTransaction.called).to.equal(false);
+      expect(applyBlock.called).to.equal(false);
+      done();
+    }, true, () => true);
+  });
+
+  it('performs the unconfirmed undo write when the run is not aborted', function (done) {
+    verify.processBlock(block, false, function (err) {
+      expect(err).to.equal('Transaction is already confirmed');
+      expect(transactions.undoUnconfirmed.calledOnce).to.equal(true);
+      expect(transactions.removeUnconfirmedTransaction.calledOnce).to.equal(true);
+      expect(applyBlock.called).to.equal(false);
+      done();
+    }, true, () => false);
+  });
+});
