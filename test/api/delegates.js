@@ -424,6 +424,79 @@ describe('GET /api/delegates', function () {
   });
 });
 
+describe('GET /api/delegates/get', function () {
+  // A delegate that is NOT ranked first, so the test catches the regression
+  // where `delegates/get` reported rank/rate as 1 for every single-delegate
+  // lookup (because ranking was computed over a one-row, pre-filtered result).
+  var referenceDelegate;
+
+  before(function (done) {
+    node.get('/api/delegates?orderBy=rank:asc', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('delegates').that.is.an('array');
+      // The list is ordered by rank ascending, so the last entry has the
+      // highest rank number, guaranteeing rank > 1.
+      referenceDelegate = res.body.delegates[res.body.delegates.length - 1];
+      node.expect(referenceDelegate).to.have.property('rank').that.is.above(1);
+      done();
+    });
+  });
+
+  it('using username should return the delegate with its real rank and rate', function (done) {
+    node.get('/api/delegates/get?username=' + encodeURIComponent(referenceDelegate.username), function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('delegate').that.is.an('object');
+      node.expect(res.body.delegate.username).to.equal(referenceDelegate.username);
+      node.expect(res.body.delegate.rank).to.equal(referenceDelegate.rank);
+      // `rate` is a deprecated alias of `rank` and must keep matching it.
+      node.expect(res.body.delegate.rate).to.equal(referenceDelegate.rank);
+      // Regression guard: rank/rate must reflect the real position, not 1.
+      node.expect(res.body.delegate.rank).to.be.above(1);
+      done();
+    });
+  });
+
+  it('using publicKey should return the delegate with its real rank and rate', function (done) {
+    node.get('/api/delegates/get?publicKey=' + referenceDelegate.publicKey, function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('delegate').that.is.an('object');
+      node.expect(res.body.delegate.publicKey).to.equal(referenceDelegate.publicKey);
+      node.expect(res.body.delegate.rank).to.equal(referenceDelegate.rank);
+      node.expect(res.body.delegate.rate).to.equal(referenceDelegate.rank);
+      node.expect(res.body.delegate.rank).to.be.above(1);
+      done();
+    });
+  });
+
+  it('using address should return the delegate with its real rank and rate', function (done) {
+    node.get('/api/delegates/get?address=' + encodeURIComponent(referenceDelegate.address), function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('delegate').that.is.an('object');
+      node.expect(res.body.delegate.address).to.equal(referenceDelegate.address);
+      node.expect(res.body.delegate.rank).to.equal(referenceDelegate.rank);
+      node.expect(res.body.delegate.rate).to.equal(referenceDelegate.rank);
+      node.expect(res.body.delegate.rank).to.be.above(1);
+      done();
+    });
+  });
+
+  it('using no criteria should fail', function (done) {
+    node.get('/api/delegates/get', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('error');
+      done();
+    });
+  });
+
+  it('using an unknown username should fail', function (done) {
+    node.get('/api/delegates/get?username=anunknowndelegate', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('error').to.equal('Delegate not found');
+      done();
+    });
+  });
+});
+
 describe('GET /api/delegates/count', function () {
   it('should be ok', function (done) {
     node.get('/api/delegates/count', function (err, res) {
