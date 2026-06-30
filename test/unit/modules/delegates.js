@@ -158,21 +158,49 @@ describe('delegates', function () {
         });
       });
 
-      // it('should find delegate matching the address', (done) => {
-      //   const body = { address: aDelegate.address }
-      //   delegates.shared.getDelegate({ body }, (err, response) => {
-      //     expect(err).not.to.exist;
-      //     expect(response).to.have.property('delegate');
+      it('should find delegate matching the address', (done) => {
+        const body = { address: aDelegate.address };
+        delegates.shared.getDelegate({ body }, (err, response) => {
+          expect(err).not.to.exist;
+          expect(response).to.have.property('delegate');
 
-      //     const { delegate } = response;
+          const { delegate } = response;
 
-      //     expect(delegate.username).to.equal(aDelegate.username);
-      //     expect(delegate.publicKey).to.equal(aDelegate.publicKey);
-      //     expect(delegate.address).to.equal(aDelegate.address);
+          expect(delegate.username).to.equal(aDelegate.username);
+          expect(delegate.publicKey).to.equal(aDelegate.publicKey);
+          expect(delegate.address).to.equal(aDelegate.address);
 
-      //     done();
-      //   });
-      // });
+          done();
+        });
+      });
+
+      it('should report the real rank and rate, computed over the full delegate list', (done) => {
+        // Take a delegate that is not ranked first from the full ordered list.
+        delegates.getDelegates({}, {}, (err, response) => {
+          expect(err).not.to.exist;
+          expect(response.delegates).to.be.an('array').that.has.length.above(1);
+
+          const expectedDelegate = response.delegates[response.delegates.length - 1];
+          expect(expectedDelegate.rank).to.be.above(1);
+
+          const body = { publicKey: expectedDelegate.publicKey };
+          delegates.shared.getDelegate({ body }, (err, single) => {
+            expect(err).not.to.exist;
+            expect(single).to.have.property('delegate');
+
+            const { delegate } = single;
+
+            // Regression: rank/rate were always 1 because ranking was computed
+            // over a single pre-filtered row instead of the full delegate list.
+            expect(delegate.rank).to.equal(expectedDelegate.rank);
+            expect(delegate.rank).to.be.above(1);
+            // `rate` is a deprecated alias of `rank` and must keep matching it.
+            expect(delegate.rate).to.equal(delegate.rank);
+
+            done();
+          });
+        });
+      });
     });
 
     describe('getNextForgers', () => {

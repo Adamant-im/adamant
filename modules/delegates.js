@@ -805,12 +805,23 @@ Delegates.prototype.shared = {
         return setImmediate(cb, 'Delegate publicKey does not match address');
       }
 
-      modules.delegates.getDelegates(req.body, filter, function (err, data) {
+      // `rank` and `rate` are derived from the full, ordered delegate list, so
+      // ranking must be computed over all delegates. We request the ranked list
+      // (empty filter) and then select the requested delegate, instead of
+      // pushing `filter` into the accounts query: a single-row result is always
+      // ranked first and would report `rank`/`rate` (and outsider productivity)
+      // as 1 for every delegate.
+      modules.delegates.getDelegates(req.body, {}, function (err, data) {
         if (err) {
           return setImmediate(cb, err);
         }
 
-        var delegate = data.delegates[0];
+        var delegate = data.delegates.find(function (delegate) {
+          if (filter.address) {
+            return delegate.address.toUpperCase() === filter.address.toUpperCase();
+          }
+          return delegate.username === filter.username;
+        });
 
         if (delegate) {
           return setImmediate(cb, null, { delegate: delegate });
