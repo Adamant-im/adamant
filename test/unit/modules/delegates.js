@@ -270,7 +270,9 @@ describe('delegates', function () {
         const body = { limit: constants.activeDelegates + 1 };
         delegates.shared.getNextForgers({ body }, (err, response) => {
           expect(response).not.to.exist;
-          expect(err).to.equal('Value 102 is greater than maximum 101');
+          expect(err).to.equal(
+              `Value ${constants.activeDelegates + 1} is greater than maximum ${constants.activeDelegates}`
+          );
           done();
         });
       });
