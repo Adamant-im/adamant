@@ -833,25 +833,31 @@ Delegates.prototype.shared = {
   },
 
   getNextForgers: function (req, cb) {
-    var currentBlock = modules.blocks.lastBlock.get();
-    var limit = req.body.limit || 10;
-
-    modules.delegates.generateDelegateList(currentBlock.height, function (err, activeDelegates) {
+    library.schema.validate(req.body, schema.getNextForgers, function (err) {
       if (err) {
-        return setImmediate(cb, err);
+        return setImmediate(cb, err[0].message);
       }
 
-      var currentBlockSlot = slots.getSlotNumber(currentBlock.timestamp);
-      var currentSlot = slots.getSlotNumber();
-      var nextForgers = [];
+      var currentBlock = modules.blocks.lastBlock.get();
+      var limit = req.body.limit || 10;
 
-      for (var i = 1; i <= slots.delegates && i <= limit; i++) {
-        if (activeDelegates[(currentSlot + i) % slots.delegates]) {
-          nextForgers.push(activeDelegates[(currentSlot + i) % slots.delegates]);
+      modules.delegates.generateDelegateList(currentBlock.height, function (err, activeDelegates) {
+        if (err) {
+          return setImmediate(cb, err);
         }
-      }
 
-      return setImmediate(cb, null, { currentBlock: currentBlock.height, currentBlockSlot: currentBlockSlot, currentSlot: currentSlot, delegates: nextForgers });
+        var currentBlockSlot = slots.getSlotNumber(currentBlock.timestamp);
+        var currentSlot = slots.getSlotNumber();
+        var nextForgers = [];
+
+        for (var i = 1; i <= slots.delegates && i <= limit; i++) {
+          if (activeDelegates[(currentSlot + i) % slots.delegates]) {
+            nextForgers.push(activeDelegates[(currentSlot + i) % slots.delegates]);
+          }
+        }
+
+        return setImmediate(cb, null, { currentBlock: currentBlock.height, currentBlockSlot: currentBlockSlot, currentSlot: currentSlot, delegates: nextForgers });
+      });
     });
   },
 

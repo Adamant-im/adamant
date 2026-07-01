@@ -111,6 +111,17 @@ module.exports = {
       }
     }
   },
+  getNextForgers: {
+    id: 'delegates.getNextForgers',
+    type: 'object',
+    properties: {
+      limit: {
+        type: 'integer',
+        minimum: 1,
+        maximum: constants.activeDelegates
+      }
+    }
+  },
   getForgedByAccount: {
     id: 'delegates.getForgedByAccount',
     type: 'object',

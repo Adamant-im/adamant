@@ -347,6 +347,10 @@ Accounts.prototype.shared = {
 
         if (account.delegates) {
           modules.delegates.getDelegates(req.body, {}, function (err, res) {
+            if (err) {
+              return setImmediate(cb, err);
+            }
+
             var delegates = res.delegates.filter(function (delegate) {
               return account.delegates.indexOf(delegate.publicKey) !== -1;
             });
