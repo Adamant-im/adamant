@@ -5,6 +5,7 @@ const { expect } = require('chai');
 const { modulesLoader } = require('../../common/initModule.js');
 const {
   testAccount,
+  nonExistingAccount,
   invalidPublicKey,
   invalidAddress
 } = require('../../common/stubs/account.js');
@@ -174,6 +175,19 @@ describe('delegates', function () {
         });
       });
 
+      it('should reject mismatched public key and address criteria', (done) => {
+        const body = {
+          publicKey: aDelegate.publicKey,
+          address: nonExistingAccount.address
+        };
+
+        delegates.shared.getDelegate({ body }, (err, response) => {
+          expect(response).not.to.exist;
+          expect(err).to.equal('Delegate publicKey does not match address');
+          done();
+        });
+      });
+
       it('should report the real rank and rate, computed over the full delegate list', (done) => {
         // Take a delegate that is not ranked first from the full ordered list.
         delegates.getDelegates({}, {}, (err, response) => {
@@ -230,6 +244,35 @@ describe('delegates', function () {
         delegates.shared.getNextForgers({ body }, (err, response) => {
           expect(err).not.to.exist;
           expect(response.delegates.length).to.equal(1);
+          done();
+        });
+      });
+
+      it('should reject a non-integer limit', (done) => {
+        const body = { limit: 'abc' };
+        delegates.shared.getNextForgers({ body }, (err, response) => {
+          expect(response).not.to.exist;
+          expect(err).to.equal('Expected type integer but found type string');
+          done();
+        });
+      });
+
+      it('should reject a zero limit', (done) => {
+        const body = { limit: 0 };
+        delegates.shared.getNextForgers({ body }, (err, response) => {
+          expect(response).not.to.exist;
+          expect(err).to.equal('Value 0 is less than minimum 1');
+          done();
+        });
+      });
+
+      it('should reject a limit above the active delegate count', (done) => {
+        const body = { limit: constants.activeDelegates + 1 };
+        delegates.shared.getNextForgers({ body }, (err, response) => {
+          expect(response).not.to.exist;
+          expect(err).to.equal(
+              `Value ${constants.activeDelegates + 1} is greater than maximum ${constants.activeDelegates}`
+          );
           done();
         });
       });
@@ -325,6 +368,15 @@ describe('delegates', function () {
             return Number(array[index].balance) <= Number(array[index - 1].balance);
           });
           expect(isSorted).to.be.true;
+          done();
+        });
+      });
+
+      it('should return an empty list when a valid public key has no voters', (done) => {
+        const body = { publicKey: nonExistingAccount.publicKey };
+        delegates.shared.getVoters({ body }, (err, response) => {
+          expect(err).not.to.exist;
+          expect(response).to.have.property('accounts').that.is.an('array').that.is.empty;
           done();
         });
       });

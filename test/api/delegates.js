@@ -480,6 +480,14 @@ describe('GET /api/delegates/get', function () {
     });
   });
 
+  it('using mismatched publicKey and address should fail', function (done) {
+    node.get('/api/delegates/get?publicKey=' + referenceDelegate.publicKey + '&address=U123456789012345678', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('error').to.equal('Delegate publicKey does not match address');
+      done();
+    });
+  });
+
   it('using no criteria should fail', function (done) {
     node.get('/api/delegates/get', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.false;
@@ -509,6 +517,7 @@ describe('GET /api/delegates/count', function () {
 
 describe('GET /api/delegates/voters', function () {
   var account = node.randomAccount();
+  var noVotersAccount = node.randomAccount();
 
   before(function (done) {
     sendADM({
@@ -538,6 +547,16 @@ describe('GET /api/delegates/voters', function () {
     node.get('/api/delegates/voters?' + params, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
+      done();
+    });
+  });
+
+  it('using valid publicKey without voters should return an empty list', function (done) {
+    var params = 'publicKey=' + noVotersAccount.publicKey;
+
+    node.get('/api/delegates/voters?' + params, function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('accounts').that.is.an('array').that.has.lengthOf(0);
       done();
     });
   });
@@ -1124,6 +1143,30 @@ describe('GET /api/delegates/getNextForgers', function () {
       node.expect(res.body).to.have.property('currentSlot').that.is.a('number');
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
       node.expect(res.body.delegates).to.have.lengthOf(101);
+      done();
+    });
+  });
+
+  it('using string limit should fail', function (done) {
+    node.get('/api/delegates/getNextForgers?' + 'limit=abc', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('error').to.equal('Expected type integer but found type string');
+      done();
+    });
+  });
+
+  it('using zero limit should fail', function (done) {
+    node.get('/api/delegates/getNextForgers?' + 'limit=0', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('error').to.equal('Value 0 is less than minimum 1');
+      done();
+    });
+  });
+
+  it('using limit above active delegates should fail', function (done) {
+    node.get('/api/delegates/getNextForgers?' + 'limit=102', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('error').to.equal('Value 102 is greater than maximum 101');
       done();
     });
   });

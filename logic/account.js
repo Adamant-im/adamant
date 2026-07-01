@@ -565,6 +565,8 @@ Account.prototype.get = function (filter, fields, cb) {
  * @return {setImmediateCallback} data with rows | 'Account#getAll error'.
  */
 Account.prototype.getAll = function (filter, fields, cb) {
+  filter = Object.assign({}, filter);
+
   if (typeof(fields) === 'function') {
     cb = fields;
     fields = this.fields.map(function (field) {
@@ -598,6 +600,16 @@ Account.prototype.getAll = function (filter, fields, cb) {
 
   if (typeof filter.address === 'string') {
     query = query.whereRaw('upper("address") = ?', [filter.address.toUpperCase()]);
+  } else if (filter.address && Array.isArray(filter.address.$in)) {
+    var addresses = filter.address.$in.map(function (address) {
+      return String(address).toUpperCase();
+    });
+
+    if (addresses.length) {
+      query = query.whereIn(knex.raw('upper("address")'), addresses);
+    } else {
+      query = query.whereRaw('1 = 0');
+    }
   }
   delete filter.address;
 

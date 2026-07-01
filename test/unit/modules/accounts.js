@@ -499,6 +499,55 @@ describe('accounts', function () {
           });
         });
       });
+
+      it('should return an empty delegate list for an account without votes', (done) => {
+        const getAccountStub = sinon.stub(accounts, 'getAccount').callsFake((filter, cb) => {
+          cb(null, { address: filter.address, delegates: null });
+        });
+
+        const body = { address: testAccount.address };
+        accounts.shared.getDelegates({ body }, (err, response) => {
+          getAccountStub.restore();
+
+          expect(err).not.to.exist;
+          expect(response).to.eql({ delegates: [] });
+          done();
+        });
+      });
+
+      it('should return account lookup errors', (done) => {
+        const getAccountStub = sinon.stub(accounts, 'getAccount').callsFake((filter, cb) => {
+          cb('Account#get error');
+        });
+
+        const body = { address: testAccount.address };
+        accounts.shared.getDelegates({ body }, (err, response) => {
+          getAccountStub.restore();
+
+          expect(response).not.to.exist;
+          expect(err).to.equal('Account#get error');
+          done();
+        });
+      });
+
+      it('should return delegate listing errors instead of throwing', (done) => {
+        const getAccountStub = sinon.stub(accounts, 'getAccount').callsFake((filter, cb) => {
+          cb(null, { address: filter.address, delegates: [testAccount.publicKey] });
+        });
+        const getDelegatesStub = sinon.stub(modules.delegates, 'getDelegates').callsFake((query, filter, cb) => {
+          cb('Invalid sort field');
+        });
+
+        const body = { address: testAccount.address };
+        accounts.shared.getDelegates({ body }, (err, response) => {
+          getAccountStub.restore();
+          getDelegatesStub.restore();
+
+          expect(response).not.to.exist;
+          expect(err).to.equal('Invalid sort field');
+          done();
+        });
+      });
     });
 
     describe('getDelegatesFee()', () => {

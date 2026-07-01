@@ -315,6 +315,31 @@ describe('account', () => {
       });
     });
 
+    it('should search by address list in uppercase', (done) => {
+      const address = validAccount.address;
+      const lowerAddress = nonExistingAccount.address.toLowerCase();
+
+      account.getAll({ address: { $in: [address, lowerAddress] } }, ['username'], () => {
+        const matched = db.query.calledWithMatch(
+            `select "username" from "mem_accounts" as "a" where upper("address") in ('${address}', '${nonExistingAccount.address}');`
+        );
+
+        expect(matched).to.be.true;
+        done();
+      });
+    });
+
+    it('should not drop an empty address list filter', (done) => {
+      account.getAll({ address: { $in: [] } }, ['username'], () => {
+        const matched = db.query.calledWithMatch(
+            'select "username" from "mem_accounts" as "a" where 1 = 0;'
+        );
+
+        expect(matched).to.be.true;
+        done();
+      });
+    });
+
     it('should filter out non existing fields', (done) => {
       const nonExistingFields = [
         'reward',
