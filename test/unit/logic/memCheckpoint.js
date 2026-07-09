@@ -35,7 +35,10 @@ describe('memCheckpoint', function () {
   describe('helpers', function () {
     it('should detect round boundary blocks', function () {
       expect(logic.isRoundBoundaryBlock(101)).to.equal(true);
+      expect(logic.isRoundBoundaryBlock(202)).to.equal(true);
       expect(logic.isRoundBoundaryBlock(100)).to.equal(false);
+      expect(logic.isRoundBoundaryBlock(102)).to.equal(false);
+      expect(logic.isRoundBoundaryBlock(1)).to.equal(false);
       expect(logic.getNextSlot({ slot: 2 })).to.equal(0);
     });
 
@@ -59,11 +62,13 @@ describe('memCheckpoint', function () {
     const round = 1;
     let createdMeta;
 
-    before(function (done) {
-      logic.getLatestComplete().then(function (latest) {
+    before(function () {
+      var suite = this;
+
+      return logic.getLatestComplete().then(function (latest) {
+        // Do not destroy real node checkpoints when tests share the database.
         if (latest && parseInt(latest.height, 10) > 1) {
-          this.skip();
-          return;
+          suite.skip();
         }
 
         return db.tx(function (t) {
@@ -77,15 +82,14 @@ describe('memCheckpoint', function () {
           }).then(function () {
             return t.none('INSERT INTO mem_accounts ("address", "balance", "u_balance", "blockId", "isDelegate", "publicKey") VALUES (\'MEMCKPT1\', 10, 10, ${blockId}, 1, decode(\'aa\', \'hex\'))', { blockId: block.id });
           });
-        }).then(function () {
-          return logic.createCheckpoint(block, round, nethash);
-        }).then(function () {
-          return logic.getLatestComplete();
-        }).then(function (meta) {
-          createdMeta = meta;
-          done();
         });
-      }.bind(this)).catch(done);
+      }).then(function () {
+        return logic.createCheckpoint(block, round, nethash);
+      }).then(function () {
+        return logic.getLatestComplete();
+      }).then(function (meta) {
+        createdMeta = meta;
+      });
     });
 
     it('should create a complete checkpoint with digest', function () {
@@ -168,6 +172,25 @@ describe('memCheckpoint', function () {
     it('should not recover genesis checkpoint on grown chain', function () {
       return logic.findRecoverableCheckpoint(slots.delegates + 100, 3, nethash).then(function (result) {
         expect(result).to.equal(null);
+      });
+    });
+
+    it('should recover a checkpoint exactly at the chain tip', function () {
+      return logic.findRecoverableCheckpoint(block.height, round, nethash).then(function (result) {
+        expect(result).to.be.an('object');
+        expect(result.blockId).to.equal(block.id);
+      });
+    });
+
+    it('should reject a checkpoint ahead of the chain tip', function () {
+      return logic.findRecoverableCheckpoint(block.height - 1, round, nethash).then(function (result) {
+        expect(result).to.equal(null);
+      });
+    });
+
+    it('should report no slot schema mismatch on freshly migrated tables', function () {
+      return logic.verifySlotSchemas().then(function (mismatch) {
+        expect(mismatch).to.equal(null);
       });
     });
   });

@@ -482,26 +482,34 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
       });
     }
   }, function (err) {
-    // Allow shutdown, database writes are finished.
-    modules.blocks.isActive.set(false);
+    function finalize (err) {
+      // Allow shutdown, database writes are finished.
+      modules.blocks.isActive.set(false);
+
+      // Nullify large objects.
+      // Prevents memory leak during synchronization.
+      appliedTransactions = unconfirmedTransactionIds = block = null;
+
+      // Finish here if snapshotting.
+      // FIXME: Not the best place to do that
+      if (err === 'Snapshot finished') {
+        library.logger.info('snapshot', err);
+        process.emit('SIGTERM');
+      }
+
+      return setImmediate(cb, err);
+    }
 
     if (!err && saveBlock && modules.memCheckpoints) {
       // Checkpoint only after the full applyBlock pipeline, on completed round boundaries.
-      modules.memCheckpoints.onBlockApplied(block, true);
+      // Wait for the checkpoint copy before releasing the block-processing critical
+      // section, so no later block can mutate mem_* while the copy is in progress.
+      return modules.memCheckpoints.onBlockApplied(block, true, function () {
+        return finalize(err);
+      });
     }
 
-    // Nullify large objects.
-    // Prevents memory leak during synchronization.
-    appliedTransactions = unconfirmedTransactionIds = block = null;
-
-    // Finish here if snapshotting.
-    // FIXME: Not the best place to do that
-    if (err === 'Snapshot finished') {
-      library.logger.info('snapshot', err);
-      process.emit('SIGTERM');
-    }
-
-    return setImmediate(cb, err);
+    return finalize(err);
   });
 };
 

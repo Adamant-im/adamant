@@ -11,6 +11,13 @@ var SCHEMA_VERSION = 1;
 var CHECKPOINT_SLOT_COUNT = 3;
 
 /**
+ * Checkpoint every Nth round while the node is catching up with the network,
+ * so sync throughput is not reduced by a mem_* copy at every round boundary.
+ * @type {number}
+ */
+var SYNC_ROUND_INTERVAL = 100;
+
+/**
  * Checkpoint table copy/hash order. Accounts must come before dependent tables.
  * @type {string[]}
  */
@@ -67,6 +74,9 @@ MemCheckpoint.SCHEMA_VERSION = SCHEMA_VERSION;
 /** @type {number} */
 MemCheckpoint.CHECKPOINT_SLOT_COUNT = CHECKPOINT_SLOT_COUNT;
 
+/** @type {number} */
+MemCheckpoint.SYNC_ROUND_INTERVAL = SYNC_ROUND_INTERVAL;
+
 /**
  * Whether persisted mem-table checkpoints are enabled.
  * @return {boolean}
@@ -78,6 +88,7 @@ MemCheckpoint.prototype.isEnabled = function () {
 
 /**
  * Whether a block height is a completed-round boundary where checkpoints are safe to take.
+ * Only the last block of a round qualifies (for example heights 101, 202, ...).
  * @param {number} height
  * @return {boolean}
  */
@@ -85,7 +96,23 @@ MemCheckpoint.prototype.isRoundBoundaryBlock = function (height) {
   var round = Math.ceil(height / slots.delegates);
   var nextRound = Math.ceil((height + 1) / slots.delegates);
 
-  return round !== nextRound || height === 1 || height === slots.delegates + 1;
+  return round !== nextRound;
+};
+
+/**
+ * Whether a checkpoint should be taken for a completed round.
+ * Every round during normal operation; every {@link SYNC_ROUND_INTERVAL}th
+ * round while syncing, to keep catch-up throughput unaffected.
+ * @param {number} round Completed round number.
+ * @param {boolean} syncing Whether the node is catching up with the network.
+ * @return {boolean}
+ */
+MemCheckpoint.prototype.shouldCheckpointRound = function (round, syncing) {
+  if (!syncing) {
+    return true;
+  }
+
+  return round % SYNC_ROUND_INTERVAL === 0;
 };
 
 /**
@@ -260,6 +287,48 @@ MemCheckpoint.prototype.getLatestComplete = function () {
 };
 
 /**
+ * Compare checkpoint slot table schemas against live mem_* tables.
+ * Detects live-table migrations that were not applied to the slot tables,
+ * which would otherwise produce failing copies or stale checkpoints.
+ * @return {Promise<object|null>} First mismatch found, or null when all slots match.
+ */
+MemCheckpoint.prototype.verifySlotSchemas = function () {
+  var self = this;
+  var pairs = [];
+
+  for (var slot = 0; slot < CHECKPOINT_SLOT_COUNT; slot++) {
+    var slotTables = sql.slotTableNames(slot);
+
+    TABLE_ORDER.forEach(function (tableKey) {
+      pairs.push({
+        liveTable: sql.liveTableNames[tableKey],
+        slotTable: slotTables[tableKey]
+      });
+    });
+  }
+
+  var pairIndex = 0;
+
+  var checkNextPair = function () {
+    if (pairIndex >= pairs.length) {
+      return Promise.resolve(null);
+    }
+
+    var pair = pairs[pairIndex++];
+
+    return self.library.db.oneOrNone(sql.compareTableSchemas, pair).then(function (mismatch) {
+      if (mismatch) {
+        return Object.assign({ liveTable: pair.liveTable, slotTable: pair.slotTable }, mismatch);
+      }
+
+      return checkNextPair();
+    });
+  };
+
+  return checkNextPair();
+};
+
+/**
  * Copy live mem_* tables into a rotating checkpoint slot after a settled round boundary.
  * @param {object} block Last block of the completed round.
  * @param {number} round Round number for the checkpoint.
@@ -286,12 +355,26 @@ MemCheckpoint.prototype.createCheckpoint = function (block, round, nethash) {
       createdAt: createdAt
     };
 
-    return self.library.db.tx(function (t) {
+    // REPEATABLE READ gives all copy and digest statements one MVCC snapshot,
+    // so the six copied tables cannot mix state from different blocks.
+    var txMode = self.library.db.$config.pgp.txMode;
+    var mode = new txMode.TransactionMode({ tiLevel: txMode.isolationLevel.repeatableRead });
+
+    return self.library.db.tx({ mode: mode }, function (t) {
       return t.none(sql.upsertMetaWriting, meta).then(function () {
         return t.none(sql.clearSlotTables(slot));
       }).then(function () {
         return t.none(sql.copyLiveToSlot(slot));
       }).then(function () {
+        // Guard against a copy that captured state ahead of the checkpoint block.
+        return t.oneOrNone(sql.getSlotAccountsMaxBlockHeight(slot));
+      }).then(function (row) {
+        var copiedHeight = row && row.height !== null ? parseInt(row.height, 10) : 0;
+
+        if (copiedHeight > parseInt(block.height, 10)) {
+          throw new Error('Checkpoint copy captured state ahead of block ' + block.height + ' (found height ' + copiedHeight + ')');
+        }
+
         return self.computeDigest(t, slot, meta);
       }).then(function (digest) {
         return t.none(sql.markMetaComplete, { slot: slot, digest: digest });
@@ -328,12 +411,14 @@ MemCheckpoint.prototype.findRecoverableCheckpoint = function (tipHeight, tipRoun
       return null;
     }
 
-    if (parseInt(meta.height, 10) >= parseInt(tipHeight, 10)) {
-      return null;
-    }
-
     var checkpointHeight = parseInt(meta.height, 10);
     var chainHeight = parseInt(tipHeight, 10);
+
+    // A checkpoint exactly at the chain tip is valid and needs zero replay;
+    // only checkpoints ahead of the local chain are unusable.
+    if (checkpointHeight > chainHeight) {
+      return null;
+    }
 
     // Genesis-height checkpoints are test-only; real nodes only persist round-boundary slots (>= delegates).
     if (checkpointHeight < slots.delegates && chainHeight > slots.delegates) {
@@ -361,6 +446,8 @@ MemCheckpoint.prototype.findRecoverableCheckpoint = function (tipHeight, tipRoun
 
 /**
  * Replace live mem_* tables with a verified checkpoint slot.
+ * Unconfirmed (u_*) state is reset to the confirmed state after the copy,
+ * because the transaction pool the checkpoint observed no longer exists.
  * @param {object} meta Verified checkpoint metadata.
  * @return {Promise<object>} Restored checkpoint metadata.
  */
@@ -372,6 +459,8 @@ MemCheckpoint.prototype.restoreCheckpoint = function (meta) {
   return self.library.db.tx(function (t) {
     return t.none(sql.clearLiveTables).then(function () {
       return t.none(sql.copySlotToLive(slot));
+    }).then(function () {
+      return t.none(sql.resetUnconfirmedState);
     }).then(function () {
       return self.validateRestoredInvariants(t, meta, checkpointRound);
     }).then(function (valid) {

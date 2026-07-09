@@ -28,7 +28,30 @@ var MemCheckpointsSql = {
 
   canonicalRound: 'SELECT COALESCE("address", \'\') || E\'\\x1f\' || COALESCE("round"::text, \'\') || E\'\\x1f\' || COALESCE("delegate", \'\') AS sort_key, COALESCE("address", \'\') || E\'\\x1f\' || COALESCE("amount"::text, \'0\') || E\'\\x1f\' || COALESCE("delegate", \'\') || E\'\\x1f\' || COALESCE("blockId", \'\') || E\'\\x1f\' || COALESCE("round"::text, \'\') AS line FROM ${tableName~} ORDER BY "address", "delegate", "round"',
 
-  canonicalAccountDelegates: 'SELECT "accountId" || E\'\\x1f\' || "dependentId" AS sort_key, "accountId" || E\'\\x1f\' || "dependentId" AS line FROM ${tableName~} ORDER BY "accountId", "dependentId"'
+  canonicalAccountDelegates: 'SELECT "accountId" || E\'\\x1f\' || "dependentId" AS sort_key, "accountId" || E\'\\x1f\' || "dependentId" AS line FROM ${tableName~} ORDER BY "accountId", "dependentId"',
+
+  compareTableSchemas: 'SELECT l."column_name" AS live_column, c."column_name" AS ckpt_column, l."data_type" AS live_type, c."data_type" AS ckpt_type FROM (SELECT "ordinal_position", "column_name", "data_type" FROM information_schema.columns WHERE "table_schema" = current_schema() AND "table_name" = ${liveTable}) l FULL OUTER JOIN (SELECT "ordinal_position", "column_name", "data_type" FROM information_schema.columns WHERE "table_schema" = current_schema() AND "table_name" = ${slotTable}) c USING ("ordinal_position") WHERE l."column_name" IS DISTINCT FROM c."column_name" OR l."data_type" IS DISTINCT FROM c."data_type" LIMIT 1',
+
+  resetUnconfirmedState: [
+    'UPDATE mem_accounts SET "u_isDelegate" = "isDelegate", "u_secondSignature" = "secondSignature", "u_username" = "username", "u_balance" = "balance", "u_delegates" = "delegates", "u_multisignatures" = "multisignatures", "u_multimin" = "multimin", "u_multilifetime" = "multilifetime" WHERE "u_isDelegate" <> "isDelegate" OR "u_secondSignature" <> "secondSignature" OR "u_username" IS DISTINCT FROM "username" OR "u_balance" <> "balance" OR "u_delegates" IS DISTINCT FROM "delegates" OR "u_multisignatures" IS DISTINCT FROM "multisignatures" OR "u_multimin" <> "multimin" OR "u_multilifetime" <> "multilifetime";',
+    'DELETE FROM "mem_accounts2u_delegates";',
+    'INSERT INTO "mem_accounts2u_delegates" ("accountId", "dependentId") SELECT "accountId", "dependentId" FROM "mem_accounts2delegates";',
+    'DELETE FROM "mem_accounts2u_multisignatures";',
+    'INSERT INTO "mem_accounts2u_multisignatures" ("accountId", "dependentId") SELECT "accountId", "dependentId" FROM "mem_accounts2multisignatures";'
+  ].join('')
+};
+
+/**
+ * Live mem_* table names keyed by the same logical keys as {@link slotTableNames}.
+ * @type {object}
+ */
+MemCheckpointsSql.liveTableNames = {
+  accounts: 'mem_accounts',
+  round: 'mem_round',
+  accounts2delegates: 'mem_accounts2delegates',
+  accounts2u_delegates: 'mem_accounts2u_delegates',
+  accounts2multisignatures: 'mem_accounts2multisignatures',
+  accounts2u_multisignatures: 'mem_accounts2u_multisignatures'
 };
 
 MemCheckpointsSql.clearLiveTables = [
@@ -46,6 +69,10 @@ MemCheckpointsSql.clearLiveTables = [
  * @return {object} Map of logical table keys to checkpoint table names.
  */
 MemCheckpointsSql.slotTableNames = function (slot) {
+  if (!Number.isInteger(slot) || slot < 0) {
+    throw new Error('Invalid checkpoint slot: ' + slot);
+  }
+
   var prefix = 'mem_ckpt_' + slot + '_';
   return {
     accounts: prefix + 'accounts',
@@ -89,6 +116,17 @@ MemCheckpointsSql.copyLiveToSlot = function (slot) {
     'INSERT INTO "' + tables.accounts2u_multisignatures + '" SELECT * FROM "mem_accounts2u_multisignatures";',
     'INSERT INTO "' + tables.round + '" SELECT * FROM "mem_round";'
   ].join('');
+};
+
+/**
+ * Highest block height referenced by accounts copied into one checkpoint slot.
+ * Used to detect a copy that captured state ahead of the checkpoint block.
+ * @param {number} slot Slot index.
+ * @return {string}
+ */
+MemCheckpointsSql.getSlotAccountsMaxBlockHeight = function (slot) {
+  var tables = MemCheckpointsSql.slotTableNames(slot);
+  return 'SELECT MAX(b."height")::bigint AS height FROM "' + tables.accounts + '" a JOIN blocks b ON b."id" = a."blockId"';
 };
 
 /**
