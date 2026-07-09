@@ -134,7 +134,11 @@
     }
   },
   "loading": {
-    "loadPerIteration": 5000
+    "loadPerIteration": 5000,
+    "memCheckpoints": {
+      "enabled": true,
+      "retention": 3
+    }
   },
   "ssl": {
     "enabled": false,

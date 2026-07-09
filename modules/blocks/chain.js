@@ -485,6 +485,10 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
     // Allow shutdown, database writes are finished.
     modules.blocks.isActive.set(false);
 
+    if (!err && saveBlock && modules.memCheckpoints) {
+      modules.memCheckpoints.onBlockApplied(block, true);
+    }
+
     // Nullify large objects.
     // Prevents memory leak during synchronization.
     appliedTransactions = unconfirmedTransactionIds = block = null;
@@ -657,7 +661,8 @@ Chain.prototype.onBind = function (scope) {
     accounts: scope.accounts,
     blocks: scope.blocks,
     rounds: scope.rounds,
-    transactions: scope.transactions
+    transactions: scope.transactions,
+    memCheckpoints: scope.memCheckpoints
   };
 
   // Set module as loaded

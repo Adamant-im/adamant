@@ -26,6 +26,7 @@ __private.syncInterval = 10000;
 __private.retries = 5;
 __private.stopRequested = false;
 __private.shutdownRequested = false;
+__private.rebuildInProgress = false;
 // Maximum time a single sync run may go without block progress before it is
 // considered stalled and aborted so the loader can recover.
 __private.syncTimeout = constants.syncStallTimeout;
@@ -367,12 +368,46 @@ __private.loadBlockChain = function () {
     finishLoading(false);
   }
 
-  function load (count) {
+  function finishRebuild (err, count) {
+    __private.rebuildInProgress = false;
+
+    if (err) {
+      library.logger.error('loader', err);
+      if (err.block) {
+        library.logger.error('loader', 'Blockchain failed at: ' + err.block.height);
+        modules.blocks.chain.deleteAfterBlock(err.block.id, function (err, res) {
+          if (err) {
+            library.logger.error('loader', 'Failed to clip blockchain', err);
+          }
+          library.logger.error('loader', 'Blockchain clipped');
+          finishLoading(true);
+        });
+      } else {
+        finishLoading(false);
+      }
+    } else if (__private.stopRequested) {
+      library.logger.warn('loader', 'Blockchain rebuild stopped for shutdown; mem_* tables may be inconsistent and are not boot-ready');
+      library.logger.info('loader', 'Blockchain rebuild stopped for shutdown');
+      finishLoading(false);
+    } else {
+      library.logger.info('loader', 'Blockchain ready');
+      finishLoading(true);
+    }
+  }
+
+  function load (count, options) {
+    var startOffset = (options && options.startOffset) || 0;
+    var skipTableReset = Boolean(options && options.skipTableReset);
+
     verify = true;
     __private.total = count;
+    __private.rebuildInProgress = true;
+    offset = startOffset;
 
-    async.series({
-      removeTables: function (seriesCb) {
+    var steps = {};
+
+    if (!skipTableReset) {
+      steps.removeTables = function (seriesCb) {
         library.logic.account.removeTables(function (err) {
           if (err) {
             throw err;
@@ -380,8 +415,8 @@ __private.loadBlockChain = function () {
             return setImmediate(seriesCb);
           }
         });
-      },
-      createTables: function (seriesCb) {
+      };
+      steps.createTables = function (seriesCb) {
         library.logic.account.createTables(function (err) {
           if (err) {
             throw err;
@@ -389,70 +424,68 @@ __private.loadBlockChain = function () {
             return setImmediate(seriesCb);
           }
         });
-      },
-      loadBlocksOffset: function (seriesCb) {
-        async.until(
-            function (testCb) {
-              return testCb(null, __private.stopRequested || count < offset);
-            }, function (cb) {
-              if (__private.stopRequested) {
-                return setImmediate(cb);
+      };
+    }
+
+    steps.loadBlocksOffset = function (seriesCb) {
+      async.until(
+          function (testCb) {
+            return testCb(null, __private.stopRequested || count < offset);
+          }, function (cb) {
+            if (__private.stopRequested) {
+              return setImmediate(cb);
+            }
+
+            if (count > 1) {
+              library.logger.info('loader', 'Rebuilding blockchain, current block height: ' + (offset + 1));
+            }
+            modules.blocks.process.loadBlocksOffset(limit, offset, verify, function (err, lastBlock) {
+              if (err) {
+                return setImmediate(cb, err);
               }
 
-              if (count > 1) {
-                library.logger.info('loader', 'Rebuilding blockchain, current block height: ' + (offset + 1));
-              }
-              modules.blocks.process.loadBlocksOffset(limit, offset, verify, function (err, lastBlock) {
-                if (err) {
-                  return setImmediate(cb, err);
-                }
+              offset = offset + limit;
+              __private.lastBlock = lastBlock;
 
-                offset = offset + limit;
-                __private.lastBlock = lastBlock;
+              return setImmediate(cb);
+            }, __private.isStopRequested);
+          }, function (err) {
+            return setImmediate(seriesCb, err);
+          }
+      );
+    };
 
-                return setImmediate(cb);
-              }, __private.isStopRequested);
-            }, function (err) {
-              return setImmediate(seriesCb, err);
-            }
-        );
-      }
-    }, function (err) {
-      if (err) {
-        library.logger.error('loader', err);
-        if (err.block) {
-          library.logger.error('loader', 'Blockchain failed at: ' + err.block.height);
-          modules.blocks.chain.deleteAfterBlock(err.block.id, function (err, res) {
-            if (err) {
-              library.logger.error('loader', 'Failed to clip blockchain', err);
-            }
-            library.logger.error('loader', 'Blockchain clipped');
-            finishLoading(true);
-          });
-        } else {
-          finishLoading(false);
-        }
-      } else if (__private.stopRequested) {
-        library.logger.info('loader', 'Blockchain rebuild stopped for shutdown');
-        finishLoading(false);
-      } else {
-        library.logger.info('loader', 'Blockchain ready');
-        finishLoading(true);
-      }
+    async.series(steps, function (err) {
+      return finishRebuild(err, count);
     });
   }
 
-  function reload (count, message) {
+  function reload (count, message, round) {
     if (__private.stopRequested) {
       return finishForShutdown();
     }
 
     if (message) {
       library.logger.warn('loader', message);
-      library.logger.warn('loader', 'Recreating memory tables');
     }
 
-    return load(count);
+    if (!modules.memCheckpoints || !modules.memCheckpoints.isEnabled()) {
+      library.logger.warn('loader', 'Recreating memory tables');
+      return load(count);
+    }
+
+    modules.memCheckpoints.tryRecover(count, round, function (err, checkpoint) {
+      if (checkpoint) {
+        library.logger.info('loader', 'Recovering from mem-table checkpoint at height ' + checkpoint.height);
+        return load(count, {
+          startOffset: checkpoint.height + 1,
+          skipTableReset: true
+        });
+      }
+
+      library.logger.warn('loader', 'Recreating memory tables');
+      return load(count);
+    });
   }
 
   function checkMemTables (t) {
@@ -515,7 +548,7 @@ __private.loadBlockChain = function () {
     var round = modules.rounds.calc(count);
 
     if (count === 1) {
-      return reload(count);
+      return reload(count, null, round);
     }
 
     matchGenesisBlock(results[1][0]);
@@ -523,13 +556,13 @@ __private.loadBlockChain = function () {
     verify = verifySnapshot(count, round);
 
     if (verify) {
-      return reload(count, 'Blocks verification enabled');
+      return reload(count, 'Blocks verification enabled', round);
     }
 
     var missed = !(results[2].count);
 
     if (missed) {
-      return reload(count, 'Detected missed blocks in mem_accounts');
+      return reload(count, 'Detected missed blocks in mem_accounts', round);
     }
 
     var unapplied = results[3].filter(function (row) {
@@ -537,7 +570,7 @@ __private.loadBlockChain = function () {
     });
 
     if (unapplied.length > 0) {
-      return reload(count, 'Detected unapplied rounds in mem_round');
+      return reload(count, 'Detected unapplied rounds in mem_round', round);
     }
 
     var duplicatedDelegates = +results[4][0].count;
@@ -566,16 +599,16 @@ __private.loadBlockChain = function () {
       }
 
       if (results[1].length > 0) {
-        return reload(count, 'Detected orphaned blocks in mem_accounts');
+        return reload(count, 'Detected orphaned blocks in mem_accounts', round);
       }
 
       if (results[2].length === 0) {
-        return reload(count, 'No delegates found');
+        return reload(count, 'No delegates found', round);
       }
 
       modules.blocks.utils.loadLastBlock(function (err, block) {
         if (err) {
-          return reload(count, err || 'Failed to load last block');
+          return reload(count, err || 'Failed to load last block', round);
         } else {
           __private.lastBlock = block;
           library.logger.info('loader', 'Blockchain ready');
@@ -1110,7 +1143,8 @@ Loader.prototype.onBind = function (scope) {
     rounds: scope.rounds,
     transport: scope.transport,
     multisignatures: scope.multisignatures,
-    system: scope.system
+    system: scope.system,
+    memCheckpoints: scope.memCheckpoints
   };
 
   __private.loadBlockChain();
