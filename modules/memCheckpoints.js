@@ -88,7 +88,7 @@ MemCheckpoints.prototype.tryRecover = function (tipHeight, tipRound, cb) {
       return setImmediate(cb, null, null);
     }
 
-    return __private.logic.restoreCheckpoint(meta, tipRound).then(function (restored) {
+    return __private.logic.restoreCheckpoint(meta).then(function (restored) {
       return setImmediate(cb, null, restored);
     });
   }).catch(function (err) {

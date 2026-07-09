@@ -396,7 +396,7 @@ __private.loadBlockChain = function () {
   }
 
   function load (count, options) {
-    var startOffset = (options && options.startOffset) || 0;
+    var startOffset = Number((options && options.startOffset) || 0);
     var skipTableReset = Boolean(options && options.skipTableReset);
 
     verify = true;
@@ -476,9 +476,26 @@ __private.loadBlockChain = function () {
 
     modules.memCheckpoints.tryRecover(count, round, function (err, checkpoint) {
       if (checkpoint) {
-        library.logger.info('loader', 'Recovering from mem-table checkpoint at height ' + checkpoint.height);
+        var checkpointHeight = parseInt(checkpoint.height, 10);
+        var replayOffset = checkpointHeight + 1;
+
+        library.logger.info('loader', 'Recovering from mem-table checkpoint at height ' + checkpointHeight);
+
+        if (replayOffset > count) {
+          return modules.blocks.utils.loadLastBlock(function (loadErr, block) {
+            if (loadErr) {
+              library.logger.warn('loader', 'Checkpoint restore at chain tip failed to load last block, recreating memory tables');
+              return load(count);
+            }
+
+            __private.lastBlock = block;
+            library.logger.info('loader', 'Blockchain ready');
+            return finishLoading(true);
+          });
+        }
+
         return load(count, {
-          startOffset: checkpoint.height + 1,
+          startOffset: replayOffset,
           skipTableReset: true
         });
       }

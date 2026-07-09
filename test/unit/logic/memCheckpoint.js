@@ -138,7 +138,7 @@ describe('memCheckpoint', function () {
       return db.tx(function (t) {
         return t.none('UPDATE mem_accounts SET "blockId" = \'broken\'');
       }).then(function () {
-        return logic.restoreCheckpoint(createdMeta, round);
+        return logic.restoreCheckpoint(createdMeta);
       }).then(function (restored) {
         expect(parseInt(restored.height, 10)).to.equal(block.height);
         return db.one(sql.countMemAccountsAtBlock, { blockId: block.id });

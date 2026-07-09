@@ -139,10 +139,10 @@ MemCheckpoint.prototype.computeDigest = function (t, slot, meta) {
 /**
  * @param {object} t
  * @param {object} meta
- * @param {number} tipRound
+ * @param {number} checkpointRound
  * @return {Promise<boolean>}
  */
-MemCheckpoint.prototype.validateRestoredInvariants = function (t, meta, tipRound) {
+MemCheckpoint.prototype.validateRestoredInvariants = function (t, meta, checkpointRound) {
   return t.batch([
     t.one(sql.countMemAccountsAtBlock, { blockId: meta.blockId }),
     t.query(sql.getMemRounds),
@@ -153,8 +153,10 @@ MemCheckpoint.prototype.validateRestoredInvariants = function (t, meta, tipRound
       return false;
     }
 
+    var expectedRound = String(checkpointRound);
+
     var unapplied = results[1].filter(function (row) {
-      return row.round !== String(tipRound);
+      return row.round !== expectedRound;
     });
 
     if (unapplied.length > 0) {
@@ -299,7 +301,7 @@ MemCheckpoint.prototype.findRecoverableCheckpoint = function (tipHeight, tipRoun
   }
 
   return self.getLatestComplete().then(function (meta) {
-    if (!meta || meta.height >= tipHeight) {
+    if (!meta || parseInt(meta.height, 10) >= parseInt(tipHeight, 10)) {
       return null;
     }
 
@@ -320,18 +322,18 @@ MemCheckpoint.prototype.findRecoverableCheckpoint = function (tipHeight, tipRoun
 
 /**
  * @param {object} meta
- * @param {number} tipRound
  * @return {Promise<object>}
  */
-MemCheckpoint.prototype.restoreCheckpoint = function (meta, tipRound) {
+MemCheckpoint.prototype.restoreCheckpoint = function (meta) {
   var self = this;
   var slot = parseInt(meta.slot, 10);
+  var checkpointRound = parseInt(meta.round, 10);
 
   return self.library.db.tx(function (t) {
     return t.none(sql.clearLiveTables).then(function () {
       return t.none(sql.copySlotToLive(slot));
     }).then(function () {
-      return self.validateRestoredInvariants(t, meta, tipRound);
+      return self.validateRestoredInvariants(t, meta, checkpointRound);
     }).then(function (valid) {
       if (!valid) {
         throw new Error('Restored checkpoint failed invariant checks');
