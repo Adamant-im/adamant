@@ -392,6 +392,48 @@ describe('live scenario runner utilities', () => {
     expect(routing.check.status).to.equal(404);
   });
 
+  it('should report malformed top account balances without aborting the API matrix', async () => {
+    const definitions = scenarios.buildRestApiChecks(null);
+    const topAccountsDefinition = definitions.find((check) => {
+      return check.id === 'accounts.top';
+    });
+    const context = {
+      metrics: {
+        latency: function () {}
+      }
+    };
+    const execution = await scenarios.executeRestApiCheck(context, {
+      get: async function () {
+        return {
+          ok: true,
+          status: 200,
+          body: {
+            success: true,
+            accounts: [
+              {
+                address: 'U1',
+                balance: '100',
+                isDelegate: 0
+              },
+              {
+                address: 'U2',
+                balance: 'not-a-balance',
+                isDelegate: 0
+              }
+            ],
+            count: 2,
+            limit: 3,
+            offset: 0
+          },
+          latencyMs: 1
+        };
+      }
+    }, topAccountsDefinition);
+
+    expect(execution.check.passed).to.equal(false);
+    expect(execution.check.failure).to.equal('top account balance is not an integer string');
+  });
+
   it('should build three complex checks per docs section and query-language endpoint', () => {
     const responseBodies = {
       'blocks.list': {

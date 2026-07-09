@@ -28,7 +28,6 @@
     "enabled": false,
     "level": "info"
   },
-  "topAccounts": true,
   "cacheEnabled": true,
   "db": {
     "host": "localhost",
