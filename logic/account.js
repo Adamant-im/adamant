@@ -446,6 +446,35 @@ __private.applyAddressFilter = function (query, filter) {
 };
 
 /**
+ * Applies supported comparison filters that cannot be expressed through a
+ * plain object equality predicate.
+ * @private
+ * @param {object} query - Knex query builder for the `mem_accounts` table.
+ * @param {object} filter - Mutable account filter object.
+ * @return {object} The query builder with range conditions applied.
+ */
+__private.applyRangeFilters = function (query, filter) {
+  if (filter.balance && typeof filter.balance === 'object' && filter.balance.$gt !== undefined) {
+    query = query.where('balance', '>', filter.balance.$gt);
+    delete filter.balance;
+  }
+
+  return query;
+};
+
+/**
+ * Removes pagination and sorting controls before passing filters to `where()`.
+ * @private
+ * @param {object} filter - Mutable account filter object.
+ * @return {void}
+ */
+__private.stripQueryControls = function (filter) {
+  delete filter.limit;
+  delete filter.offset;
+  delete filter.sort;
+};
+
+/**
  * Creates memory tables related to accounts:
  * - mem_accounts
  * - mem_round
@@ -626,16 +655,15 @@ Account.prototype.getAll = function (filter, fields, cb) {
   let query = knex({ a: this.table }).select(realFields);
 
   query = __private.applyAddressFilter(query, filter);
+  query = __private.applyRangeFilters(query, filter);
 
   if (filter.limit > 0) {
     query = query.limit(filter.limit);
   }
-  delete filter.limit;
 
   if (filter.offset > 0) {
     query = query.offset(filter.offset);
   }
-  delete filter.offset;
 
   if (filter.sort) {
     const sort = Object.entries(filter.sort).map(([column, sort]) => ({
@@ -645,7 +673,8 @@ Account.prototype.getAll = function (filter, fields, cb) {
 
     query = query.orderBy(sort);
   }
-  delete filter.sort;
+
+  __private.stripQueryControls(filter);
 
   query = query.where(filter);
 
@@ -668,6 +697,8 @@ Account.prototype.count = function (filter, cb) {
 
   let query = knex({ a: this.table }).count('* as count');
   query = __private.applyAddressFilter(query, filter);
+  query = __private.applyRangeFilters(query, filter);
+  __private.stripQueryControls(filter);
   query = query.where(filter);
 
   this.scope.db.query(query.toString() + ';').then(function (rows) {

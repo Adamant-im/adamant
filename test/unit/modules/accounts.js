@@ -398,8 +398,11 @@ describe('accounts', function () {
 
       accounts.internal.top({ limit: 2, offset: 10 }, (err, response) => {
         expect(err).not.to.exist;
-        expect(countAccountsStub.firstCall.args[0]).to.eql({});
+        expect(countAccountsStub.firstCall.args[0]).to.eql({
+          balance: { $gt: 0 }
+        });
         expect(getAccountsStub.firstCall.args[0]).to.eql({
+          balance: { $gt: 0 },
           sort: {
             balance: -1,
             address: 1
@@ -429,9 +432,13 @@ describe('accounts', function () {
 
       accounts.internal.top({ isDelegate: 1 }, (err, response) => {
         expect(err).not.to.exist;
-        expect(countAccountsStub.firstCall.args[0]).to.eql({ isDelegate: 1 });
+        expect(countAccountsStub.firstCall.args[0]).to.eql({
+          isDelegate: 1,
+          balance: { $gt: 0 }
+        });
         expect(getAccountsStub.firstCall.args[0]).to.eql({
           isDelegate: 1,
+          balance: { $gt: 0 },
           sort: {
             balance: -1,
             address: 1
@@ -457,7 +464,10 @@ describe('accounts', function () {
 
       accounts.internal.top({ limit: '2', offset: '3', isDelegate: '1' }, (err, response) => {
         expect(err).not.to.exist;
-        expect(countAccountsStub.firstCall.args[0]).to.eql({ isDelegate: 1 });
+        expect(countAccountsStub.firstCall.args[0]).to.eql({
+          isDelegate: 1,
+          balance: { $gt: 0 }
+        });
         expect(getAccountsStub.firstCall.args[0]).to.include({
           isDelegate: 1,
           offset: 3,
@@ -478,6 +488,9 @@ describe('accounts', function () {
       accounts.internal.top({ limit: 0, offset: 20 }, (err, response) => {
         expect(err).not.to.exist;
         expect(getAccountsStub.called).to.be.false;
+        expect(countAccountsStub.firstCall.args[0]).to.eql({
+          balance: { $gt: 0 }
+        });
         expect(response).to.eql({
           success: true,
           accounts: [],

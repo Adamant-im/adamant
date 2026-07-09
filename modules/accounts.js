@@ -81,6 +81,9 @@ __private.normalizeTopQuery = function (query) {
     filter.isDelegate = isDelegate.value;
   }
 
+  // Rich-list results and counts should ignore empty accounts.
+  filter.balance = { $gt: 0 };
+
   return {
     filter: filter,
     limit: limit.value,

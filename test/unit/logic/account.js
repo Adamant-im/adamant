@@ -340,6 +340,17 @@ describe('account', () => {
       });
     });
 
+    it('should apply range filters before generic equality filters', (done) => {
+      account.getAll({ balance: { $gt: 0 }, isDelegate: 1 }, ['username'], () => {
+        const matched = db.query.calledWithMatch(
+            'select "username" from "mem_accounts" as "a" where "balance" > 0 and "isDelegate" = 1;'
+        );
+
+        expect(matched).to.be.true;
+        done();
+      });
+    });
+
     it('should filter out non existing fields', (done) => {
       const nonExistingFields = [
         'reward',
@@ -410,6 +421,32 @@ describe('account', () => {
         expect(count).to.equal(1);
         expect(db.query.calledWith(
             `select count(*) as "count" from "mem_accounts" as "a" where upper("address") = '${validAccount.address}';`
+        )).to.be.true;
+        done();
+      });
+    });
+
+    it('should apply range filters when counting', (done) => {
+      db.query = sinon.fake.returns(Promise.resolve([{ count: '3' }]));
+
+      account.count({ balance: { $gt: 0 }, isDelegate: 1 }, (err, count) => {
+        expect(err).not.to.exist;
+        expect(count).to.equal(3);
+        expect(db.query.calledWith(
+            'select count(*) as "count" from "mem_accounts" as "a" where "balance" > 0 and "isDelegate" = 1;'
+        )).to.be.true;
+        done();
+      });
+    });
+
+    it('should strip pagination controls before counting', (done) => {
+      db.query = sinon.fake.returns(Promise.resolve([{ count: '7' }]));
+
+      account.count({ isDelegate: 1, sort: { balance: -1 }, limit: 10, offset: 5 }, (err, count) => {
+        expect(err).not.to.exist;
+        expect(count).to.equal(7);
+        expect(db.query.calledWith(
+            'select count(*) as "count" from "mem_accounts" as "a" where "isDelegate" = 1;'
         )).to.be.true;
         done();
       });
