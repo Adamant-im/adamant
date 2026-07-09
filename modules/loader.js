@@ -256,7 +256,7 @@ __private.loadTransactions = function (cb) {
       });
     },
     function (peer, waterCb) {
-      library.logger.log('loader', 'Loading transactions from: ' + peer.string + '…');
+      library.logger.log('loader', 'Loading transactions from peer ' + peer.string + '…');
 
       modules.transport.getFromPeer(peer, {
         api: '/transactions',
@@ -723,15 +723,15 @@ __private.loadBlocksFromNetwork = function (cb, shouldStop) {
             }
 
             function getCommonBlock (cb) {
-              library.logger.info('loader', 'Looking for common block with: ' + peer.string + '…');
+              library.logger.info('loader', 'Looking for common block with peer ' + peer.string + '…');
               modules.blocks.process.getCommonBlock(peer, lastBlock.height, function (err, commonBlock) {
                 if (!commonBlock) {
                   if (err) { library.logger.error('loader', err.toString()); }
-                  library.logger.error('loader', 'Failed to find common block with: ' + peer.string);
+                  library.logger.error('loader', 'Failed to find common block with peer: ' + peer.string);
                   errorCount += 1;
                   return next();
                 } else {
-                  library.logger.info('loader', ['Found common block:', commonBlock.id, 'with:', peer.string].join(' '));
+                  library.logger.info('loader', ['Found common block:', commonBlock.id, 'with peer:', peer.string].join(' '));
                   return setImmediate(cb);
                 }
               });
