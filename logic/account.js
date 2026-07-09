@@ -419,6 +419,33 @@ function Account (db, schema, logger, cb) {
 }
 
 /**
+ * Applies the account address filter to a knex query and removes it from the
+ * remaining generic filter object.
+ * @private
+ * @param {object} query - Knex query builder for the `mem_accounts` table.
+ * @param {object} filter - Mutable account filter object.
+ * @return {object} The query builder with address conditions applied.
+ */
+__private.applyAddressFilter = function (query, filter) {
+  if (typeof filter.address === 'string') {
+    query = query.whereRaw('upper("address") = ?', [filter.address.toUpperCase()]);
+  } else if (filter.address && Array.isArray(filter.address.$in)) {
+    var addresses = filter.address.$in.map(function (address) {
+      return String(address).toUpperCase();
+    });
+
+    if (addresses.length) {
+      query = query.whereIn(knex.raw('upper("address")'), addresses);
+    } else {
+      query = query.whereRaw('1 = 0');
+    }
+  }
+  delete filter.address;
+
+  return query;
+};
+
+/**
  * Creates memory tables related to accounts:
  * - mem_accounts
  * - mem_round
@@ -559,8 +586,8 @@ Account.prototype.get = function (filter, fields, cb) {
 
 /**
  * Gets accounts information from mem_accounts.
- * @param {object} filter - Contains address.
- * @param {Object|function} fields - Table fields.
+ * @param {object} filter - Query conditions and optional pagination/sort controls.
+ * @param {object|function} fields - Table fields or callback function.
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} data with rows | 'Account#getAll error'.
  */
@@ -598,20 +625,7 @@ Account.prototype.getAll = function (filter, fields, cb) {
 
   let query = knex({ a: this.table }).select(realFields);
 
-  if (typeof filter.address === 'string') {
-    query = query.whereRaw('upper("address") = ?', [filter.address.toUpperCase()]);
-  } else if (filter.address && Array.isArray(filter.address.$in)) {
-    var addresses = filter.address.$in.map(function (address) {
-      return String(address).toUpperCase();
-    });
-
-    if (addresses.length) {
-      query = query.whereIn(knex.raw('upper("address")'), addresses);
-    } else {
-      query = query.whereRaw('1 = 0');
-    }
-  }
-  delete filter.address;
+  query = __private.applyAddressFilter(query, filter);
 
   if (filter.limit > 0) {
     query = query.limit(filter.limit);
@@ -640,6 +654,27 @@ Account.prototype.getAll = function (filter, fields, cb) {
   }).catch(function (err) {
     library.logger.error('accounts', `An error occurred while trying to query mem_accounts table: ${err?.message || err}.`, err.stack);
     return setImmediate(cb, 'Account#getAll error');
+  });
+};
+
+/**
+ * Counts accounts matching filter criteria.
+ * @param {object} filter - Query conditions for `mem_accounts`.
+ * @param {function} cb - Callback function.
+ * @return {setImmediateCallback} Callback with the matching account count or 'Account#count error'.
+ */
+Account.prototype.count = function (filter, cb) {
+  filter = Object.assign({}, filter);
+
+  let query = knex({ a: this.table }).count('* as count');
+  query = __private.applyAddressFilter(query, filter);
+  query = query.where(filter);
+
+  this.scope.db.query(query.toString() + ';').then(function (rows) {
+    return setImmediate(cb, null, Number(rows[0].count));
+  }).catch(function (err) {
+    library.logger.error('accounts', `An error occurred while trying to count mem_accounts rows: ${err?.message || err}.`, err.stack);
+    return setImmediate(cb, 'Account#count error');
   });
 };
 

@@ -67,6 +67,39 @@ You need to specify at least some peers in `peers.list`, e.g.:
 }
 ```
 
+#### Native PostgreSQL driver
+
+The database layer enables `pg-native` by default through `pg-promise`. It uses the native `libpq` client library and the npm `libpq` addon. This is the closest path to the PostgreSQL C client used by production deployments, but the addon is compiled for one Node.js ABI at a time.
+
+On macOS/Homebrew, install the client library and rebuild the addon after changing Node.js versions. `libpq` is enough for the native addon; the PostgreSQL server formula is only needed for the local test database, not for `pg-native` itself. If you already run a compatible PostgreSQL server locally, keep using it and install only `libpq`.
+
+```sh
+brew install libpq
+
+cd node_modules/libpq
+PATH="/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/opt/node@22/bin:/opt/homebrew/bin:/opt/homebrew/opt/libpq/bin" \
+CPPFLAGS="-I/opt/homebrew/opt/libpq/include" \
+LDFLAGS="-L/opt/homebrew/opt/libpq/lib" \
+PKG_CONFIG_PATH="/opt/homebrew/opt/libpq/lib/pkgconfig" \
+node-gyp rebuild
+```
+
+Install a PostgreSQL server only when you do not already have one available for the local test database. The repository examples use the current stable Homebrew versioned formula so service commands stay explicit:
+
+```sh
+brew install postgresql@18
+```
+
+Use the active Node.js major version in the `PATH` above. Native addons are ABI-specific, so a successful build for one Node.js major may fail to load after switching to another. Node.js 22 is known to build `libpq@1.8.x`; Node.js 26 requires a newer semver-compatible `libpq` addon such as `1.11.x`.
+
+If native bindings are unavailable during local validation, set `PG_NATIVE=false` to use the pure JavaScript `pg` driver:
+
+```sh
+PG_NATIVE=false npm run test:unit:fast
+```
+
+This fallback is acceptable for local unit validation when the change is not about database driver behavior. Mention it in the test report whenever it is used.
+
 #### Configuration Overrides
 
 Startup config can be overridden without editing `config.json` or `test/config.json`.

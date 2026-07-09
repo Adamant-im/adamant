@@ -30,7 +30,6 @@
     "level": "debug"
   },
   "trustProxy": false,
-  "topAccounts": true,
   "cacheEnabled": true,
   "db": {
     "host": "localhost",

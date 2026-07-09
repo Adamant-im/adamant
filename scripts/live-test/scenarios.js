@@ -474,6 +474,9 @@ function buildRestApiChecks (fixture) {
     apiSuccessCheck('transactions.unconfirmed', 'Transactions', '/api/transactions/unconfirmed', 'Unconfirmed transaction pool is readable.', function (body) {
       return Array.isArray(body.transactions) ? null : 'unconfirmed transactions array is missing';
     }),
+    apiSuccessCheck('accounts.top', 'Accounts', '/api/accounts/top?limit=3&offset=0', 'Top accounts expose bounded pagination metadata and stable balance ordering.', validateTopAccounts(3, 0)),
+    apiSuccessCheck('accounts.top-delegates', 'Accounts', '/api/accounts/top?limit=3&isDelegate=1', 'Top accounts can be filtered to delegate accounts.', validateTopAccounts(3, 0, 1)),
+    apiSuccessCheck('accounts.top-count', 'Accounts', '/api/accounts/top?limit=0', 'Top accounts support count-only pagination metadata.', validateTopAccounts(0, 0)),
     apiSuccessCheck('delegates.count', 'Delegates', '/api/delegates/count', 'Registered delegate count is available.'),
     apiSuccessCheck('delegates.list', 'Delegates', '/api/delegates?limit=3&orderBy=rank:asc', 'Delegate list supports bounded rank sorting.', function (body) {
       return Array.isArray(body.delegates) ? null : 'delegates array is missing';
@@ -493,6 +496,7 @@ function buildRestApiChecks (fixture) {
     apiRejectionCheck('validation.block-id-required', 'Validation', '/api/blocks/get', 'Missing block id is rejected.'),
     apiRejectionCheck('validation.transaction-id-required', 'Validation', '/api/transactions/get', 'Missing transaction id is rejected.'),
     apiRejectionCheck('validation.account-address', 'Validation', '/api/accounts/getBalance?address=not-an-adamant-address', 'Malformed account address is rejected.'),
+    apiRejectionCheck('validation.accounts-top-delegate-filter', 'Validation', '/api/accounts/top?isDelegate=2', 'Out-of-range top-account delegate filter is rejected.'),
     apiRejectionCheck('validation.delegate-search', 'Validation', '/api/delegates/search', 'Delegate search without q is rejected.'),
     apiRejectionCheck('validation.peer-port', 'Validation', '/api/peers?port=0', 'Peer port below the valid range is rejected.'),
     apiRejectionCheck('validation.block-sort', 'Validation', '/api/blocks?orderBy=unknown:asc', 'Unknown block sort field is rejected.'),
@@ -1340,6 +1344,61 @@ function validateDescendingBlocks (body) {
   }
 
   return null;
+}
+
+/**
+ * Creates a validator for the `/api/accounts/top` response shape, filters, and ordering.
+ * @param {number} limit - Expected normalized response limit.
+ * @param {number} offset - Expected normalized response offset.
+ * @param {number} [isDelegate] - Optional delegate flag expected for every returned account.
+ * @return {Function} Response validator.
+ */
+function validateTopAccounts (limit, offset, isDelegate) {
+  return function (body) {
+    if (!Array.isArray(body.accounts)) {
+      return 'accounts array is missing';
+    }
+    if (body.limit !== limit) {
+      return 'limit metadata does not match the requested value';
+    }
+    if (body.offset !== offset) {
+      return 'offset metadata does not match the requested value';
+    }
+    if (typeof body.count !== 'number') {
+      return 'count metadata is missing';
+    }
+    if (body.accounts.length > limit) {
+      return 'accounts array exceeds the requested limit';
+    }
+    if (body.count < body.accounts.length) {
+      return 'count metadata is smaller than the returned account page';
+    }
+
+    for (let index = 0; index < body.accounts.length; index++) {
+      const account = body.accounts[index];
+
+      if (typeof account.address !== 'string' || typeof account.balance !== 'string' || typeof account.isDelegate !== 'number') {
+        return 'top account fields are incomplete';
+      }
+      if (isDelegate !== undefined && account.isDelegate !== isDelegate) {
+        return 'top account delegate filter returned an unexpected account';
+      }
+      if (index > 0) {
+        const previous = body.accounts[index - 1];
+        const previousBalance = BigInt(previous.balance);
+        const currentBalance = BigInt(account.balance);
+
+        if (previousBalance < currentBalance) {
+          return 'top accounts are not sorted by descending balance';
+        }
+        if (previousBalance === currentBalance && previous.address > account.address) {
+          return 'top accounts with equal balances are not sorted by ascending address';
+        }
+      }
+    }
+
+    return null;
+  };
 }
 
 /**

@@ -83,13 +83,13 @@ module.exports = {
     type: 'object',
     properties: {
       limit: {
-        type: 'integer',
-        minimum: 0,
-        maximum: 100
+        format: 'parsedInt'
       },
       offset: {
-        type: 'integer',
-        minimum: 0
+        format: 'parsedInt'
+      },
+      isDelegate: {
+        format: 'parsedInt'
       }
     }
   }

@@ -388,6 +388,34 @@ describe('account', () => {
     });
   });
 
+  describe('count()', () => {
+    it('should count all matching accounts', (done) => {
+      db.query = sinon.fake.returns(Promise.resolve([{ count: '7' }]));
+
+      account.count({ isDelegate: 1 }, (err, count) => {
+        expect(err).not.to.exist;
+        expect(count).to.equal(7);
+        expect(db.query.calledWith(
+            'select count(*) as "count" from "mem_accounts" as "a" where "isDelegate" = 1;'
+        )).to.be.true;
+        done();
+      });
+    });
+
+    it('should reuse uppercase address filtering', (done) => {
+      db.query = sinon.fake.returns(Promise.resolve([{ count: '1' }]));
+
+      account.count({ address: validAccount.address.toLowerCase() }, (err, count) => {
+        expect(err).not.to.exist;
+        expect(count).to.equal(1);
+        expect(db.query.calledWith(
+            `select count(*) as "count" from "mem_accounts" as "a" where upper("address") = '${validAccount.address}';`
+        )).to.be.true;
+        done();
+      });
+    });
+  });
+
   describe('set()', () => {
     it('should set balance to 100000', (done) => {
       account.set(validAccount.address, { balance: 100000 }, () => {
