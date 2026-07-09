@@ -97,7 +97,7 @@ MemCheckpoints.prototype.tryRecover = function (tipHeight, tipRound, cb) {
       return setImmediate(cb, null, restored);
     });
   }).catch(function (err) {
-    library.logger.warn('memCheckpoints', `Checkpoint recovery failed, falling back to full rebuild: ${err?.message || err}`);
+    library.logger.warn('memCheckpoints', `Checkpoint recovery failed: ${err?.message || err}; falling back to full rebuild…`);
     return setImmediate(cb, null, null);
   });
 };

@@ -242,7 +242,7 @@ Process.prototype.loadBlocksFromPeer = function (peer, cb, shouldStop) {
 
   // Normalize peer
   peer = library.logic.peers.create(peer);
-  library.logger.info('loader', 'Loading blocks from: ' + peer.string);
+  library.logger.info('loader', 'Loading blocks from peer ' + peer.string + '…');
 
   function getFromPeer (seriesCb) {
     // Ask remote peer for blocks

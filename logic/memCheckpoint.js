@@ -332,6 +332,18 @@ MemCheckpoint.prototype.findRecoverableCheckpoint = function (tipHeight, tipRoun
       return null;
     }
 
+    var checkpointHeight = parseInt(meta.height, 10);
+    var chainHeight = parseInt(tipHeight, 10);
+
+    // Genesis-height checkpoints are test-only; real nodes only persist round-boundary slots (>= delegates).
+    if (checkpointHeight < slots.delegates && chainHeight > slots.delegates) {
+      self.library.logger.warn('memCheckpoints', 'Rejecting pre-round checkpoint on grown chain', {
+        checkpointHeight: checkpointHeight,
+        tipHeight: chainHeight
+      });
+      return null;
+    }
+
     return self.verifyCheckpointMeta(meta, nethash).then(function (verified) {
       if (!verified) {
         return null;

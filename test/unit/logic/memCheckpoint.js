@@ -60,25 +60,32 @@ describe('memCheckpoint', function () {
     let createdMeta;
 
     before(function (done) {
-      db.tx(function (t) {
-        return t.one('SELECT "id", "height" FROM blocks WHERE "height" = 1').then(function (genesis) {
-          block.id = genesis.id;
-          block.height = genesis.height;
+      logic.getLatestComplete().then(function (latest) {
+        if (latest && parseInt(latest.height, 10) > 1) {
+          this.skip();
+          return;
+        }
 
-          return t.none('DELETE FROM mem_state_checkpoint_meta');
+        return db.tx(function (t) {
+          return t.one('SELECT "id", "height" FROM blocks WHERE "height" = 1').then(function (genesis) {
+            block.id = genesis.id;
+            block.height = genesis.height;
+
+            return t.none('DELETE FROM mem_state_checkpoint_meta');
+          }).then(function () {
+            return t.none(sql.clearLiveTables);
+          }).then(function () {
+            return t.none('INSERT INTO mem_accounts ("address", "balance", "u_balance", "blockId", "isDelegate", "publicKey") VALUES (\'MEMCKPT1\', 10, 10, ${blockId}, 1, decode(\'aa\', \'hex\'))', { blockId: block.id });
+          });
         }).then(function () {
-          return t.none(sql.clearLiveTables);
+          return logic.createCheckpoint(block, round, nethash);
         }).then(function () {
-          return t.none('INSERT INTO mem_accounts ("address", "balance", "u_balance", "blockId", "isDelegate", "publicKey") VALUES (\'MEMCKPT1\', 10, 10, ${blockId}, 1, decode(\'aa\', \'hex\'))', { blockId: block.id });
+          return logic.getLatestComplete();
+        }).then(function (meta) {
+          createdMeta = meta;
+          done();
         });
-      }).then(function () {
-        return logic.createCheckpoint(block, round, nethash);
-      }).then(function () {
-        return logic.getLatestComplete();
-      }).then(function (meta) {
-        createdMeta = meta;
-        done();
-      }).catch(done);
+      }.bind(this)).catch(done);
     });
 
     it('should create a complete checkpoint with digest', function () {
@@ -157,9 +164,11 @@ describe('memCheckpoint', function () {
         expect(latest.status).to.equal('complete');
       });
     });
-  });
 
-  after(function () {
-    return db.none(sql.clearSlotTables(0) + sql.clearSlotTables(1) + sql.clearSlotTables(2) + 'DELETE FROM mem_state_checkpoint_meta;');
+    it('should not recover genesis checkpoint on grown chain', function () {
+      return logic.findRecoverableCheckpoint(slots.delegates + 100, 3, nethash).then(function (result) {
+        expect(result).to.equal(null);
+      });
+    });
   });
 });

@@ -284,7 +284,7 @@ Rounds.prototype.tick = function (block, done) {
     function (cb) {
       // Check if we are one block before last block of round, if yes - perform round snapshot
       if ((block.height + 1) % slots.delegates === 0) {
-        library.logger.debug('rounds', 'Performing round snapshot...', {
+        library.logger.debug('rounds', 'Performing round snapshot…', {
           blockId: block.id,
           height: block.height,
           round: round,

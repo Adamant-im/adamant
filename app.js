@@ -726,7 +726,7 @@ d.run(function () {
 
         cleanupStarted = true;
         cleanupSignalCount = 0;
-        scope.logger.info('exit', 'Cleaning up...');
+        scope.logger.info('exit', 'Cleaning up…');
 
         var moduleMap = scope.modules || {};
         var moduleNames = Object.keys(moduleMap);

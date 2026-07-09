@@ -346,7 +346,7 @@ __private.loadDelegates = function (cb) {
   if (!secrets || !secrets.length) {
     return setImmediate(cb);
   } else {
-    library.logger.info('delegates', ['Loading', secrets.length, 'delegates from config'].join(' '));
+    library.logger.info('delegates', ['Loading', secrets.length, 'delegates from config…'].join(' '));
   }
 
   async.eachSeries(secrets, function (secret, cb) {

@@ -192,7 +192,7 @@ __private.loadSignatures = function (cb) {
       });
     },
     function (peer, waterCb) {
-      library.logger.log('loader', 'Loading signatures from: ' + peer.string);
+      library.logger.log('loader', 'Loading signatures from peer ' + peer.string + '…');
 
       modules.transport.getFromPeer(peer, {
         api: '/signatures',
@@ -256,7 +256,7 @@ __private.loadTransactions = function (cb) {
       });
     },
     function (peer, waterCb) {
-      library.logger.log('loader', 'Loading transactions from: ' + peer.string);
+      library.logger.log('loader', 'Loading transactions from: ' + peer.string + '…');
 
       modules.transport.getFromPeer(peer, {
         api: '/transactions',
@@ -444,7 +444,7 @@ __private.loadBlockChain = function () {
 
             if (count > 1) {
               // offset is the SQL lower bound (b_height >= offset); display the next applied height.
-              library.logger.info('loader', 'Rebuilding blockchain, current block height: ' + (offset + 1));
+              library.logger.info('loader', 'Rebuilding blockchain, current block height: ' + (offset + 1) + '…');
             }
             modules.blocks.process.loadBlocksOffset(limit, offset, verify, function (err, lastBlock) {
               if (err) {
@@ -484,7 +484,7 @@ __private.loadBlockChain = function () {
 
     if (!modules.memCheckpoints || !modules.memCheckpoints.isEnabled()) {
       library.logger.warn('loader', 'Mem-table checkpoints are disabled');
-      library.logger.warn('loader', 'Recreating memory tables');
+      library.logger.warn('loader', 'Recreating memory tables…');
       return load(count);
     }
 
@@ -493,12 +493,12 @@ __private.loadBlockChain = function () {
         var checkpointHeight = parseInt(checkpoint.height, 10);
         var replayOffset = checkpointHeight + 1;
 
-        library.logger.info('loader', 'Recovering from mem-table checkpoint at height ' + checkpointHeight);
+        library.logger.info('loader', 'Recovering from mem-table checkpoint at height ' + checkpointHeight + '…');
 
         if (replayOffset > count) {
           return modules.blocks.utils.loadLastBlock(function (loadErr, block) {
             if (loadErr) {
-              library.logger.warn('loader', 'Checkpoint restore at chain tip failed to load last block, recreating memory tables');
+              library.logger.warn('loader', 'Checkpoint restore at chain tip failed to load last block, recreating memory tables…');
               return load(count);
             }
 
@@ -508,27 +508,45 @@ __private.loadBlockChain = function () {
           });
         }
 
-        return load(count, {
-          startOffset: replayOffset,
-          skipTableReset: true
+        return modules.blocks.utils.loadBlocksPart({ id: checkpoint.blockId }, function (loadErr, blocks) {
+          if (loadErr || !blocks || !blocks.length) {
+            library.logger.warn('loader', 'Checkpoint block failed to load, recreating memory tables…');
+            return load(count);
+          }
+
+          modules.blocks.lastBlock.set(blocks[0]);
+
+          return load(count, {
+            startOffset: replayOffset,
+            skipTableReset: true
+          });
         });
       }
 
-      library.logger.warn('loader', 'Recreating memory tables');
+      library.logger.warn('loader', 'Recreating memory tables…');
       return load(count);
     });
   }
 
   function checkMemTables (t) {
-    var promises = [
-      t.one(sql.countBlocks),
-      t.query(sql.getGenesisBlock),
-      t.one(sql.countMemAccounts),
-      t.query(sql.getMemRounds),
-      t.query(sql.countDuplicatedDelegates)
-    ];
+    var results = [];
 
-    return t.batch(promises);
+    return t.one(sql.countBlocks).then(function (countBlocks) {
+      results[0] = countBlocks;
+      return t.query(sql.getGenesisBlock);
+    }).then(function (genesisBlock) {
+      results[1] = genesisBlock;
+      return t.one(sql.countMemAccounts);
+    }).then(function (countMemAccounts) {
+      results[2] = countMemAccounts;
+      return t.query(sql.getMemRounds);
+    }).then(function (memRounds) {
+      results[3] = memRounds;
+      return t.query(sql.countDuplicatedDelegates);
+    }).then(function (duplicatedDelegates) {
+      results[4] = duplicatedDelegates;
+      return results;
+    });
   }
 
   function matchGenesisBlock (row) {
@@ -560,7 +578,7 @@ __private.loadBlockChain = function () {
         modules.rounds.setSnapshotRounds(library.config.loading.snapshot);
       }
 
-      library.logger.info('loader', 'Snapshotting to end of round: ' + library.config.loading.snapshot);
+      library.logger.info('loader', 'Snapshotting to end of round: ' + library.config.loading.snapshot + '…');
       return true;
     } else {
       return false;
@@ -613,13 +631,17 @@ __private.loadBlockChain = function () {
     }
 
     function updateMemAccounts (t) {
-      var promises = [
-        t.none(sql.updateMemAccounts),
-        t.query(sql.getOrphanedMemAccounts),
-        t.query(sql.getDelegates)
-      ];
+      var results = [];
 
-      return t.batch(promises);
+      return t.none(sql.updateMemAccounts).then(function () {
+        return t.query(sql.getOrphanedMemAccounts);
+      }).then(function (orphanedMemAccounts) {
+        results[1] = orphanedMemAccounts;
+        return t.query(sql.getDelegates);
+      }).then(function (delegates) {
+        results[2] = delegates;
+        return results;
+      });
     }
 
     // Returned so a rejection propagates to the outer .catch below instead of
@@ -701,7 +723,7 @@ __private.loadBlocksFromNetwork = function (cb, shouldStop) {
             }
 
             function getCommonBlock (cb) {
-              library.logger.info('loader', 'Looking for common block with: ' + peer.string);
+              library.logger.info('loader', 'Looking for common block with: ' + peer.string + '…');
               modules.blocks.process.getCommonBlock(peer, lastBlock.height, function (err, commonBlock) {
                 if (!commonBlock) {
                   if (err) { library.logger.error('loader', err.toString()); }
@@ -756,7 +778,7 @@ __private.sync = function (cb) {
     return setImmediate(cb);
   }
 
-  library.logger.info('loader', 'Starting sync', {
+  library.logger.info('loader', 'Starting sync…', {
     height: modules.blocks.lastBlock.get().height,
     blocksToSync: __private.blocksToSync
   });
@@ -887,7 +909,7 @@ __private.sync = function (cb) {
   async.series({
     undoUnconfirmedList: function (seriesCb) {
       return skipOnStop(seriesCb, mutating(function (next) {
-        library.logger.debug('loader', 'Undoing unconfirmed transactions before sync', {
+        library.logger.debug('loader', 'Undoing unconfirmed transactions before sync…', {
           height: modules.blocks.lastBlock.get().height
         });
         return modules.transactions.undoUnconfirmedList(next);
@@ -895,7 +917,7 @@ __private.sync = function (cb) {
     },
     getPeersBefore: function (seriesCb) {
       return skipOnStop(seriesCb, function (next) {
-        library.logger.debug('loader', 'Establishing broadhash consensus before sync', {
+        library.logger.debug('loader', 'Establishing broadhash consensus before sync…', {
           height: modules.blocks.lastBlock.get().height,
           limit: constants.maxPeers
         });
@@ -914,7 +936,7 @@ __private.sync = function (cb) {
     },
     getPeersAfter: function (seriesCb) {
       return skipOnStop(seriesCb, function (next) {
-        library.logger.debug('loader', 'Establishing broadhash consensus after sync', {
+        library.logger.debug('loader', 'Establishing broadhash consensus after sync…', {
           height: modules.blocks.lastBlock.get().height,
           limit: constants.maxPeers
         });
@@ -923,7 +945,7 @@ __private.sync = function (cb) {
     },
     applyUnconfirmedList: function (seriesCb) {
       return skipOnStop(seriesCb, mutating(function (next) {
-        library.logger.debug('loader', 'Applying unconfirmed transactions after sync', {
+        library.logger.debug('loader', 'Applying unconfirmed transactions after sync…', {
           height: modules.blocks.lastBlock.get().height
         });
         return modules.transactions.applyUnconfirmedList(next);
@@ -1197,7 +1219,7 @@ Loader.prototype.onBlockchainReady = function () {
 Loader.prototype.cleanup = function (cb) {
   function waitForIdle () {
     if (__private.isActive) {
-      library.logger.info('loader', 'Waiting for loader to finish active sync/rebuild...');
+      library.logger.info('loader', 'Waiting for loader to finish active sync/rebuild…');
       return setTimeout(waitForIdle, 10000);
     }
 
