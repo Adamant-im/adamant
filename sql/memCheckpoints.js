@@ -1,5 +1,10 @@
 'use strict';
 
+/**
+ * SQL helpers for persisted mem-table checkpoint storage and recovery.
+ * @module sql/memCheckpoints
+ */
+
 var MemCheckpointsSql = {
   getLatestComplete: 'SELECT * FROM mem_state_checkpoint_meta WHERE "status" = \'complete\' ORDER BY "height" DESC LIMIT 1',
 
@@ -35,6 +40,11 @@ MemCheckpointsSql.clearLiveTables = [
   'DELETE FROM "mem_accounts";'
 ].join('');
 
+/**
+ * Physical checkpoint table names for a rotating slot index.
+ * @param {number} slot Slot index from 0 to 2 (three rotating slots).
+ * @return {object} Map of logical table keys to checkpoint table names.
+ */
 MemCheckpointsSql.slotTableNames = function (slot) {
   var prefix = 'mem_ckpt_' + slot + '_';
   return {
@@ -47,6 +57,11 @@ MemCheckpointsSql.slotTableNames = function (slot) {
   };
 };
 
+/**
+ * Delete all rows from one checkpoint slot, respecting FK-dependent table order.
+ * @param {number} slot Slot index.
+ * @return {string}
+ */
 MemCheckpointsSql.clearSlotTables = function (slot) {
   var tables = MemCheckpointsSql.slotTableNames(slot);
   return [
@@ -59,6 +74,11 @@ MemCheckpointsSql.clearSlotTables = function (slot) {
   ].join('');
 };
 
+/**
+ * Copy live mem_* tables into one checkpoint slot.
+ * @param {number} slot Slot index.
+ * @return {string}
+ */
 MemCheckpointsSql.copyLiveToSlot = function (slot) {
   var tables = MemCheckpointsSql.slotTableNames(slot);
   return [
@@ -71,6 +91,11 @@ MemCheckpointsSql.copyLiveToSlot = function (slot) {
   ].join('');
 };
 
+/**
+ * Restore live mem_* tables from one checkpoint slot.
+ * @param {number} slot Slot index.
+ * @return {string}
+ */
 MemCheckpointsSql.copySlotToLive = function (slot) {
   var tables = MemCheckpointsSql.slotTableNames(slot);
   return [

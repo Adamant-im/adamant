@@ -24,8 +24,7 @@ describe('memCheckpoint', function () {
         logger: modulesLoader.logger,
         config: {
           memCheckpoints: {
-            enabled: true,
-            retention: 3
+            enabled: true
           }
         }
       });
@@ -68,14 +67,7 @@ describe('memCheckpoint', function () {
 
           return t.none('DELETE FROM mem_state_checkpoint_meta');
         }).then(function () {
-          return t.batch([
-            t.none('DELETE FROM mem_accounts2u_delegates'),
-            t.none('DELETE FROM mem_accounts2u_multisignatures'),
-            t.none('DELETE FROM mem_accounts2delegates'),
-            t.none('DELETE FROM mem_accounts2multisignatures'),
-            t.none('DELETE FROM mem_round'),
-            t.none('DELETE FROM mem_accounts')
-          ]);
+          return t.none(sql.clearLiveTables);
         }).then(function () {
           return t.none('INSERT INTO mem_accounts ("address", "balance", "u_balance", "blockId", "isDelegate", "publicKey") VALUES (\'MEMCKPT1\', 10, 10, ${blockId}, 1, decode(\'aa\', \'hex\'))', { blockId: block.id });
         });
@@ -165,5 +157,9 @@ describe('memCheckpoint', function () {
         expect(latest.status).to.equal('complete');
       });
     });
+  });
+
+  after(function () {
+    return db.none(sql.clearSlotTables(0) + sql.clearSlotTables(1) + sql.clearSlotTables(2) + 'DELETE FROM mem_state_checkpoint_meta;');
   });
 });

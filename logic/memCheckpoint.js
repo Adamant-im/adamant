@@ -4,7 +4,16 @@ var crypto = require('crypto');
 var slots = require('../helpers/slots.js');
 var sql = require('../sql/memCheckpoints.js');
 
+/** @type {number} Digest/schema version for checkpoint metadata and hashing. */
 var SCHEMA_VERSION = 1;
+
+/** @type {number} Number of rotating checkpoint slots kept on disk (slots 0..2). */
+var CHECKPOINT_SLOT_COUNT = 3;
+
+/**
+ * Checkpoint table copy/hash order. Accounts must come before dependent tables.
+ * @type {string[]}
+ */
 var TABLE_ORDER = [
   'accounts',
   'accounts2delegates',
@@ -15,6 +24,23 @@ var TABLE_ORDER = [
 ];
 
 /**
+ * Append one checkpoint table to the running SHA-256 digest.
+ * @private
+ * @param {object} hash Node.js hash instance.
+ * @param {string} tableKey Logical table key from {@link TABLE_ORDER}.
+ * @param {object[]} rows Canonical rows ordered by SQL.
+ */
+function appendTableDigest (hash, tableKey, rows) {
+  hash.update(tableKey);
+  hash.update('\n');
+
+  rows.forEach(function (row) {
+    hash.update(row.line);
+    hash.update('\n');
+  });
+}
+
+/**
  * Persisted mem-table checkpoint logic for crash recovery.
  * Checkpoints are a local recovery cache only; blocks remain the source of truth.
  *
@@ -22,6 +48,8 @@ var TABLE_ORDER = [
  * @param {Database} scope.db
  * @param {Logger} scope.logger
  * @param {object} scope.config
+ * @param {object} [scope.config.memCheckpoints]
+ * @param {boolean} [scope.config.memCheckpoints.enabled]
  * @constructor
  */
 function MemCheckpoint (scope) {
@@ -33,9 +61,14 @@ function MemCheckpoint (scope) {
   };
 }
 
+/** @type {number} */
 MemCheckpoint.SCHEMA_VERSION = SCHEMA_VERSION;
 
+/** @type {number} */
+MemCheckpoint.CHECKPOINT_SLOT_COUNT = CHECKPOINT_SLOT_COUNT;
+
 /**
+ * Whether persisted mem-table checkpoints are enabled.
  * @return {boolean}
  */
 MemCheckpoint.prototype.isEnabled = function () {
@@ -44,24 +77,7 @@ MemCheckpoint.prototype.isEnabled = function () {
 };
 
 /**
- * @return {number}
- */
-MemCheckpoint.prototype.getRetention = function () {
-  var config = this.library.config.memCheckpoints || {};
-  var retention = parseInt(config.retention, 10);
-
-  if (isNaN(retention) || retention < 2) {
-    return 3;
-  }
-
-  if (retention > 3) {
-    return 3;
-  }
-
-  return retention;
-};
-
-/**
+ * Whether a block height is a completed-round boundary where checkpoints are safe to take.
  * @param {number} height
  * @return {boolean}
  */
@@ -73,21 +89,25 @@ MemCheckpoint.prototype.isRoundBoundaryBlock = function (height) {
 };
 
 /**
- * @param {object|null} latestMeta
+ * Select the next rotating slot index for a new checkpoint write.
+ * @param {object|null} latestMeta Latest complete checkpoint metadata row.
  * @return {number}
  */
 MemCheckpoint.prototype.getNextSlot = function (latestMeta) {
-  var retention = this.getRetention();
-
   if (!latestMeta || latestMeta.slot === undefined || latestMeta.slot === null) {
     return 0;
   }
 
-  return (parseInt(latestMeta.slot, 10) + 1) % retention;
+  return (parseInt(latestMeta.slot, 10) + 1) % CHECKPOINT_SLOT_COUNT;
 };
 
 /**
+ * Build the metadata prefix included in the checkpoint digest domain.
  * @param {object} meta
+ * @param {number|string} meta.height
+ * @param {string} meta.blockId
+ * @param {number|string} meta.round
+ * @param {string} meta.nethash
  * @return {string}
  */
 MemCheckpoint.prototype.buildDigestDomain = function (meta) {
@@ -101,61 +121,61 @@ MemCheckpoint.prototype.buildDigestDomain = function (meta) {
 };
 
 /**
- * @param {object} t - pg-promise task/tx
- * @param {number} slot
- * @param {object} meta
- * @return {Promise<string>}
+ * Compute a deterministic SHA-256 digest over checkpoint metadata and slot table contents.
+ * Queries run sequentially on the supplied task to avoid overlapping pg client queries.
+ * @param {object} t pg-promise task/transaction.
+ * @param {number} slot Checkpoint slot index.
+ * @param {object} meta Checkpoint metadata used for the digest domain.
+ * @return {Promise<string>} Hex-encoded digest.
  */
 MemCheckpoint.prototype.computeDigest = function (t, slot, meta) {
-  var self = this;
   var hash = crypto.createHash('sha256');
   var tables = sql.slotTableNames(slot);
+  var tableIndex = 0;
 
-  hash.update(self.buildDigestDomain(meta));
+  hash.update(this.buildDigestDomain(meta));
   hash.update('\n');
 
-  return TABLE_ORDER.reduce(function (promise, tableKey) {
-    return promise.then(function () {
-      var tableName = tables[tableKey];
-      var query = tableKey === 'round' ?
-        sql.canonicalRound :
-        (tableKey === 'accounts' ? sql.canonicalAccounts : sql.canonicalAccountDelegates);
+  var digestNextTable = function () {
+    if (tableIndex >= TABLE_ORDER.length) {
+      return Promise.resolve(hash.digest('hex'));
+    }
 
-      return t.any(query, { tableName: tableName }).then(function (rows) {
-        hash.update(tableKey);
-        hash.update('\n');
+    var tableKey = TABLE_ORDER[tableIndex++];
+    var tableName = tables[tableKey];
+    var query = tableKey === 'round' ?
+      sql.canonicalRound :
+      (tableKey === 'accounts' ? sql.canonicalAccounts : sql.canonicalAccountDelegates);
 
-        rows.forEach(function (row) {
-          hash.update(row.line);
-          hash.update('\n');
-        });
-      });
+    return t.any(query, { tableName: tableName }).then(function (rows) {
+      appendTableDigest(hash, tableKey, rows);
+      return digestNextTable();
     });
-  }, Promise.resolve()).then(function () {
-    return hash.digest('hex');
-  });
+  };
+
+  return digestNextTable();
 };
 
 /**
- * @param {object} t
- * @param {object} meta
- * @param {number} checkpointRound
+ * Validate restored live mem_* tables against checkpoint metadata.
+ * Uses the checkpoint round, not the current chain tip round.
+ * @param {object} t pg-promise task/transaction.
+ * @param {object} meta Restored checkpoint metadata.
+ * @param {number} checkpointRound Round encoded in the checkpoint.
  * @return {Promise<boolean>}
  */
 MemCheckpoint.prototype.validateRestoredInvariants = function (t, meta, checkpointRound) {
-  return t.batch([
-    t.one(sql.countMemAccountsAtBlock, { blockId: meta.blockId }),
-    t.query(sql.getMemRounds),
-    t.query(sql.getOrphanedMemAccounts),
-    t.query(sql.getDelegates)
-  ]).then(function (results) {
-    if (!results[0].count) {
+  var expectedRound = String(checkpointRound);
+
+  // Run checks sequentially: pg-native rejects overlapping queries on one client.
+  return t.one(sql.countMemAccountsAtBlock, { blockId: meta.blockId }).then(function (accounts) {
+    if (!accounts.count) {
       return false;
     }
 
-    var expectedRound = String(checkpointRound);
-
-    var unapplied = results[1].filter(function (row) {
+    return t.query(sql.getMemRounds);
+  }).then(function (roundRows) {
+    var unapplied = roundRows.filter(function (row) {
       return row.round !== expectedRound;
     });
 
@@ -163,26 +183,26 @@ MemCheckpoint.prototype.validateRestoredInvariants = function (t, meta, checkpoi
       return false;
     }
 
-    if (results[2].length > 0) {
+    return t.query(sql.getOrphanedMemAccounts);
+  }).then(function (orphanedRows) {
+    if (orphanedRows.length > 0) {
       return false;
     }
 
-    if (results[3].length === 0) {
-      return false;
-    }
-
-    return true;
+    return t.query(sql.getDelegates);
+  }).then(function (delegateRows) {
+    return delegateRows.length > 0;
   });
 };
 
 /**
- * @param {object} meta
- * @param {string} nethash
- * @return {Promise<object|null>}
+ * Verify checkpoint metadata, block reference, and stored digest.
+ * @param {object} meta Checkpoint metadata row.
+ * @param {string} nethash Expected node nethash.
+ * @return {Promise<object|null>} Verified metadata or null when rejected.
  */
 MemCheckpoint.prototype.verifyCheckpointMeta = function (meta, nethash) {
   var self = this;
-  var db = self.library.db;
 
   if (!meta || meta.status !== 'complete') {
     return Promise.resolve(null);
@@ -206,7 +226,7 @@ MemCheckpoint.prototype.verifyCheckpointMeta = function (meta, nethash) {
     return Promise.resolve(null);
   }
 
-  return db.oneOrNone(sql.blockExists, {
+  return self.library.db.oneOrNone(sql.blockExists, {
     blockId: meta.blockId,
     height: meta.height
   }).then(function (block) {
@@ -218,7 +238,7 @@ MemCheckpoint.prototype.verifyCheckpointMeta = function (meta, nethash) {
       return null;
     }
 
-    return db.tx(function (t) {
+    return self.library.db.tx(function (t) {
       return self.computeDigest(t, meta.slot, meta).then(function (digest) {
         if (digest !== meta.digest) {
           self.library.logger.warn('memCheckpoints', 'Rejecting checkpoint with invalid digest');
@@ -232,6 +252,7 @@ MemCheckpoint.prototype.verifyCheckpointMeta = function (meta, nethash) {
 };
 
 /**
+ * Load the newest complete checkpoint metadata row.
  * @return {Promise<object|null>}
  */
 MemCheckpoint.prototype.getLatestComplete = function () {
@@ -239,9 +260,10 @@ MemCheckpoint.prototype.getLatestComplete = function () {
 };
 
 /**
- * @param {object} block
- * @param {number} round
- * @param {string} nethash
+ * Copy live mem_* tables into a rotating checkpoint slot after a settled round boundary.
+ * @param {object} block Last block of the completed round.
+ * @param {number} round Round number for the checkpoint.
+ * @param {string} nethash Node nethash written into metadata.
  * @return {Promise<void>}
  */
 MemCheckpoint.prototype.createCheckpoint = function (block, round, nethash) {
@@ -288,9 +310,10 @@ MemCheckpoint.prototype.createCheckpoint = function (block, round, nethash) {
 };
 
 /**
- * @param {number} tipHeight
- * @param {number} tipRound
- * @param {string} nethash
+ * Find the latest checkpoint that is safe to restore for the current chain tip.
+ * @param {number} tipHeight Current chain height/block count used by loader.
+ * @param {number} tipRound Current round at chain tip.
+ * @param {string} nethash Expected node nethash.
  * @return {Promise<object|null>}
  */
 MemCheckpoint.prototype.findRecoverableCheckpoint = function (tipHeight, tipRound, nethash) {
@@ -301,7 +324,11 @@ MemCheckpoint.prototype.findRecoverableCheckpoint = function (tipHeight, tipRoun
   }
 
   return self.getLatestComplete().then(function (meta) {
-    if (!meta || parseInt(meta.height, 10) >= parseInt(tipHeight, 10)) {
+    if (!meta) {
+      return null;
+    }
+
+    if (parseInt(meta.height, 10) >= parseInt(tipHeight, 10)) {
       return null;
     }
 
@@ -321,8 +348,9 @@ MemCheckpoint.prototype.findRecoverableCheckpoint = function (tipHeight, tipRoun
 };
 
 /**
- * @param {object} meta
- * @return {Promise<object>}
+ * Replace live mem_* tables with a verified checkpoint slot.
+ * @param {object} meta Verified checkpoint metadata.
+ * @return {Promise<object>} Restored checkpoint metadata.
  */
 MemCheckpoint.prototype.restoreCheckpoint = function (meta) {
   var self = this;

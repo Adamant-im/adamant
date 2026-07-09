@@ -486,6 +486,7 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
     modules.blocks.isActive.set(false);
 
     if (!err && saveBlock && modules.memCheckpoints) {
+      // Checkpoint only after the full applyBlock pipeline, on completed round boundaries.
       modules.memCheckpoints.onBlockApplied(block, true);
     }
 

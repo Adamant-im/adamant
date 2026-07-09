@@ -374,20 +374,19 @@ __private.loadBlockChain = function () {
     if (err) {
       library.logger.error('loader', err);
       if (err.block) {
-        library.logger.error('loader', 'Blockchain failed at: ' + err.block.height);
-        modules.blocks.chain.deleteAfterBlock(err.block.id, function (err, res) {
-          if (err) {
-            library.logger.error('loader', 'Failed to clip blockchain', err);
+        library.logger.error('loader', 'Blockchain rebuild failed while verifying block at height ' + err.block.height);
+        modules.blocks.chain.deleteAfterBlock(err.block.id, function (clipErr) {
+          if (clipErr) {
+            library.logger.error('loader', 'Failed to remove invalid blocks after rebuild error', clipErr);
           }
-          library.logger.error('loader', 'Blockchain clipped');
+          library.logger.warn('loader', 'Removed blocks at and above height ' + err.block.height + ' after rebuild verification failed; restart will rebuild mem_* from the remaining chain');
           finishLoading(true);
         });
       } else {
         finishLoading(false);
       }
     } else if (__private.stopRequested) {
-      library.logger.warn('loader', 'Blockchain rebuild stopped for shutdown; mem_* tables may be inconsistent and are not boot-ready');
-      library.logger.info('loader', 'Blockchain rebuild stopped for shutdown');
+      library.logger.warn('loader', 'Blockchain rebuild stopped for shutdown; mem_* tables may be inconsistent and are not boot-ready — wait for cleanup to finish before restarting');
       finishLoading(false);
     } else {
       library.logger.info('loader', 'Blockchain ready');
@@ -395,6 +394,13 @@ __private.loadBlockChain = function () {
     }
   }
 
+  /**
+   * Rebuild or replay derived mem_* state from blocks.
+   * @param {number} count Total persisted block count.
+   * @param {object} [options]
+   * @param {number} [options.startOffset] First block height to replay from.
+   * @param {boolean} [options.skipTableReset] Keep existing mem_* tables (checkpoint restore path).
+   */
   function load (count, options) {
     var startOffset = Number((options && options.startOffset) || 0);
     var skipTableReset = Boolean(options && options.skipTableReset);
@@ -437,6 +443,7 @@ __private.loadBlockChain = function () {
             }
 
             if (count > 1) {
+              // offset is the SQL lower bound (b_height >= offset); display the next applied height.
               library.logger.info('loader', 'Rebuilding blockchain, current block height: ' + (offset + 1));
             }
             modules.blocks.process.loadBlocksOffset(limit, offset, verify, function (err, lastBlock) {
@@ -460,6 +467,12 @@ __private.loadBlockChain = function () {
     });
   }
 
+  /**
+   * Recover derived mem_* tables from checkpoint or rebuild them from genesis.
+   * @param {number} count Total persisted block count.
+   * @param {string} [message] Validation failure that triggered recovery.
+   * @param {number} round Current round at chain tip.
+   */
   function reload (count, message, round) {
     if (__private.stopRequested) {
       return finishForShutdown();
@@ -470,6 +483,7 @@ __private.loadBlockChain = function () {
     }
 
     if (!modules.memCheckpoints || !modules.memCheckpoints.isEnabled()) {
+      library.logger.warn('loader', 'Mem-table checkpoints are disabled');
       library.logger.warn('loader', 'Recreating memory tables');
       return load(count);
     }

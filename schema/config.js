@@ -362,11 +362,6 @@ module.exports = {
             properties: {
               enabled: {
                 type: 'boolean'
-              },
-              retention: {
-                type: 'integer',
-                minimum: 2,
-                maximum: 3
               }
             }
           }

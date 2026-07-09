@@ -136,8 +136,7 @@
   "loading": {
     "loadPerIteration": 5000,
     "memCheckpoints": {
-      "enabled": true,
-      "retention": 3
+      "enabled": true
     }
   },
   "ssl": {

@@ -8,6 +8,7 @@ __private.loaded = false;
 __private.creating = false;
 
 /**
+ * Module wrapper for persisted mem-table checkpoint creation and recovery.
  * @param {Function} cb
  * @param {scope} scope
  * @constructor
@@ -32,6 +33,7 @@ function MemCheckpoints (cb, scope) {
 }
 
 /**
+ * Whether persisted mem-table checkpoints are enabled in config.
  * @return {boolean}
  */
 MemCheckpoints.prototype.isEnabled = function () {
@@ -39,6 +41,7 @@ MemCheckpoints.prototype.isEnabled = function () {
 };
 
 /**
+ * Expose the underlying checkpoint logic for tests and diagnostics.
  * @return {MemCheckpoint}
  */
 MemCheckpoints.prototype.logic = function () {
@@ -46,8 +49,10 @@ MemCheckpoints.prototype.logic = function () {
 };
 
 /**
- * @param {object} block
- * @param {boolean} persisted
+ * Create a checkpoint after a persisted block at a completed round boundary.
+ * Called only after the full applyBlock pipeline has finished.
+ * @param {object} block Applied block.
+ * @param {boolean} persisted Whether the block was saved to the database.
  */
 MemCheckpoints.prototype.onBlockApplied = function (block, persisted) {
   if (!__private.loaded || !persisted || __private.creating) {
@@ -73,10 +78,9 @@ MemCheckpoints.prototype.onBlockApplied = function (block, persisted) {
 
 /**
  * Attempt checkpoint-based recovery before a full mem-table rebuild.
- *
- * @param {number} tipHeight
- * @param {number} tipRound
- * @param {Function} cb
+ * @param {number} tipHeight Current chain height/block count used by loader.
+ * @param {number} tipRound Current round at chain tip.
+ * @param {Function} cb Callback `(err, checkpoint|null)`.
  */
 MemCheckpoints.prototype.tryRecover = function (tipHeight, tipRound, cb) {
   if (!__private.logic.isEnabled()) {
@@ -85,6 +89,7 @@ MemCheckpoints.prototype.tryRecover = function (tipHeight, tipRound, cb) {
 
   __private.logic.findRecoverableCheckpoint(tipHeight, tipRound, library.config.nethash).then(function (meta) {
     if (!meta) {
+      library.logger.warn('memCheckpoints', 'No complete recoverable mem-table checkpoint found');
       return setImmediate(cb, null, null);
     }
 
@@ -98,6 +103,7 @@ MemCheckpoints.prototype.tryRecover = function (tipHeight, tipRound, cb) {
 };
 
 /**
+ * Bind modules required for checkpoint creation.
  * @param {modules} scope
  */
 MemCheckpoints.prototype.onBind = function (scope) {
@@ -107,6 +113,7 @@ MemCheckpoints.prototype.onBind = function (scope) {
 };
 
 /**
+ * Enable checkpoint creation after blockchain loading has finished.
  * @listens module:loader~event:blockchainReady
  */
 MemCheckpoints.prototype.onBlockchainReady = function () {
@@ -114,6 +121,7 @@ MemCheckpoints.prototype.onBlockchainReady = function () {
 };
 
 /**
+ * Disable checkpoint creation during shutdown.
  * @param {Function} cb
  */
 MemCheckpoints.prototype.cleanup = function (cb) {
