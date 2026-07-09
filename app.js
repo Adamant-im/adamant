@@ -111,6 +111,7 @@ var config = {
     peers: './modules/peers.js',
     delegates: './modules/delegates.js',
     rounds: './modules/rounds.js',
+    memCheckpoints: './modules/memCheckpoints.js',
     multisignatures: './modules/multisignatures.js',
     dapps: './modules/dapps.js',
     chats: './modules/chats.js',
