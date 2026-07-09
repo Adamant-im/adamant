@@ -1383,12 +1383,17 @@ function validateTopAccounts (limit, offset, isDelegate) {
       if (isDelegate !== undefined && account.isDelegate !== isDelegate) {
         return 'top account delegate filter returned an unexpected account';
       }
+      const currentBalance = parseTopAccountBalance(account.balance);
+
+      if (currentBalance.error) {
+        return 'top account balance is not an integer string';
+      }
+
       if (index > 0) {
         const previous = body.accounts[index - 1];
         const previousBalance = parseTopAccountBalance(previous.balance);
-        const currentBalance = parseTopAccountBalance(account.balance);
 
-        if (previousBalance.error || currentBalance.error) {
+        if (previousBalance.error) {
           return 'top account balance is not an integer string';
         }
 
