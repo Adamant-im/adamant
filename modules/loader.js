@@ -443,8 +443,9 @@ __private.loadBlockChain = function () {
             }
 
             if (count > 1) {
-              // offset is the SQL lower bound (b_height >= offset); display the next applied height.
-              library.logger.info('loader', 'Rebuilding blockchain, current block height: ' + (offset + 1) + '…');
+              // offset is the SQL lower bound (`b_height >= offset`), i.e. the next applied height.
+              var displayHeight = offset === 0 ? 1 : offset;
+              library.logger.info('loader', 'Rebuilding blockchain, current block height: ' + displayHeight + '…');
             }
             modules.blocks.process.loadBlocksOffset(limit, offset, verify, function (err, lastBlock) {
               if (err) {

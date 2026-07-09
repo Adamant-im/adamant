@@ -7,6 +7,83 @@ const MemCheckpoint = require('../../../logic/memCheckpoint.js');
 const sql = require('../../../sql/memCheckpoints.js');
 const { modulesLoader } = require('../../common/initModule.js');
 
+var LIVE_TABLES = [
+  'mem_accounts',
+  'mem_accounts2delegates',
+  'mem_accounts2u_delegates',
+  'mem_accounts2multisignatures',
+  'mem_accounts2u_multisignatures',
+  'mem_round',
+  'mem_state_checkpoint_meta'
+];
+
+function backupTableName (tableName) {
+  return '_mem_ckpt_utest_bak_' + tableName;
+}
+
+function listCheckpointSlotTables () {
+  var tables = [];
+
+  for (var slot = 0; slot < MemCheckpoint.CHECKPOINT_SLOT_COUNT; slot++) {
+    var slotTables = sql.slotTableNames(slot);
+    Object.keys(slotTables).forEach(function (key) {
+      tables.push(slotTables[key]);
+    });
+  }
+
+  return tables;
+}
+
+function backupTable (t, tableName) {
+  var backupName = backupTableName(tableName);
+
+  return t.none('DROP TABLE IF EXISTS "' + backupName + '"').then(function () {
+    return t.none('CREATE TABLE "' + backupName + '" AS TABLE "' + tableName + '"');
+  });
+}
+
+function restoreTable (t, tableName) {
+  var backupName = backupTableName(tableName);
+
+  return t.oneOrNone('SELECT to_regclass(${backupName}) AS reg', { backupName: backupName }).then(function (row) {
+    if (!row || !row.reg) {
+      return;
+    }
+
+    return t.none('DELETE FROM "' + tableName + '"').then(function () {
+      return t.none('INSERT INTO "' + tableName + '" SELECT * FROM "' + backupName + '"');
+    }).then(function () {
+      return t.none('DROP TABLE "' + backupName + '"');
+    });
+  });
+}
+
+function backupSharedDbState (db) {
+  var tables = LIVE_TABLES.concat(listCheckpointSlotTables());
+
+  return db.tx(function (t) {
+    return tables.reduce(function (promise, tableName) {
+      return promise.then(function () {
+        return backupTable(t, tableName);
+      });
+    }, Promise.resolve());
+  });
+}
+
+function restoreSharedDbState (db) {
+  var tables = LIVE_TABLES.concat(listCheckpointSlotTables());
+
+  return db.tx(function (t) {
+    return t.none(sql.clearLiveTables + 'DELETE FROM mem_state_checkpoint_meta;').then(function () {
+      return tables.reduce(function (promise, tableName) {
+        return promise.then(function () {
+          return restoreTable(t, tableName);
+        });
+      }, Promise.resolve());
+    });
+  });
+}
+
 describe('memCheckpoint', function () {
   let logic;
   let db;
@@ -52,6 +129,17 @@ describe('memCheckpoint', function () {
 
       expect(domain).to.equal('1:101:abc:1:' + nethash);
     });
+
+    it('should checkpoint every round when not syncing', function () {
+      expect(logic.shouldCheckpointRound(1, false)).to.equal(true);
+      expect(logic.shouldCheckpointRound(99, false)).to.equal(true);
+    });
+
+    it('should checkpoint every 100th round while syncing', function () {
+      expect(logic.shouldCheckpointRound(99, true)).to.equal(false);
+      expect(logic.shouldCheckpointRound(100, true)).to.equal(true);
+      expect(logic.shouldCheckpointRound(200, true)).to.equal(true);
+    });
   });
 
   describe('checkpoint lifecycle', function () {
@@ -61,6 +149,7 @@ describe('memCheckpoint', function () {
     };
     const round = 1;
     let createdMeta;
+    let isolated = false;
 
     before(function () {
       var suite = this;
@@ -69,27 +158,50 @@ describe('memCheckpoint', function () {
         // Do not destroy real node checkpoints when tests share the database.
         if (latest && parseInt(latest.height, 10) > 1) {
           suite.skip();
+          return;
         }
 
-        return db.tx(function (t) {
-          return t.one('SELECT "id", "height" FROM blocks WHERE "height" = 1').then(function (genesis) {
-            block.id = genesis.id;
-            block.height = genesis.height;
+        return backupSharedDbState(db).then(function () {
+          isolated = true;
 
-            return t.none('DELETE FROM mem_state_checkpoint_meta');
-          }).then(function () {
-            return t.none(sql.clearLiveTables);
-          }).then(function () {
-            return t.none('INSERT INTO mem_accounts ("address", "balance", "u_balance", "blockId", "isDelegate", "publicKey") VALUES (\'MEMCKPT1\', 10, 10, ${blockId}, 1, decode(\'aa\', \'hex\'))', { blockId: block.id });
+          return db.tx(function (t) {
+            return t.one('SELECT "id", "height" FROM blocks WHERE "height" = 1').then(function (genesis) {
+              block.id = genesis.id;
+              block.height = genesis.height;
+
+              return t.none('DELETE FROM mem_state_checkpoint_meta');
+            }).then(function () {
+              return t.none(sql.clearLiveTables);
+            }).then(function () {
+              return t.none('INSERT INTO mem_accounts ("address", "balance", "u_balance", "blockId", "isDelegate", "publicKey") VALUES (\'MEMCKPT1\', 10, 10, ${blockId}, 1, decode(\'aa\', \'hex\'))', { blockId: block.id });
+            });
           });
         });
       }).then(function () {
+        if (!isolated) {
+          return;
+        }
+
         return logic.createCheckpoint(block, round, nethash);
       }).then(function () {
+        if (!isolated) {
+          return;
+        }
+
         return logic.getLatestComplete();
       }).then(function (meta) {
-        createdMeta = meta;
+        if (isolated) {
+          createdMeta = meta;
+        }
       });
+    });
+
+    after(function () {
+      if (!isolated) {
+        return;
+      }
+
+      return restoreSharedDbState(db);
     });
 
     it('should create a complete checkpoint with digest', function () {
@@ -192,6 +304,12 @@ describe('memCheckpoint', function () {
       return logic.verifySlotSchemas().then(function (mismatch) {
         expect(mismatch).to.equal(null);
       });
+    });
+
+    it('should reject unsupported checkpoint slot indices', function () {
+      expect(function () {
+        sql.slotTableNames(99);
+      }).to.throw(/Invalid checkpoint slot/);
     });
   });
 });

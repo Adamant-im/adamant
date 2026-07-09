@@ -33,13 +33,16 @@ var MemCheckpointsSql = {
   compareTableSchemas: 'SELECT l."column_name" AS live_column, c."column_name" AS ckpt_column, l."data_type" AS live_type, c."data_type" AS ckpt_type FROM (SELECT "ordinal_position", "column_name", "data_type" FROM information_schema.columns WHERE "table_schema" = current_schema() AND "table_name" = ${liveTable}) l FULL OUTER JOIN (SELECT "ordinal_position", "column_name", "data_type" FROM information_schema.columns WHERE "table_schema" = current_schema() AND "table_name" = ${slotTable}) c USING ("ordinal_position") WHERE l."column_name" IS DISTINCT FROM c."column_name" OR l."data_type" IS DISTINCT FROM c."data_type" LIMIT 1',
 
   resetUnconfirmedState: [
-    'UPDATE mem_accounts SET "u_isDelegate" = "isDelegate", "u_secondSignature" = "secondSignature", "u_username" = "username", "u_balance" = "balance", "u_delegates" = "delegates", "u_multisignatures" = "multisignatures", "u_multimin" = "multimin", "u_multilifetime" = "multilifetime" WHERE "u_isDelegate" <> "isDelegate" OR "u_secondSignature" <> "secondSignature" OR "u_username" IS DISTINCT FROM "username" OR "u_balance" <> "balance" OR "u_delegates" IS DISTINCT FROM "delegates" OR "u_multisignatures" IS DISTINCT FROM "multisignatures" OR "u_multimin" <> "multimin" OR "u_multilifetime" <> "multilifetime";',
+    'UPDATE mem_accounts SET "u_isDelegate" = "isDelegate", "u_secondSignature" = "secondSignature", "u_username" = "username", "u_balance" = "balance", "u_delegates" = "delegates", "u_multisignatures" = "multisignatures", "u_multimin" = "multimin", "u_multilifetime" = "multilifetime", "u_nameexist" = "nameexist" WHERE "u_isDelegate" <> "isDelegate" OR "u_secondSignature" <> "secondSignature" OR "u_username" IS DISTINCT FROM "username" OR "u_balance" <> "balance" OR "u_delegates" IS DISTINCT FROM "delegates" OR "u_multisignatures" IS DISTINCT FROM "multisignatures" OR "u_multimin" <> "multimin" OR "u_multilifetime" <> "multilifetime" OR "u_nameexist" <> "nameexist";',
     'DELETE FROM "mem_accounts2u_delegates";',
     'INSERT INTO "mem_accounts2u_delegates" ("accountId", "dependentId") SELECT "accountId", "dependentId" FROM "mem_accounts2delegates";',
     'DELETE FROM "mem_accounts2u_multisignatures";',
     'INSERT INTO "mem_accounts2u_multisignatures" ("accountId", "dependentId") SELECT "accountId", "dependentId" FROM "mem_accounts2multisignatures";'
   ].join('')
 };
+
+/** @type {number} Rotating checkpoint slot count; keep in sync with migration and {@link logic/memCheckpoint}. */
+var CHECKPOINT_SLOT_COUNT = 3;
 
 /**
  * Live mem_* table names keyed by the same logical keys as {@link slotTableNames}.
@@ -69,7 +72,7 @@ MemCheckpointsSql.clearLiveTables = [
  * @return {object} Map of logical table keys to checkpoint table names.
  */
 MemCheckpointsSql.slotTableNames = function (slot) {
-  if (!Number.isInteger(slot) || slot < 0) {
+  if (!Number.isInteger(slot) || slot < 0 || slot >= CHECKPOINT_SLOT_COUNT) {
     throw new Error('Invalid checkpoint slot: ' + slot);
   }
 

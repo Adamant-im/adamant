@@ -75,6 +75,23 @@ describe('accounts', function () {
   });
 
   describe('getAccount()', () => {
+    before(function (done) {
+      // Shared test DB mem_* can drift (rebuild/checkpoint tests); restore genesis
+      // delegate fixture fields only when the row exists but username is empty.
+      modulesLoader.getDbConnection(function (err, db) {
+        if (err) {
+          return done(err);
+        }
+
+        db.none(
+            'UPDATE mem_accounts SET "username" = ${username}, "isDelegate" = 1 WHERE "address" = ${address} AND COALESCE("username", \'\') = \'\'',
+            { username: testAccount.username, address: testAccount.address }
+        ).then(function () {
+          done();
+        }).catch(done);
+      });
+    });
+
     it('should throw error when called without parameters', () => {
       expect(accounts.getAccount).to.throw();
     });
