@@ -1385,13 +1385,17 @@ function validateTopAccounts (limit, offset, isDelegate) {
       }
       if (index > 0) {
         const previous = body.accounts[index - 1];
-        const previousBalance = BigInt(previous.balance);
-        const currentBalance = BigInt(account.balance);
+        const previousBalance = parseTopAccountBalance(previous.balance);
+        const currentBalance = parseTopAccountBalance(account.balance);
 
-        if (previousBalance < currentBalance) {
+        if (previousBalance.error || currentBalance.error) {
+          return 'top account balance is not an integer string';
+        }
+
+        if (previousBalance.value < currentBalance.value) {
           return 'top accounts are not sorted by descending balance';
         }
-        if (previousBalance === currentBalance && previous.address > account.address) {
+        if (previousBalance.value === currentBalance.value && previous.address > account.address) {
           return 'top accounts with equal balances are not sorted by ascending address';
         }
       }
@@ -1399,6 +1403,19 @@ function validateTopAccounts (limit, offset, isDelegate) {
 
     return null;
   };
+}
+
+/**
+ * Parses a top-account balance without throwing from the live-test validator.
+ * @param {string} balance - Balance returned by `/api/accounts/top`.
+ * @return {object} Parsed BigInt value or an error marker.
+ */
+function parseTopAccountBalance (balance) {
+  try {
+    return { value: BigInt(balance) };
+  } catch (err) {
+    return { error: true };
+  }
 }
 
 /**
