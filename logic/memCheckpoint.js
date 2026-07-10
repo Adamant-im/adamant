@@ -19,14 +19,16 @@ var SYNC_ROUND_INTERVAL = 100;
 
 /**
  * Checkpoint table copy/hash order. Accounts must come before dependent tables.
+ * Unconfirmed junction tables (`*2u_*`) are intentionally excluded: they are
+ * deterministically rebuilt from confirmed state on restore (see
+ * `sql.resetUnconfirmedStateStatements`), so copying and hashing them is wasted
+ * work that would only slow the per-round copy.
  * @type {string[]}
  */
 var TABLE_ORDER = [
   'accounts',
   'accounts2delegates',
-  'accounts2u_delegates',
   'accounts2multisignatures',
-  'accounts2u_multisignatures',
   'round'
 ];
 
@@ -284,8 +286,12 @@ MemCheckpoint.prototype.verifyCheckpointMeta = function (meta, nethash) {
       return null;
     }
 
+    // Normalize slot to a number: some pg parsers (e.g. pg-native) return the
+    // SMALLINT column as a string, which slotTableNames() would reject.
+    var slot = parseInt(meta.slot, 10);
+
     return self.library.db.tx(function (t) {
-      return self.computeDigest(t, meta.slot, meta).then(function (digest) {
+      return self.computeDigest(t, slot, meta).then(function (digest) {
         if (digest !== meta.digest) {
           self.library.logger.warn('memCheckpoints', 'Rejecting checkpoint with invalid digest');
           return null;
@@ -352,17 +358,34 @@ MemCheckpoint.prototype.verifySlotSchemas = function () {
  * @param {object} block Last block of the completed round.
  * @param {number} round Round number for the checkpoint.
  * @param {string} nethash Node nethash written into metadata.
+ * @param {Function} [onPinned] Invoked once the transaction has pinned its MVCC
+ *   snapshot to `block`; the caller may then release the block-processing
+ *   critical section while the copy continues in the background.
  * @return {Promise<void>}
  */
-MemCheckpoint.prototype.createCheckpoint = function (block, round, nethash) {
+MemCheckpoint.prototype.createCheckpoint = function (block, round, nethash, onPinned) {
   var self = this;
 
+  var pinned = false;
+  var signalPinned = function () {
+    if (pinned) {
+      return;
+    }
+    pinned = true;
+    if (onPinned) {
+      onPinned();
+    }
+  };
+
   if (!self.isEnabled()) {
+    signalPinned();
     return Promise.resolve();
   }
 
   // REPEATABLE READ gives all copy and digest statements one MVCC snapshot,
-  // so the six copied tables cannot mix state from different blocks.
+  // so the copied tables cannot mix state from different blocks. The snapshot is
+  // established by the first statement below and stays frozen for the whole
+  // transaction, so the copy can safely run after the critical section is released.
   var txMode = self.library.db.$config.pgp.txMode;
   var mode = new txMode.TransactionMode({ tiLevel: txMode.isolationLevel.repeatableRead });
   var createdSlot;
@@ -383,6 +406,23 @@ MemCheckpoint.prototype.createCheckpoint = function (block, round, nethash) {
       };
 
       return t.none(sql.upsertMetaWriting, meta).then(function () {
+        // The snapshot is now frozen at `block` (the reads above ran within it);
+        // safe to let the caller resume block processing while the copy proceeds.
+        signalPinned();
+        return t.any(sql.getMemRounds);
+      }).then(function (roundRows) {
+        // Settled round boundary: mem_round must hold only rows for this round
+        // (usually none). Anything else means the snapshot captured an unsettled
+        // or mid-block state, so refuse to persist a misleading checkpoint.
+        var expectedRound = String(round);
+        var unsettled = roundRows.filter(function (row) {
+          return String(row.round) !== expectedRound;
+        });
+
+        if (unsettled.length > 0) {
+          throw new Error('mem_round not settled at checkpoint boundary for round ' + round);
+        }
+
         return execStatementsSequential(t, sql.clearSlotTablesStatements(slot));
       }).then(function () {
         return execStatementsSequential(t, sql.copyLiveToSlotStatements(slot));
@@ -409,12 +449,18 @@ MemCheckpoint.prototype.createCheckpoint = function (block, round, nethash) {
       blockId: block.id
     });
   }).catch(function (err) {
-    self.library.logger.error('memCheckpoints', `Failed to create checkpoint: ${err?.message || err}`, err.stack);
+    self.library.logger.error('memCheckpoints', `Failed to create checkpoint: ${err?.message || err}`, err && err.stack);
+  }).then(function () {
+    // Release the caller even if the transaction failed before the pin was reached.
+    signalPinned();
   });
 };
 
 /**
- * Find the latest checkpoint that is safe to restore for the current chain tip.
+ * Find the newest checkpoint that is safe to restore for the current chain tip.
+ * All complete slots are considered from newest to oldest, so a corrupted or
+ * stale newest slot no longer forces a full rebuild while an older, still-valid
+ * slot exists — that is the point of keeping {@link CHECKPOINT_SLOT_COUNT} slots.
  * @param {number} tipHeight Current chain height/block count used by loader.
  * @param {number} tipRound Current round at chain tip.
  * @param {string} nethash Expected node nethash.
@@ -427,41 +473,55 @@ MemCheckpoint.prototype.findRecoverableCheckpoint = function (tipHeight, tipRoun
     return Promise.resolve(null);
   }
 
-  return self.getLatestComplete().then(function (meta) {
-    if (!meta) {
+  var chainHeight = parseInt(tipHeight, 10);
+
+  return self.library.db.any(sql.getCompleteDesc).then(function (metas) {
+    if (!metas || !metas.length) {
       return null;
     }
 
-    var checkpointHeight = parseInt(meta.height, 10);
-    var chainHeight = parseInt(tipHeight, 10);
+    var index = 0;
 
-    // A checkpoint exactly at the chain tip is valid and needs zero replay;
-    // only checkpoints ahead of the local chain are unusable.
-    if (checkpointHeight > chainHeight) {
-      return null;
-    }
+    var tryNext = function () {
+      if (index >= metas.length) {
+        return Promise.resolve(null);
+      }
 
-    // Genesis-height checkpoints are test-only; real nodes only persist round-boundary slots (>= delegates).
-    if (checkpointHeight < slots.delegates && chainHeight > slots.delegates) {
-      self.library.logger.warn('memCheckpoints', 'Rejecting pre-round checkpoint on grown chain', {
-        checkpointHeight: checkpointHeight,
-        tipHeight: chainHeight
+      var meta = metas[index++];
+      var checkpointHeight = parseInt(meta.height, 10);
+
+      // A checkpoint ahead of the local chain is unusable; try an older slot.
+      if (checkpointHeight > chainHeight) {
+        return tryNext();
+      }
+
+      // Genesis-height checkpoints are test-only; real nodes only persist round-boundary slots (>= delegates).
+      if (checkpointHeight < slots.delegates && chainHeight > slots.delegates) {
+        self.library.logger.warn('memCheckpoints', 'Skipping pre-round checkpoint on grown chain', {
+          slot: meta.slot,
+          checkpointHeight: checkpointHeight,
+          tipHeight: chainHeight
+        });
+        return tryNext();
+      }
+
+      return self.verifyCheckpointMeta(meta, nethash).then(function (verified) {
+        if (!verified) {
+          return tryNext();
+        }
+
+        if (parseInt(verified.round, 10) > tipRound) {
+          self.library.logger.warn('memCheckpoints', 'Skipping checkpoint with round ahead of chain tip', {
+            slot: verified.slot
+          });
+          return tryNext();
+        }
+
+        return verified;
       });
-      return null;
-    }
+    };
 
-    return self.verifyCheckpointMeta(meta, nethash).then(function (verified) {
-      if (!verified) {
-        return null;
-      }
-
-      if (parseInt(verified.round, 10) > tipRound) {
-        self.library.logger.warn('memCheckpoints', 'Rejecting checkpoint with round ahead of chain tip');
-        return null;
-      }
-
-      return verified;
-    });
+    return tryNext();
   });
 };
 

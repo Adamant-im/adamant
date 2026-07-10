@@ -8,6 +8,8 @@
 var MemCheckpointsSql = {
   getLatestComplete: 'SELECT * FROM mem_state_checkpoint_meta WHERE "status" = \'complete\' ORDER BY "height" DESC LIMIT 1',
 
+  getCompleteDesc: 'SELECT * FROM mem_state_checkpoint_meta WHERE "status" = \'complete\' ORDER BY "height" DESC',
+
   getMetaBySlot: 'SELECT * FROM mem_state_checkpoint_meta WHERE "slot" = (${slot})::int',
 
   upsertMetaWriting: 'INSERT INTO mem_state_checkpoint_meta ("slot", "schemaVersion", "height", "blockId", "round", "nethash", "createdAt", "status", "digest") VALUES (${slot}, ${schemaVersion}, ${height}, ${blockId}, ${round}, ${nethash}, ${createdAt}, \'writing\', NULL) ON CONFLICT ("slot") DO UPDATE SET "schemaVersion" = EXCLUDED."schemaVersion", "height" = EXCLUDED."height", "blockId" = EXCLUDED."blockId", "round" = EXCLUDED."round", "nethash" = EXCLUDED."nethash", "createdAt" = EXCLUDED."createdAt", "status" = \'writing\', "digest" = NULL',
@@ -26,7 +28,7 @@ var MemCheckpointsSql = {
 
   canonicalAccounts: 'SELECT "address" AS sort_key, "address" || E\'\\x1f\' || COALESCE("username", \'\') || E\'\\x1f\' || COALESCE("isDelegate"::text, \'0\') || E\'\\x1f\' || COALESCE("u_isDelegate"::text, \'0\') || E\'\\x1f\' || COALESCE("secondSignature"::text, \'0\') || E\'\\x1f\' || COALESCE("u_secondSignature"::text, \'0\') || E\'\\x1f\' || COALESCE("u_username", \'\') || E\'\\x1f\' || COALESCE(ENCODE("publicKey", \'hex\'), \'\') || E\'\\x1f\' || COALESCE(ENCODE("secondPublicKey", \'hex\'), \'\') || E\'\\x1f\' || COALESCE("balance"::text, \'0\') || E\'\\x1f\' || COALESCE("u_balance"::text, \'0\') || E\'\\x1f\' || COALESCE("vote"::text, \'0\') || E\'\\x1f\' || COALESCE("rate"::text, \'0\') || E\'\\x1f\' || COALESCE("delegates", \'\') || E\'\\x1f\' || COALESCE("u_delegates", \'\') || E\'\\x1f\' || COALESCE("multisignatures", \'\') || E\'\\x1f\' || COALESCE("u_multisignatures", \'\') || E\'\\x1f\' || COALESCE("multimin"::text, \'0\') || E\'\\x1f\' || COALESCE("u_multimin"::text, \'0\') || E\'\\x1f\' || COALESCE("multilifetime"::text, \'0\') || E\'\\x1f\' || COALESCE("u_multilifetime"::text, \'0\') || E\'\\x1f\' || COALESCE("blockId", \'\') || E\'\\x1f\' || COALESCE("nameexist"::text, \'0\') || E\'\\x1f\' || COALESCE("u_nameexist"::text, \'0\') || E\'\\x1f\' || COALESCE("producedblocks"::text, \'0\') || E\'\\x1f\' || COALESCE("missedblocks"::text, \'0\') || E\'\\x1f\' || COALESCE("fees"::text, \'0\') || E\'\\x1f\' || COALESCE("rewards"::text, \'0\') || E\'\\x1f\' || COALESCE("virgin"::text, \'0\') || E\'\\x1f\' || COALESCE("votesWeight"::text, \'0\') AS line FROM ${tableName~} ORDER BY "address"',
 
-  canonicalRound: 'SELECT COALESCE("address", \'\') || E\'\\x1f\' || COALESCE("round"::text, \'\') || E\'\\x1f\' || COALESCE("delegate", \'\') AS sort_key, COALESCE("address", \'\') || E\'\\x1f\' || COALESCE("amount"::text, \'0\') || E\'\\x1f\' || COALESCE("delegate", \'\') || E\'\\x1f\' || COALESCE("blockId", \'\') || E\'\\x1f\' || COALESCE("round"::text, \'\') AS line FROM ${tableName~} ORDER BY "address", "delegate", "round"',
+  canonicalRound: 'SELECT COALESCE("address", \'\') || E\'\\x1f\' || COALESCE("round"::text, \'\') || E\'\\x1f\' || COALESCE("delegate", \'\') AS sort_key, COALESCE("address", \'\') || E\'\\x1f\' || COALESCE("amount"::text, \'0\') || E\'\\x1f\' || COALESCE("delegate", \'\') || E\'\\x1f\' || COALESCE("blockId", \'\') || E\'\\x1f\' || COALESCE("round"::text, \'\') AS line FROM ${tableName~} ORDER BY "address", "delegate", "round", "amount", "blockId"',
 
   canonicalAccountDelegates: 'SELECT "accountId" || E\'\\x1f\' || "dependentId" AS sort_key, "accountId" || E\'\\x1f\' || "dependentId" AS line FROM ${tableName~} ORDER BY "accountId", "dependentId"',
 
@@ -95,8 +97,6 @@ MemCheckpointsSql.slotTableNames = function (slot) {
 MemCheckpointsSql.clearSlotTablesStatements = function (slot) {
   var tables = MemCheckpointsSql.slotTableNames(slot);
   return [
-    'DELETE FROM "' + tables.accounts2u_delegates + '";',
-    'DELETE FROM "' + tables.accounts2u_multisignatures + '";',
     'DELETE FROM "' + tables.accounts2delegates + '";',
     'DELETE FROM "' + tables.accounts2multisignatures + '";',
     'DELETE FROM "' + tables.round + '";',
@@ -114,9 +114,7 @@ MemCheckpointsSql.copyLiveToSlotStatements = function (slot) {
   return [
     'INSERT INTO "' + tables.accounts + '" SELECT * FROM "mem_accounts";',
     'INSERT INTO "' + tables.accounts2delegates + '" SELECT * FROM "mem_accounts2delegates";',
-    'INSERT INTO "' + tables.accounts2u_delegates + '" SELECT * FROM "mem_accounts2u_delegates";',
     'INSERT INTO "' + tables.accounts2multisignatures + '" SELECT * FROM "mem_accounts2multisignatures";',
-    'INSERT INTO "' + tables.accounts2u_multisignatures + '" SELECT * FROM "mem_accounts2u_multisignatures";',
     'INSERT INTO "' + tables.round + '" SELECT * FROM "mem_round";'
   ];
 };
@@ -142,9 +140,7 @@ MemCheckpointsSql.copySlotToLiveStatements = function (slot) {
   return [
     'INSERT INTO "mem_accounts" SELECT * FROM "' + tables.accounts + '";',
     'INSERT INTO "mem_accounts2delegates" SELECT * FROM "' + tables.accounts2delegates + '";',
-    'INSERT INTO "mem_accounts2u_delegates" SELECT * FROM "' + tables.accounts2u_delegates + '";',
     'INSERT INTO "mem_accounts2multisignatures" SELECT * FROM "' + tables.accounts2multisignatures + '";',
-    'INSERT INTO "mem_accounts2u_multisignatures" SELECT * FROM "' + tables.accounts2u_multisignatures + '";',
     'INSERT INTO "mem_round" SELECT * FROM "' + tables.round + '";'
   ];
 };

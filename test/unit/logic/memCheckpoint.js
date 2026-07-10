@@ -301,6 +301,36 @@ describe('memCheckpoint', function () {
       });
     });
 
+    it('should skip a rejected newest slot and recover an older valid slot', function () {
+      // Newest complete slot references a height that has no matching block, so
+      // it fails verification. Recovery must fall back to the older valid slot
+      // instead of giving up and forcing a full rebuild (rotating-slot model).
+      var newestSlot = logic.getNextSlot(createdMeta);
+      var badDigest = crypto.createHash('sha256').update('bad-newest').digest('hex');
+
+      return db.none(sql.upsertMetaWriting, {
+        slot: newestSlot,
+        schemaVersion: MemCheckpoint.SCHEMA_VERSION,
+        height: block.height + 1,
+        blockId: block.id, // real id but wrong height -> blockExists fails
+        round: round,
+        nethash: nethash,
+        createdAt: Date.now()
+      }).then(function () {
+        return db.none(sql.markMetaComplete, { slot: newestSlot, digest: badDigest });
+      }).then(function () {
+        // tip must be >= the bad checkpoint height so it is actually verified
+        // (not skipped as "ahead of chain") and then rejected.
+        return logic.findRecoverableCheckpoint(block.height + 1, round, nethash);
+      }).then(function (result) {
+        expect(result).to.be.an('object');
+        expect(parseInt(result.height, 10)).to.equal(block.height);
+        expect(result.blockId).to.equal(block.id);
+      }).then(function () {
+        return db.none('DELETE FROM mem_state_checkpoint_meta WHERE "slot" = ${slot}', { slot: newestSlot });
+      });
+    });
+
     it('should report no slot schema mismatch on freshly migrated tables', function () {
       return logic.verifySlotSchemas().then(function (mismatch) {
         expect(mismatch).to.equal(null);

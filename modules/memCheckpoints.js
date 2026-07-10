@@ -18,8 +18,7 @@ function MemCheckpoints (cb, scope) {
   library = {
     logger: scope.logger,
     db: scope.db,
-    config: scope.config,
-    balancesSequence: scope.balancesSequence
+    config: scope.config
   };
 
   __private.logic = new MemCheckpoint({
@@ -53,12 +52,14 @@ MemCheckpoints.prototype.logic = function () {
 /**
  * Create a checkpoint after a persisted block at a completed round boundary.
  * Called only after the full applyBlock pipeline has finished. The callback is
- * invoked when the checkpoint copy has finished (or was skipped), so the caller
- * can hold the block-processing critical section for the duration of the copy.
- * Balance/unconfirmed writers are excluded via `balancesSequence`.
+ * invoked as soon as the checkpoint transaction has pinned its MVCC snapshot to
+ * this block, so the caller holds the block-processing critical section only for
+ * the (short) pin, not for the whole table copy. The copy then runs in the
+ * background against that frozen REPEATABLE READ snapshot, which cannot observe a
+ * later block, so it neither stalls block production nor needs `balancesSequence`.
  * @param {object} block Applied block.
  * @param {boolean} persisted Whether the block was saved to the database.
- * @param {Function} [cb] Called when checkpoint work is finished or skipped.
+ * @param {Function} [cb] Called once the snapshot is pinned or the work is skipped.
  */
 MemCheckpoints.prototype.onBlockApplied = function (block, persisted, cb) {
   cb = cb || function () {};
@@ -86,15 +87,24 @@ MemCheckpoints.prototype.onBlockApplied = function (block, persisted, cb) {
 
   __private.creating = true;
 
-  library.balancesSequence.add(function (sequenceCb) {
-    __private.logic.createCheckpoint(block, round, library.config.nethash).then(function () {
-      return setImmediate(sequenceCb);
-    }, function (err) {
-      return setImmediate(sequenceCb, err);
-    });
-  }, function () {
-    __private.creating = false;
+  // Release the block-processing critical section as soon as the snapshot is
+  // pinned (createCheckpoint invokes `release` from inside its transaction).
+  var released = false;
+  var release = function () {
+    if (released) {
+      return;
+    }
+    released = true;
     return setImmediate(cb);
+  };
+
+  __private.logic.createCheckpoint(block, round, library.config.nethash, release).then(function () {
+    __private.creating = false;
+    release();
+  }, function (err) {
+    __private.creating = false;
+    library.logger.error('memCheckpoints', `Checkpoint creation failed: ${err?.message || err}`);
+    release();
   });
 };
 

@@ -26,7 +26,6 @@ __private.syncInterval = 10000;
 __private.retries = 5;
 __private.stopRequested = false;
 __private.shutdownRequested = false;
-__private.rebuildInProgress = false;
 // Maximum time a single sync run may go without block progress before it is
 // considered stalled and aborted so the loader can recover.
 __private.syncTimeout = constants.syncStallTimeout;
@@ -374,8 +373,6 @@ __private.loadBlockChain = function () {
   }
 
   function finishRebuild (err, count) {
-    __private.rebuildInProgress = false;
-
     if (err) {
       library.logger.error('loader', err);
       if (err.block) {
@@ -412,7 +409,6 @@ __private.loadBlockChain = function () {
 
     verify = true;
     __private.total = count;
-    __private.rebuildInProgress = true;
     offset = startOffset;
 
     var steps = {};

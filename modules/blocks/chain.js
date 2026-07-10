@@ -497,9 +497,11 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
     }
 
     if (!err && saveBlock && modules.memCheckpoints) {
-      // Checkpoint only after the full applyBlock pipeline, on completed round boundaries.
-      // Wait for the checkpoint copy before releasing the block-processing critical
-      // section, so no later block can mutate mem_* while the copy is in progress.
+      // Checkpoint on completed round boundaries, after the full applyBlock pipeline.
+      // onBlockApplied holds the block-processing critical section only until the
+      // checkpoint transaction has pinned its MVCC snapshot to this block; the table
+      // copy then runs in the background against that frozen (REPEATABLE READ)
+      // snapshot, so it can neither capture a later block nor stall block production.
       return modules.memCheckpoints.onBlockApplied(block, true, function () {
         return finalize(err);
       });

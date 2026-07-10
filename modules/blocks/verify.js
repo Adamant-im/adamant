@@ -352,8 +352,10 @@ __private.verifyBlockSlot = function (block, lastBlock, result) {
 };
 
 /**
- * Logs block verification failure at warn level for slot/timestamp issues,
- * otherwise at error level.
+ * Logs block verification failure at warn level only when every error is a
+ * slot/timestamp issue (typically a local clock skew), otherwise at error level.
+ * A block that mixes a timestamp error with signature/id/reward/payload failures
+ * stays at error level so security and peer-abuse signals are not softened.
  * @private
  * @param {string} loggerModule
  * @param {object} block
@@ -362,11 +364,11 @@ __private.verifyBlockSlot = function (block, lastBlock, result) {
 __private.logBlockVerificationFailure = function (loggerModule, block, check) {
   var message = ['Block', block.id, 'verification failed'].join(' ');
   var details = check.errors.join(', ');
-  var isTimestampIssue = check.errors.some(function (error) {
+  var onlyTimestampIssues = check.errors.length > 0 && check.errors.every(function (error) {
     return String(error).indexOf('Invalid block timestamp:') === 0;
   });
 
-  if (isTimestampIssue) {
+  if (onlyTimestampIssues) {
     library.logger.warn(loggerModule, message + ' ' + details);
   } else {
     library.logger.error(loggerModule, message, details);
