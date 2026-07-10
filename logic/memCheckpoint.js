@@ -215,10 +215,16 @@ MemCheckpoint.prototype.computeDigest = function (t, slot, meta) {
 MemCheckpoint.prototype.validateRestoredInvariants = function (t, meta, checkpointRound) {
   var expectedRound = String(checkpointRound);
 
-  // Run checks sequentially: pg-native rejects overlapping queries on one client.
+  // Each `.then` result feeds the next handler, so a bare `return false` would
+  // not short-circuit — it would be consumed as the next query's rows and
+  // corrupt later checks (e.g. `false.length` / `false.filter`). Track failure
+  // in a flag instead, and run the checks sequentially (pg-native rejects
+  // overlapping queries on one client).
+  var failed = false;
+
   return t.one(sql.countMemAccountsAtBlock, { blockId: meta.blockId }).then(function (accounts) {
     if (!accounts.count) {
-      return false;
+      failed = true;
     }
 
     return t.query(sql.getMemRounds);
@@ -228,18 +234,18 @@ MemCheckpoint.prototype.validateRestoredInvariants = function (t, meta, checkpoi
     });
 
     if (unapplied.length > 0) {
-      return false;
+      failed = true;
     }
 
     return t.query(sql.getOrphanedMemAccounts);
   }).then(function (orphanedRows) {
     if (orphanedRows.length > 0) {
-      return false;
+      failed = true;
     }
 
     return t.query(sql.getDelegates);
   }).then(function (delegateRows) {
-    return delegateRows.length > 0;
+    return !failed && delegateRows.length > 0;
   });
 };
 
@@ -406,8 +412,12 @@ MemCheckpoint.prototype.createCheckpoint = function (block, round, nethash, onPi
       };
 
       return t.none(sql.upsertMetaWriting, meta).then(function () {
-        // The snapshot is now frozen at `block` (the reads above ran within it);
-        // safe to let the caller resume block processing while the copy proceeds.
+        // The MVCC snapshot was frozen at `block` by this transaction's first
+        // statement (`getLatestComplete` above); every read since — and every
+        // copy/digest read below — observes that same snapshot, so later blocks
+        // are invisible. We signal here (after the `writing` meta row is
+        // persisted) to let the caller resume block processing while the copy
+        // proceeds against the frozen snapshot.
         signalPinned();
         return t.any(sql.getMemRounds);
       }).then(function (roundRows) {

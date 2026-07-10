@@ -26,11 +26,11 @@ var MemCheckpointsSql = {
 
   getDelegates: 'SELECT ENCODE("publicKey", \'hex\') FROM mem_accounts WHERE "isDelegate" = 1 LIMIT 1',
 
-  canonicalAccounts: 'SELECT "address" AS sort_key, "address" || E\'\\x1f\' || COALESCE("username", \'\') || E\'\\x1f\' || COALESCE("isDelegate"::text, \'0\') || E\'\\x1f\' || COALESCE("u_isDelegate"::text, \'0\') || E\'\\x1f\' || COALESCE("secondSignature"::text, \'0\') || E\'\\x1f\' || COALESCE("u_secondSignature"::text, \'0\') || E\'\\x1f\' || COALESCE("u_username", \'\') || E\'\\x1f\' || COALESCE(ENCODE("publicKey", \'hex\'), \'\') || E\'\\x1f\' || COALESCE(ENCODE("secondPublicKey", \'hex\'), \'\') || E\'\\x1f\' || COALESCE("balance"::text, \'0\') || E\'\\x1f\' || COALESCE("u_balance"::text, \'0\') || E\'\\x1f\' || COALESCE("vote"::text, \'0\') || E\'\\x1f\' || COALESCE("rate"::text, \'0\') || E\'\\x1f\' || COALESCE("delegates", \'\') || E\'\\x1f\' || COALESCE("u_delegates", \'\') || E\'\\x1f\' || COALESCE("multisignatures", \'\') || E\'\\x1f\' || COALESCE("u_multisignatures", \'\') || E\'\\x1f\' || COALESCE("multimin"::text, \'0\') || E\'\\x1f\' || COALESCE("u_multimin"::text, \'0\') || E\'\\x1f\' || COALESCE("multilifetime"::text, \'0\') || E\'\\x1f\' || COALESCE("u_multilifetime"::text, \'0\') || E\'\\x1f\' || COALESCE("blockId", \'\') || E\'\\x1f\' || COALESCE("nameexist"::text, \'0\') || E\'\\x1f\' || COALESCE("u_nameexist"::text, \'0\') || E\'\\x1f\' || COALESCE("producedblocks"::text, \'0\') || E\'\\x1f\' || COALESCE("missedblocks"::text, \'0\') || E\'\\x1f\' || COALESCE("fees"::text, \'0\') || E\'\\x1f\' || COALESCE("rewards"::text, \'0\') || E\'\\x1f\' || COALESCE("virgin"::text, \'0\') || E\'\\x1f\' || COALESCE("votesWeight"::text, \'0\') AS line FROM ${tableName~} ORDER BY "address"',
+  canonicalAccounts: 'SELECT "address" || E\'\\x1f\' || COALESCE("username", \'\') || E\'\\x1f\' || COALESCE("isDelegate"::text, \'0\') || E\'\\x1f\' || COALESCE("u_isDelegate"::text, \'0\') || E\'\\x1f\' || COALESCE("secondSignature"::text, \'0\') || E\'\\x1f\' || COALESCE("u_secondSignature"::text, \'0\') || E\'\\x1f\' || COALESCE("u_username", \'\') || E\'\\x1f\' || COALESCE(ENCODE("publicKey", \'hex\'), \'\') || E\'\\x1f\' || COALESCE(ENCODE("secondPublicKey", \'hex\'), \'\') || E\'\\x1f\' || COALESCE("balance"::text, \'0\') || E\'\\x1f\' || COALESCE("u_balance"::text, \'0\') || E\'\\x1f\' || COALESCE("vote"::text, \'0\') || E\'\\x1f\' || COALESCE("rate"::text, \'0\') || E\'\\x1f\' || COALESCE("delegates", \'\') || E\'\\x1f\' || COALESCE("u_delegates", \'\') || E\'\\x1f\' || COALESCE("multisignatures", \'\') || E\'\\x1f\' || COALESCE("u_multisignatures", \'\') || E\'\\x1f\' || COALESCE("multimin"::text, \'0\') || E\'\\x1f\' || COALESCE("u_multimin"::text, \'0\') || E\'\\x1f\' || COALESCE("multilifetime"::text, \'0\') || E\'\\x1f\' || COALESCE("u_multilifetime"::text, \'0\') || E\'\\x1f\' || COALESCE("blockId", \'\') || E\'\\x1f\' || COALESCE("nameexist"::text, \'0\') || E\'\\x1f\' || COALESCE("u_nameexist"::text, \'0\') || E\'\\x1f\' || COALESCE("producedblocks"::text, \'0\') || E\'\\x1f\' || COALESCE("missedblocks"::text, \'0\') || E\'\\x1f\' || COALESCE("fees"::text, \'0\') || E\'\\x1f\' || COALESCE("rewards"::text, \'0\') || E\'\\x1f\' || COALESCE("virgin"::text, \'0\') || E\'\\x1f\' || COALESCE("votesWeight"::text, \'0\') AS line FROM ${tableName~} ORDER BY "address"',
 
-  canonicalRound: 'SELECT COALESCE("address", \'\') || E\'\\x1f\' || COALESCE("round"::text, \'\') || E\'\\x1f\' || COALESCE("delegate", \'\') AS sort_key, COALESCE("address", \'\') || E\'\\x1f\' || COALESCE("amount"::text, \'0\') || E\'\\x1f\' || COALESCE("delegate", \'\') || E\'\\x1f\' || COALESCE("blockId", \'\') || E\'\\x1f\' || COALESCE("round"::text, \'\') AS line FROM ${tableName~} ORDER BY "address", "delegate", "round", "amount", "blockId"',
+  canonicalRound: 'SELECT COALESCE("address", \'\') || E\'\\x1f\' || COALESCE("amount"::text, \'0\') || E\'\\x1f\' || COALESCE("delegate", \'\') || E\'\\x1f\' || COALESCE("blockId", \'\') || E\'\\x1f\' || COALESCE("round"::text, \'\') AS line FROM ${tableName~} ORDER BY "address", "delegate", "round", "amount", "blockId"',
 
-  canonicalAccountDelegates: 'SELECT "accountId" || E\'\\x1f\' || "dependentId" AS sort_key, "accountId" || E\'\\x1f\' || "dependentId" AS line FROM ${tableName~} ORDER BY "accountId", "dependentId"',
+  canonicalAccountDelegates: 'SELECT "accountId" || E\'\\x1f\' || "dependentId" AS line FROM ${tableName~} ORDER BY "accountId", "dependentId"',
 
   compareTableSchemas: 'SELECT l."column_name" AS live_column, c."column_name" AS ckpt_column, l."data_type" AS live_type, c."data_type" AS ckpt_type FROM (SELECT "ordinal_position", "column_name", "data_type" FROM information_schema.columns WHERE "table_schema" = current_schema() AND "table_name" = ${liveTable}) l FULL OUTER JOIN (SELECT "ordinal_position", "column_name", "data_type" FROM information_schema.columns WHERE "table_schema" = current_schema() AND "table_name" = ${slotTable}) c USING ("ordinal_position") WHERE l."column_name" IS DISTINCT FROM c."column_name" OR l."data_type" IS DISTINCT FROM c."data_type" LIMIT 1',
 
@@ -78,14 +78,15 @@ MemCheckpointsSql.slotTableNames = function (slot) {
     throw new Error('Invalid checkpoint slot: ' + slot);
   }
 
+  // Unconfirmed junction tables (accounts2u_*) are intentionally not checkpointed:
+  // they are rebuilt from confirmed state on restore (resetUnconfirmedStateStatements),
+  // so no mem_ckpt_*_accounts2u_* slot tables exist.
   var prefix = 'mem_ckpt_' + slot + '_';
   return {
     accounts: prefix + 'accounts',
     round: prefix + 'round',
     accounts2delegates: prefix + 'accounts2delegates',
-    accounts2u_delegates: prefix + 'accounts2u_delegates',
-    accounts2multisignatures: prefix + 'accounts2multisignatures',
-    accounts2u_multisignatures: prefix + 'accounts2u_multisignatures'
+    accounts2multisignatures: prefix + 'accounts2multisignatures'
   };
 };
 

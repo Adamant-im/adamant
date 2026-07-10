@@ -372,9 +372,22 @@ __private.loadBlockChain = function () {
     finishLoading(false);
   }
 
-  function finishRebuild (err, count) {
+  function finishRebuild (err, count, context) {
+    var replay = Boolean(context && context.replay);
+
     if (err) {
       library.logger.error('loader', err);
+
+      // A failure while replaying on top of a restored checkpoint most likely
+      // means the checkpoint's derived mem_* state is inconsistent with the
+      // chain — the persisted blocks are still the source of truth and must not
+      // be clipped. Fall back to a full rebuild from genesis (which recreates
+      // the mem_* tables), instead of deleting valid blocks.
+      if (replay) {
+        library.logger.warn('loader', 'Checkpoint replay failed; discarding checkpoint state and rebuilding memory tables from genesis…');
+        return load(count);
+      }
+
       if (err.block) {
         library.logger.error('loader', 'Blockchain rebuild failed while verifying block at height ' + err.block.height);
         modules.blocks.chain.deleteAfterBlock(err.block.id, function (clipErr) {
@@ -465,7 +478,7 @@ __private.loadBlockChain = function () {
     };
 
     async.series(steps, function (err) {
-      return finishRebuild(err, count);
+      return finishRebuild(err, count, { replay: skipTableReset });
     });
   }
 
@@ -484,9 +497,17 @@ __private.loadBlockChain = function () {
       library.logger.warn('loader', message);
     }
 
-    if (!modules.memCheckpoints || !modules.memCheckpoints.isEnabled()) {
-      library.logger.warn('loader', 'Mem-table checkpoints are disabled');
-      library.logger.warn('loader', 'Recreating memory tables…');
+    // Snapshot/verification mode (`verify`) must rebuild derived state from
+    // genesis so every block is re-verified and re-applied; a checkpoint restore
+    // would skip exactly the work the operator asked for. Fall through to a full
+    // rebuild in that case, and whenever checkpoints are unavailable.
+    if (verify || !modules.memCheckpoints || !modules.memCheckpoints.isEnabled()) {
+      if (verify) {
+        library.logger.warn('loader', 'Verification/snapshot mode enabled; skipping checkpoint recovery and recreating memory tables…');
+      } else {
+        library.logger.warn('loader', 'Mem-table checkpoints are disabled');
+        library.logger.warn('loader', 'Recreating memory tables…');
+      }
       return load(count);
     }
 

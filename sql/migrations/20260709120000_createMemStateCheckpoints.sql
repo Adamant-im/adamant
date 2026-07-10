@@ -19,28 +19,26 @@ CREATE TABLE IF NOT EXISTS "mem_state_checkpoint_meta"(
 CREATE INDEX IF NOT EXISTS "mem_state_checkpoint_meta_status_height"
   ON "mem_state_checkpoint_meta"("status", "height" DESC);
 
+-- Unconfirmed junction tables (accounts2u_*) are intentionally not checkpointed:
+-- they are deterministically rebuilt from confirmed state on restore, so no
+-- mem_ckpt_*_accounts2u_* slot tables are created.
+
 -- Slot 0
 CREATE TABLE IF NOT EXISTS "mem_ckpt_0_accounts" (LIKE "mem_accounts" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
 CREATE TABLE IF NOT EXISTS "mem_ckpt_0_round" (LIKE "mem_round" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
 CREATE TABLE IF NOT EXISTS "mem_ckpt_0_accounts2delegates" (LIKE "mem_accounts2delegates" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
-CREATE TABLE IF NOT EXISTS "mem_ckpt_0_accounts2u_delegates" (LIKE "mem_accounts2u_delegates" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
 CREATE TABLE IF NOT EXISTS "mem_ckpt_0_accounts2multisignatures" (LIKE "mem_accounts2multisignatures" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
-CREATE TABLE IF NOT EXISTS "mem_ckpt_0_accounts2u_multisignatures" (LIKE "mem_accounts2u_multisignatures" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
 
 -- Slot 1
 CREATE TABLE IF NOT EXISTS "mem_ckpt_1_accounts" (LIKE "mem_accounts" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
 CREATE TABLE IF NOT EXISTS "mem_ckpt_1_round" (LIKE "mem_round" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
 CREATE TABLE IF NOT EXISTS "mem_ckpt_1_accounts2delegates" (LIKE "mem_accounts2delegates" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
-CREATE TABLE IF NOT EXISTS "mem_ckpt_1_accounts2u_delegates" (LIKE "mem_accounts2u_delegates" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
 CREATE TABLE IF NOT EXISTS "mem_ckpt_1_accounts2multisignatures" (LIKE "mem_accounts2multisignatures" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
-CREATE TABLE IF NOT EXISTS "mem_ckpt_1_accounts2u_multisignatures" (LIKE "mem_accounts2u_multisignatures" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
 
 -- Slot 2
 CREATE TABLE IF NOT EXISTS "mem_ckpt_2_accounts" (LIKE "mem_accounts" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
 CREATE TABLE IF NOT EXISTS "mem_ckpt_2_round" (LIKE "mem_round" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
 CREATE TABLE IF NOT EXISTS "mem_ckpt_2_accounts2delegates" (LIKE "mem_accounts2delegates" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
-CREATE TABLE IF NOT EXISTS "mem_ckpt_2_accounts2u_delegates" (LIKE "mem_accounts2u_delegates" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
 CREATE TABLE IF NOT EXISTS "mem_ckpt_2_accounts2multisignatures" (LIKE "mem_accounts2multisignatures" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
-CREATE TABLE IF NOT EXISTS "mem_ckpt_2_accounts2u_multisignatures" (LIKE "mem_accounts2u_multisignatures" INCLUDING DEFAULTS EXCLUDING CONSTRAINTS);
 
 COMMIT;

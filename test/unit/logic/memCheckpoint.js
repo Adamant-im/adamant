@@ -338,6 +338,27 @@ describe('memCheckpoint', function () {
       });
     });
 
+    it('should fail invariant checks when mem_round holds an unexpected round', function () {
+      // Regression: validateRestoredInvariants must short-circuit the
+      // unapplied-rounds check. A bare `return false` did not stop the chain —
+      // the value was consumed as the next query's rows, so a checkpoint with a
+      // wrong mem_round could still validate as `true`. Runs inside a tx and
+      // deletes the injected row before resolving so shared state is untouched.
+      const badRound = String(round + 999);
+
+      return db.tx(function (t) {
+        return t.none(
+            'INSERT INTO mem_round ("address", "amount", "delegate", "blockId", "round") VALUES (\'MEMCKPT1\', 0, \'d\', ${blockId}, ${badRound})',
+            { blockId: block.id, badRound: badRound }
+        ).then(function () {
+          return logic.validateRestoredInvariants(t, createdMeta, round);
+        }).then(function (valid) {
+          expect(valid).to.equal(false);
+          return t.none('DELETE FROM mem_round WHERE "round" = ${badRound}', { badRound: badRound });
+        });
+      });
+    });
+
     it('should keep previous complete checkpoint when a new write is interrupted', function () {
       const previousDigest = createdMeta.digest;
 
