@@ -280,8 +280,19 @@ class TransportWsApi {
 
     this.getRandomPeers(availableSlots, (err, candidates) => {
       if (err || !candidates.length) {
-        const reason = err ?? 'Every peer is already connected via WebSocket';
-        self.logger.info('ws-node-client', `${reason}. No peers updated.`);
+        if (this.connections.size === 0) {
+          const reason = err ?? 'No suitable peers found for WebSocket connections';
+          self.logger.warn('ws-node-client', `${reason}. No peers updated.`, {
+            connectedPeers: 0,
+            maxConnections: this.maxConnections
+          });
+        } else {
+          const reason = err ?? 'Every peer is already connected via WebSocket';
+          self.logger.info('ws-node-client', `${reason}. No peers updated.`, {
+            connectedPeers: this.connections.size,
+            maxConnections: this.maxConnections
+          });
+        }
         return;
       }
 
