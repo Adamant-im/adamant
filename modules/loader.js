@@ -153,7 +153,12 @@ __private.syncTimer = function () {
         async.retry(__private.retries, __private.sync, sequenceCb);
       }, function (err) {
         if (err) {
-          library.logger.error('loader', 'Sync timer error:', err);
+          const errorMessage = err.message || err;
+          if (errorMessage === 'Failed to find enough good peers') {
+            library.logger.warn('loader', 'Sync timer: Failed to find enough good peers');
+          } else {
+            library.logger.error('loader', 'Sync timer error:', err);
+          }
           __private.initialize();
         }
         return setImmediate(cb);
@@ -887,12 +892,19 @@ __private.sync = function (cb) {
       __private.initialize();
     }
 
-    library.logger.info('loader', __private.stopRequested ? 'Sync stopped for shutdown' : 'Finished sync', {
-      height: modules.blocks.lastBlock.get().height,
-      stopped: __private.stopRequested,
-      aborted: aborted,
-      error: err ? err.message || err : null
-    });
+    const height = modules.blocks.lastBlock.get().height;
+    const errorMessage = err ? err.message || err : null;
+
+    if (errorMessage === 'Failed to find enough good peers') {
+      library.logger.warn('loader', 'Finished sync at height ' + height + ': Failed to find enough good peers');
+    } else {
+      library.logger.info('loader', __private.stopRequested ? 'Sync stopped for shutdown' : 'Finished sync', {
+        height: height,
+        stopped: __private.stopRequested,
+        aborted: aborted,
+        error: errorMessage
+      });
+    }
     library.bus.message('syncFinished');
     return setImmediate(cb, err);
   }
