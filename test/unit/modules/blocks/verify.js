@@ -475,7 +475,10 @@ describe('blocks/verify (one may fail with Cannot read property sockets of undef
       expect(slotErrors).to.have.lengthOf(1);
       expect(slotErrors[0]).to.match(/^Invalid block timestamp: block slot is in the future/);
       expect(slotErrors[0]).to.include('block slot ' + slots.getSlotNumber(futureTimestamp));
-      expect(slotErrors[0]).to.include('current slot ' + slots.getSlotNumber());
+      // The "current slot" value is captured inside verifyBlockSlot; asserting its
+      // exact number against slots.getSlotNumber() recomputed here is flaky across a
+      // 5s slot boundary, so assert only that the segment is present and numeric.
+      expect(slotErrors[0]).to.match(/current slot \d+/);
       expect(slotErrors[0]).to.include('Verify local system time is synchronized with world time (NTP).');
 
       validBlock.timestamp = timestamp;

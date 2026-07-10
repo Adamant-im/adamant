@@ -7,8 +7,8 @@ var sql = require('../sql/memCheckpoints.js');
 /** @type {number} Digest/schema version for checkpoint metadata and hashing. */
 var SCHEMA_VERSION = 1;
 
-/** @type {number} Number of rotating checkpoint slots kept on disk (slots 0..2). */
-var CHECKPOINT_SLOT_COUNT = 3;
+/** @type {number} Number of rotating checkpoint slots kept on disk (slots 0..2). Sourced from sql/memCheckpoints so both layers share one value. */
+var CHECKPOINT_SLOT_COUNT = sql.CHECKPOINT_SLOT_COUNT;
 
 /**
  * Checkpoint every Nth round while the node is catching up with the network,
@@ -229,8 +229,12 @@ MemCheckpoint.prototype.validateRestoredInvariants = function (t, meta, checkpoi
 
     return t.query(sql.getMemRounds);
   }).then(function (roundRows) {
+    // Coerce row.round to string before comparing, matching createCheckpoint's
+    // settled-boundary check. Some pg parsers (e.g. pg-native) return the BIGINT
+    // round column as a number; a bare `!==` against the string expectedRound
+    // would then flag matching rows as unapplied and reject every restore.
     var unapplied = roundRows.filter(function (row) {
-      return row.round !== expectedRound;
+      return String(row.round) !== expectedRound;
     });
 
     if (unapplied.length > 0) {

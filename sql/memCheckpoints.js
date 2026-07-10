@@ -43,8 +43,10 @@ var MemCheckpointsSql = {
   ]
 };
 
-/** @type {number} Rotating checkpoint slot count; keep in sync with migration and {@link logic/memCheckpoint}. */
+/** @type {number} Rotating checkpoint slot count. Single source of truth for the JS layer; the migration DDL is the only other copy. */
 var CHECKPOINT_SLOT_COUNT = 3;
+
+MemCheckpointsSql.CHECKPOINT_SLOT_COUNT = CHECKPOINT_SLOT_COUNT;
 
 /**
  * Live mem_* table names keyed by the same logical keys as {@link slotTableNames}.
