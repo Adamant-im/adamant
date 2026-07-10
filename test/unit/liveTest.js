@@ -14,6 +14,7 @@ const scenarios = require('../../scripts/live-test/scenarios.js');
 const target = require('../../scripts/live-test/target.js');
 const transactions = require('../../scripts/live-test/transactions.js');
 const testDefaultConfig = require('../config.default.json');
+const testConfig = require('../config.json');
 
 describe('live scenario runner utilities', () => {
   let tempDir;
@@ -744,7 +745,7 @@ describe('live scenario runner utilities', () => {
     });
 
     expect(metadata.consensusActivationHeights).to.deep.equal({
-      fairSystem: testDefaultConfig.consensusActivationHeights.fairSystem,
+      fairSystem: testConfig.consensusActivationHeights.fairSystem,
       spaceship: 30
     });
     expect(JSON.stringify(metadata)).not.to.include('secret value');
@@ -752,7 +753,7 @@ describe('live scenario runner utilities', () => {
     expect(metadata.overrides.some((entry) => entry.value === 'XXXXXXXXXX')).to.equal(true);
   });
 
-  it('should always use test/config.default.json as activation metadata base', () => {
+  it('should use the target config path as activation metadata base', () => {
     const baseConfigPath = writeTempFile('config.default.json', JSON.stringify({
       consensusActivationHeights: {
         fairSystem: 10,
@@ -766,12 +767,13 @@ describe('live scenario runner utilities', () => {
       manifest: {
         baseConfig: baseConfigPath
       },
+      configPath: baseConfigPath,
       nodes: []
     });
 
     expect(metadata.consensusActivationHeights).to.deep.equal({
-      fairSystem: testDefaultConfig.consensusActivationHeights.fairSystem,
-      spaceship: testDefaultConfig.consensusActivationHeights.spaceship
+      fairSystem: 10,
+      spaceship: 20
     });
   });
 
