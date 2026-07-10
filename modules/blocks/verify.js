@@ -11,6 +11,7 @@ var exceptions = require('../../helpers/exceptions.js');
 var modules, library, self, __private = {};
 
 __private.blockReward = new BlockReward();
+__private.CLOCK_SYNC_HINT = 'Verify local system time is synchronized with world time (NTP).';
 
 function Verify (logger, block, transaction, db) {
   library = {
@@ -329,12 +330,47 @@ __private.verifyForkOne = function (block, lastBlock, result) {
 __private.verifyBlockSlot = function (block, lastBlock, result) {
   var blockSlotNumber = slots.getSlotNumber(block.timestamp);
   var lastBlockSlotNumber = slots.getSlotNumber(lastBlock.timestamp);
+  var currentSlotNumber = slots.getSlotNumber();
 
-  if (blockSlotNumber > slots.getSlotNumber() || blockSlotNumber <= lastBlockSlotNumber) {
-    result.errors.push('Invalid block timestamp');
+  if (blockSlotNumber > currentSlotNumber) {
+    result.errors.push([
+      'Invalid block timestamp: block slot is in the future',
+      '(block slot', blockSlotNumber + ', current slot', currentSlotNumber + ').',
+      __private.CLOCK_SYNC_HINT
+    ].join(' '));
+  }
+
+  if (blockSlotNumber <= lastBlockSlotNumber) {
+    result.errors.push([
+      'Invalid block timestamp: block slot is in the past relative to the chain tip',
+      '(block slot', blockSlotNumber + ', last block slot', lastBlockSlotNumber + ').',
+      __private.CLOCK_SYNC_HINT
+    ].join(' '));
   }
 
   return result;
+};
+
+/**
+ * Logs block verification failure at warn level for slot/timestamp issues,
+ * otherwise at error level.
+ * @private
+ * @param {string} loggerModule
+ * @param {object} block
+ * @param {object} check
+ */
+__private.logBlockVerificationFailure = function (loggerModule, block, check) {
+  var message = ['Block', block.id, 'verification failed'].join(' ');
+  var details = check.errors.join(', ');
+  var isTimestampIssue = check.errors.some(function (error) {
+    return String(error).indexOf('Invalid block timestamp:') === 0;
+  });
+
+  if (isTimestampIssue) {
+    library.logger.warn(loggerModule, message + ' ' + details);
+  } else {
+    library.logger.error(loggerModule, message, details);
+  }
 };
 
 /**
@@ -365,6 +401,18 @@ Verify.prototype.verifyReceipt = function (block) {
   result.errors.reverse();
 
   return result;
+};
+
+/**
+ * Logs block verification failure at warn level for slot/timestamp issues,
+ * otherwise at error level.
+ * @public
+ * @param {string} loggerModule
+ * @param {object} block
+ * @param {object} check
+ */
+Verify.prototype.logVerificationFailure = function (loggerModule, block, check) {
+  __private.logBlockVerificationFailure(loggerModule, block, check);
 };
 
 /**
@@ -445,7 +493,7 @@ Verify.prototype.processBlock = function (block, broadcast, cb, saveBlock, shoul
       var check = self.verifyBlock(block);
 
       if (!check.verified) {
-        library.logger.error('blocks', ['Block', block.id, 'verification failed'].join(' '), check.errors.join(', '));
+        __private.logBlockVerificationFailure('blocks', block, check);
         return setImmediate(seriesCb, check.errors[0]);
       }
 

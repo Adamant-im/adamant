@@ -108,7 +108,7 @@ class TransportWsApi {
    * @param {Peer} peer target peer
    */
   handleConnect (socket, peer) {
-    this.logger.info('ws-node-client', `Connected to WebSocket peer at ${peer.ip}:${peer.port}`, {
+    this.logger.log('ws-node-client', `Connected to WebSocket peer at ${peer.ip}:${peer.port}`, {
       direction: 'outbound'
     });
 

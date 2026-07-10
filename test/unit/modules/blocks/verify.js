@@ -1,9 +1,11 @@
 'use strict';
 
 var expect = require('chai').expect;
+var sinon = require('sinon');
 var modulesLoader = require('../../../common/initModule').modulesLoader;
 var BlockLogic = require('../../../../logic/block.js');
 var exceptions = require('../../../../helpers/exceptions.js');
+var slots = require('../../../../helpers/slots.js');
 
 var previousBlock = {
   blockSignature: 'a74cd53bebf9cf003cfd5fed8c053e1b64660e89a654078ff3341348145bbb0f34d1bde4a254b139ebae03117b346a2aab77fc8607eed9c7431db5eb4d4cbe0b',
@@ -412,21 +414,146 @@ describe('blocks/verify (one may fail with Cannot read property sockets of undef
     });
   }
 
+  function timestampErrors (result) {
+    return result.errors.filter(function (error) {
+      return String(error).indexOf('Invalid block timestamp:') === 0;
+    });
+  }
+
   function testVerifyBlockSlot (functionName) {
     it('should fail when block timestamp is less than previousBlock timestamp', function () {
+      blocks.lastBlock.set(previousBlock);
+
       var timestamp = validBlock.timestamp;
       validBlock.timestamp = timestamp - 1000;
-      // validBlock.timestamp = 32578350;
       var result = blocksVerify[functionName](validBlock);
+      var slotErrors = timestampErrors(result);
 
       expect(result.verified).to.be.false;
-      expect(result.errors).to.be.an('array').with.lengthOf(2);
-      expect(result.errors[0]).to.equal('Invalid block timestamp');
-      expect(result.errors[1]).to.equal('Failed to verify block signature');
+      expect(slotErrors).to.have.lengthOf(1);
+      expect(slotErrors[0]).to.match(/^Invalid block timestamp: block slot is in the past relative to the chain tip/);
+      expect(slotErrors[0]).to.include('Verify local system time is synchronized with world time (NTP).');
+
+      validBlock.timestamp = timestamp;
+    });
+
+    if (functionName !== 'verifyBlock') {
+      return;
+    }
+
+    it('should fail when block slot is in the future', function () {
+      blocks.lastBlock.set(previousBlock);
+
+      var timestamp = validBlock.timestamp;
+      var futureTimestamp = slots.getTime() + slots.interval * 5;
+      validBlock.timestamp = futureTimestamp;
+
+      var result = blocksVerify.verifyBlock(validBlock);
+      var slotErrors = timestampErrors(result);
+
+      expect(result.verified).to.be.false;
+      expect(slotErrors).to.have.lengthOf(1);
+      expect(slotErrors[0]).to.match(/^Invalid block timestamp: block slot is in the future/);
+      expect(slotErrors[0]).to.include('block slot ' + slots.getSlotNumber(futureTimestamp));
+      expect(slotErrors[0]).to.include('current slot ' + slots.getSlotNumber());
+      expect(slotErrors[0]).to.include('Verify local system time is synchronized with world time (NTP).');
+
+      validBlock.timestamp = timestamp;
+    });
+
+    it('should fail when block slot equals last block slot', function () {
+      blocks.lastBlock.set(previousBlock);
+
+      var timestamp = validBlock.timestamp;
+      validBlock.timestamp = previousBlock.timestamp;
+
+      var result = blocksVerify.verifyBlock(validBlock);
+      var slotErrors = timestampErrors(result);
+
+      expect(result.verified).to.be.false;
+      expect(slotErrors).to.have.lengthOf(1);
+      expect(slotErrors[0]).to.match(/^Invalid block timestamp: block slot is in the past relative to the chain tip/);
+      expect(slotErrors[0]).to.include('block slot ' + slots.getSlotNumber(previousBlock.timestamp));
+      expect(slotErrors[0]).to.include('last block slot ' + slots.getSlotNumber(previousBlock.timestamp));
+
+      validBlock.timestamp = timestamp;
+    });
+
+    it('should not report timestamp errors for the next slot within current time', function () {
+      blocks.lastBlock.set(previousBlock);
+
+      var timestamp = validBlock.timestamp;
+      var lastBlock = Object.assign({}, previousBlock);
+      lastBlock.timestamp = slots.getTime() - slots.interval;
+      blocks.lastBlock.set(lastBlock);
+      validBlock.timestamp = slots.getTime();
+
+      var result = blocksVerify.verifyBlock(validBlock);
+
+      expect(timestampErrors(result)).to.be.empty;
+
+      validBlock.timestamp = timestamp;
+      blocks.lastBlock.set(previousBlock);
+    });
+
+    it('should not validate block slot in verifyReceipt', function () {
+      blocks.lastBlock.set(previousBlock);
+
+      var timestamp = validBlock.timestamp;
+      validBlock.timestamp = slots.getTime() + slots.interval * 5;
+
+      var result = blocksVerify.verifyReceipt(validBlock);
+
+      expect(timestampErrors(result)).to.be.empty;
 
       validBlock.timestamp = timestamp;
     });
   }
+
+  describe('logVerificationFailure()', function () {
+    var logger;
+    var warnSpy;
+    var errorSpy;
+
+    beforeEach(function () {
+      logger = modulesLoader.logger;
+      warnSpy = sinon.spy(logger, 'warn');
+      errorSpy = sinon.spy(logger, 'error');
+      blocks.lastBlock.set(previousBlock);
+    });
+
+    afterEach(function () {
+      warnSpy.restore();
+      errorSpy.restore();
+    });
+
+    it('should log timestamp verification failures at warn level', function () {
+      var timestamp = validBlock.timestamp;
+      validBlock.timestamp = slots.getTime() + slots.interval * 5;
+
+      var check = blocksVerify.verifyBlock(validBlock);
+      blocksVerify.logVerificationFailure('blocks', validBlock, check);
+
+      expect(warnSpy.calledOnce).to.be.true;
+      expect(errorSpy.called).to.be.false;
+      expect(String(warnSpy.firstCall.args[1])).to.match(/Invalid block timestamp: block slot is in the future/);
+
+      validBlock.timestamp = timestamp;
+    });
+
+    it('should log non-timestamp verification failures at error level', function () {
+      var version = validBlock.version;
+      validBlock.version = 99;
+
+      var check = blocksVerify.verifyBlock(validBlock);
+      blocksVerify.logVerificationFailure('blocks', validBlock, check);
+
+      expect(errorSpy.calledOnce).to.be.true;
+      expect(warnSpy.called).to.be.false;
+
+      validBlock.version = version;
+    });
+  });
 
   describe('verifyReceipt() when block is valid', testValid.bind(null, 'verifyReceipt'));
 
