@@ -32,13 +32,13 @@ var MemCheckpointsSql = {
 
   compareTableSchemas: 'SELECT l."column_name" AS live_column, c."column_name" AS ckpt_column, l."data_type" AS live_type, c."data_type" AS ckpt_type FROM (SELECT "ordinal_position", "column_name", "data_type" FROM information_schema.columns WHERE "table_schema" = current_schema() AND "table_name" = ${liveTable}) l FULL OUTER JOIN (SELECT "ordinal_position", "column_name", "data_type" FROM information_schema.columns WHERE "table_schema" = current_schema() AND "table_name" = ${slotTable}) c USING ("ordinal_position") WHERE l."column_name" IS DISTINCT FROM c."column_name" OR l."data_type" IS DISTINCT FROM c."data_type" LIMIT 1',
 
-  resetUnconfirmedState: [
+  resetUnconfirmedStateStatements: [
     'UPDATE mem_accounts SET "u_isDelegate" = "isDelegate", "u_secondSignature" = "secondSignature", "u_username" = "username", "u_balance" = "balance", "u_delegates" = "delegates", "u_multisignatures" = "multisignatures", "u_multimin" = "multimin", "u_multilifetime" = "multilifetime", "u_nameexist" = "nameexist" WHERE "u_isDelegate" <> "isDelegate" OR "u_secondSignature" <> "secondSignature" OR "u_username" IS DISTINCT FROM "username" OR "u_balance" <> "balance" OR "u_delegates" IS DISTINCT FROM "delegates" OR "u_multisignatures" IS DISTINCT FROM "multisignatures" OR "u_multimin" <> "multimin" OR "u_multilifetime" <> "multilifetime" OR "u_nameexist" <> "nameexist";',
     'DELETE FROM "mem_accounts2u_delegates";',
     'INSERT INTO "mem_accounts2u_delegates" ("accountId", "dependentId") SELECT "accountId", "dependentId" FROM "mem_accounts2delegates";',
     'DELETE FROM "mem_accounts2u_multisignatures";',
     'INSERT INTO "mem_accounts2u_multisignatures" ("accountId", "dependentId") SELECT "accountId", "dependentId" FROM "mem_accounts2multisignatures";'
-  ].join('')
+  ]
 };
 
 /** @type {number} Rotating checkpoint slot count; keep in sync with migration and {@link logic/memCheckpoint}. */
@@ -57,14 +57,14 @@ MemCheckpointsSql.liveTableNames = {
   accounts2u_multisignatures: 'mem_accounts2u_multisignatures'
 };
 
-MemCheckpointsSql.clearLiveTables = [
+MemCheckpointsSql.clearLiveTablesStatements = [
   'DELETE FROM "mem_accounts2u_delegates";',
   'DELETE FROM "mem_accounts2u_multisignatures";',
   'DELETE FROM "mem_accounts2delegates";',
   'DELETE FROM "mem_accounts2multisignatures";',
   'DELETE FROM "mem_round";',
   'DELETE FROM "mem_accounts";'
-].join('');
+];
 
 /**
  * Physical checkpoint table names for a rotating slot index.
@@ -90,9 +90,9 @@ MemCheckpointsSql.slotTableNames = function (slot) {
 /**
  * Delete all rows from one checkpoint slot, respecting FK-dependent table order.
  * @param {number} slot Slot index.
- * @return {string}
+ * @return {string[]}
  */
-MemCheckpointsSql.clearSlotTables = function (slot) {
+MemCheckpointsSql.clearSlotTablesStatements = function (slot) {
   var tables = MemCheckpointsSql.slotTableNames(slot);
   return [
     'DELETE FROM "' + tables.accounts2u_delegates + '";',
@@ -101,15 +101,15 @@ MemCheckpointsSql.clearSlotTables = function (slot) {
     'DELETE FROM "' + tables.accounts2multisignatures + '";',
     'DELETE FROM "' + tables.round + '";',
     'DELETE FROM "' + tables.accounts + '";'
-  ].join('');
+  ];
 };
 
 /**
  * Copy live mem_* tables into one checkpoint slot.
  * @param {number} slot Slot index.
- * @return {string}
+ * @return {string[]}
  */
-MemCheckpointsSql.copyLiveToSlot = function (slot) {
+MemCheckpointsSql.copyLiveToSlotStatements = function (slot) {
   var tables = MemCheckpointsSql.slotTableNames(slot);
   return [
     'INSERT INTO "' + tables.accounts + '" SELECT * FROM "mem_accounts";',
@@ -118,7 +118,7 @@ MemCheckpointsSql.copyLiveToSlot = function (slot) {
     'INSERT INTO "' + tables.accounts2multisignatures + '" SELECT * FROM "mem_accounts2multisignatures";',
     'INSERT INTO "' + tables.accounts2u_multisignatures + '" SELECT * FROM "mem_accounts2u_multisignatures";',
     'INSERT INTO "' + tables.round + '" SELECT * FROM "mem_round";'
-  ].join('');
+  ];
 };
 
 /**
@@ -135,9 +135,9 @@ MemCheckpointsSql.getSlotAccountsMaxBlockHeight = function (slot) {
 /**
  * Restore live mem_* tables from one checkpoint slot.
  * @param {number} slot Slot index.
- * @return {string}
+ * @return {string[]}
  */
-MemCheckpointsSql.copySlotToLive = function (slot) {
+MemCheckpointsSql.copySlotToLiveStatements = function (slot) {
   var tables = MemCheckpointsSql.slotTableNames(slot);
   return [
     'INSERT INTO "mem_accounts" SELECT * FROM "' + tables.accounts + '";',
@@ -146,7 +146,7 @@ MemCheckpointsSql.copySlotToLive = function (slot) {
     'INSERT INTO "mem_accounts2multisignatures" SELECT * FROM "' + tables.accounts2multisignatures + '";',
     'INSERT INTO "mem_accounts2u_multisignatures" SELECT * FROM "' + tables.accounts2u_multisignatures + '";',
     'INSERT INTO "mem_round" SELECT * FROM "' + tables.round + '";'
-  ].join('');
+  ];
 };
 
 module.exports = MemCheckpointsSql;

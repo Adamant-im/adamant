@@ -4,6 +4,7 @@ const { expect } = require('chai');
 const crypto = require('crypto');
 const slots = require('../../../helpers/slots.js');
 const MemCheckpoint = require('../../../logic/memCheckpoint.js');
+const execStatementsSequential = MemCheckpoint.execStatementsSequential;
 const sql = require('../../../sql/memCheckpoints.js');
 const { modulesLoader } = require('../../common/initModule.js');
 
@@ -74,7 +75,7 @@ function restoreSharedDbState (db) {
   var tables = LIVE_TABLES.concat(listCheckpointSlotTables());
 
   return db.tx(function (t) {
-    return t.none(sql.clearLiveTables + 'DELETE FROM mem_state_checkpoint_meta;').then(function () {
+    return execStatementsSequential(t, sql.clearLiveTablesStatements.concat(['DELETE FROM mem_state_checkpoint_meta;'])).then(function () {
       return tables.reduce(function (promise, tableName) {
         return promise.then(function () {
           return restoreTable(t, tableName);
@@ -171,7 +172,7 @@ describe('memCheckpoint', function () {
 
               return t.none('DELETE FROM mem_state_checkpoint_meta');
             }).then(function () {
-              return t.none(sql.clearLiveTables);
+              return execStatementsSequential(t, sql.clearLiveTablesStatements);
             }).then(function () {
               return t.none('INSERT INTO mem_accounts ("address", "balance", "u_balance", "blockId", "isDelegate", "publicKey") VALUES (\'MEMCKPT1\', 10, 10, ${blockId}, 1, decode(\'aa\', \'hex\'))', { blockId: block.id });
             });

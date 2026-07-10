@@ -48,6 +48,25 @@ function appendTableDigest (hash, tableKey, rows) {
 }
 
 /**
+ * Run SQL statements sequentially on one pg client.
+ * pg-native rejects overlapping queries on the same connection.
+ * @param {object} t pg-promise task/transaction.
+ * @param {string[]} statements
+ * @return {Promise<void>}
+ */
+function execStatementsSequential (t, statements) {
+  if (!statements || !statements.length) {
+    return Promise.resolve();
+  }
+
+  return statements.reduce(function (promise, statement) {
+    return promise.then(function () {
+      return t.none(statement);
+    });
+  }, Promise.resolve());
+}
+
+/**
  * Persisted mem-table checkpoint logic for crash recovery.
  * Checkpoints are a local recovery cache only; blocks remain the source of truth.
  *
@@ -342,29 +361,31 @@ MemCheckpoint.prototype.createCheckpoint = function (block, round, nethash) {
     return Promise.resolve();
   }
 
-  return self.getLatestComplete().then(function (latestMeta) {
-    var slot = self.getNextSlot(latestMeta);
-    var createdAt = Date.now();
-    var meta = {
-      slot: slot,
-      schemaVersion: SCHEMA_VERSION,
-      height: block.height,
-      blockId: block.id,
-      round: round,
-      nethash: nethash,
-      createdAt: createdAt
-    };
+  // REPEATABLE READ gives all copy and digest statements one MVCC snapshot,
+  // so the six copied tables cannot mix state from different blocks.
+  var txMode = self.library.db.$config.pgp.txMode;
+  var mode = new txMode.TransactionMode({ tiLevel: txMode.isolationLevel.repeatableRead });
+  var createdSlot;
 
-    // REPEATABLE READ gives all copy and digest statements one MVCC snapshot,
-    // so the six copied tables cannot mix state from different blocks.
-    var txMode = self.library.db.$config.pgp.txMode;
-    var mode = new txMode.TransactionMode({ tiLevel: txMode.isolationLevel.repeatableRead });
+  return self.library.db.tx({ mode: mode }, function (t) {
+    return t.oneOrNone(sql.getLatestComplete).then(function (latestMeta) {
+      var slot = self.getNextSlot(latestMeta);
+      createdSlot = slot;
+      var createdAt = Date.now();
+      var meta = {
+        slot: slot,
+        schemaVersion: SCHEMA_VERSION,
+        height: block.height,
+        blockId: block.id,
+        round: round,
+        nethash: nethash,
+        createdAt: createdAt
+      };
 
-    return self.library.db.tx({ mode: mode }, function (t) {
       return t.none(sql.upsertMetaWriting, meta).then(function () {
-        return t.none(sql.clearSlotTables(slot));
+        return execStatementsSequential(t, sql.clearSlotTablesStatements(slot));
       }).then(function () {
-        return t.none(sql.copyLiveToSlot(slot));
+        return execStatementsSequential(t, sql.copyLiveToSlotStatements(slot));
       }).then(function () {
         // Guard against a copy that captured state ahead of the checkpoint block.
         return t.oneOrNone(sql.getSlotAccountsMaxBlockHeight(slot));
@@ -379,16 +400,16 @@ MemCheckpoint.prototype.createCheckpoint = function (block, round, nethash) {
       }).then(function (digest) {
         return t.none(sql.markMetaComplete, { slot: slot, digest: digest });
       });
-    }).then(function () {
-      self.library.logger.info('memCheckpoints', 'Created mem-table checkpoint', {
-        slot: slot,
-        height: block.height,
-        round: round,
-        blockId: block.id
-      });
-    }).catch(function (err) {
-      self.library.logger.error('memCheckpoints', `Failed to create checkpoint: ${err?.message || err}`, err.stack);
     });
+  }).then(function () {
+    self.library.logger.info('memCheckpoints', 'Created mem-table checkpoint', {
+      slot: createdSlot,
+      height: block.height,
+      round: round,
+      blockId: block.id
+    });
+  }).catch(function (err) {
+    self.library.logger.error('memCheckpoints', `Failed to create checkpoint: ${err?.message || err}`, err.stack);
   });
 };
 
@@ -457,10 +478,10 @@ MemCheckpoint.prototype.restoreCheckpoint = function (meta) {
   var checkpointRound = parseInt(meta.round, 10);
 
   return self.library.db.tx(function (t) {
-    return t.none(sql.clearLiveTables).then(function () {
-      return t.none(sql.copySlotToLive(slot));
+    return execStatementsSequential(t, sql.clearLiveTablesStatements).then(function () {
+      return execStatementsSequential(t, sql.copySlotToLiveStatements(slot));
     }).then(function () {
-      return t.none(sql.resetUnconfirmedState);
+      return execStatementsSequential(t, sql.resetUnconfirmedStateStatements);
     }).then(function () {
       return self.validateRestoredInvariants(t, meta, checkpointRound);
     }).then(function (valid) {
@@ -483,3 +504,4 @@ MemCheckpoint.prototype.restoreCheckpoint = function (meta) {
 };
 
 module.exports = MemCheckpoint;
+module.exports.execStatementsSequential = execStatementsSequential;

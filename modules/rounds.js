@@ -292,12 +292,13 @@ Rounds.prototype.tick = function (block, done) {
         });
 
         library.db.tx(function (t) {
-          return t.batch([
-            t.none(sql.clearRoundSnapshot),
-            t.none(sql.performRoundSnapshot),
-            t.none(sql.clearVotesSnapshot),
-            t.none(sql.performVotesSnapshot)
-          ]);
+          return t.none(sql.clearRoundSnapshot).then(function () {
+            return t.none(sql.performRoundSnapshot);
+          }).then(function () {
+            return t.none(sql.clearVotesSnapshot);
+          }).then(function () {
+            return t.none(sql.performVotesSnapshot);
+          });
         }).then(function () {
           library.logger.trace('rounds', 'Round snapshot done', {
             blockId: block.id,
