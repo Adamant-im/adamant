@@ -2,11 +2,13 @@
 
 const { expect } = require('chai');
 const crypto = require('crypto');
+const net = require('net');
 const slots = require('../../../helpers/slots.js');
 const MemCheckpoint = require('../../../logic/memCheckpoint.js');
 const execStatementsSequential = MemCheckpoint.execStatementsSequential;
 const sql = require('../../../sql/memCheckpoints.js');
 const { modulesLoader } = require('../../common/initModule.js');
+const testConfig = require('../../config.json');
 
 var LIVE_TABLES = [
   'mem_accounts',
@@ -35,6 +37,76 @@ function listCheckpointSlotTables () {
   return tables;
 }
 
+function listTablesToBackup () {
+  return LIVE_TABLES.concat(listCheckpointSlotTables());
+}
+
+function listBackupTables () {
+  return listTablesToBackup().map(backupTableName);
+}
+
+function assertNoStaleBackupTables (db) {
+  return db.any(
+      'SELECT tablename FROM pg_tables WHERE schemaname = current_schema() AND tablename = ANY(${names}) ORDER BY tablename',
+      { names: listBackupTables() }
+  ).then(function (rows) {
+    if (rows.length > 0) {
+      throw new Error('Stale memCheckpoint unit-test backup tables exist: ' + rows.map(function (row) {
+        return row.tablename;
+      }).join(', ') + '. Restore or drop them before running this suite.');
+    }
+  });
+}
+
+function assertLocalTestnetStopped () {
+  return new Promise(function (resolve, reject) {
+    var socket = net.createConnection({
+      host: testConfig.address || '127.0.0.1',
+      port: testConfig.port
+    });
+
+    socket.setTimeout(500);
+
+    socket.once('connect', function () {
+      socket.destroy();
+      reject(new Error(
+          'Local testnet appears to be running on ' + (testConfig.address || '127.0.0.1') + ':' + testConfig.port +
+          '. Stop the node before running memCheckpoint lifecycle tests because they temporarily replace mem_* tables.'
+      ));
+    });
+
+    socket.once('timeout', function () {
+      socket.destroy();
+      resolve();
+    });
+
+    socket.once('error', function (err) {
+      if (err && err.code === 'ECONNREFUSED') {
+        resolve();
+        return;
+      }
+
+      reject(err);
+    });
+  });
+}
+
+function getChainTip (db) {
+  return db.one('SELECT "id", "height" FROM blocks ORDER BY "height" DESC LIMIT 1');
+}
+
+function assertChainTipUnchanged (db, expectedTip) {
+  return getChainTip(db).then(function (actualTip) {
+    if (actualTip.id !== expectedTip.id || Number(actualTip.height) !== Number(expectedTip.height)) {
+      throw new Error(
+          'Refusing to restore memCheckpoint unit-test backups because the chain tip changed from ' +
+          expectedTip.height + ':' + expectedTip.id + ' to ' + actualTip.height + ':' + actualTip.id +
+          '. Restore the test database from a snapshot before continuing.'
+      );
+    }
+  });
+}
+
 function backupTable (t, tableName) {
   var backupName = backupTableName(tableName);
 
@@ -60,7 +132,7 @@ function restoreTable (t, tableName) {
 }
 
 function backupSharedDbState (db) {
-  var tables = LIVE_TABLES.concat(listCheckpointSlotTables());
+  var tables = listTablesToBackup();
 
   return db.tx(function (t) {
     return tables.reduce(function (promise, tableName) {
@@ -72,7 +144,7 @@ function backupSharedDbState (db) {
 }
 
 function restoreSharedDbState (db) {
-  var tables = LIVE_TABLES.concat(listCheckpointSlotTables());
+  var tables = listTablesToBackup();
 
   return db.tx(function (t) {
     return execStatementsSequential(t, sql.clearLiveTablesStatements.concat(['DELETE FROM mem_state_checkpoint_meta;'])).then(function () {
@@ -150,59 +222,62 @@ describe('memCheckpoint', function () {
     };
     const round = 1;
     let createdMeta;
-    let isolated = false;
+    let backupCreated = false;
+    let chainTipBeforeBackup;
 
     before(function () {
-      var suite = this;
+      return assertLocalTestnetStopped().then(function () {
+        return assertNoStaleBackupTables(db);
+      }).then(function () {
+        return getChainTip(db);
+      }).then(function (chainTip) {
+        chainTipBeforeBackup = chainTip;
+        return backupSharedDbState(db);
+      }).then(function () {
+        backupCreated = true;
 
-      return logic.getLatestComplete().then(function (latest) {
-        // Do not destroy real node checkpoints when tests share the database.
-        if (latest && parseInt(latest.height, 10) > 1) {
-          suite.skip();
-          return;
-        }
+        return db.tx(function (t) {
+          return t.one('SELECT "id", "height" FROM blocks WHERE "height" = 1').then(function (genesis) {
+            block.id = genesis.id;
+            block.height = genesis.height;
 
-        return backupSharedDbState(db).then(function () {
-          isolated = true;
-
-          return db.tx(function (t) {
-            return t.one('SELECT "id", "height" FROM blocks WHERE "height" = 1').then(function (genesis) {
-              block.id = genesis.id;
-              block.height = genesis.height;
-
-              return t.none('DELETE FROM mem_state_checkpoint_meta');
-            }).then(function () {
-              return execStatementsSequential(t, sql.clearLiveTablesStatements);
-            }).then(function () {
-              return t.none('INSERT INTO mem_accounts ("address", "balance", "u_balance", "blockId", "isDelegate", "publicKey") VALUES (\'MEMCKPT1\', 10, 10, ${blockId}, 1, decode(\'aa\', \'hex\'))', { blockId: block.id });
-            });
+            return t.none('DELETE FROM mem_state_checkpoint_meta');
+          }).then(function () {
+            return execStatementsSequential(t, sql.clearLiveTablesStatements);
+          }).then(function () {
+            return t.none('INSERT INTO mem_accounts ("address", "balance", "u_balance", "blockId", "isDelegate", "publicKey") VALUES (\'MEMCKPT1\', 10, 10, ${blockId}, 1, decode(\'aa\', \'hex\'))', { blockId: block.id });
           });
         });
       }).then(function () {
-        if (!isolated) {
-          return;
-        }
-
         return logic.createCheckpoint(block, round, nethash);
       }).then(function () {
-        if (!isolated) {
-          return;
-        }
-
         return logic.getLatestComplete();
       }).then(function (meta) {
-        if (isolated) {
-          createdMeta = meta;
+        createdMeta = meta;
+      }).catch(function (err) {
+        if (!backupCreated) {
+          throw err;
         }
+
+        return assertChainTipUnchanged(db, chainTipBeforeBackup).then(function () {
+          return restoreSharedDbState(db);
+        }).then(function () {
+          backupCreated = false;
+          throw err;
+        });
       });
     });
 
     after(function () {
-      if (!isolated) {
+      if (!backupCreated) {
         return;
       }
 
-      return restoreSharedDbState(db);
+      return assertChainTipUnchanged(db, chainTipBeforeBackup).then(function () {
+        return restoreSharedDbState(db);
+      }).then(function () {
+        backupCreated = false;
+      });
     });
 
     it('should create a complete checkpoint with digest', function () {

@@ -91,6 +91,16 @@ var validBlockWithPayload = {
   id: '15642998233669588601'
 };
 
+function clone (value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+var originalPreviousBlock = clone(previousBlock);
+var originalValidBlock = clone(validBlock);
+var originalBlockRewardInvalid = clone(blockRewardInvalid);
+var originalValidBlockWithPayload = clone(validBlockWithPayload);
+var originalBlockRewards = exceptions.blockRewards.slice();
+
 describe('blocks/verify (one may fail with Cannot read property sockets of undefined)', function () {
   var blocksVerify;
   var blocks;
@@ -135,6 +145,16 @@ describe('blocks/verify (one may fail with Cannot read property sockets of undef
     });
   });
 
+  beforeEach(function () {
+    previousBlock = clone(originalPreviousBlock);
+    validBlock = clone(originalValidBlock);
+    blockRewardInvalid = clone(originalBlockRewardInvalid);
+    validBlockWithPayload = clone(originalValidBlockWithPayload);
+
+    exceptions.blockRewards.length = 0;
+    Array.prototype.push.apply(exceptions.blockRewards, originalBlockRewards);
+  });
+
   function testValid (functionName) {
     it('should be ok', function () {
       blocks.lastBlock.set(previousBlock);
@@ -176,7 +196,7 @@ describe('blocks/verify (one may fail with Cannot read property sockets of undef
 
       expect(result.errors).to.be.an('array').with.lengthOf(2);
 
-      expect(result.errors[1]).to.equal('Error: argument signature must be 64U bytes long, but got a different value');
+      expect(result.errors[1]).to.equal('Error: Signature must be a 64-byte buffer');
       expect(result.errors[0]).to.equal('Failed to verify block signature');
 
       validBlock.blockSignature = blockSignature;
@@ -201,7 +221,7 @@ describe('blocks/verify (one may fail with Cannot read property sockets of undef
       var result = blocksVerify[functionName](validBlock);
 
       expect(result.errors).to.be.an('array').with.lengthOf(2);
-      expect(result.errors[1]).to.equal('Error: argument publicKey must be 32U bytes long, but got a different value');
+      expect(result.errors[1]).to.equal('Error: Public key must be a 32-byte buffer');
       expect(result.errors[0]).to.equal('Failed to verify block signature');
 
       validBlock.generatorPublicKey = generatorPublicKey;
@@ -528,17 +548,20 @@ describe('blocks/verify (one may fail with Cannot read property sockets of undef
     });
 
     it('should log timestamp verification failures at warn level', function () {
-      var timestamp = validBlock.timestamp;
-      validBlock.timestamp = slots.getTime() + slots.interval * 5;
-
-      var check = blocksVerify.verifyBlock(validBlock);
+      var check = {
+        errors: [
+          [
+            'Invalid block timestamp: block slot is in the future',
+            '(block slot', slots.getSlotNumber(slots.getTime() + slots.interval * 5) + ', current slot', slots.getSlotNumber() + ').',
+            'Verify local system time is synchronized with world time (NTP).'
+          ].join(' ')
+        ]
+      };
       blocksVerify.logVerificationFailure('blocks', validBlock, check);
 
       expect(warnSpy.calledOnce).to.be.true;
       expect(errorSpy.called).to.be.false;
       expect(String(warnSpy.firstCall.args[1])).to.match(/Invalid block timestamp: block slot is in the future/);
-
-      validBlock.timestamp = timestamp;
     });
 
     it('should log non-timestamp verification failures at error level', function () {
