@@ -215,12 +215,14 @@ Example: `helpers/constants.js` warns that reward and supply changes must match 
 
 Always stop a running node with its graceful shutdown path, for example by pressing `Ctrl+C` in the foreground process or by sending a normal termination signal that the application can handle. Do not stop the node with `kill -9`, forced terminal/process termination, or any other uncatchable kill mechanism.
 
+After `Ctrl+C` / `SIGINT` / `SIGTERM`, shutdown is not always immediate. The node may log messages such as `Waiting for loader to finish active sync/rebuild…` or `Waiting for block processing to finish…` while it drains in-flight work safely. Wait until cleanup completes (for example `Cleaned up successfully`) before restarting, closing the terminal, or killing the process. Restarting too early can leave derived `mem_*` tables inconsistent and force a long rebuild on the next startup.
+
 The node keeps consensus-derived state in memory mirror tables such as `mem_accounts` and `mem_round`. A forced kill can interrupt block, transaction, or round writes and leave those tables inconsistent with the persisted `blocks` table. On the next startup this can appear as:
 
 ```text
 [WRN] loader Detected unapplied rounds in mem_round
-[WRN] loader Recreating memory tables
-[inf] loader Rebuilding blockchain, current block height: 1
+[WRN] loader Recreating memory tables…
+[inf] loader Rebuilding blockchain, current block height: 1…
 ```
 
 When this happens, do not apply ad hoc SQL fixes to `mem_*` tables. There is no generally safe, deterministic repair that can be guaranteed without either restoring a trusted database snapshot or allowing the node to replay/rebuild the derived memory state from the blockchain. Manual edits may hide the warning while leaving balances, vote weights, delegate round data, or unconfirmed-state mirrors wrong.

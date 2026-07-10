@@ -111,6 +111,7 @@ var config = {
     peers: './modules/peers.js',
     delegates: './modules/delegates.js',
     rounds: './modules/rounds.js',
+    memCheckpoints: './modules/memCheckpoints.js',
     multisignatures: './modules/multisignatures.js',
     dapps: './modules/dapps.js',
     chats: './modules/chats.js',
@@ -725,7 +726,7 @@ d.run(function () {
 
         cleanupStarted = true;
         cleanupSignalCount = 0;
-        scope.logger.info('exit', 'Cleaning up...');
+        scope.logger.info('exit', 'Cleaning up…');
 
         var moduleMap = scope.modules || {};
         var moduleNames = Object.keys(moduleMap);

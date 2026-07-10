@@ -66,8 +66,8 @@ The node stores derived consensus state in memory mirror tables such as `mem_acc
 
 ```text
 [WRN] loader Detected unapplied rounds in mem_round
-[WRN] loader Recreating memory tables
-[inf] loader Rebuilding blockchain, current block height: 1
+[WRN] loader Recreating memory tables…
+[inf] loader Rebuilding blockchain, current block height: 1…
 ```
 
 If this happens, do not try to repair `mem_*` tables with manual SQL edits. The reliable recovery options are restoring a trusted database snapshot or letting the node rebuild/replay derived state from the blockchain.

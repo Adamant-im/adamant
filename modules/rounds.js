@@ -284,7 +284,7 @@ Rounds.prototype.tick = function (block, done) {
     function (cb) {
       // Check if we are one block before last block of round, if yes - perform round snapshot
       if ((block.height + 1) % slots.delegates === 0) {
-        library.logger.debug('rounds', 'Performing round snapshot...', {
+        library.logger.debug('rounds', 'Performing round snapshot…', {
           blockId: block.id,
           height: block.height,
           round: round,
@@ -292,12 +292,13 @@ Rounds.prototype.tick = function (block, done) {
         });
 
         library.db.tx(function (t) {
-          return t.batch([
-            t.none(sql.clearRoundSnapshot),
-            t.none(sql.performRoundSnapshot),
-            t.none(sql.clearVotesSnapshot),
-            t.none(sql.performVotesSnapshot)
-          ]);
+          return t.none(sql.clearRoundSnapshot).then(function () {
+            return t.none(sql.performRoundSnapshot);
+          }).then(function () {
+            return t.none(sql.clearVotesSnapshot);
+          }).then(function () {
+            return t.none(sql.performVotesSnapshot);
+          });
         }).then(function () {
           library.logger.trace('rounds', 'Round snapshot done', {
             blockId: block.id,

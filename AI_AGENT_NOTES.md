@@ -78,7 +78,7 @@ Recommendations:
 Critical shutdown note:
 
 - Forced kills can leave `mem_accounts`, `mem_round`, and related memory mirror tables inconsistent with `blocks`.
-- If the next startup logs `Detected unapplied rounds in mem_round`, `Recreating memory tables`, and `Rebuilding blockchain, current block height: 1`, treat the local derived state as untrusted.
+- If the next startup logs `Detected unapplied rounds in mem_round`, `Recreating memory tables…`, and `Rebuilding blockchain, current block height: 1…`, treat the local derived state as untrusted.
 - Do not “fix” this by deleting or editing `mem_*` rows manually. The reliable options are restoring a trusted database snapshot or letting the node rebuild/replay from persisted blockchain data.
 
 ## 6) Legacy Patterns to Respect While Shipping

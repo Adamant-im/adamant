@@ -198,7 +198,7 @@ Process.prototype.loadBlocksOffset = function (limit, offset, verify, cb, should
           var check = modules.blocks.verify.verifyBlock(block);
 
           if (!check.verified) {
-            library.logger.error('loader', ['Block', block.id, 'verification failed'].join(' '), check.errors.join(', '));
+            modules.blocks.verify.logVerificationFailure('loader', block, check);
             // Return first error from checks
             return setImmediate(cb, check.errors[0]);
           }
@@ -242,7 +242,7 @@ Process.prototype.loadBlocksFromPeer = function (peer, cb, shouldStop) {
 
   // Normalize peer
   peer = library.logic.peers.create(peer);
-  library.logger.info('loader', 'Loading blocks from: ' + peer.string);
+  library.logger.info('loader', 'Loading blocks from peer ' + peer.string + '…');
 
   function getFromPeer (seriesCb) {
     // Ask remote peer for blocks
@@ -536,7 +536,7 @@ __private.receiveForkOne = function (block, lastBlock, cb) {
         var check = modules.blocks.verify.verifyReceipt(tmp_block);
 
         if (!check.verified) {
-          library.logger.error('loader', ['Block', tmp_block.id, 'verification failed'].join(' '), check.errors.join(', '));
+          modules.blocks.verify.logVerificationFailure('loader', tmp_block, check);
           // Return first error from checks
           return setImmediate(seriesCb, check.errors[0]);
         } else {
@@ -611,7 +611,7 @@ __private.receiveForkFive = function (block, lastBlock, cb) {
         var check = modules.blocks.verify.verifyReceipt(tmp_block);
 
         if (!check.verified) {
-          library.logger.error('loader', ['Block', tmp_block.id, 'verification failed'].join(' '), check.errors.join(', '));
+          modules.blocks.verify.logVerificationFailure('loader', tmp_block, check);
           // Return first error from checks
           return setImmediate(seriesCb, check.errors[0]);
         } else {

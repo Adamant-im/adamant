@@ -198,7 +198,8 @@ describe('POST /peer/transactions', function () {
     });
 
     transaction.timestamp -= 16;
-    transaction.timestampMs = transaction.timestamp * 1000;
+    delete transaction.timestampMs;
+    delete transaction.signature;
     transaction.signature = node.transactionSign(transaction, node.iAccount.keypair);
     transaction.id = node.getId(transaction);
 
@@ -218,7 +219,8 @@ describe('POST /peer/transactions', function () {
 
     transaction.fee = node.fees.stateFee;
     transaction.timestamp -= 16;
-    transaction.timestampMs = transaction.timestamp * 1000;
+    delete transaction.timestampMs;
+    delete transaction.signature;
     transaction.signature = node.transactionSign(transaction, node.iAccount.keypair);
     transaction.id = node.getId(transaction);
 
@@ -238,7 +240,8 @@ describe('POST /peer/transactions', function () {
     });
 
     transaction.timestamp -= 16;
-    transaction.timestampMs = transaction.timestamp * 1000;
+    delete transaction.timestampMs;
+    delete transaction.signature;
     transaction.signature = node.transactionSign(transaction, node.iAccount.keypair);
     transaction.id = node.getId(transaction);
 

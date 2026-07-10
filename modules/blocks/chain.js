@@ -89,15 +89,9 @@ Chain.prototype.saveBlock = function (block, cb) {
     // Initialize insert helper
     var inserts = new Inserts(promise, promise.values);
 
-    var promises = [
-      // Prepare insert SQL query
-      t.none(inserts.template(), promise.values)
-    ];
-
-    // Apply transactions inserts
-    t = __private.promiseTransactions(t, block, promises);
-    // Exec inserts as batch
-    t.batch(promises);
+    return t.none(inserts.template(), promise.values).then(function () {
+      return __private.promiseTransactions(t, block);
+    });
   }).then(function () {
     // Execute afterSave for transactions
     return __private.afterSave(block, cb);
@@ -137,13 +131,12 @@ __private.afterSave = function (block, cb) {
  * @method promiseTransactions
  * @param  {object} t SQL connection object
  * @param  {object} block Full normalized block
- * @param  {object} blockPromises Not used
- * @return {object} t SQL connection object filled with inserts
+ * @return {Promise<void>}
  * @throws Will throw 'Invalid promise' when no promise, promise.values or promise.table
  */
-__private.promiseTransactions = function (t, block, blockPromises) {
+__private.promiseTransactions = function (t, block) {
   if (_.isEmpty(block.transactions)) {
-    return t;
+    return Promise.resolve();
   }
 
   var transactionIterator = function (transaction) {
@@ -176,14 +169,17 @@ __private.promiseTransactions = function (t, block, blockPromises) {
 
     // Initialize insert helper
     var inserts = new Inserts(type[0], values, true);
-    // Prepare insert SQL query
-    t.none(inserts.template(), inserts);
+    // Prepare insert SQL query sequentially on the same pg client.
+    return t.none(inserts.template(), inserts);
   };
 
   var promises = _.flatMap(block.transactions, transactionIterator);
-  _.each(_.groupBy(promises, promiseGrouper), typeIterator);
 
-  return t;
+  return _.toArray(_.groupBy(promises, promiseGrouper)).reduce(function (chain, type) {
+    return chain.then(function () {
+      return typeIterator(type);
+    });
+  }, Promise.resolve());
 };
 
 /**
@@ -482,21 +478,36 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
       });
     }
   }, function (err) {
-    // Allow shutdown, database writes are finished.
-    modules.blocks.isActive.set(false);
+    function finalize (err) {
+      // Allow shutdown, database writes are finished.
+      modules.blocks.isActive.set(false);
 
-    // Nullify large objects.
-    // Prevents memory leak during synchronization.
-    appliedTransactions = unconfirmedTransactionIds = block = null;
+      // Nullify large objects.
+      // Prevents memory leak during synchronization.
+      appliedTransactions = unconfirmedTransactionIds = block = null;
 
-    // Finish here if snapshotting.
-    // FIXME: Not the best place to do that
-    if (err === 'Snapshot finished') {
-      library.logger.info('snapshot', err);
-      process.emit('SIGTERM');
+      // Finish here if snapshotting.
+      // FIXME: Not the best place to do that
+      if (err === 'Snapshot finished') {
+        library.logger.info('snapshot', err);
+        process.emit('SIGTERM');
+      }
+
+      return setImmediate(cb, err);
     }
 
-    return setImmediate(cb, err);
+    if (!err && saveBlock && modules.memCheckpoints) {
+      // Checkpoint on completed round boundaries, after the full applyBlock pipeline.
+      // onBlockApplied holds the block-processing critical section only until the
+      // checkpoint transaction has pinned its MVCC snapshot to this block; the table
+      // copy then runs in the background against that frozen (REPEATABLE READ)
+      // snapshot, so it can neither capture a later block nor stall block production.
+      return modules.memCheckpoints.onBlockApplied(block, true, function () {
+        return finalize(err);
+      });
+    }
+
+    return finalize(err);
   });
 };
 
@@ -657,7 +668,8 @@ Chain.prototype.onBind = function (scope) {
     accounts: scope.accounts,
     blocks: scope.blocks,
     rounds: scope.rounds,
-    transactions: scope.transactions
+    transactions: scope.transactions,
+    memCheckpoints: scope.memCheckpoints
   };
 
   // Set module as loaded

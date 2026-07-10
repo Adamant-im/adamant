@@ -615,7 +615,7 @@ Peers.prototype.onPeersReady = function () {
   function peersDiscoveryAndUpdate (cb) {
     async.series({
       discoverPeers: function (seriesCb) {
-        library.logger.trace('peers', 'Discovering new peers...');
+        library.logger.trace('peers', 'Discovering new peers…');
         self.discover(function (err) {
           if (err) {
             library.logger.error('peers', 'Discovering new peers failed.', err);

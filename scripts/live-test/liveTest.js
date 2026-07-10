@@ -34,7 +34,7 @@ const DEFAULTS = {
   transactionOverloadConcurrency: 6,
   liveTimeoutMs: 2 * 60 * 60 * 1000,
   genesisPasses: 'test/genesisPasses.json',
-  testnetConfig: 'test/config.default.json'
+  testnetConfig: 'test/config.json'
 };
 
 /**
@@ -313,7 +313,10 @@ function loadGenesisPasses (genesisPassesPath) {
 function collectConfigMetadata (options, target) {
   const entries = [];
   const paths = [];
-  const baseConfigPath = path.resolve(process.cwd(), BASE_CONFIG_PATH);
+  const baseConfigPath = path.resolve(
+      process.cwd(),
+      target.configPath || options.testnetConfig || DEFAULTS.testnetConfig
+  );
 
   // Live reports always start from the canonical testnet/localnet base config.
   if (baseConfigPath && fs.existsSync(baseConfigPath)) {

@@ -356,6 +356,14 @@ module.exports = {
           snapshot: {
             type: 'integer',
             minimum: 1
+          },
+          memCheckpoints: {
+            type: 'object',
+            properties: {
+              enabled: {
+                type: 'boolean'
+              }
+            }
           }
         },
         required: ['loadPerIteration']
