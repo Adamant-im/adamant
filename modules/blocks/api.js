@@ -97,8 +97,7 @@ __private.list = function (filter, cb) {
     params.generatorPublicKey = filter.generatorPublicKey;
   }
 
-  // FIXME: Useless condition
-  if (filter.numberOfTransactions) {
+  if (filter.numberOfTransactions >= 0) {
     where.push('"b_numberOfTransactions" = ${numberOfTransactions}');
     params.numberOfTransactions = filter.numberOfTransactions;
   }
