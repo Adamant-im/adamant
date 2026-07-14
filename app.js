@@ -490,7 +490,7 @@ d.run(function () {
      * at least will contain the required elements.
      * @param {Function} cb - Callback function.
      */
-    logic: ['db', 'bus', 'schema', 'genesisblock', function (scope, cb) {
+    logic: ['db', 'bus', 'schema', 'genesisblock', 'clientWs', function (scope, cb) {
       var Transaction = require('./logic/transaction.js');
       var Chat = require('./logic/chat.js');
       var State = require('./logic/state.js');
@@ -532,8 +532,8 @@ d.run(function () {
           logger.info('consensus', 'Configured activation heights', consensus.activationHeights);
           cb(null, consensus);
         },
-        account: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'logger', function (scope, cb) {
-          new Account(scope.db, scope.schema, scope.logger, cb);
+        account: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'logger', 'clientWs', function (scope, cb) {
+          new Account(scope.db, scope.schema, scope.logger, scope.clientWs, cb);
         }],
         transaction: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'account', 'logger', 'clientWs', 'consensus', function (scope, cb) {
           new Transaction(scope.db, scope.ed, scope.schema, scope.genesisblock, scope.account, scope.logger, scope.clientWs, scope.consensus, cb);

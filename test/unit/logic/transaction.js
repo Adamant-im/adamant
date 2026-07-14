@@ -1447,6 +1447,81 @@ describe('transaction', () => {
       transaction.applyUnconfirmed(trs, testSender, done);
     });
 
+    it('should publish the updated unconfirmed balance after account merge', async () => {
+      const trs = _.cloneDeep(validUnconfirmedTransaction);
+      trs.recipientPublicKey = trs.recipientPublicKey || 'b'.repeat(64);
+      const amount = new bignum(trs.amount.toString()).plus(trs.fee.toString());
+      const previousTransactionClientWs = transaction.scope.clientWs;
+      const previousAccountClientWs = transaction.scope.account.scope.clientWs;
+      const clientWs = {
+        emit: sinon.spy(),
+        emitBalanceChange: sinon.stub()
+      };
+      const getAccount = () => new Promise((resolve, reject) => {
+        accountModule.getAccount(
+            { publicKey: trs.senderPublicKey },
+            function (err, account) {
+              if (err) {
+                return reject(new Error(err));
+              }
+              resolve(account);
+            }
+        );
+      });
+      const accountBefore = await getAccount();
+      const balanceEvent = new Promise((resolve, reject) => {
+        clientWs.emitBalanceChange.callsFake(function (address, fields, readAccount) {
+          if (!fields.includes('u_balance')) {
+            return;
+          }
+
+          readAccount(function (err, account) {
+            if (err) {
+              return reject(new Error(err));
+            }
+            resolve({ address: address, account: account });
+          });
+        });
+      });
+
+      transaction.scope.clientWs = clientWs;
+      transaction.scope.account.scope.clientWs = clientWs;
+
+      try {
+        const applyResult = new Promise((resolve, reject) => {
+          transaction.applyUnconfirmed(trs, testSender, function (err) {
+            if (err) {
+              return reject(new Error(err));
+            }
+            resolve();
+          });
+        });
+        const [, event] = await Promise.all([applyResult, balanceEvent]);
+        const expectedBalance = new bignum(accountBefore.u_balance.toString())
+            .minus(amount)
+            .toString();
+
+        expect(event.address).to.equal(testSender.address);
+        expect(event.account.u_balance.toString()).to.equal(expectedBalance);
+        expect(clientWs.emit.called).to.equal(true);
+      } finally {
+        clientWs.emitBalanceChange.resetBehavior();
+        try {
+          await new Promise((resolve, reject) => {
+            transaction.undoUnconfirmed(trs, testSender, function (err) {
+              if (err) {
+                return reject(new Error(err));
+              }
+              resolve();
+            });
+          });
+        } finally {
+          transaction.scope.clientWs = previousTransactionClientWs;
+          transaction.scope.account.scope.clientWs = previousAccountClientWs;
+        }
+      }
+    });
+
     it('should return error on if balance is low', (done) => {
       const trs = _.cloneDeep(validUnconfirmedTransaction);
       trs.amount = '985045891180190800000000000000';

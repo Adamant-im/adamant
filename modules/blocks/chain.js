@@ -22,14 +22,16 @@ var modules, library, self, __private = {};
  * @param {object} genesisblock
  * @param {bus} bus
  * @param {Sequence} balancesSequence
+ * @param {ClientWs} clientWs - Client WebSocket event publisher
  */
-function Chain (logger, block, transaction, db, genesisblock, bus, balancesSequence) {
+function Chain (logger, block, transaction, db, genesisblock, bus, balancesSequence, clientWs) {
   library = {
     logger: logger,
     db: db,
     genesisblock: genesisblock,
     bus: bus,
     balancesSequence: balancesSequence,
+    clientWs: clientWs,
     logic: {
       block: block,
       transaction: transaction
@@ -335,6 +337,24 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
   // Prevent shutdown during database writes.
   modules.blocks.isActive.set(true);
 
+  var balanceBatchStarted = false;
+  if (
+    library.clientWs &&
+    typeof library.clientWs.beginBalanceBatch === 'function' &&
+    typeof library.clientWs.endBalanceBatch === 'function'
+  ) {
+    try {
+      library.clientWs.beginBalanceBatch();
+      balanceBatchStarted = true;
+    } catch (batchErr) {
+      library.logger.debug(
+          'ws-client-server',
+          `Unable to begin balance event batch: ${batchErr?.message || batchErr}`,
+          batchErr?.stack
+      );
+    }
+  }
+
   // Transactions to rewind in case of error.
   var appliedTransactions = {};
 
@@ -479,6 +499,35 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
     }
   }, function (err) {
     function finalize (err) {
+      if (balanceBatchStarted) {
+        try {
+          library.clientWs.endBalanceBatch(!err && Boolean(saveBlock));
+        } catch (batchErr) {
+          library.logger.debug(
+              'ws-client-server',
+              `Unable to finish balance event batch: ${batchErr?.message || batchErr}`,
+              batchErr?.stack
+          );
+        }
+      }
+
+      if (
+        !err &&
+        saveBlock &&
+        library.clientWs &&
+        typeof library.clientWs.emitBlock === 'function'
+      ) {
+        try {
+          library.clientWs.emitBlock(block);
+        } catch (emitErr) {
+          library.logger.debug(
+              'ws-client-server',
+              `Unable to publish block ${block.id}: ${emitErr?.message || emitErr}`,
+              emitErr?.stack
+          );
+        }
+      }
+
       // Allow shutdown, database writes are finished.
       modules.blocks.isActive.set(false);
 
@@ -611,8 +660,38 @@ Chain.prototype.deleteLastBlock = function (cb) {
     return setImmediate(cb, 'Cannot delete genesis block');
   }
 
+  var balanceBatchStarted = false;
+  if (
+    library.clientWs &&
+    typeof library.clientWs.beginBalanceBatch === 'function' &&
+    typeof library.clientWs.endBalanceBatch === 'function'
+  ) {
+    try {
+      library.clientWs.beginBalanceBatch();
+      balanceBatchStarted = true;
+    } catch (batchErr) {
+      library.logger.debug(
+          'ws-client-server',
+          `Unable to begin rollback balance event batch: ${batchErr?.message || batchErr}`,
+          batchErr?.stack
+      );
+    }
+  }
+
   // Delete last block, replace last block with previous block, undo things
   __private.popLastBlock(lastBlock, function (err, newLastBlock) {
+    if (balanceBatchStarted) {
+      try {
+        library.clientWs.endBalanceBatch(!err);
+      } catch (batchErr) {
+        library.logger.debug(
+            'ws-client-server',
+            `Unable to finish rollback balance event batch: ${batchErr?.message || batchErr}`,
+            batchErr?.stack
+        );
+      }
+    }
+
     if (err) {
       library.logger.error('blocks', 'An error occurred while deleting last block', lastBlock);
     } else {

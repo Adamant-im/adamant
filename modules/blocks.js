@@ -52,7 +52,7 @@ function Blocks (cb, scope) {
     ),
     chain: new blocksChain(
         scope.logger, scope.logic.block, scope.logic.transaction, scope.db,
-        scope.genesisblock, scope.bus, scope.balancesSequence
+        scope.genesisblock, scope.bus, scope.balancesSequence, scope.clientWs
     )
   };
 

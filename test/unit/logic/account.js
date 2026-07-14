@@ -109,6 +109,52 @@ describe('account', () => {
       });
     });
 
+    it('should publish changed balance fields after a successful merge', (done) => {
+      const clientWs = { emitBalanceChange: sinon.spy() };
+      account.scope.clientWs = clientWs;
+      diff.balance = 150;
+      diff.u_balance = -25;
+
+      account.merge(address, diff, (error) => {
+        expect(error).not.to.exist;
+        expect(clientWs.emitBalanceChange.calledOnce).to.equal(true);
+        expect(clientWs.emitBalanceChange.firstCall.args[0]).to.equal(address);
+        expect(clientWs.emitBalanceChange.firstCall.args[1]).to.deep.equal([
+          'balance',
+          'u_balance'
+        ]);
+        expect(clientWs.emitBalanceChange.firstCall.args[2]).to.be.a('function');
+        done();
+      });
+    });
+
+    it('should not publish balance fields when the database merge fails', (done) => {
+      const clientWs = { emitBalanceChange: sinon.spy() };
+      account.scope.clientWs = clientWs;
+      db.none = sinon.fake.returns(Promise.reject(new Error('database failed')));
+      diff.balance = 150;
+
+      account.merge(address, diff, (error) => {
+        expect(error).to.equal('Account#merge error');
+        expect(clientWs.emitBalanceChange.called).to.equal(false);
+        done();
+      });
+    });
+
+    it('should isolate balance event failures from account processing', (done) => {
+      account.scope.clientWs = {
+        emitBalanceChange: function () {
+          throw new Error('socket failed');
+        }
+      };
+      diff.balance = 150;
+
+      account.merge(address, diff, (error) => {
+        expect(error).not.to.exist;
+        done();
+      });
+    });
+
     it('should insert multiple complex objects', () => {
       diff.delegates = [
         { action: '+', value: delegate1 },
