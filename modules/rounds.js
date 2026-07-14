@@ -30,6 +30,7 @@ function Rounds (cb, scope) {
     db: scope.db,
     bus: scope.bus,
     network: scope.network,
+    clientWs: scope.clientWs,
     config: {
       loading: {
         snapshot: scope.config.loading.snapshot
@@ -173,6 +174,11 @@ Rounds.prototype.backwardTick = function (block, previousBlock, done) {
   ], function (err) {
     // Stop round ticking
     __private.ticking = false;
+
+    if (!err) {
+      __private.emitRoundBalanceChanges(scope);
+    }
+
     return done(err);
   });
 };
@@ -318,6 +324,10 @@ Rounds.prototype.tick = function (block, done) {
     // Stop round ticking
     __private.ticking = false;
 
+    if (!err) {
+      __private.emitRoundBalanceChanges(scope);
+    }
+
     if (scope.finishSnapshot) {
       return done('Snapshot finished');
     } else {
@@ -371,6 +381,42 @@ Rounds.prototype.onBlockchainReady = function () {
  */
 Rounds.prototype.onFinishRound = function (round) {
   library.network.wsServer.emit('rounds/change', { number: round });
+};
+
+/**
+ * Publishes reward-related balance changes after a complete round transaction.
+ * Subscriber indexes prevent account reads for addresses without listeners.
+ * @param {object} scope - Completed forward or backward round scope
+ * @return {void}
+ */
+__private.emitRoundBalanceChanges = function (scope) {
+  if (!scope.finishRound || !library.clientWs || !scope.roundDelegates) {
+    return;
+  }
+
+  const addresses = new Set(scope.roundDelegates.map(function (publicKey) {
+    return modules.accounts.generateAddressByPublicKey(publicKey);
+  }));
+
+  for (const address of addresses) {
+    try {
+      library.clientWs.emitBalanceChange(
+          address,
+          ['balance', 'u_balance'],
+          modules.accounts.getAccount.bind(
+              modules.accounts,
+              { address: address },
+              ['address', 'balance', 'u_balance']
+          )
+      );
+    } catch (err) {
+      library.logger.debug(
+          'ws-client-server',
+          `Unable to publish round balance change for ${address}: ${err?.message || err}`,
+          err?.stack
+      );
+    }
+  }
 };
 
 /**

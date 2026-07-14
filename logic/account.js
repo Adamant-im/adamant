@@ -22,13 +22,20 @@ var self, library, __private = {};
  * @param {Database} db
  * @param {ZSchema} schema
  * @param {object} logger
+ * @param {ClientWs} [clientWs] - Optional client WebSocket event publisher.
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} With `this` as data.
  */
-function Account (db, schema, logger, cb) {
+function Account (db, schema, logger, clientWs, cb) {
+  if (typeof clientWs === 'function') {
+    cb = clientWs;
+    clientWs = null;
+  }
+
   this.scope = {
     db: db,
-    schema: schema
+    schema: schema,
+    clientWs: clientWs
   };
 
   self = this;
@@ -750,6 +757,7 @@ Account.prototype.set = function (address, rawFields, cb) {
  */
 Account.prototype.merge = function (address, diff, cb) {
   var update = {}, remove = {}, insert = {}, insert_object = {}, remove_object = {}, round = [];
+  var account = this;
 
   // Verify public key
   this.verifyPublicKey(diff.publicKey);
@@ -974,6 +982,26 @@ Account.prototype.merge = function (address, diff, cb) {
   }
 
   this.scope.db.none(queries).then(function () {
+    const changedBalanceFields = ['balance', 'u_balance'].filter(function (field) {
+      return Object.prototype.hasOwnProperty.call(update, field);
+    });
+
+    if (changedBalanceFields.length && account.scope.clientWs) {
+      try {
+        account.scope.clientWs.emitBalanceChange(
+            address,
+            changedBalanceFields,
+            account.get.bind(account, { address: address }, ['address', 'balance', 'u_balance'])
+        );
+      } catch (err) {
+        library.logger.debug(
+            'ws-client-server',
+            `Unable to publish balance change for ${address}: ${err?.message || err}`,
+            err?.stack
+        );
+      }
+    }
+
     return done();
   }).catch(function (err) {
     library.logger.error('account', `An error occurred while trying to merge account data: ${err?.message || err}`, err.stack);
