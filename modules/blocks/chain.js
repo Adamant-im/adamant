@@ -340,7 +340,8 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
   var balanceBatchStarted = false;
   if (
     library.clientWs &&
-    typeof library.clientWs.beginBalanceBatch === 'function'
+    typeof library.clientWs.beginBalanceBatch === 'function' &&
+    typeof library.clientWs.endBalanceBatch === 'function'
   ) {
     try {
       library.clientWs.beginBalanceBatch();
@@ -500,7 +501,7 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
     function finalize (err) {
       if (balanceBatchStarted) {
         try {
-          library.clientWs.endBalanceBatch();
+          library.clientWs.endBalanceBatch(!err && Boolean(saveBlock));
         } catch (batchErr) {
           library.logger.debug(
               'ws-client-server',
@@ -510,7 +511,12 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
         }
       }
 
-      if (!err && saveBlock && library.clientWs) {
+      if (
+        !err &&
+        saveBlock &&
+        library.clientWs &&
+        typeof library.clientWs.emitBlock === 'function'
+      ) {
         try {
           library.clientWs.emitBlock(block);
         } catch (emitErr) {
@@ -657,7 +663,8 @@ Chain.prototype.deleteLastBlock = function (cb) {
   var balanceBatchStarted = false;
   if (
     library.clientWs &&
-    typeof library.clientWs.beginBalanceBatch === 'function'
+    typeof library.clientWs.beginBalanceBatch === 'function' &&
+    typeof library.clientWs.endBalanceBatch === 'function'
   ) {
     try {
       library.clientWs.beginBalanceBatch();
@@ -675,7 +682,7 @@ Chain.prototype.deleteLastBlock = function (cb) {
   __private.popLastBlock(lastBlock, function (err, newLastBlock) {
     if (balanceBatchStarted) {
       try {
-        library.clientWs.endBalanceBatch();
+        library.clientWs.endBalanceBatch(!err);
       } catch (batchErr) {
         library.logger.debug(
             'ws-client-server',

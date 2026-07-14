@@ -986,7 +986,11 @@ Account.prototype.merge = function (address, diff, cb) {
       return Object.prototype.hasOwnProperty.call(update, field);
     });
 
-    if (changedBalanceFields.length && account.scope.clientWs) {
+    if (
+      changedBalanceFields.length &&
+      account.scope.clientWs &&
+      typeof account.scope.clientWs.emitBalanceChange === 'function'
+    ) {
       try {
         account.scope.clientWs.emitBalanceChange(
             address,

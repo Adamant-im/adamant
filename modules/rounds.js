@@ -390,7 +390,12 @@ Rounds.prototype.onFinishRound = function (round) {
  * @return {void}
  */
 __private.emitRoundBalanceChanges = function (scope) {
-  if (!scope.finishRound || !library.clientWs || !scope.roundDelegates) {
+  if (
+    !scope.finishRound ||
+    !library.clientWs ||
+    typeof library.clientWs.emitBalanceChange !== 'function' ||
+    !scope.roundDelegates
+  ) {
     return;
   }
 

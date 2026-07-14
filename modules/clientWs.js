@@ -64,6 +64,7 @@ class ClientWs {
   /**
    * Emits a compact public block header to sockets that opted in to blocks.
    * Historical rebuilds are filtered by the caller before reaching this method.
+   * This public Socket.IO event is distinct from the internal `newBlock` bus event.
    * @param {block} block - Successfully applied block
    * @return {void}
    */
@@ -87,6 +88,7 @@ class ClientWs {
   /**
    * Fetches and emits changed account balance fields when an address has
    * interested subscribers. The account lookup is skipped otherwise.
+   * Account lookups are asynchronous, so delivery order remains best-effort.
    * @param {string} address - Changed account address
    * @param {string[]} changedFields - Changed internal or public field names
    * @param {Function} getAccount - Callback-style current account accessor
@@ -162,9 +164,10 @@ class ClientWs {
 
   /**
    * Flushes one final balance read per changed address after the outer batch.
+   * @param {boolean} [emitChanges=true] - Whether to publish or discard the batch
    * @return {void}
    */
-  endBalanceBatch () {
+  endBalanceBatch (emitChanges = true) {
     if (this.balanceBatchDepth === 0) {
       return;
     }
@@ -176,6 +179,10 @@ class ClientWs {
 
     const pendingChanges = this.pendingBalanceChanges;
     this.pendingBalanceChanges = new Map();
+
+    if (!emitChanges) {
+      return;
+    }
 
     for (const [address, pending] of pendingChanges) {
       this.emitBalanceChange(address, pending.fields, pending.getAccount);

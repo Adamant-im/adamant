@@ -216,6 +216,25 @@ describe('ClientWs server', function () {
     })).to.equal(true);
   });
 
+  it('should discard a balance batch when publication is suppressed', function () {
+    const { handlers, socket } = createSocket('socket-balance-discard');
+    const clientWs = new ClientWs({ enabled: false }, { debug: sinon.spy() });
+    const getAccount = sinon.spy();
+
+    clientWs.handleConnection(socket);
+    handlers.address('U123456');
+    handlers.balances('balance');
+    clientWs.enabled = true;
+
+    clientWs.beginBalanceBatch();
+    clientWs.emitBalanceChange('U123456', ['balance'], getAccount);
+    clientWs.endBalanceBatch(false);
+
+    expect(getAccount.called).to.equal(false);
+    expect(socket.emit.called).to.equal(false);
+    expect(clientWs.pendingBalanceChanges.size).to.equal(0);
+  });
+
   it('should skip account reads without a matching balance subscription', function () {
     const invalid = createSocket('socket-invalid-balance');
     const clientWs = new ClientWs({ enabled: false }, { debug: sinon.spy() });
