@@ -235,6 +235,28 @@ describe('ClientWs server', function () {
     expect(clientWs.pendingBalanceChanges.size).to.equal(0);
   });
 
+  it('should discard the outer balance batch when a nested batch is suppressed', function () {
+    const { handlers, socket } = createSocket('socket-nested-balance-discard');
+    const clientWs = new ClientWs({ enabled: false }, { debug: sinon.spy() });
+    const getAccount = sinon.spy();
+
+    clientWs.handleConnection(socket);
+    handlers.address('U123456');
+    handlers.balances('balance');
+    clientWs.enabled = true;
+
+    clientWs.beginBalanceBatch();
+    clientWs.beginBalanceBatch();
+    clientWs.emitBalanceChange('U123456', ['balance'], getAccount);
+    clientWs.endBalanceBatch(false);
+    clientWs.endBalanceBatch();
+
+    expect(getAccount.called).to.equal(false);
+    expect(socket.emit.called).to.equal(false);
+    expect(clientWs.pendingBalanceChanges.size).to.equal(0);
+    expect(clientWs.discardBalanceBatch).to.equal(false);
+  });
+
   it('should skip account reads without a matching balance subscription', function () {
     const invalid = createSocket('socket-invalid-balance');
     const clientWs = new ClientWs({ enabled: false }, { debug: sinon.spy() });

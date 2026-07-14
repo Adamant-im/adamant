@@ -324,7 +324,7 @@ Rounds.prototype.tick = function (block, done) {
     // Stop round ticking
     __private.ticking = false;
 
-    if (!err) {
+    if (!err && !scope.finishSnapshot) {
       __private.emitRoundBalanceChanges(scope);
     }
 

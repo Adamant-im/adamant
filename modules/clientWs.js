@@ -15,6 +15,7 @@ class ClientWs {
     this.blockSubscriptions = new Set();
     this.balanceSubscriptions = new Map();
     this.balanceBatchDepth = 0;
+    this.discardBalanceBatch = false;
     this.pendingBalanceChanges = new Map();
     this.logger = logger;
 
@@ -110,7 +111,7 @@ class ClientWs {
       let pending = this.pendingBalanceChanges.get(normalizedAddress);
 
       if (!pending) {
-        pending = { fields: new Set(), getAccount: getAccount };
+        pending = { fields: new Set() };
         this.pendingBalanceChanges.set(normalizedAddress, pending);
       }
 
@@ -159,17 +160,26 @@ class ClientWs {
    * @return {void}
    */
   beginBalanceBatch () {
+    if (this.balanceBatchDepth === 0) {
+      this.discardBalanceBatch = false;
+    }
+
     this.balanceBatchDepth += 1;
   }
 
   /**
    * Flushes one final balance read per changed address after the outer batch.
+   * Suppressing any nested batch discards the complete outer batch.
    * @param {boolean} [emitChanges=true] - Whether to publish or discard the batch
    * @return {void}
    */
   endBalanceBatch (emitChanges = true) {
     if (this.balanceBatchDepth === 0) {
       return;
+    }
+
+    if (!emitChanges) {
+      this.discardBalanceBatch = true;
     }
 
     this.balanceBatchDepth -= 1;
@@ -179,8 +189,10 @@ class ClientWs {
 
     const pendingChanges = this.pendingBalanceChanges;
     this.pendingBalanceChanges = new Map();
+    const discardBalanceBatch = this.discardBalanceBatch;
+    this.discardBalanceBatch = false;
 
-    if (!emitChanges) {
+    if (discardBalanceBatch) {
       return;
     }
 

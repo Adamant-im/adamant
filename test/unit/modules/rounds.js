@@ -61,6 +61,7 @@ describe('rounds', function () {
 
       sinon.stub(Round.prototype, 'mergeBlockGenerator').resolves();
       sinon.stub(Round.prototype, 'land').resolves();
+      sinon.stub(Round.prototype, 'truncateBlocks').resolves();
 
       new Rounds(function (err, instance) {
         if (err) {
@@ -110,6 +111,16 @@ describe('rounds', function () {
           'u_balance'
         ]);
         expect(clientWs.emitBalanceChange.firstCall.args[2]).to.be.a('function');
+        done();
+      });
+    });
+
+    it('should not publish delegate balances when a snapshot finishes', function (done) {
+      testRounds.setSnapshotRounds(1);
+
+      testRounds.tick({ id: 'snapshot-block', height: 1 }, function (err) {
+        expect(err).to.equal('Snapshot finished');
+        expect(clientWs.emitBalanceChange.called).to.equal(false);
         done();
       });
     });
