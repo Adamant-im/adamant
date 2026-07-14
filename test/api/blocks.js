@@ -8,6 +8,9 @@ var block = {
   blockHeight: 0,
   id: 0,
   generatorPublicKey: '',
+  numberOfTransactions: 0,
+  previousBlock: '',
+  reward: 0,
   totalAmount: 0,
   totalFee: 0
 };
@@ -248,6 +251,9 @@ describe('GET /blocks', function () {
       node.expect(res.body.blocks[0].height).to.equal(block.blockHeight);
       block.id = res.body.blocks[0].id;
       block.generatorPublicKey = res.body.blocks[0].generatorPublicKey;
+      block.numberOfTransactions = res.body.blocks[0].numberOfTransactions;
+      block.previousBlock = res.body.blocks[0].previousBlock;
+      block.reward = res.body.blocks[0].reward;
       block.totalAmount = res.body.blocks[0].totalAmount;
       block.totalFee = res.body.blocks[0].totalFee;
       done();
@@ -271,10 +277,6 @@ describe('GET /blocks', function () {
       node.expect(res.body.blocks[0]).to.have.property('blockSignature');
       node.expect(res.body.blocks[0]).to.have.property('numberOfTransactions');
       node.expect(res.body.blocks[0].height).to.equal(10);
-      block.id = res.body.blocks[0].id;
-      block.generatorPublicKey = res.body.blocks[0].generatorPublicKey;
-      block.totalAmount = res.body.blocks[0].totalAmount;
-      block.totalFee = res.body.blocks[0].totalFee;
       done();
     });
   });
@@ -286,6 +288,25 @@ describe('GET /blocks', function () {
       for (var i = 0; i < res.body.blocks.length; i++) {
         node.expect(res.body.blocks[i].generatorPublicKey).to.equal(block.generatorPublicKey);
       }
+      done();
+    });
+  });
+
+  it('using an unknown generatorPublicKey should return an empty list', function (done) {
+    const unknownPublicKey = 'aa11111111111111111111111111111111111111111111111111111111111111';
+
+    getBlocks(`generatorPublicKey=${unknownPublicKey}&orderBy=height:desc&limit=1`, function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('blocks').that.eql([]);
+      done();
+    });
+  });
+
+  it('using numberOfTransactions == 0 should be ok', function (done) {
+    getBlocks('numberOfTransactions=0&orderBy=height:asc&limit=1', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('blocks').that.is.an('array').and.is.not.empty;
+      node.expect(res.body.blocks[0].numberOfTransactions).to.equal(0);
       done();
     });
   });
@@ -312,21 +333,58 @@ describe('GET /blocks', function () {
     });
   });
 
+  it('using reward should be ok', function (done) {
+    getBlocks('reward=' + block.reward, function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('blocks').that.is.an('array');
+      for (var i = 0; i < res.body.blocks.length; i++) {
+        node.expect(res.body.blocks[i].reward).to.equal(block.reward);
+      }
+      done();
+    });
+  });
+
+  it('using limit and offset should be ok', function (done) {
+    getBlocks('orderBy=height:asc&limit=2&offset=1', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('blocks').that.has.length(2);
+      node.expect(res.body.blocks[0].height).to.equal(2);
+      node.expect(res.body.blocks[1].height).to.equal(3);
+      done();
+    });
+  });
+
+  it('using all equality filters together should be ok', function (done) {
+    const params = [
+      `generatorPublicKey=${block.generatorPublicKey}`,
+      `numberOfTransactions=${block.numberOfTransactions}`,
+      `previousBlock=${block.previousBlock}`,
+      `height=${block.blockHeight}`,
+      `totalAmount=${block.totalAmount}`,
+      `totalFee=${block.totalFee}`,
+      `reward=${block.reward}`
+    ].join('&');
+
+    getBlocks(params, function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('blocks').that.has.length(1);
+      node.expect(res.body.blocks[0].id).to.equal(block.id);
+      done();
+    });
+  });
+
   it('using previousBlock should be ok', function (done) {
-    if (block.id === null) {
+    if (!block.previousBlock) {
       return this.skip();
     }
 
-    var previousBlock = block.id;
-
-    node.onNewBlock(function (err) {
-      getBlocks('previousBlock=' + block.id, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.true;
-        node.expect(res.body).to.have.property('blocks').that.is.an('array');
-        node.expect(res.body.blocks).to.have.length(1);
-        node.expect(res.body.blocks[0].previousBlock).to.equal(previousBlock);
-        done();
-      });
+    getBlocks('previousBlock=' + block.previousBlock, function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('blocks').that.is.an('array');
+      node.expect(res.body.blocks).to.have.length(1);
+      node.expect(res.body.blocks[0].id).to.equal(block.id);
+      node.expect(res.body.blocks[0].previousBlock).to.equal(block.previousBlock);
+      done();
     });
   });
 
