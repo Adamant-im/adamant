@@ -300,7 +300,7 @@ API.prototype.getStatus = function (req, cb) {
     broadhash: modules.system.getBroadhash(),
     epoch: constants.epochTime,
     height: lastBlock.height,
-    consensus: library.logic.consensus.getActiveCodeName(lastBlock.height),
+    consensusCodeName: library.logic.consensus.getActiveCodeName(lastBlock.height),
     fee: library.logic.block.calculateFee(),
     milestone: __private.blockReward.calcMilestone(lastBlock.height),
     nethash: modules.system.getNethash(),

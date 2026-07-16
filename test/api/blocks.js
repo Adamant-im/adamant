@@ -124,8 +124,8 @@ describe('GET /api/blocks/getStatus', function () {
       node.expect(res.body).to.have.property('broadhash').to.be.a('string');
       node.expect(res.body).to.have.property('epoch').to.be.a('string');
       node.expect(res.body).to.have.property('height').to.be.a('number');
-      node.expect(res.body).to.have.property('consensus').that.satisfy(function (consensus) {
-        return consensus === null || typeof consensus === 'string';
+      node.expect(res.body).to.have.property('consensusCodeName').that.satisfy(function (consensusCodeName) {
+        return consensusCodeName === null || typeof consensusCodeName === 'string';
       });
       node.expect(res.body).to.have.property('fee').to.be.a('number');
       node.expect(res.body).to.have.property('milestone').to.be.a('number');

@@ -39,12 +39,12 @@ describe('blocks API', function () {
     });
   });
 
-  it('returns consensus for the applied block height', function (done) {
+  it('returns the consensus code name for the applied block height', function (done) {
     blockHeight = 2;
 
     api.getStatus({}, function (err, data) {
       expect(err).to.not.exist;
-      expect(data.consensus).to.equal('fairSystem');
+      expect(data.consensusCodeName).to.equal('fairSystem');
       expect(consensus.getActiveCodeName.calledOnceWithExactly(blockHeight)).to.equal(true);
       done();
     });
