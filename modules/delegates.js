@@ -845,7 +845,12 @@ Delegates.prototype.shared = {
       var currentBlock = modules.blocks.lastBlock.get();
       var limit = req.body.limit || 10;
 
-      modules.delegates.generateDelegateList(currentBlock.height, function (err, activeDelegates) {
+      // This response is a snapshot for the current chain tip. Height advances
+      // only after a block is accepted, so every projected slot must use the
+      // delegate list for the next block. Clients should refresh the snapshot
+      // after accepting a block instead of inferring future height transitions.
+      var nextBlockHeight = currentBlock.height + 1;
+      modules.delegates.generateDelegateList(nextBlockHeight, function (err, activeDelegates) {
         if (err) {
           return setImmediate(cb, err);
         }
