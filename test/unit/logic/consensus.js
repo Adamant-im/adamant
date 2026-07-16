@@ -74,4 +74,49 @@ describe('consensus', () => {
       expect(consensus.isActivated('fairSystem', 4359465)).to.be.true;
     });
   });
+
+  describe('getActivationHeights()', () => {
+    it('should return effective overrides without exposing mutable internal state', () => {
+      const consensus = createConsensus({ fairSystem: 10, spaceship: 20 }, 1);
+      const activationHeights = consensus.getActivationHeights();
+
+      expect(activationHeights).to.deep.equal({ fairSystem: 10, spaceship: 20 });
+
+      activationHeights.fairSystem = 999;
+      expect(consensus.getActivationHeights().fairSystem).to.equal(10);
+    });
+  });
+
+  describe('getActiveCodeName()', () => {
+    it('should return null before the first configured activation', () => {
+      const consensus = createConsensus({ fairSystem: 10, spaceship: 20 }, 9);
+
+      expect(consensus.getActiveCodeName()).to.be.null;
+    });
+
+    it('should activate an upgrade at its exact configured height', () => {
+      const consensus = createConsensus({ fairSystem: 10, spaceship: 20 }, 1);
+
+      expect(consensus.getActiveCodeName(10)).to.equal('fairSystem');
+    });
+
+    it('should return the latest activated upgrade after later activations', () => {
+      const consensus = createConsensus({ fairSystem: 10, spaceship: 20 }, 21);
+
+      expect(consensus.getActiveCodeName()).to.equal('spaceship');
+    });
+
+    it('should use effective activation height overrides', () => {
+      const consensus = createConsensus({ fairSystem: 30, spaceship: 40 }, 35);
+
+      expect(consensus.getActiveCodeName()).to.equal('fairSystem');
+      expect(consensus.getActiveCodeName(40)).to.equal('spaceship');
+    });
+
+    it('should break equal-height ties deterministically by code name', () => {
+      const consensus = createConsensus({ fairSystem: 10, spaceship: 10 }, 10);
+
+      expect(consensus.getActiveCodeName()).to.equal('spaceship');
+    });
+  });
 });

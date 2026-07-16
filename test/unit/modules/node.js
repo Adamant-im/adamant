@@ -8,6 +8,7 @@ const { isHex } = require('../../common/assert.js');
 
 const Node = require('../../../modules/node.js');
 const constants = require('../../../helpers/constants.js');
+const Consensus = require('../../../logic/consensus/consensus.js');
 
 describe('node', function () {
   /**
@@ -15,6 +16,8 @@ describe('node', function () {
    */
   let nodeModule;
   let modules;
+  let statusConsensus;
+  let sharedLogicConsensus;
 
   const dummyBlock = {
     id: '9314232245035524467',
@@ -38,13 +41,18 @@ describe('node', function () {
 
       modules = __modules;
 
+      statusConsensus = new Consensus({ fairSystem: 2, spaceship: 3 });
+      sharedLogicConsensus = modulesLoader.scope.logic.consensus;
+
       const scope = {
         ...modulesLoader.scope,
-        ...library
+        ...library,
+        consensus: statusConsensus
       };
 
-      modulesLoader.initModuleWithDb(
+      modulesLoader.initModule(
           Node,
+          scope,
           (err, module) => {
             if (err) {
               return done(err);
@@ -52,8 +60,7 @@ describe('node', function () {
 
             nodeModule = module;
             done();
-          },
-          scope
+          }
       );
     });
   });
@@ -62,6 +69,12 @@ describe('node', function () {
     it('should return false before delegates.onBind() was called', (done) => {
       expect(nodeModule.isLoaded()).to.be.false;
       done();
+    });
+  });
+
+  describe('constructor', () => {
+    it('should not mutate the shared scope logic object', () => {
+      expect(modulesLoader.scope.logic.consensus).to.equal(sharedLogicConsensus);
     });
   });
 
@@ -81,6 +94,8 @@ describe('node', function () {
           const keys = [
             'loader',
             'network',
+            'consensusSchedule',
+            'milestoneSchedule',
             'version',
             'nodeTimestampMs',
             'unixTimestampMs',
@@ -102,6 +117,7 @@ describe('node', function () {
 
           expect(response.network.epoch).to.equal(constants.epochTime);
           expect(response.network.height).to.equal(dummyBlock.height);
+          expect(response.network.consensusCodeName).to.be.null;
           expect(response.network.fee).to.be.greaterThan(0);
           expect(response.network.milestone).to.satisfy(Number.isInteger);
 
@@ -110,6 +126,15 @@ describe('node', function () {
 
           expect(response.network.reward).to.satisfy(Number.isInteger);
           expect(response.network.supply).to.satisfy(Number.isInteger);
+
+          expect(response.consensusSchedule).to.deep.equal({
+            activationHeights: statusConsensus.getActivationHeights()
+          });
+          expect(response.milestoneSchedule).to.deep.equal({
+            offset: constants.rewards.offset,
+            distance: constants.rewards.distance,
+            milestones: constants.rewards.milestones
+          });
 
           const versionKeys = ['build', 'commit', 'version'];
           expect(response.version).to.have.all.keys(versionKeys);
@@ -120,6 +145,36 @@ describe('node', function () {
           expect(response.nodeTimestampMs).to.be.a('number');
           expect(response.unixTimestampMs).to.equal(constants.epochTime.getTime() + response.nodeTimestampMs);
 
+          done();
+        });
+      });
+
+      it('should report the consensus code name at exact overridden activation boundaries', (done) => {
+        modules.blocks.lastBlock.set({ ...dummyBlock, height: 2 });
+
+        nodeModule.shared.getStatus({}, (err, firstActivation) => {
+          expect(err).not.to.exist;
+          expect(firstActivation.network.consensusCodeName).to.equal('fairSystem');
+
+          modules.blocks.lastBlock.set({ ...dummyBlock, height: 3 });
+          nodeModule.shared.getStatus({}, (err, secondActivation) => {
+            modules.blocks.lastBlock.set(dummyBlock);
+
+            expect(err).not.to.exist;
+            expect(secondActivation.network.consensusCodeName).to.equal('spaceship');
+            done();
+          });
+        });
+      });
+
+      it('should return a null consensus code name when the block height is unavailable', (done) => {
+        modules.blocks.lastBlock.set({});
+
+        nodeModule.shared.getStatus({}, (err, response) => {
+          modules.blocks.lastBlock.set(dummyBlock);
+
+          expect(err).not.to.exist;
+          expect(response.network.consensusCodeName).to.be.null;
           done();
         });
       });

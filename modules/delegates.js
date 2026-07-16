@@ -452,7 +452,7 @@ Delegates.prototype.getDelegates = function (query, filter, cb) {
     ...filter,
     isDelegate: 1,
     sort: sortFilter
-  }, ['username', 'address', 'publicKey', 'votesWeight', 'vote', 'missedblocks', 'producedblocks'], function (err, delegates) {
+  }, ['username', 'address', 'publicKey', 'votesWeight', 'vote', 'missedblocks', 'producedblocks', 'fees', 'rewards'], function (err, delegates) {
     if (err) {
       return setImmediate(cb, err);
     }
@@ -471,6 +471,10 @@ Delegates.prototype.getDelegates = function (query, filter, cb) {
       totalSupply = __private.blockReward.calcSupply(lastBlock.height);
 
     for (var i = 0; i < delegates.length; i++) {
+      delegates[i].forged = new bignum(delegates[i].fees).plus(new bignum(delegates[i].rewards)).toString();
+      delete delegates[i].fees;
+      delete delegates[i].rewards;
+
       // TODO: 'rate' property is deprecated and need to be removed after transitional period
       delegates[i].rate = i + 1;
       delegates[i].rank = i + 1;
@@ -841,7 +845,16 @@ Delegates.prototype.shared = {
       var currentBlock = modules.blocks.lastBlock.get();
       var limit = req.body.limit || 10;
 
-      modules.delegates.generateDelegateList(currentBlock.height, function (err, activeDelegates) {
+      if (!Number.isFinite(currentBlock.height)) {
+        return setImmediate(cb, 'Blockchain is loading');
+      }
+
+      // This response is a snapshot for the current chain tip. Height advances
+      // only after a block is accepted, so every projected slot must use the
+      // delegate list for the next block. Clients should refresh the snapshot
+      // after accepting a block instead of inferring future height transitions.
+      var nextBlockHeight = currentBlock.height + 1;
+      modules.delegates.generateDelegateList(nextBlockHeight, function (err, activeDelegates) {
         if (err) {
           return setImmediate(cb, err);
         }

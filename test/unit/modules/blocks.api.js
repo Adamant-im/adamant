@@ -9,23 +9,55 @@ const z_schema = require('../../../helpers/z_schema.js');
 describe('blocks API', function () {
   let api;
   let db;
+  let blockHeight;
+  let consensus;
 
   beforeEach(function () {
     db = {
       query: sinon.stub().resolves([])
     };
+    blockHeight = 1;
+    consensus = {
+      getActiveCodeName: sinon.stub().callsFake((height) => height >= 2 ? 'fairSystem' : null)
+    };
 
     api = new API(
         { trace: sinon.spy(), error: sinon.spy() },
         db,
-        { dbRead: sinon.spy((row) => row) },
+        { dbRead: sinon.spy((row) => row), calculateFee: sinon.stub().returns(50000000) },
         new z_schema(),
-        { add: function (task, cb) { task(cb); } }
+        { add: function (task, cb) { task(cb); } },
+        consensus
     );
 
     api.onBind({
-      blocks: { lastBlock: { get: function () { return { height: 1 }; } } },
-      system: {}
+      blocks: { lastBlock: { get: function () { return { height: blockHeight }; } } },
+      system: {
+        getBroadhash: sinon.stub().returns('broadhash'),
+        getNethash: sinon.stub().returns('nethash')
+      }
+    });
+  });
+
+  it('returns the consensus code name for the applied block height', function (done) {
+    blockHeight = 2;
+
+    api.getStatus({}, function (err, data) {
+      expect(err).to.not.exist;
+      expect(data.consensusCodeName).to.equal('fairSystem');
+      expect(consensus.getActiveCodeName.calledOnceWithExactly(blockHeight)).to.equal(true);
+      done();
+    });
+  });
+
+  it('rejects status while the applied block height is unavailable', function (done) {
+    blockHeight = undefined;
+
+    api.getStatus({}, function (err, data) {
+      expect(data).not.to.exist;
+      expect(err).to.equal('Blockchain is loading');
+      expect(consensus.getActiveCodeName.called).to.equal(false);
+      done();
     });
   });
 

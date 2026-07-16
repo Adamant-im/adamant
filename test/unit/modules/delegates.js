@@ -1,6 +1,7 @@
 'use strict';
 
 const { expect } = require('chai');
+const sinon = require('sinon');
 
 const { modulesLoader } = require('../../common/initModule.js');
 const {
@@ -12,6 +13,7 @@ const {
 
 const constants = require('../../../helpers/constants.js');
 const Delegates = require('../../../modules/delegates.js');
+const slots = require('../../../helpers/slots.js');
 
 const aDelegate = testAccount;
 
@@ -92,8 +94,28 @@ describe('delegates', function () {
       delegates.getDelegates({}, {}, (err, response) => {
         expect(response.delegates).to.be.an('array');
         expect(response.count).to.greaterThanOrEqual(101);
+        expect(response.delegates[0].forged).to.be.a('string').and.match(/^\d+$/);
+        expect(response.delegates[0]).not.to.have.property('fees');
+        expect(response.delegates[0]).not.to.have.property('rewards');
         expect(err).not.to.exist;
         done();
+      });
+    });
+
+    it('should return the same lifetime forged amount as forging statistics', (done) => {
+      delegates.getDelegates({}, {}, (err, response) => {
+        expect(err).not.to.exist;
+
+        const delegate = response.delegates.find(({ publicKey }) => publicKey === validGeneratorPubicKey);
+        expect(delegate).to.exist;
+
+        delegates.shared.getForgedByAccount({
+          body: { generatorPublicKey: delegate.publicKey }
+        }, (err, forgedStats) => {
+          expect(err).not.to.exist;
+          expect(delegate.forged).to.equal(forgedStats.forged);
+          done();
+        });
       });
     });
   });
@@ -138,6 +160,7 @@ describe('delegates', function () {
           expect(delegate.username).to.equal(aDelegate.username);
           expect(delegate.publicKey).to.equal(aDelegate.publicKey);
           expect(delegate.address).to.equal(aDelegate.address);
+          expect(delegate.forged).to.be.a('string').and.match(/^\d+$/);
 
           done();
         });
@@ -245,6 +268,73 @@ describe('delegates', function () {
           expect(err).not.to.exist;
           expect(response.delegates.length).to.equal(1);
           done();
+        });
+      });
+
+      it('should reject the request when the current block height is unavailable', (done) => {
+        modules.blocks.lastBlock.set({});
+        const generateDelegateListSpy = sinon.spy(delegates, 'generateDelegateList');
+
+        delegates.shared.getNextForgers({ body: {} }, (err, response) => {
+          generateDelegateListSpy.restore();
+          modules.blocks.lastBlock.set(dummyBlock);
+
+          try {
+            expect(response).not.to.exist;
+            expect(err).to.equal('Blockchain is loading');
+            expect(generateDelegateListSpy.called).to.be.false;
+            done();
+          } catch (assertionError) {
+            done(assertionError);
+          }
+        });
+      });
+
+      it('should use the next block round schedule for every returned slot at a round boundary', (done) => {
+        const roundBoundaryBlock = {
+          ...dummyBlock,
+          height: constants.activeDelegates
+        };
+        const nextBlockHeight = roundBoundaryBlock.height + 1;
+        const currentSlot = 42;
+
+        delegates.generateDelegateList(nextBlockHeight, (err, nextRoundDelegates) => {
+          if (err) {
+            return done(err);
+          }
+
+          modules.blocks.lastBlock.set(roundBoundaryBlock);
+
+          const originalGetSlotNumber = slots.getSlotNumber;
+          const getSlotNumberStub = sinon.stub(slots, 'getSlotNumber').callsFake((timestamp) => {
+            return timestamp === undefined
+              ? currentSlot
+              : originalGetSlotNumber.call(slots, timestamp);
+          });
+          const generateDelegateListSpy = sinon.spy(delegates, 'generateDelegateList');
+
+          delegates.shared.getNextForgers({
+            body: { limit: constants.activeDelegates }
+          }, (err, response) => {
+            generateDelegateListSpy.restore();
+            getSlotNumberStub.restore();
+            modules.blocks.lastBlock.set(dummyBlock);
+
+            try {
+              expect(err).not.to.exist;
+              expect(generateDelegateListSpy.calledOnceWith(nextBlockHeight)).to.be.true;
+
+              const expectedDelegates = Array.from(
+                  { length: constants.activeDelegates },
+                  (_, index) => nextRoundDelegates[(currentSlot + index + 1) % slots.delegates]
+              );
+
+              expect(response.delegates).to.eql(expectedDelegates);
+              done();
+            } catch (assertionError) {
+              done(assertionError);
+            }
+          });
         });
       });
 

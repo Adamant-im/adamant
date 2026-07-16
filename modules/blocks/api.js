@@ -22,15 +22,17 @@ __private.blockReward = new BlockReward();
  * @param {Block} block
  * @param {ZSchema} schema
  * @param {Sequence} dbSequence
+ * @param {Consensus} consensus
  */
-function API (logger, db, block, schema, dbSequence) {
+function API (logger, db, block, schema, dbSequence, consensus) {
   library = {
     logger: logger,
     db: db,
     schema: schema,
     dbSequence: dbSequence,
     logic: {
-      block: block
+      block: block,
+      consensus: consensus
     }
   };
   self = this;
@@ -293,11 +295,15 @@ API.prototype.getStatus = function (req, cb) {
   }
 
   var lastBlock = modules.blocks.lastBlock.get();
+  if (!Number.isFinite(lastBlock.height)) {
+    return setImmediate(cb, 'Blockchain is loading');
+  }
 
   return setImmediate(cb, null, {
     broadhash: modules.system.getBroadhash(),
     epoch: constants.epochTime,
     height: lastBlock.height,
+    consensusCodeName: library.logic.consensus.getActiveCodeName(lastBlock.height),
     fee: library.logic.block.calculateFee(),
     milestone: __private.blockReward.calcMilestone(lastBlock.height),
     nethash: modules.system.getNethash(),

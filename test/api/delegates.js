@@ -130,7 +130,21 @@ describe('GET /api/delegates', function () {
       node.expect(res.body.delegates[0]).to.have.property('vote');
       node.expect(res.body.delegates[0]).to.have.property('rank');
       node.expect(res.body.delegates[0]).to.have.property('productivity');
+      node.expect(res.body.delegates[0]).to.have.property('forged').that.is.a('string').and.match(/^\d+$/);
       done();
+    });
+  });
+
+  it('should match the lifetime forged statistics endpoint', function (done) {
+    node.get('/api/delegates?limit=1', function (err, delegatesResponse) {
+      node.expect(delegatesResponse.body).to.have.property('success').to.be.true;
+      const delegate = delegatesResponse.body.delegates[0];
+
+      node.get('/api/delegates/forging/getForgedByAccount?generatorPublicKey=' + delegate.publicKey, function (err, forgedResponse) {
+        node.expect(forgedResponse.body).to.have.property('success').to.be.true;
+        node.expect(delegate.forged).to.equal(forgedResponse.body.forged);
+        done();
+      });
     });
   });
 
@@ -448,6 +462,7 @@ describe('GET /api/delegates/get', function () {
       node.expect(res.body).to.have.property('delegate').that.is.an('object');
       node.expect(res.body.delegate.username).to.equal(referenceDelegate.username);
       node.expect(res.body.delegate.rank).to.equal(referenceDelegate.rank);
+      node.expect(res.body.delegate.forged).to.equal(referenceDelegate.forged);
       // `rate` is a deprecated alias of `rank` and must keep matching it.
       node.expect(res.body.delegate.rate).to.equal(referenceDelegate.rank);
       // Regression guard: rank/rate must reflect the real position, not 1.
