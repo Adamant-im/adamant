@@ -845,6 +845,10 @@ Delegates.prototype.shared = {
       var currentBlock = modules.blocks.lastBlock.get();
       var limit = req.body.limit || 10;
 
+      if (!Number.isFinite(currentBlock.height)) {
+        return setImmediate(cb, 'Blockchain is loading');
+      }
+
       // This response is a snapshot for the current chain tip. Height advances
       // only after a block is accepted, so every projected slot must use the
       // delegate list for the next block. Clients should refresh the snapshot

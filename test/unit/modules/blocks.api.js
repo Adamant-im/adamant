@@ -50,6 +50,17 @@ describe('blocks API', function () {
     });
   });
 
+  it('rejects status while the applied block height is unavailable', function (done) {
+    blockHeight = undefined;
+
+    api.getStatus({}, function (err, data) {
+      expect(data).not.to.exist;
+      expect(err).to.equal('Blockchain is loading');
+      expect(consensus.getActiveCodeName.called).to.equal(false);
+      done();
+    });
+  });
+
   it('applies numberOfTransactions when it is zero', function (done) {
     api.getBlocks({ body: { numberOfTransactions: 0 } }, function (err, data) {
       expect(err).to.not.exist;

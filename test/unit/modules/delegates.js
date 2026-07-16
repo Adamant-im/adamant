@@ -271,6 +271,25 @@ describe('delegates', function () {
         });
       });
 
+      it('should reject the request when the current block height is unavailable', (done) => {
+        modules.blocks.lastBlock.set({});
+        const generateDelegateListSpy = sinon.spy(delegates, 'generateDelegateList');
+
+        delegates.shared.getNextForgers({ body: {} }, (err, response) => {
+          generateDelegateListSpy.restore();
+          modules.blocks.lastBlock.set(dummyBlock);
+
+          try {
+            expect(response).not.to.exist;
+            expect(err).to.equal('Blockchain is loading');
+            expect(generateDelegateListSpy.called).to.be.false;
+            done();
+          } catch (assertionError) {
+            done(assertionError);
+          }
+        });
+      });
+
       it('should use the next block round schedule for every returned slot at a round boundary', (done) => {
         const roundBoundaryBlock = {
           ...dummyBlock,

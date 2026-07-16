@@ -295,6 +295,9 @@ API.prototype.getStatus = function (req, cb) {
   }
 
   var lastBlock = modules.blocks.lastBlock.get();
+  if (!Number.isFinite(lastBlock.height)) {
+    return setImmediate(cb, 'Blockchain is loading');
+  }
 
   return setImmediate(cb, null, {
     broadhash: modules.system.getBroadhash(),
