@@ -42,6 +42,7 @@ function Node (cb, scope) {
       wsClient: scope.config.wsClient
     }
   };
+  library.logic.consensus = scope.logic.consensus || scope.consensus;
   self = this;
 
   setImmediate(cb, null, self);
@@ -130,11 +131,20 @@ Node.prototype.shared = {
             broadhash: modules.system.getBroadhash(),
             epoch: constants.epochTime,
             height: lastBlock.height,
+            consensus: library.logic.consensus.getActiveCodeName(lastBlock.height),
             fee: library.logic.block.calculateFee(),
             milestone: lastBlock.height ? __private.blockReward.calcMilestone(lastBlock.height) : undefined,
             nethash: modules.system.getNethash(),
             reward: lastBlock.height ? __private.blockReward.calcReward(lastBlock.height) : undefined,
             supply: lastBlock.height ? __private.blockReward.calcSupply(lastBlock.height) : undefined
+          },
+          consensusSchedule: {
+            activationHeights: library.logic.consensus.getActivationHeights()
+          },
+          milestoneSchedule: {
+            offset: constants.rewards.offset,
+            distance: constants.rewards.distance,
+            milestones: constants.rewards.milestones.slice()
           },
           version: {
             build: library.build,

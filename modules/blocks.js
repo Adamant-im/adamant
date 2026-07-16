@@ -38,7 +38,8 @@ function Blocks (cb, scope) {
   // Initialize submodules with library content
   this.submodules = {
     api: new blocksAPI(
-        scope.logger, scope.db, scope.logic.block, scope.schema, scope.dbSequence
+        scope.logger, scope.db, scope.logic.block, scope.schema, scope.dbSequence,
+        scope.logic.consensus || scope.consensus
     ),
     verify: new blocksVerify(scope.logger, scope.logic.block,
         scope.logic.transaction, scope.db

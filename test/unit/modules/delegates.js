@@ -92,8 +92,28 @@ describe('delegates', function () {
       delegates.getDelegates({}, {}, (err, response) => {
         expect(response.delegates).to.be.an('array');
         expect(response.count).to.greaterThanOrEqual(101);
+        expect(response.delegates[0].forged).to.be.a('string').and.match(/^\d+$/);
+        expect(response.delegates[0]).not.to.have.property('fees');
+        expect(response.delegates[0]).not.to.have.property('rewards');
         expect(err).not.to.exist;
         done();
+      });
+    });
+
+    it('should return the same lifetime forged amount as forging statistics', (done) => {
+      delegates.getDelegates({}, {}, (err, response) => {
+        expect(err).not.to.exist;
+
+        const delegate = response.delegates.find(({ publicKey }) => publicKey === validGeneratorPubicKey);
+        expect(delegate).to.exist;
+
+        delegates.shared.getForgedByAccount({
+          body: { generatorPublicKey: delegate.publicKey }
+        }, (err, forgedStats) => {
+          expect(err).not.to.exist;
+          expect(delegate.forged).to.equal(forgedStats.forged);
+          done();
+        });
       });
     });
   });
@@ -138,6 +158,7 @@ describe('delegates', function () {
           expect(delegate.username).to.equal(aDelegate.username);
           expect(delegate.publicKey).to.equal(aDelegate.publicKey);
           expect(delegate.address).to.equal(aDelegate.address);
+          expect(delegate.forged).to.be.a('string').and.match(/^\d+$/);
 
           done();
         });
