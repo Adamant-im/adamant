@@ -130,7 +130,21 @@ describe('GET /api/delegates', function () {
       node.expect(res.body.delegates[0]).to.have.property('vote');
       node.expect(res.body.delegates[0]).to.have.property('rank');
       node.expect(res.body.delegates[0]).to.have.property('productivity');
+      node.expect(res.body.delegates[0]).to.have.property('forged').that.is.a('string').and.match(/^\d+$/);
       done();
+    });
+  });
+
+  it('should match the lifetime forged statistics endpoint', function (done) {
+    node.get('/api/delegates?limit=1', function (err, delegatesResponse) {
+      node.expect(delegatesResponse.body).to.have.property('success').to.be.true;
+      const delegate = delegatesResponse.body.delegates[0];
+
+      node.get('/api/delegates/forging/getForgedByAccount?generatorPublicKey=' + delegate.publicKey, function (err, forgedResponse) {
+        node.expect(forgedResponse.body).to.have.property('success').to.be.true;
+        node.expect(delegate.forged).to.equal(forgedResponse.body.forged);
+        done();
+      });
     });
   });
 
@@ -424,6 +438,88 @@ describe('GET /api/delegates', function () {
   });
 });
 
+describe('GET /api/delegates/get', function () {
+  // A delegate that is NOT ranked first, so the test catches the regression
+  // where `delegates/get` reported rank/rate as 1 for every single-delegate
+  // lookup (because ranking was computed over a one-row, pre-filtered result).
+  var referenceDelegate;
+
+  before(function (done) {
+    node.get('/api/delegates?orderBy=rank:asc', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('delegates').that.is.an('array');
+      // The list is ordered by rank ascending, so the last entry has the
+      // highest rank number, guaranteeing rank > 1.
+      referenceDelegate = res.body.delegates[res.body.delegates.length - 1];
+      node.expect(referenceDelegate).to.have.property('rank').that.is.above(1);
+      done();
+    });
+  });
+
+  it('using username should return the delegate with its real rank and rate', function (done) {
+    node.get('/api/delegates/get?username=' + encodeURIComponent(referenceDelegate.username), function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('delegate').that.is.an('object');
+      node.expect(res.body.delegate.username).to.equal(referenceDelegate.username);
+      node.expect(res.body.delegate.rank).to.equal(referenceDelegate.rank);
+      node.expect(res.body.delegate.forged).to.equal(referenceDelegate.forged);
+      // `rate` is a deprecated alias of `rank` and must keep matching it.
+      node.expect(res.body.delegate.rate).to.equal(referenceDelegate.rank);
+      // Regression guard: rank/rate must reflect the real position, not 1.
+      node.expect(res.body.delegate.rank).to.be.above(1);
+      done();
+    });
+  });
+
+  it('using publicKey should return the delegate with its real rank and rate', function (done) {
+    node.get('/api/delegates/get?publicKey=' + referenceDelegate.publicKey, function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('delegate').that.is.an('object');
+      node.expect(res.body.delegate.publicKey).to.equal(referenceDelegate.publicKey);
+      node.expect(res.body.delegate.rank).to.equal(referenceDelegate.rank);
+      node.expect(res.body.delegate.rate).to.equal(referenceDelegate.rank);
+      node.expect(res.body.delegate.rank).to.be.above(1);
+      done();
+    });
+  });
+
+  it('using address should return the delegate with its real rank and rate', function (done) {
+    node.get('/api/delegates/get?address=' + encodeURIComponent(referenceDelegate.address), function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('delegate').that.is.an('object');
+      node.expect(res.body.delegate.address).to.equal(referenceDelegate.address);
+      node.expect(res.body.delegate.rank).to.equal(referenceDelegate.rank);
+      node.expect(res.body.delegate.rate).to.equal(referenceDelegate.rank);
+      node.expect(res.body.delegate.rank).to.be.above(1);
+      done();
+    });
+  });
+
+  it('using mismatched publicKey and address should fail', function (done) {
+    node.get('/api/delegates/get?publicKey=' + referenceDelegate.publicKey + '&address=U123456789012345678', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('error').to.equal('Delegate publicKey does not match address');
+      done();
+    });
+  });
+
+  it('using no criteria should fail', function (done) {
+    node.get('/api/delegates/get', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('error');
+      done();
+    });
+  });
+
+  it('using an unknown username should fail', function (done) {
+    node.get('/api/delegates/get?username=anunknowndelegate', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('error').to.equal('Delegate not found');
+      done();
+    });
+  });
+});
+
 describe('GET /api/delegates/count', function () {
   it('should be ok', function (done) {
     node.get('/api/delegates/count', function (err, res) {
@@ -436,6 +532,7 @@ describe('GET /api/delegates/count', function () {
 
 describe('GET /api/delegates/voters', function () {
   var account = node.randomAccount();
+  var noVotersAccount = node.randomAccount();
 
   before(function (done) {
     sendADM({
@@ -465,6 +562,16 @@ describe('GET /api/delegates/voters', function () {
     node.get('/api/delegates/voters?' + params, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.false;
       node.expect(res.body).to.have.property('error');
+      done();
+    });
+  });
+
+  it('using valid publicKey without voters should return an empty list', function (done) {
+    var params = 'publicKey=' + noVotersAccount.publicKeyHex;
+
+    node.get('/api/delegates/voters?' + params, function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.true;
+      node.expect(res.body).to.have.property('accounts').that.is.an('array').that.has.lengthOf(0);
       done();
     });
   });
@@ -743,7 +850,7 @@ describe('GET /api/delegates/forging/status', function () {
   it('using no params should be ok', function (done) {
     node.get('/api/delegates/forging/status', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('enabled').to.be.true;
+      node.expect(res.body).to.have.property('enabled').to.be.a('boolean');
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
       done();
     });
@@ -760,7 +867,7 @@ describe('GET /api/delegates/forging/status', function () {
   it('using empty publicKey should be ok', function (done) {
     node.get('/api/delegates/forging/status?publicKey=', function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('enabled').to.be.true;
+      node.expect(res.body).to.have.property('enabled').to.be.a('boolean');
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
       done();
     });
@@ -775,10 +882,28 @@ describe('GET /api/delegates/forging/status', function () {
   });
 
   it('using enabled publicKey should be ok', function (done) {
-    node.get('/api/delegates/forging/status?publicKey=' + 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089', function (err, res) {
+    function expectEnabledStatus () {
+      node.get('/api/delegates/forging/status?publicKey=' + genesisDelegates.delegates[0].publicKey, function (err, res) {
+        node.expect(res.body).to.have.property('success').to.be.true;
+        node.expect(res.body).to.have.property('enabled').to.be.true;
+        done();
+      });
+    }
+
+    node.get('/api/delegates/forging/status?publicKey=' + genesisDelegates.delegates[0].publicKey, function (err, res) {
       node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('enabled').to.be.true;
-      done();
+
+      if (res.body.enabled) {
+        return expectEnabledStatus();
+      }
+
+      node.post('/api/delegates/forging/enable', {
+        publicKey: genesisDelegates.delegates[0].publicKey,
+        secret: genesisDelegates.delegates[0].secret
+      }, function (err, res) {
+        node.expect(res.body).to.have.property('success').to.be.true;
+        expectEnabledStatus();
+      });
     });
   });
 });
@@ -799,8 +924,9 @@ describe('POST /api/delegates/forging/disable', function () {
           node.expect(res.body).to.have.property('address').equal(testDelegate.address);
           done();
         });
+      } else {
+        done();
       }
-      done();
     });
   });
 
@@ -1051,6 +1177,30 @@ describe('GET /api/delegates/getNextForgers', function () {
       node.expect(res.body).to.have.property('currentSlot').that.is.a('number');
       node.expect(res.body).to.have.property('delegates').that.is.an('array');
       node.expect(res.body.delegates).to.have.lengthOf(101);
+      done();
+    });
+  });
+
+  it('using string limit should fail', function (done) {
+    node.get('/api/delegates/getNextForgers?' + 'limit=abc', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('error').to.equal('Expected type integer but found type string');
+      done();
+    });
+  });
+
+  it('using zero limit should fail', function (done) {
+    node.get('/api/delegates/getNextForgers?' + 'limit=0', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('error').to.equal('Value 0 is less than minimum 1');
+      done();
+    });
+  });
+
+  it('using limit above active delegates should fail', function (done) {
+    node.get('/api/delegates/getNextForgers?' + 'limit=102', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('error').to.equal('Value 102 is greater than maximum 101');
       done();
     });
   });

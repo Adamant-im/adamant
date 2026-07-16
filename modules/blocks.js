@@ -38,7 +38,8 @@ function Blocks (cb, scope) {
   // Initialize submodules with library content
   this.submodules = {
     api: new blocksAPI(
-        scope.logger, scope.db, scope.logic.block, scope.schema, scope.dbSequence
+        scope.logger, scope.db, scope.logic.block, scope.schema, scope.dbSequence,
+        scope.logic.consensus || scope.consensus
     ),
     verify: new blocksVerify(scope.logger, scope.logic.block,
         scope.logic.transaction, scope.db
@@ -52,7 +53,7 @@ function Blocks (cb, scope) {
     ),
     chain: new blocksChain(
         scope.logger, scope.logic.block, scope.logic.transaction, scope.db,
-        scope.genesisblock, scope.bus, scope.balancesSequence
+        scope.genesisblock, scope.bus, scope.balancesSequence, scope.clientWs
     )
   };
 
@@ -192,7 +193,7 @@ Blocks.prototype.cleanup = function (cb) {
     // Module is not ready, repeat
     setImmediate(function nextWatch () {
       if (__private.isActive) {
-        library.logger.info('cleanup', 'Waiting for block processing to finish...', {
+        library.logger.info('cleanup', 'Waiting for block processing to finish…', {
           active: __private.isActive,
           cleanup: __private.cleanup
         });

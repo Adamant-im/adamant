@@ -2,6 +2,7 @@
 
 var async = require('async');
 var constants = require('../helpers/constants.js');
+var createSyncWatchdog = require('../helpers/syncWatchdog.js');
 var jobsQueue = require('../helpers/jobsQueue.js');
 var ip = require('neoip');
 var sandboxHelper = require('../helpers/sandbox.js');
@@ -25,6 +26,9 @@ __private.syncInterval = 10000;
 __private.retries = 5;
 __private.stopRequested = false;
 __private.shutdownRequested = false;
+// Maximum time a single sync run may go without block progress before it is
+// considered stalled and aborted so the loader can recover.
+__private.syncTimeout = constants.syncStallTimeout;
 
 /**
  * Initializes library with scope content.
@@ -148,7 +152,12 @@ __private.syncTimer = function () {
         async.retry(__private.retries, __private.sync, sequenceCb);
       }, function (err) {
         if (err) {
-          library.logger.error('loader', 'Sync timer error:', err);
+          const errorMessage = err.message || err;
+          if (errorMessage === 'Failed to find enough good peers') {
+            library.logger.warn('loader', 'Sync timer: Failed to find enough good peers');
+          } else {
+            library.logger.error('loader', 'Sync timer error:', err);
+          }
           __private.initialize();
         }
         return setImmediate(cb);
@@ -187,7 +196,7 @@ __private.loadSignatures = function (cb) {
       });
     },
     function (peer, waterCb) {
-      library.logger.log('loader', 'Loading signatures from: ' + peer.string);
+      library.logger.log('loader', 'Loading signatures from peer ' + peer.string + '…');
 
       modules.transport.getFromPeer(peer, {
         api: '/signatures',
@@ -251,7 +260,7 @@ __private.loadTransactions = function (cb) {
       });
     },
     function (peer, waterCb) {
-      library.logger.log('loader', 'Loading transactions from: ' + peer.string);
+      library.logger.log('loader', 'Loading transactions from peer ' + peer.string + '…');
 
       modules.transport.getFromPeer(peer, {
         api: '/transactions',
@@ -363,12 +372,62 @@ __private.loadBlockChain = function () {
     finishLoading(false);
   }
 
-  function load (count) {
+  function finishRebuild (err, count, context) {
+    var replay = Boolean(context && context.replay);
+
+    if (err) {
+      library.logger.error('loader', err);
+
+      // A failure while replaying on top of a restored checkpoint most likely
+      // means the checkpoint's derived mem_* state is inconsistent with the
+      // chain — the persisted blocks are still the source of truth and must not
+      // be clipped. Fall back to a full rebuild from genesis (which recreates
+      // the mem_* tables), instead of deleting valid blocks.
+      if (replay) {
+        library.logger.warn('loader', 'Checkpoint replay failed; discarding checkpoint state and rebuilding memory tables from genesis…');
+        return load(count);
+      }
+
+      if (err.block) {
+        library.logger.error('loader', 'Blockchain rebuild failed while verifying block at height ' + err.block.height);
+        modules.blocks.chain.deleteAfterBlock(err.block.id, function (clipErr) {
+          if (clipErr) {
+            library.logger.error('loader', 'Failed to remove invalid blocks after rebuild error', clipErr);
+          }
+          library.logger.warn('loader', 'Removed blocks at and above height ' + err.block.height + ' after rebuild verification failed; restart will rebuild mem_* from the remaining chain');
+          finishLoading(true);
+        });
+      } else {
+        finishLoading(false);
+      }
+    } else if (__private.stopRequested) {
+      library.logger.warn('loader', 'Blockchain rebuild stopped for shutdown; mem_* tables may be inconsistent and are not boot-ready — wait for cleanup to finish before restarting');
+      finishLoading(false);
+    } else {
+      library.logger.info('loader', 'Blockchain ready');
+      finishLoading(true);
+    }
+  }
+
+  /**
+   * Rebuild or replay derived mem_* state from blocks.
+   * @param {number} count Total persisted block count.
+   * @param {object} [options]
+   * @param {number} [options.startOffset] First block height to replay from.
+   * @param {boolean} [options.skipTableReset] Keep existing mem_* tables (checkpoint restore path).
+   */
+  function load (count, options) {
+    var startOffset = Number((options && options.startOffset) || 0);
+    var skipTableReset = Boolean(options && options.skipTableReset);
+
     verify = true;
     __private.total = count;
+    offset = startOffset;
 
-    async.series({
-      removeTables: function (seriesCb) {
+    var steps = {};
+
+    if (!skipTableReset) {
+      steps.removeTables = function (seriesCb) {
         library.logic.account.removeTables(function (err) {
           if (err) {
             throw err;
@@ -376,8 +435,8 @@ __private.loadBlockChain = function () {
             return setImmediate(seriesCb);
           }
         });
-      },
-      createTables: function (seriesCb) {
+      };
+      steps.createTables = function (seriesCb) {
         library.logic.account.createTables(function (err) {
           if (err) {
             throw err;
@@ -385,82 +444,132 @@ __private.loadBlockChain = function () {
             return setImmediate(seriesCb);
           }
         });
-      },
-      loadBlocksOffset: function (seriesCb) {
-        async.until(
-            function (testCb) {
-              return testCb(null, __private.stopRequested || count < offset);
-            }, function (cb) {
-              if (__private.stopRequested) {
-                return setImmediate(cb);
+      };
+    }
+
+    steps.loadBlocksOffset = function (seriesCb) {
+      async.until(
+          function (testCb) {
+            return testCb(null, __private.stopRequested || count < offset);
+          }, function (cb) {
+            if (__private.stopRequested) {
+              return setImmediate(cb);
+            }
+
+            if (count > 1) {
+              // offset is the SQL lower bound (`b_height >= offset`), i.e. the next applied height.
+              var displayHeight = offset === 0 ? 1 : offset;
+              library.logger.info('loader', 'Rebuilding blockchain, current block height: ' + displayHeight + '…');
+            }
+            modules.blocks.process.loadBlocksOffset(limit, offset, verify, function (err, lastBlock) {
+              if (err) {
+                return setImmediate(cb, err);
               }
 
-              if (count > 1) {
-                library.logger.info('loader', 'Rebuilding blockchain, current block height: ' + (offset + 1));
-              }
-              modules.blocks.process.loadBlocksOffset(limit, offset, verify, function (err, lastBlock) {
-                if (err) {
-                  return setImmediate(cb, err);
-                }
+              offset = offset + limit;
+              __private.lastBlock = lastBlock;
 
-                offset = offset + limit;
-                __private.lastBlock = lastBlock;
+              return setImmediate(cb);
+            }, __private.isStopRequested);
+          }, function (err) {
+            return setImmediate(seriesCb, err);
+          }
+      );
+    };
 
-                return setImmediate(cb);
-              }, __private.isStopRequested);
-            }, function (err) {
-              return setImmediate(seriesCb, err);
-            }
-        );
-      }
-    }, function (err) {
-      if (err) {
-        library.logger.error('loader', err);
-        if (err.block) {
-          library.logger.error('loader', 'Blockchain failed at: ' + err.block.height);
-          modules.blocks.chain.deleteAfterBlock(err.block.id, function (err, res) {
-            if (err) {
-              library.logger.error('loader', 'Failed to clip blockchain', err);
-            }
-            library.logger.error('loader', 'Blockchain clipped');
-            finishLoading(true);
-          });
-        } else {
-          finishLoading(false);
-        }
-      } else if (__private.stopRequested) {
-        library.logger.info('loader', 'Blockchain rebuild stopped for shutdown');
-        finishLoading(false);
-      } else {
-        library.logger.info('loader', 'Blockchain ready');
-        finishLoading(true);
-      }
+    async.series(steps, function (err) {
+      return finishRebuild(err, count, { replay: skipTableReset });
     });
   }
 
-  function reload (count, message) {
+  /**
+   * Recover derived mem_* tables from checkpoint or rebuild them from genesis.
+   * @param {number} count Total persisted block count.
+   * @param {string} [message] Validation failure that triggered recovery.
+   * @param {number} round Current round at chain tip.
+   */
+  function reload (count, message, round) {
     if (__private.stopRequested) {
       return finishForShutdown();
     }
 
     if (message) {
       library.logger.warn('loader', message);
-      library.logger.warn('loader', 'Recreating memory tables');
     }
 
-    return load(count);
+    // Snapshot/verification mode (`verify`) must rebuild derived state from
+    // genesis so every block is re-verified and re-applied; a checkpoint restore
+    // would skip exactly the work the operator asked for. Fall through to a full
+    // rebuild in that case, and whenever checkpoints are unavailable.
+    if (verify || !modules.memCheckpoints || !modules.memCheckpoints.isEnabled()) {
+      if (verify) {
+        library.logger.warn('loader', 'Verification/snapshot mode enabled; skipping checkpoint recovery and recreating memory tables…');
+      } else {
+        library.logger.warn('loader', 'Mem-table checkpoints are disabled');
+        library.logger.warn('loader', 'Recreating memory tables…');
+      }
+      return load(count);
+    }
+
+    modules.memCheckpoints.tryRecover(count, round, function (err, checkpoint) {
+      if (checkpoint) {
+        var checkpointHeight = parseInt(checkpoint.height, 10);
+        var replayOffset = checkpointHeight + 1;
+
+        library.logger.info('loader', 'Recovering from mem-table checkpoint at height ' + checkpointHeight + '…');
+
+        if (replayOffset > count) {
+          return modules.blocks.utils.loadLastBlock(function (loadErr, block) {
+            if (loadErr) {
+              library.logger.warn('loader', 'Checkpoint restore at chain tip failed to load last block, recreating memory tables…');
+              return load(count);
+            }
+
+            __private.lastBlock = block;
+            library.logger.info('loader', 'Blockchain ready');
+            return finishLoading(true);
+          });
+        }
+
+        return modules.blocks.utils.loadBlocksPart({ id: checkpoint.blockId }, function (loadErr, blocks) {
+          if (loadErr || !blocks || !blocks.length) {
+            library.logger.warn('loader', 'Checkpoint block failed to load, recreating memory tables…');
+            return load(count);
+          }
+
+          modules.blocks.lastBlock.set(blocks[0]);
+
+          return load(count, {
+            startOffset: replayOffset,
+            skipTableReset: true
+          });
+        });
+      }
+
+      library.logger.warn('loader', 'Recreating memory tables…');
+      return load(count);
+    });
   }
 
   function checkMemTables (t) {
-    var promises = [
-      t.one(sql.countBlocks),
-      t.query(sql.getGenesisBlock),
-      t.one(sql.countMemAccounts),
-      t.query(sql.getMemRounds),
-      t.query(sql.countDuplicatedDelegates)
-    ];
+    var results = [];
 
-    return t.batch(promises);
+    return t.one(sql.countBlocks).then(function (countBlocks) {
+      results[0] = countBlocks;
+      return t.query(sql.getGenesisBlock);
+    }).then(function (genesisBlock) {
+      results[1] = genesisBlock;
+      return t.one(sql.countMemAccounts);
+    }).then(function (countMemAccounts) {
+      results[2] = countMemAccounts;
+      return t.query(sql.getMemRounds);
+    }).then(function (memRounds) {
+      results[3] = memRounds;
+      return t.query(sql.countDuplicatedDelegates);
+    }).then(function (duplicatedDelegates) {
+      results[4] = duplicatedDelegates;
+      return results;
+    });
   }
 
   function matchGenesisBlock (row) {
@@ -492,7 +601,7 @@ __private.loadBlockChain = function () {
         modules.rounds.setSnapshotRounds(library.config.loading.snapshot);
       }
 
-      library.logger.info('loader', 'Snapshotting to end of round: ' + library.config.loading.snapshot);
+      library.logger.info('loader', 'Snapshotting to end of round: ' + library.config.loading.snapshot + '…');
       return true;
     } else {
       return false;
@@ -511,7 +620,7 @@ __private.loadBlockChain = function () {
     var round = modules.rounds.calc(count);
 
     if (count === 1) {
-      return reload(count);
+      return reload(count, null, round);
     }
 
     matchGenesisBlock(results[1][0]);
@@ -519,13 +628,13 @@ __private.loadBlockChain = function () {
     verify = verifySnapshot(count, round);
 
     if (verify) {
-      return reload(count, 'Blocks verification enabled');
+      return reload(count, 'Blocks verification enabled', round);
     }
 
     var missed = !(results[2].count);
 
     if (missed) {
-      return reload(count, 'Detected missed blocks in mem_accounts');
+      return reload(count, 'Detected missed blocks in mem_accounts', round);
     }
 
     var unapplied = results[3].filter(function (row) {
@@ -533,7 +642,7 @@ __private.loadBlockChain = function () {
     });
 
     if (unapplied.length > 0) {
-      return reload(count, 'Detected unapplied rounds in mem_round');
+      return reload(count, 'Detected unapplied rounds in mem_round', round);
     }
 
     var duplicatedDelegates = +results[4][0].count;
@@ -545,31 +654,37 @@ __private.loadBlockChain = function () {
     }
 
     function updateMemAccounts (t) {
-      var promises = [
-        t.none(sql.updateMemAccounts),
-        t.query(sql.getOrphanedMemAccounts),
-        t.query(sql.getDelegates)
-      ];
+      var results = [];
 
-      return t.batch(promises);
+      return t.none(sql.updateMemAccounts).then(function () {
+        return t.query(sql.getOrphanedMemAccounts);
+      }).then(function (orphanedMemAccounts) {
+        results[1] = orphanedMemAccounts;
+        return t.query(sql.getDelegates);
+      }).then(function (delegates) {
+        results[2] = delegates;
+        return results;
+      });
     }
 
-    library.db.task(updateMemAccounts).then(function (results) {
+    // Returned so a rejection propagates to the outer .catch below instead of
+    // being swallowed (which would silently stall blockchain loading).
+    return library.db.task(updateMemAccounts).then(function (results) {
       if (__private.stopRequested) {
         return finishForShutdown();
       }
 
       if (results[1].length > 0) {
-        return reload(count, 'Detected orphaned blocks in mem_accounts');
+        return reload(count, 'Detected orphaned blocks in mem_accounts', round);
       }
 
       if (results[2].length === 0) {
-        return reload(count, 'No delegates found');
+        return reload(count, 'No delegates found', round);
       }
 
       modules.blocks.utils.loadLastBlock(function (err, block) {
         if (err) {
-          return reload(count, err || 'Failed to load last block');
+          return reload(count, err || 'Failed to load last block', round);
         } else {
           __private.lastBlock = block;
           library.logger.info('loader', 'Blockchain ready');
@@ -595,9 +710,14 @@ __private.loadBlockChain = function () {
  * @implements {modules.blocks.getCommonBlock}
  * @return {setImmediateCallback} cb, err
  */
-__private.loadBlocksFromNetwork = function (cb) {
+__private.loadBlocksFromNetwork = function (cb, shouldStop) {
   var errorCount = 0;
   var loaded = false;
+
+  // Per-run stop predicate. Defaults to the shutdown signal; the sync watchdog
+  // passes a run-scoped predicate so an aborted run keeps its own stop signal
+  // and a fresh run cannot accidentally clear it.
+  shouldStop = shouldStop || __private.isStopRequested;
 
   self.getNetwork(function (err, network) {
     if (err) {
@@ -605,7 +725,7 @@ __private.loadBlocksFromNetwork = function (cb) {
     } else {
       async.whilst(
           function (testCb) {
-            return testCb(null, !__private.stopRequested && !loaded && errorCount < 5);
+            return testCb(null, !shouldStop() && !loaded && errorCount < 5);
           },
           function (next) {
             var peer = network.peers[Math.floor(Math.random() * network.peers.length)];
@@ -622,19 +742,19 @@ __private.loadBlocksFromNetwork = function (cb) {
                 loaded = lastValidBlock.id === lastBlock.id;
                 lastValidBlock = lastBlock = null;
                 next();
-              }, __private.isStopRequested);
+              }, shouldStop);
             }
 
             function getCommonBlock (cb) {
-              library.logger.info('loader', 'Looking for common block with: ' + peer.string);
+              library.logger.info('loader', 'Looking for common block with peer ' + peer.string + '…');
               modules.blocks.process.getCommonBlock(peer, lastBlock.height, function (err, commonBlock) {
                 if (!commonBlock) {
                   if (err) { library.logger.error('loader', err.toString()); }
-                  library.logger.error('loader', 'Failed to find common block with: ' + peer.string);
+                  library.logger.error('loader', 'Failed to find common block with peer: ' + peer.string);
                   errorCount += 1;
                   return next();
                 } else {
-                  library.logger.info('loader', ['Found common block:', commonBlock.id, 'with:', peer.string].join(' '));
+                  library.logger.info('loader', ['Found common block:', commonBlock.id, 'with peer:', peer.string].join(' '));
                   return setImmediate(cb);
                 }
               });
@@ -681,7 +801,7 @@ __private.sync = function (cb) {
     return setImmediate(cb);
   }
 
-  library.logger.info('loader', 'Starting sync', {
+  library.logger.info('loader', 'Starting sync…', {
     height: modules.blocks.lastBlock.get().height,
     blocksToSync: __private.blocksToSync
   });
@@ -690,26 +810,144 @@ __private.sync = function (cb) {
   __private.isActive = true;
   __private.syncTrigger(true);
 
+  // Run-scoped abort flag. Kept local (not on `__private`) so a fresh sync run
+  // can never clear the stop signal of an earlier, still-alive run, and so it
+  // stays distinct from the shutdown-only `stopRequested`.
+  var aborted = false;
+  // Completion is funnelled through finishSync() and guarded by `settled` so the
+  // watchdog and the natural async.series completion are mutually exclusive: the
+  // sync state is released exactly once, and a later (abandoned) completion of
+  // the series becomes a harmless no-op.
+  var settled = false;
+  // True while a sync phase that mutates unconfirmed account/pool state is in
+  // flight. Block application is tracked separately by `modules.blocks.isActive`.
+  // The watchdog must not tear the run down while either is set, otherwise it
+  // could advance `library.sequence` while an abandoned mutation is still alive.
+  var mutatingState = false;
+
+  // Shutdown or this run's watchdog abort both stop the in-flight series at its
+  // next safe checkpoint.
+  function shouldStop () {
+    return __private.stopRequested || aborted;
+  }
+
+  // Wraps a state-mutating sync phase so the watchdog defers teardown until the
+  // phase's callback has actually returned.
+  function mutating (run) {
+    return function (next) {
+      mutatingState = true;
+      return run(function (err) {
+        mutatingState = false;
+        return next(err);
+      });
+    };
+  }
+
+  var watchdog = createSyncWatchdog({
+    timeoutMs: __private.syncTimeout,
+    getHeight: function () {
+      return modules.blocks.lastBlock.get().height;
+    },
+    onStall: function (height) {
+      library.logger.error('loader', 'Sync watchdog: no block progress, aborting stalled sync to allow recovery', {
+        height: height,
+        blocksToSync: __private.blocksToSync,
+        timeoutMs: __private.syncTimeout
+      });
+      // Set the run's abort flag, then release the sync state once any mutation
+      // that was already in progress has drained.
+      aborted = true;
+      finishStalled();
+    }
+  });
+
+  // Recovery rests on one invariant: once `aborted` is set, this run can never
+  // begin a new state mutation.
+  //   - New block apply is blocked because `shouldStop()` is threaded into
+  //     `processBlock()` and checked right before `applyBlock()`, so a block
+  //     parked anywhere in verification bails before mutating when it resumes.
+  //   - New unconfirmed undo/apply phases are blocked by `skipOnStop()`.
+  // That makes it safe to release `loader.syncing()` even while an abandoned
+  // flow is still parked. The only thing left to guard is a mutation that had
+  // *already started* before the abort: `applyBlock()` and the unconfirmed
+  // phases write mem/account/round/pool state outside `library.sequence`, so we
+  // wait for `modules.blocks.isActive` and the run-local `mutatingState` to
+  // clear before tearing down. If the in-flight series reaches a checkpoint
+  // first, it finishes the run itself and this becomes a no-op via `settled`.
+  function finishStalled () {
+    if (settled) {
+      return;
+    }
+
+    if (mutatingState || modules.blocks.isActive.get()) {
+      library.logger.warn('loader', 'Sync watchdog: waiting for in-flight state mutation to finish before recovery', {
+        height: modules.blocks.lastBlock.get().height,
+        unconfirmedMutation: mutatingState,
+        blockApplication: modules.blocks.isActive.get()
+      });
+      return setTimeout(finishStalled, 1000);
+    }
+
+    // Terminal for this attempt: report no error so the async.retry wrapper does
+    // not immediately restart the sync; the sync timer starts a fresh attempt.
+    return finishSync(null);
+  }
+
+  function finishSync (err) {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    watchdog.stop();
+
+    __private.isActive = false;
+    __private.syncTrigger(false);
+    __private.blocksToSync = 0;
+
+    // After an abort, drop the cached network so the next attempt re-selects peers.
+    if (aborted) {
+      __private.initialize();
+    }
+
+    const height = modules.blocks.lastBlock.get().height;
+    const errorMessage = err ? err.message || err : null;
+
+    if (errorMessage === 'Failed to find enough good peers') {
+      library.logger.warn('loader', 'Finished sync at height ' + height + ': Failed to find enough good peers');
+    } else {
+      library.logger.info('loader', __private.stopRequested ? 'Sync stopped for shutdown' : 'Finished sync', {
+        height: height,
+        stopped: __private.stopRequested,
+        aborted: aborted,
+        error: errorMessage
+      });
+    }
+    library.bus.message('syncFinished');
+    return setImmediate(cb, err);
+  }
+
   function skipOnStop (seriesCb, next) {
-    if (__private.stopRequested) {
+    if (shouldStop()) {
       return setImmediate(seriesCb);
     }
 
     return next(seriesCb);
   }
 
+  watchdog.start();
+
   async.series({
     undoUnconfirmedList: function (seriesCb) {
-      return skipOnStop(seriesCb, function (next) {
-        library.logger.debug('loader', 'Undoing unconfirmed transactions before sync', {
+      return skipOnStop(seriesCb, mutating(function (next) {
+        library.logger.debug('loader', 'Undoing unconfirmed transactions before sync…', {
           height: modules.blocks.lastBlock.get().height
         });
         return modules.transactions.undoUnconfirmedList(next);
-      });
+      }));
     },
     getPeersBefore: function (seriesCb) {
       return skipOnStop(seriesCb, function (next) {
-        library.logger.debug('loader', 'Establishing broadhash consensus before sync', {
+        library.logger.debug('loader', 'Establishing broadhash consensus before sync…', {
           height: modules.blocks.lastBlock.get().height,
           limit: constants.maxPeers
         });
@@ -717,7 +955,9 @@ __private.sync = function (cb) {
       });
     },
     loadBlocksFromNetwork: function (seriesCb) {
-      return skipOnStop(seriesCb, __private.loadBlocksFromNetwork);
+      return skipOnStop(seriesCb, function (next) {
+        return __private.loadBlocksFromNetwork(next, shouldStop);
+      });
     },
     updateSystem: function (seriesCb) {
       return skipOnStop(seriesCb, function (next) {
@@ -726,7 +966,7 @@ __private.sync = function (cb) {
     },
     getPeersAfter: function (seriesCb) {
       return skipOnStop(seriesCb, function (next) {
-        library.logger.debug('loader', 'Establishing broadhash consensus after sync', {
+        library.logger.debug('loader', 'Establishing broadhash consensus after sync…', {
           height: modules.blocks.lastBlock.get().height,
           limit: constants.maxPeers
         });
@@ -734,25 +974,15 @@ __private.sync = function (cb) {
       });
     },
     applyUnconfirmedList: function (seriesCb) {
-      return skipOnStop(seriesCb, function (next) {
-        library.logger.debug('loader', 'Applying unconfirmed transactions after sync', {
+      return skipOnStop(seriesCb, mutating(function (next) {
+        library.logger.debug('loader', 'Applying unconfirmed transactions after sync…', {
           height: modules.blocks.lastBlock.get().height
         });
         return modules.transactions.applyUnconfirmedList(next);
-      });
+      }));
     }
   }, function (err) {
-    __private.isActive = false;
-    __private.syncTrigger(false);
-    __private.blocksToSync = 0;
-
-    library.logger.info('loader', __private.stopRequested ? 'Sync stopped for shutdown' : 'Finished sync', {
-      height: modules.blocks.lastBlock.get().height,
-      stopped: __private.stopRequested,
-      error: err ? err.message || err : null
-    });
-    library.bus.message('syncFinished');
-    return setImmediate(cb, err);
+    return finishSync(err);
   });
 };
 
@@ -996,7 +1226,8 @@ Loader.prototype.onBind = function (scope) {
     rounds: scope.rounds,
     transport: scope.transport,
     multisignatures: scope.multisignatures,
-    system: scope.system
+    system: scope.system,
+    memCheckpoints: scope.memCheckpoints
   };
 
   __private.loadBlockChain();
@@ -1018,7 +1249,7 @@ Loader.prototype.onBlockchainReady = function () {
 Loader.prototype.cleanup = function (cb) {
   function waitForIdle () {
     if (__private.isActive) {
-      library.logger.info('loader', 'Waiting for loader to finish active sync/rebuild...');
+      library.logger.info('loader', 'Waiting for loader to finish active sync/rebuild…');
       return setTimeout(waitForIdle, 10000);
     }
 

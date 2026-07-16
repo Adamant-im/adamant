@@ -215,12 +215,14 @@ Example: `helpers/constants.js` warns that reward and supply changes must match 
 
 Always stop a running node with its graceful shutdown path, for example by pressing `Ctrl+C` in the foreground process or by sending a normal termination signal that the application can handle. Do not stop the node with `kill -9`, forced terminal/process termination, or any other uncatchable kill mechanism.
 
+After `Ctrl+C` / `SIGINT` / `SIGTERM`, shutdown is not always immediate. The node may log messages such as `Waiting for loader to finish active sync/rebuild…` or `Waiting for block processing to finish…` while it drains in-flight work safely. Wait until cleanup completes (for example `Cleaned up successfully`) before restarting, closing the terminal, or killing the process. Restarting too early can leave derived `mem_*` tables inconsistent and force a long rebuild on the next startup.
+
 The node keeps consensus-derived state in memory mirror tables such as `mem_accounts` and `mem_round`. A forced kill can interrupt block, transaction, or round writes and leave those tables inconsistent with the persisted `blocks` table. On the next startup this can appear as:
 
 ```text
 [WRN] loader Detected unapplied rounds in mem_round
-[WRN] loader Recreating memory tables
-[inf] loader Rebuilding blockchain, current block height: 1
+[WRN] loader Recreating memory tables…
+[inf] loader Rebuilding blockchain, current block height: 1…
 ```
 
 When this happens, do not apply ad hoc SQL fixes to `mem_*` tables. There is no generally safe, deterministic repair that can be guaranteed without either restoring a trusted database snapshot or allowing the node to replay/rebuild the derived memory state from the blockchain. Manual edits may hide the warning while leaving balances, vote weights, delegate round data, or unconfirmed-state mirrors wrong.
@@ -268,10 +270,18 @@ Commands and prerequisites:
   - `pg_isready -h localhost -p 5432`
   - `redis-cli -h 127.0.0.1 -p 6379 ping`
 - If services are installed but not running (macOS/Homebrew):
-  - `brew services start postgresql@14`
+  - `brew services start postgresql@18`
   - `brew services start redis`
 - If services are missing (macOS/Homebrew):
-  - `brew install postgresql@14 redis`
+  - `brew install postgresql@18 redis`
+  - `postgresql@18` is the current stable Homebrew versioned formula at the time of writing, not a hard `pg-native` requirement; an already running compatible PostgreSQL server is acceptable when `test/config.json` can connect to it.
+- Native PostgreSQL driver note:
+  - `pg-promise` enables `pg-native` by default unless `PG_NATIVE=false` is set.
+  - `pg-native` depends on the npm `libpq` addon, which must be compiled for the active Node.js ABI.
+  - On macOS/Homebrew, install `libpq` and rebuild from `node_modules/libpq` after changing Node.js versions; install `postgresql@18` only if you also need a local test server:
+    - `cd node_modules/libpq && PATH="/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/opt/node@22/bin:/opt/homebrew/bin:/opt/homebrew/opt/libpq/bin" CPPFLAGS="-I/opt/homebrew/opt/libpq/include" LDFLAGS="-L/opt/homebrew/opt/libpq/lib" PKG_CONFIG_PATH="/opt/homebrew/opt/libpq/lib/pkgconfig" node-gyp rebuild`
+  - Use the active supported Node.js major in that `PATH`; Node.js 22 is known to build `libpq@1.8.x`, while Node.js 26 requires a newer semver-compatible `libpq` addon such as `1.11.x`.
+  - If native bindings are unavailable and the change is unrelated to database driver behavior, `PG_NATIVE=false npm run ...` is an acceptable local fallback, but report that fallback explicitly.
 - Test DB/bootstrap defaults used by this repository (`test/config.json`):
   - PostgreSQL database: `adamant_test`
   - PostgreSQL user: `adamanttest`

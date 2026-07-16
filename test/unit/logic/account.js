@@ -109,6 +109,52 @@ describe('account', () => {
       });
     });
 
+    it('should publish changed balance fields after a successful merge', (done) => {
+      const clientWs = { emitBalanceChange: sinon.spy() };
+      account.scope.clientWs = clientWs;
+      diff.balance = 150;
+      diff.u_balance = -25;
+
+      account.merge(address, diff, (error) => {
+        expect(error).not.to.exist;
+        expect(clientWs.emitBalanceChange.calledOnce).to.equal(true);
+        expect(clientWs.emitBalanceChange.firstCall.args[0]).to.equal(address);
+        expect(clientWs.emitBalanceChange.firstCall.args[1]).to.deep.equal([
+          'balance',
+          'u_balance'
+        ]);
+        expect(clientWs.emitBalanceChange.firstCall.args[2]).to.be.a('function');
+        done();
+      });
+    });
+
+    it('should not publish balance fields when the database merge fails', (done) => {
+      const clientWs = { emitBalanceChange: sinon.spy() };
+      account.scope.clientWs = clientWs;
+      db.none = sinon.fake.returns(Promise.reject(new Error('database failed')));
+      diff.balance = 150;
+
+      account.merge(address, diff, (error) => {
+        expect(error).to.equal('Account#merge error');
+        expect(clientWs.emitBalanceChange.called).to.equal(false);
+        done();
+      });
+    });
+
+    it('should isolate balance event failures from account processing', (done) => {
+      account.scope.clientWs = {
+        emitBalanceChange: function () {
+          throw new Error('socket failed');
+        }
+      };
+      diff.balance = 150;
+
+      account.merge(address, diff, (error) => {
+        expect(error).not.to.exist;
+        done();
+      });
+    });
+
     it('should insert multiple complex objects', () => {
       diff.delegates = [
         { action: '+', value: delegate1 },
@@ -315,6 +361,42 @@ describe('account', () => {
       });
     });
 
+    it('should search by address list in uppercase', (done) => {
+      const address = validAccount.address;
+      const lowerAddress = nonExistingAccount.address.toLowerCase();
+
+      account.getAll({ address: { $in: [address, lowerAddress] } }, ['username'], () => {
+        const matched = db.query.calledWithMatch(
+            `select "username" from "mem_accounts" as "a" where upper("address") in ('${address}', '${nonExistingAccount.address}');`
+        );
+
+        expect(matched).to.be.true;
+        done();
+      });
+    });
+
+    it('should not drop an empty address list filter', (done) => {
+      account.getAll({ address: { $in: [] } }, ['username'], () => {
+        const matched = db.query.calledWithMatch(
+            'select "username" from "mem_accounts" as "a" where 1 = 0;'
+        );
+
+        expect(matched).to.be.true;
+        done();
+      });
+    });
+
+    it('should apply range filters before generic equality filters', (done) => {
+      account.getAll({ balance: { $gt: 0 }, isDelegate: 1 }, ['username'], () => {
+        const matched = db.query.calledWithMatch(
+            'select "username" from "mem_accounts" as "a" where "balance" > 0 and "isDelegate" = 1;'
+        );
+
+        expect(matched).to.be.true;
+        done();
+      });
+    });
+
     it('should filter out non existing fields', (done) => {
       const nonExistingFields = [
         'reward',
@@ -360,6 +442,60 @@ describe('account', () => {
             done();
           }
       );
+    });
+  });
+
+  describe('count()', () => {
+    it('should count all matching accounts', (done) => {
+      db.query = sinon.fake.returns(Promise.resolve([{ count: '7' }]));
+
+      account.count({ isDelegate: 1 }, (err, count) => {
+        expect(err).not.to.exist;
+        expect(count).to.equal(7);
+        expect(db.query.calledWith(
+            'select count(*) as "count" from "mem_accounts" as "a" where "isDelegate" = 1;'
+        )).to.be.true;
+        done();
+      });
+    });
+
+    it('should reuse uppercase address filtering', (done) => {
+      db.query = sinon.fake.returns(Promise.resolve([{ count: '1' }]));
+
+      account.count({ address: validAccount.address.toLowerCase() }, (err, count) => {
+        expect(err).not.to.exist;
+        expect(count).to.equal(1);
+        expect(db.query.calledWith(
+            `select count(*) as "count" from "mem_accounts" as "a" where upper("address") = '${validAccount.address}';`
+        )).to.be.true;
+        done();
+      });
+    });
+
+    it('should apply range filters when counting', (done) => {
+      db.query = sinon.fake.returns(Promise.resolve([{ count: '3' }]));
+
+      account.count({ balance: { $gt: 0 }, isDelegate: 1 }, (err, count) => {
+        expect(err).not.to.exist;
+        expect(count).to.equal(3);
+        expect(db.query.calledWith(
+            'select count(*) as "count" from "mem_accounts" as "a" where "balance" > 0 and "isDelegate" = 1;'
+        )).to.be.true;
+        done();
+      });
+    });
+
+    it('should strip pagination controls before counting', (done) => {
+      db.query = sinon.fake.returns(Promise.resolve([{ count: '7' }]));
+
+      account.count({ isDelegate: 1, sort: { balance: -1 }, limit: 10, offset: 5 }, (err, count) => {
+        expect(err).not.to.exist;
+        expect(count).to.equal(7);
+        expect(db.query.calledWith(
+            'select count(*) as "count" from "mem_accounts" as "a" where "isDelegate" = 1;'
+        )).to.be.true;
+        done();
+      });
     });
   });
 

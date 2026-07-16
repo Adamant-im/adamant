@@ -34,7 +34,10 @@ function Node (cb, scope) {
     bus: scope.bus,
     nonce: scope.nonce,
     build: scope.build,
-    logic: scope.logic,
+    logic: {
+      block: scope.logic.block,
+      consensus: scope.logic.consensus || scope.consensus
+    },
     lastCommit: scope.lastCommit,
     config: {
       peers: scope.config.peers,
@@ -106,6 +109,7 @@ Node.prototype.shared = {
    */
   getStatus: function (req, cb) {
     var lastBlock = modules.blocks.lastBlock.get();
+    var hasBlockHeight = Number.isFinite(lastBlock.height);
     var nodeTimestampMs = slots.getTimeMs();
     var wsClientOptions = {
       enabled: false
@@ -130,11 +134,20 @@ Node.prototype.shared = {
             broadhash: modules.system.getBroadhash(),
             epoch: constants.epochTime,
             height: lastBlock.height,
+            consensusCodeName: hasBlockHeight ? library.logic.consensus.getActiveCodeName(lastBlock.height) : null,
             fee: library.logic.block.calculateFee(),
             milestone: lastBlock.height ? __private.blockReward.calcMilestone(lastBlock.height) : undefined,
             nethash: modules.system.getNethash(),
             reward: lastBlock.height ? __private.blockReward.calcReward(lastBlock.height) : undefined,
             supply: lastBlock.height ? __private.blockReward.calcSupply(lastBlock.height) : undefined
+          },
+          consensusSchedule: {
+            activationHeights: library.logic.consensus.getActivationHeights()
+          },
+          milestoneSchedule: {
+            offset: constants.rewards.offset,
+            distance: constants.rewards.distance,
+            milestones: constants.rewards.milestones.slice()
           },
           version: {
             build: library.build,

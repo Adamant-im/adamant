@@ -22,13 +22,20 @@ var self, library, __private = {};
  * @param {Database} db
  * @param {ZSchema} schema
  * @param {object} logger
+ * @param {ClientWs} [clientWs] - Optional client WebSocket event publisher.
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} With `this` as data.
  */
-function Account (db, schema, logger, cb) {
+function Account (db, schema, logger, clientWs, cb) {
+  if (typeof clientWs === 'function') {
+    cb = clientWs;
+    clientWs = null;
+  }
+
   this.scope = {
     db: db,
-    schema: schema
+    schema: schema,
+    clientWs: clientWs
   };
 
   self = this;
@@ -419,6 +426,62 @@ function Account (db, schema, logger, cb) {
 }
 
 /**
+ * Applies the account address filter to a knex query and removes it from the
+ * remaining generic filter object.
+ * @private
+ * @param {object} query - Knex query builder for the `mem_accounts` table.
+ * @param {object} filter - Mutable account filter object.
+ * @return {object} The query builder with address conditions applied.
+ */
+__private.applyAddressFilter = function (query, filter) {
+  if (typeof filter.address === 'string') {
+    query = query.whereRaw('upper("address") = ?', [filter.address.toUpperCase()]);
+  } else if (filter.address && Array.isArray(filter.address.$in)) {
+    var addresses = filter.address.$in.map(function (address) {
+      return String(address).toUpperCase();
+    });
+
+    if (addresses.length) {
+      query = query.whereIn(knex.raw('upper("address")'), addresses);
+    } else {
+      query = query.whereRaw('1 = 0');
+    }
+  }
+  delete filter.address;
+
+  return query;
+};
+
+/**
+ * Applies supported comparison filters that cannot be expressed through a
+ * plain object equality predicate.
+ * @private
+ * @param {object} query - Knex query builder for the `mem_accounts` table.
+ * @param {object} filter - Mutable account filter object.
+ * @return {object} The query builder with range conditions applied.
+ */
+__private.applyRangeFilters = function (query, filter) {
+  if (filter.balance && typeof filter.balance === 'object' && filter.balance.$gt !== undefined) {
+    query = query.where('balance', '>', filter.balance.$gt);
+    delete filter.balance;
+  }
+
+  return query;
+};
+
+/**
+ * Removes pagination and sorting controls before passing filters to `where()`.
+ * @private
+ * @param {object} filter - Mutable account filter object.
+ * @return {void}
+ */
+__private.stripQueryControls = function (filter) {
+  delete filter.limit;
+  delete filter.offset;
+  delete filter.sort;
+};
+
+/**
  * Creates memory tables related to accounts:
  * - mem_accounts
  * - mem_round
@@ -559,12 +622,14 @@ Account.prototype.get = function (filter, fields, cb) {
 
 /**
  * Gets accounts information from mem_accounts.
- * @param {object} filter - Contains address.
- * @param {Object|function} fields - Table fields.
+ * @param {object} filter - Query conditions and optional pagination/sort controls.
+ * @param {object|function} fields - Table fields or callback function.
  * @param {function} cb - Callback function.
  * @return {setImmediateCallback} data with rows | 'Account#getAll error'.
  */
 Account.prototype.getAll = function (filter, fields, cb) {
+  filter = Object.assign({}, filter);
+
   if (typeof(fields) === 'function') {
     cb = fields;
     fields = this.fields.map(function (field) {
@@ -596,20 +661,16 @@ Account.prototype.getAll = function (filter, fields, cb) {
 
   let query = knex({ a: this.table }).select(realFields);
 
-  if (typeof filter.address === 'string') {
-    query = query.whereRaw('upper("address") = ?', [filter.address.toUpperCase()]);
-  }
-  delete filter.address;
+  query = __private.applyAddressFilter(query, filter);
+  query = __private.applyRangeFilters(query, filter);
 
   if (filter.limit > 0) {
     query = query.limit(filter.limit);
   }
-  delete filter.limit;
 
   if (filter.offset > 0) {
     query = query.offset(filter.offset);
   }
-  delete filter.offset;
 
   if (filter.sort) {
     const sort = Object.entries(filter.sort).map(([column, sort]) => ({
@@ -619,7 +680,8 @@ Account.prototype.getAll = function (filter, fields, cb) {
 
     query = query.orderBy(sort);
   }
-  delete filter.sort;
+
+  __private.stripQueryControls(filter);
 
   query = query.where(filter);
 
@@ -628,6 +690,29 @@ Account.prototype.getAll = function (filter, fields, cb) {
   }).catch(function (err) {
     library.logger.error('accounts', `An error occurred while trying to query mem_accounts table: ${err?.message || err}.`, err.stack);
     return setImmediate(cb, 'Account#getAll error');
+  });
+};
+
+/**
+ * Counts accounts matching filter criteria.
+ * @param {object} filter - Query conditions for `mem_accounts`.
+ * @param {function} cb - Callback function.
+ * @return {setImmediateCallback} Callback with the matching account count or 'Account#count error'.
+ */
+Account.prototype.count = function (filter, cb) {
+  filter = Object.assign({}, filter);
+
+  let query = knex({ a: this.table }).count('* as count');
+  query = __private.applyAddressFilter(query, filter);
+  query = __private.applyRangeFilters(query, filter);
+  __private.stripQueryControls(filter);
+  query = query.where(filter);
+
+  this.scope.db.query(query.toString() + ';').then(function (rows) {
+    return setImmediate(cb, null, Number(rows[0].count));
+  }).catch(function (err) {
+    library.logger.error('accounts', `An error occurred while trying to count mem_accounts rows: ${err?.message || err}.`, err.stack);
+    return setImmediate(cb, 'Account#count error');
   });
 };
 
@@ -672,6 +757,7 @@ Account.prototype.set = function (address, rawFields, cb) {
  */
 Account.prototype.merge = function (address, diff, cb) {
   var update = {}, remove = {}, insert = {}, insert_object = {}, remove_object = {}, round = [];
+  var account = this;
 
   // Verify public key
   this.verifyPublicKey(diff.publicKey);
@@ -896,6 +982,30 @@ Account.prototype.merge = function (address, diff, cb) {
   }
 
   this.scope.db.none(queries).then(function () {
+    const changedBalanceFields = ['balance', 'u_balance'].filter(function (field) {
+      return Object.prototype.hasOwnProperty.call(update, field);
+    });
+
+    if (
+      changedBalanceFields.length &&
+      account.scope.clientWs &&
+      typeof account.scope.clientWs.emitBalanceChange === 'function'
+    ) {
+      try {
+        account.scope.clientWs.emitBalanceChange(
+            address,
+            changedBalanceFields,
+            account.get.bind(account, { address: address }, ['address', 'balance', 'u_balance'])
+        );
+      } catch (err) {
+        library.logger.debug(
+            'ws-client-server',
+            `Unable to publish balance change for ${address}: ${err?.message || err}`,
+            err?.stack
+        );
+      }
+    }
+
     return done();
   }).catch(function (err) {
     library.logger.error('account', `An error occurred while trying to merge account data: ${err?.message || err}`, err.stack);

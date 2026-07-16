@@ -56,6 +56,42 @@ class Consensus {
   }
 
   /**
+   * Returns a copy of the effective consensus activation schedule.
+   * @return {object} Per-upgrade activation heights.
+   */
+  getActivationHeights () {
+    return { ...this.activationHeights };
+  }
+
+  /**
+   * Returns the latest consensus upgrade active at a block height.
+   * Uses the current blockchain height when `height` is omitted.
+   * @param {number} [height] - Block height to check.
+   * @return {?string} Active upgrade code name, or null before the first activation.
+   */
+  getActiveCodeName (height) {
+    if (height !== undefined && typeof height !== 'number') {
+      throw new Error(`Expected height to be a number but got ${typeof height}`);
+    }
+
+    const currentHeight = height === undefined ? this.getCurrentHeight() : height;
+    let activeCodeName = null;
+    let activeHeight = -Infinity;
+
+    Object.entries(this.activationHeights).forEach(([codeName, activationHeight]) => {
+      const isLaterActivation = activationHeight > activeHeight;
+      const isDeterministicTieBreak = activationHeight === activeHeight && codeName > activeCodeName;
+
+      if (activationHeight <= currentHeight && (isLaterActivation || isDeterministicTieBreak)) {
+        activeCodeName = codeName;
+        activeHeight = activationHeight;
+      }
+    });
+
+    return activeCodeName;
+  }
+
+  /**
    * Checks if a given consensus upgrade is activated based on a block height.
    * Uses the current blockchain height when `height` is omitted.
    * @param {string} codeName - The name of the consensus upgrade

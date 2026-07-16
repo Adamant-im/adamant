@@ -11,6 +11,7 @@ var exceptions = require('../../helpers/exceptions.js');
 var modules, library, self, __private = {};
 
 __private.blockReward = new BlockReward();
+__private.CLOCK_SYNC_HINT = 'Verify local system time is synchronized with world time (NTP).';
 
 function Verify (logger, block, transaction, db) {
   library = {
@@ -37,10 +38,13 @@ function Verify (logger, block, transaction, db) {
  * @param  {object}   block Block object
  * @param  {object}   transaction Transaction object
  * @param  {Function} cb Callback function
+ * @param  {Function} [shouldStop] Optional predicate; when it returns true the
+ *   fork-2 unconfirmed-pool write is skipped so an aborted sync run performs no
+ *   pre-apply state mutation.
  * @return {Function} cb Callback function from params (through setImmediate)
  * @return {object}   cb.err Error if occurred
  */
-__private.checkTransaction = function (block, transaction, cb) {
+__private.checkTransaction = function (block, transaction, cb, shouldStop) {
   async.waterfall([
     function (waterCb) {
       try {
@@ -61,6 +65,14 @@ __private.checkTransaction = function (block, transaction, cb) {
         if (err) {
           // Fork: Transaction already confirmed.
           modules.delegates.fork(block, 2);
+
+          if (shouldStop && shouldStop()) {
+            // Sync aborted: do not mutate the volatile unconfirmed pool. The
+            // block is rejected anyway and the pool is rebuilt on the next run.
+            library.logger.debug('blocks', 'Skipping unconfirmed undo: sync aborted', { id: transaction.id });
+            return setImmediate(waterCb, err);
+          }
+
           // Undo the offending transaction.
           // DATABASE: write
           modules.transactions.undoUnconfirmed(transaction, function (err2) {
@@ -318,12 +330,49 @@ __private.verifyForkOne = function (block, lastBlock, result) {
 __private.verifyBlockSlot = function (block, lastBlock, result) {
   var blockSlotNumber = slots.getSlotNumber(block.timestamp);
   var lastBlockSlotNumber = slots.getSlotNumber(lastBlock.timestamp);
+  var currentSlotNumber = slots.getSlotNumber();
 
-  if (blockSlotNumber > slots.getSlotNumber() || blockSlotNumber <= lastBlockSlotNumber) {
-    result.errors.push('Invalid block timestamp');
+  if (blockSlotNumber > currentSlotNumber) {
+    result.errors.push([
+      'Invalid block timestamp: block slot is in the future',
+      '(block slot', blockSlotNumber + ', current slot', currentSlotNumber + ').',
+      __private.CLOCK_SYNC_HINT
+    ].join(' '));
+  }
+
+  if (blockSlotNumber <= lastBlockSlotNumber) {
+    result.errors.push([
+      'Invalid block timestamp: block slot is in the past relative to the chain tip',
+      '(block slot', blockSlotNumber + ', last block slot', lastBlockSlotNumber + ').',
+      __private.CLOCK_SYNC_HINT
+    ].join(' '));
   }
 
   return result;
+};
+
+/**
+ * Logs block verification failure at warn level only when every error is a
+ * slot/timestamp issue (typically a local clock skew), otherwise at error level.
+ * A block that mixes a timestamp error with signature/id/reward/payload failures
+ * stays at error level so security and peer-abuse signals are not softened.
+ * @private
+ * @param {string} loggerModule
+ * @param {object} block
+ * @param {object} check
+ */
+__private.logBlockVerificationFailure = function (loggerModule, block, check) {
+  var message = ['Block', block.id, 'verification failed'].join(' ');
+  var details = check.errors.join(', ');
+  var onlyTimestampIssues = check.errors.length > 0 && check.errors.every(function (error) {
+    return String(error).indexOf('Invalid block timestamp:') === 0;
+  });
+
+  if (onlyTimestampIssues) {
+    library.logger.warn(loggerModule, message + ' ' + details);
+  } else {
+    library.logger.error(loggerModule, message, details);
+  }
 };
 
 /**
@@ -354,6 +403,18 @@ Verify.prototype.verifyReceipt = function (block) {
   result.errors.reverse();
 
   return result;
+};
+
+/**
+ * Logs block verification failure at warn level for slot/timestamp issues,
+ * otherwise at error level.
+ * @public
+ * @param {string} loggerModule
+ * @param {object} block
+ * @param {object} check
+ */
+Verify.prototype.logVerificationFailure = function (loggerModule, block, check) {
+  __private.logBlockVerificationFailure(loggerModule, block, check);
 };
 
 /**
@@ -402,10 +463,14 @@ Verify.prototype.verifyBlock = function (block) {
  * @param  {boolean}  broadcast Indicator that block needs to be broadcasted
  * @param  {Function} cb Callback function
  * @param  {boolean}  saveBlock Indicator that block needs to be saved to database
+ * @param  {Function} [shouldStop] Optional predicate; when it returns true the
+ *   block is verified but not applied. Used by the loader so a sync run that was
+ *   aborted (e.g. by the stall watchdog) can never apply a block, regardless of
+ *   where it was parked when the abort happened.
  * @return {Function} cb Callback function from params (through setImmediate)
  * @return {object}   cb.err Error if occurred
  */
-Verify.prototype.processBlock = function (block, broadcast, cb, saveBlock) {
+Verify.prototype.processBlock = function (block, broadcast, cb, saveBlock, shouldStop) {
   if (modules.blocks.isCleaning.get()) {
     // Break processing if node shutdown requested
     return setImmediate(cb, 'Cleaning up');
@@ -430,7 +495,7 @@ Verify.prototype.processBlock = function (block, broadcast, cb, saveBlock) {
       var check = self.verifyBlock(block);
 
       if (!check.verified) {
-        library.logger.error('blocks', ['Block', block.id, 'verification failed'].join(' '), check.errors.join(', '));
+        __private.logBlockVerificationFailure('blocks', block, check);
         return setImmediate(seriesCb, check.errors[0]);
       }
 
@@ -446,6 +511,11 @@ Verify.prototype.processBlock = function (block, broadcast, cb, saveBlock) {
         } else {
           return setImmediate(seriesCb);
         }
+      }).catch(function (err) {
+        // Without this handler a rejected query never resolves the series step,
+        // which silently stalls block processing (and can wedge the sync loader).
+        library.logger.error('blocks', `Failed to check block existence for ${block.id}: ${err?.message || err}`, err && err.stack);
+        return setImmediate(seriesCb, 'Blocks#checkExists error');
       });
     },
     validateBlockSlot: function (seriesCb) {
@@ -464,7 +534,7 @@ Verify.prototype.processBlock = function (block, broadcast, cb, saveBlock) {
     checkTransactions: function (seriesCb) {
       // Check against the mem_* tables that we can perform the transactions included in the block
       async.eachSeries(block.transactions, function (transaction, eachSeriesCb) {
-        __private.checkTransaction(block, transaction, eachSeriesCb);
+        __private.checkTransaction(block, transaction, eachSeriesCb, shouldStop);
       }, function (err) {
         return setImmediate(seriesCb, err);
       });
@@ -472,6 +542,13 @@ Verify.prototype.processBlock = function (block, broadcast, cb, saveBlock) {
   }, function (err) {
     if (err) {
       return setImmediate(cb, err);
+    } else if (shouldStop && shouldStop()) {
+      // The sync run owning this block was aborted (e.g. by the loader stall
+      // watchdog) while the block was being verified. Stop here, before the only
+      // state mutation: applyBlock() writes mem/account/round state outside
+      // library.sequence, so applying now could race a freshly started run.
+      library.logger.debug('blocks', 'Skipping block application: sync aborted before apply', { id: block.id });
+      return setImmediate(cb, 'Sync aborted before applying block');
     } else {
       // The block and the transactions are OK i.e:
       // * Block and transactions have valid values (signatures, block slots, etc...)

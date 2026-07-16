@@ -1,16 +1,19 @@
 'use strict';
 
 const { expect } = require('chai');
+const sinon = require('sinon');
 
 const { modulesLoader } = require('../../common/initModule.js');
 const {
   testAccount,
+  nonExistingAccount,
   invalidPublicKey,
   invalidAddress
 } = require('../../common/stubs/account.js');
 
 const constants = require('../../../helpers/constants.js');
 const Delegates = require('../../../modules/delegates.js');
+const slots = require('../../../helpers/slots.js');
 
 const aDelegate = testAccount;
 
@@ -91,8 +94,28 @@ describe('delegates', function () {
       delegates.getDelegates({}, {}, (err, response) => {
         expect(response.delegates).to.be.an('array');
         expect(response.count).to.greaterThanOrEqual(101);
+        expect(response.delegates[0].forged).to.be.a('string').and.match(/^\d+$/);
+        expect(response.delegates[0]).not.to.have.property('fees');
+        expect(response.delegates[0]).not.to.have.property('rewards');
         expect(err).not.to.exist;
         done();
+      });
+    });
+
+    it('should return the same lifetime forged amount as forging statistics', (done) => {
+      delegates.getDelegates({}, {}, (err, response) => {
+        expect(err).not.to.exist;
+
+        const delegate = response.delegates.find(({ publicKey }) => publicKey === validGeneratorPubicKey);
+        expect(delegate).to.exist;
+
+        delegates.shared.getForgedByAccount({
+          body: { generatorPublicKey: delegate.publicKey }
+        }, (err, forgedStats) => {
+          expect(err).not.to.exist;
+          expect(delegate.forged).to.equal(forgedStats.forged);
+          done();
+        });
       });
     });
   });
@@ -137,6 +160,7 @@ describe('delegates', function () {
           expect(delegate.username).to.equal(aDelegate.username);
           expect(delegate.publicKey).to.equal(aDelegate.publicKey);
           expect(delegate.address).to.equal(aDelegate.address);
+          expect(delegate.forged).to.be.a('string').and.match(/^\d+$/);
 
           done();
         });
@@ -158,21 +182,62 @@ describe('delegates', function () {
         });
       });
 
-      // it('should find delegate matching the address', (done) => {
-      //   const body = { address: aDelegate.address }
-      //   delegates.shared.getDelegate({ body }, (err, response) => {
-      //     expect(err).not.to.exist;
-      //     expect(response).to.have.property('delegate');
+      it('should find delegate matching the address', (done) => {
+        const body = { address: aDelegate.address };
+        delegates.shared.getDelegate({ body }, (err, response) => {
+          expect(err).not.to.exist;
+          expect(response).to.have.property('delegate');
 
-      //     const { delegate } = response;
+          const { delegate } = response;
 
-      //     expect(delegate.username).to.equal(aDelegate.username);
-      //     expect(delegate.publicKey).to.equal(aDelegate.publicKey);
-      //     expect(delegate.address).to.equal(aDelegate.address);
+          expect(delegate.username).to.equal(aDelegate.username);
+          expect(delegate.publicKey).to.equal(aDelegate.publicKey);
+          expect(delegate.address).to.equal(aDelegate.address);
 
-      //     done();
-      //   });
-      // });
+          done();
+        });
+      });
+
+      it('should reject mismatched public key and address criteria', (done) => {
+        const body = {
+          publicKey: aDelegate.publicKey,
+          address: nonExistingAccount.address
+        };
+
+        delegates.shared.getDelegate({ body }, (err, response) => {
+          expect(response).not.to.exist;
+          expect(err).to.equal('Delegate publicKey does not match address');
+          done();
+        });
+      });
+
+      it('should report the real rank and rate, computed over the full delegate list', (done) => {
+        // Take a delegate that is not ranked first from the full ordered list.
+        delegates.getDelegates({}, {}, (err, response) => {
+          expect(err).not.to.exist;
+          expect(response.delegates).to.be.an('array').that.has.length.above(1);
+
+          const expectedDelegate = response.delegates[response.delegates.length - 1];
+          expect(expectedDelegate.rank).to.be.above(1);
+
+          const body = { publicKey: expectedDelegate.publicKey };
+          delegates.shared.getDelegate({ body }, (err, single) => {
+            expect(err).not.to.exist;
+            expect(single).to.have.property('delegate');
+
+            const { delegate } = single;
+
+            // Regression: rank/rate were always 1 because ranking was computed
+            // over a single pre-filtered row instead of the full delegate list.
+            expect(delegate.rank).to.equal(expectedDelegate.rank);
+            expect(delegate.rank).to.be.above(1);
+            // `rate` is a deprecated alias of `rank` and must keep matching it.
+            expect(delegate.rate).to.equal(delegate.rank);
+
+            done();
+          });
+        });
+      });
     });
 
     describe('getNextForgers', () => {
@@ -202,6 +267,102 @@ describe('delegates', function () {
         delegates.shared.getNextForgers({ body }, (err, response) => {
           expect(err).not.to.exist;
           expect(response.delegates.length).to.equal(1);
+          done();
+        });
+      });
+
+      it('should reject the request when the current block height is unavailable', (done) => {
+        modules.blocks.lastBlock.set({});
+        const generateDelegateListSpy = sinon.spy(delegates, 'generateDelegateList');
+
+        delegates.shared.getNextForgers({ body: {} }, (err, response) => {
+          generateDelegateListSpy.restore();
+          modules.blocks.lastBlock.set(dummyBlock);
+
+          try {
+            expect(response).not.to.exist;
+            expect(err).to.equal('Blockchain is loading');
+            expect(generateDelegateListSpy.called).to.be.false;
+            done();
+          } catch (assertionError) {
+            done(assertionError);
+          }
+        });
+      });
+
+      it('should use the next block round schedule for every returned slot at a round boundary', (done) => {
+        const roundBoundaryBlock = {
+          ...dummyBlock,
+          height: constants.activeDelegates
+        };
+        const nextBlockHeight = roundBoundaryBlock.height + 1;
+        const currentSlot = 42;
+
+        delegates.generateDelegateList(nextBlockHeight, (err, nextRoundDelegates) => {
+          if (err) {
+            return done(err);
+          }
+
+          modules.blocks.lastBlock.set(roundBoundaryBlock);
+
+          const originalGetSlotNumber = slots.getSlotNumber;
+          const getSlotNumberStub = sinon.stub(slots, 'getSlotNumber').callsFake((timestamp) => {
+            return timestamp === undefined
+              ? currentSlot
+              : originalGetSlotNumber.call(slots, timestamp);
+          });
+          const generateDelegateListSpy = sinon.spy(delegates, 'generateDelegateList');
+
+          delegates.shared.getNextForgers({
+            body: { limit: constants.activeDelegates }
+          }, (err, response) => {
+            generateDelegateListSpy.restore();
+            getSlotNumberStub.restore();
+            modules.blocks.lastBlock.set(dummyBlock);
+
+            try {
+              expect(err).not.to.exist;
+              expect(generateDelegateListSpy.calledOnceWith(nextBlockHeight)).to.be.true;
+
+              const expectedDelegates = Array.from(
+                  { length: constants.activeDelegates },
+                  (_, index) => nextRoundDelegates[(currentSlot + index + 1) % slots.delegates]
+              );
+
+              expect(response.delegates).to.eql(expectedDelegates);
+              done();
+            } catch (assertionError) {
+              done(assertionError);
+            }
+          });
+        });
+      });
+
+      it('should reject a non-integer limit', (done) => {
+        const body = { limit: 'abc' };
+        delegates.shared.getNextForgers({ body }, (err, response) => {
+          expect(response).not.to.exist;
+          expect(err).to.equal('Expected type integer but found type string');
+          done();
+        });
+      });
+
+      it('should reject a zero limit', (done) => {
+        const body = { limit: 0 };
+        delegates.shared.getNextForgers({ body }, (err, response) => {
+          expect(response).not.to.exist;
+          expect(err).to.equal('Value 0 is less than minimum 1');
+          done();
+        });
+      });
+
+      it('should reject a limit above the active delegate count', (done) => {
+        const body = { limit: constants.activeDelegates + 1 };
+        delegates.shared.getNextForgers({ body }, (err, response) => {
+          expect(response).not.to.exist;
+          expect(err).to.equal(
+              `Value ${constants.activeDelegates + 1} is greater than maximum ${constants.activeDelegates}`
+          );
           done();
         });
       });
@@ -297,6 +458,15 @@ describe('delegates', function () {
             return Number(array[index].balance) <= Number(array[index - 1].balance);
           });
           expect(isSorted).to.be.true;
+          done();
+        });
+      });
+
+      it('should return an empty list when a valid public key has no voters', (done) => {
+        const body = { publicKey: nonExistingAccount.publicKey };
+        delegates.shared.getVoters({ body }, (err, response) => {
+          expect(err).not.to.exist;
+          expect(response).to.have.property('accounts').that.is.an('array').that.is.empty;
           done();
         });
       });

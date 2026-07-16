@@ -22,14 +22,16 @@ var modules, library, self, __private = {};
  * @param {object} genesisblock
  * @param {bus} bus
  * @param {Sequence} balancesSequence
+ * @param {ClientWs} clientWs - Client WebSocket event publisher
  */
-function Chain (logger, block, transaction, db, genesisblock, bus, balancesSequence) {
+function Chain (logger, block, transaction, db, genesisblock, bus, balancesSequence, clientWs) {
   library = {
     logger: logger,
     db: db,
     genesisblock: genesisblock,
     bus: bus,
     balancesSequence: balancesSequence,
+    clientWs: clientWs,
     logic: {
       block: block,
       transaction: transaction
@@ -89,15 +91,9 @@ Chain.prototype.saveBlock = function (block, cb) {
     // Initialize insert helper
     var inserts = new Inserts(promise, promise.values);
 
-    var promises = [
-      // Prepare insert SQL query
-      t.none(inserts.template(), promise.values)
-    ];
-
-    // Apply transactions inserts
-    t = __private.promiseTransactions(t, block, promises);
-    // Exec inserts as batch
-    t.batch(promises);
+    return t.none(inserts.template(), promise.values).then(function () {
+      return __private.promiseTransactions(t, block);
+    });
   }).then(function () {
     // Execute afterSave for transactions
     return __private.afterSave(block, cb);
@@ -137,13 +133,12 @@ __private.afterSave = function (block, cb) {
  * @method promiseTransactions
  * @param  {object} t SQL connection object
  * @param  {object} block Full normalized block
- * @param  {object} blockPromises Not used
- * @return {object} t SQL connection object filled with inserts
+ * @return {Promise<void>}
  * @throws Will throw 'Invalid promise' when no promise, promise.values or promise.table
  */
-__private.promiseTransactions = function (t, block, blockPromises) {
+__private.promiseTransactions = function (t, block) {
   if (_.isEmpty(block.transactions)) {
-    return t;
+    return Promise.resolve();
   }
 
   var transactionIterator = function (transaction) {
@@ -176,14 +171,17 @@ __private.promiseTransactions = function (t, block, blockPromises) {
 
     // Initialize insert helper
     var inserts = new Inserts(type[0], values, true);
-    // Prepare insert SQL query
-    t.none(inserts.template(), inserts);
+    // Prepare insert SQL query sequentially on the same pg client.
+    return t.none(inserts.template(), inserts);
   };
 
   var promises = _.flatMap(block.transactions, transactionIterator);
-  _.each(_.groupBy(promises, promiseGrouper), typeIterator);
 
-  return t;
+  return _.toArray(_.groupBy(promises, promiseGrouper)).reduce(function (chain, type) {
+    return chain.then(function () {
+      return typeIterator(type);
+    });
+  }, Promise.resolve());
 };
 
 /**
@@ -339,6 +337,24 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
   // Prevent shutdown during database writes.
   modules.blocks.isActive.set(true);
 
+  var balanceBatchStarted = false;
+  if (
+    library.clientWs &&
+    typeof library.clientWs.beginBalanceBatch === 'function' &&
+    typeof library.clientWs.endBalanceBatch === 'function'
+  ) {
+    try {
+      library.clientWs.beginBalanceBatch();
+      balanceBatchStarted = true;
+    } catch (batchErr) {
+      library.logger.debug(
+          'ws-client-server',
+          `Unable to begin balance event batch: ${batchErr?.message || batchErr}`,
+          batchErr?.stack
+      );
+    }
+  }
+
   // Transactions to rewind in case of error.
   var appliedTransactions = {};
 
@@ -482,21 +498,65 @@ Chain.prototype.applyBlock = function (block, broadcast, cb, saveBlock) {
       });
     }
   }, function (err) {
-    // Allow shutdown, database writes are finished.
-    modules.blocks.isActive.set(false);
+    function finalize (err) {
+      if (balanceBatchStarted) {
+        try {
+          library.clientWs.endBalanceBatch(!err && Boolean(saveBlock));
+        } catch (batchErr) {
+          library.logger.debug(
+              'ws-client-server',
+              `Unable to finish balance event batch: ${batchErr?.message || batchErr}`,
+              batchErr?.stack
+          );
+        }
+      }
 
-    // Nullify large objects.
-    // Prevents memory leak during synchronization.
-    appliedTransactions = unconfirmedTransactionIds = block = null;
+      if (
+        !err &&
+        saveBlock &&
+        library.clientWs &&
+        typeof library.clientWs.emitBlock === 'function'
+      ) {
+        try {
+          library.clientWs.emitBlock(block);
+        } catch (emitErr) {
+          library.logger.debug(
+              'ws-client-server',
+              `Unable to publish block ${block.id}: ${emitErr?.message || emitErr}`,
+              emitErr?.stack
+          );
+        }
+      }
 
-    // Finish here if snapshotting.
-    // FIXME: Not the best place to do that
-    if (err === 'Snapshot finished') {
-      library.logger.info('snapshot', err);
-      process.emit('SIGTERM');
+      // Allow shutdown, database writes are finished.
+      modules.blocks.isActive.set(false);
+
+      // Nullify large objects.
+      // Prevents memory leak during synchronization.
+      appliedTransactions = unconfirmedTransactionIds = block = null;
+
+      // Finish here if snapshotting.
+      // FIXME: Not the best place to do that
+      if (err === 'Snapshot finished') {
+        library.logger.info('snapshot', err);
+        process.emit('SIGTERM');
+      }
+
+      return setImmediate(cb, err);
     }
 
-    return setImmediate(cb, err);
+    if (!err && saveBlock && modules.memCheckpoints) {
+      // Checkpoint on completed round boundaries, after the full applyBlock pipeline.
+      // onBlockApplied holds the block-processing critical section only until the
+      // checkpoint transaction has pinned its MVCC snapshot to this block; the table
+      // copy then runs in the background against that frozen (REPEATABLE READ)
+      // snapshot, so it can neither capture a later block nor stall block production.
+      return modules.memCheckpoints.onBlockApplied(block, true, function () {
+        return finalize(err);
+      });
+    }
+
+    return finalize(err);
   });
 };
 
@@ -600,8 +660,38 @@ Chain.prototype.deleteLastBlock = function (cb) {
     return setImmediate(cb, 'Cannot delete genesis block');
   }
 
+  var balanceBatchStarted = false;
+  if (
+    library.clientWs &&
+    typeof library.clientWs.beginBalanceBatch === 'function' &&
+    typeof library.clientWs.endBalanceBatch === 'function'
+  ) {
+    try {
+      library.clientWs.beginBalanceBatch();
+      balanceBatchStarted = true;
+    } catch (batchErr) {
+      library.logger.debug(
+          'ws-client-server',
+          `Unable to begin rollback balance event batch: ${batchErr?.message || batchErr}`,
+          batchErr?.stack
+      );
+    }
+  }
+
   // Delete last block, replace last block with previous block, undo things
   __private.popLastBlock(lastBlock, function (err, newLastBlock) {
+    if (balanceBatchStarted) {
+      try {
+        library.clientWs.endBalanceBatch(!err);
+      } catch (batchErr) {
+        library.logger.debug(
+            'ws-client-server',
+            `Unable to finish rollback balance event batch: ${batchErr?.message || batchErr}`,
+            batchErr?.stack
+        );
+      }
+    }
+
     if (err) {
       library.logger.error('blocks', 'An error occurred while deleting last block', lastBlock);
     } else {
@@ -657,7 +747,8 @@ Chain.prototype.onBind = function (scope) {
     accounts: scope.accounts,
     blocks: scope.blocks,
     rounds: scope.rounds,
-    transactions: scope.transactions
+    transactions: scope.transactions,
+    memCheckpoints: scope.memCheckpoints
   };
 
   // Set module as loaded

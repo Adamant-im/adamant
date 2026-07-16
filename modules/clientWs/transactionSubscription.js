@@ -8,6 +8,7 @@ const {
 const transactionTypes = require('../../helpers/transactionTypes');
 
 const validator = new ZSchema({ noEmptyStrings: true });
+const BALANCE_FIELDS = new Set(['balance', 'unconfirmedBalance']);
 
 class TransactionSubscription {
   constructor (socket) {
@@ -31,6 +32,18 @@ class TransactionSubscription {
      * @type {Set<number>}
      */
     this.assetChatTypes = new Set();
+
+    /**
+     * Public account balance fields to include in change events
+     * @type {Set<string>}
+     */
+    this.balanceFields = new Set();
+
+    /**
+     * Whether the socket receives new block headers
+     * @type {boolean}
+     */
+    this.blocks = false;
   }
 
   /**
@@ -132,6 +145,50 @@ class TransactionSubscription {
     });
 
     return subscribed;
+  }
+
+  /**
+   * Subscribes to supported public account balance fields.
+   * @param {...string} fields - Public account fields to subscribe to
+   * @return {boolean} Whether at least one supported field was subscribed
+   */
+  subscribeToBalances (...fields) {
+    let subscribed = false;
+
+    fields.forEach((field) => {
+      if (BALANCE_FIELDS.has(field)) {
+        this.balanceFields.add(field);
+        subscribed = true;
+      }
+    });
+
+    return subscribed;
+  }
+
+  /**
+   * Enables or disables new block events for this socket.
+   * @param {boolean} enabled - Desired block subscription state
+   * @return {boolean} Whether the supplied state was valid
+   */
+  subscribeToBlocks (enabled) {
+    if (typeof enabled !== 'boolean') {
+      return false;
+    }
+
+    this.blocks = enabled;
+    return true;
+  }
+
+  /**
+   * Checks whether this socket has any active client WebSocket subscription.
+   * @return {boolean} Whether at least one subscription is active
+   */
+  hasSubscriptions () {
+    return this.addresses.size > 0 ||
+      this.types.size > 0 ||
+      this.assetChatTypes.size > 0 ||
+      this.balanceFields.size > 0 ||
+      this.blocks;
   }
 
   /**

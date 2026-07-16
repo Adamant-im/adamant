@@ -116,6 +116,32 @@ describe('blocks process', function () {
     expect(sequence.add.calledOnce).to.equal(true);
   });
 
+  it('should not queue live blocks before the node is ready to sync', function () {
+    loader.isReadyToSync.returns(false);
+
+    process.onReceiveBlock({ id: '2' });
+
+    expect(sequence.add.called).to.equal(false);
+    expect(logger.debug.calledWith(
+        'loader',
+        'Client not yet ready to receive block',
+        '2'
+    )).to.equal(true);
+  });
+
+  it('should not queue live blocks while a round is ticking', function () {
+    rounds.ticking.returns(true);
+
+    process.onReceiveBlock({ id: '2' });
+
+    expect(sequence.add.called).to.equal(false);
+    expect(logger.debug.calledWith(
+        'loader',
+        'Client not yet ready to receive block',
+        '2'
+    )).to.equal(true);
+  });
+
   it('should stop loadBlocksOffset before applying the next block', function (done) {
     process.loadBlocksOffset(1, 0, true, function (err, result) {
       expect(err).to.equal(null);
@@ -153,5 +179,17 @@ describe('blocks process', function () {
       )).to.equal(true);
       done();
     });
+  });
+
+  it('should forward the shouldStop predicate to verify.processBlock', function (done) {
+    blocks.verify.processBlock = sinon.stub().callsArgWith(2, null);
+    const shouldStop = function () { return false; };
+
+    process.loadBlocksFromPeer({ ip: '127.0.0.1', port: 36667 }, function () {
+      expect(blocks.verify.processBlock.calledOnce).to.equal(true);
+      // processBlock(block, broadcast, cb, saveBlock, shouldStop)
+      expect(blocks.verify.processBlock.firstCall.args[4]).to.equal(shouldStop);
+      done();
+    }, shouldStop);
   });
 });

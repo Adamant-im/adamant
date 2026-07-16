@@ -15,6 +15,81 @@ var modules, library, self, __private = {}, shared = {};
 
 __private.assetTypes = {};
 __private.blockReward = new BlockReward();
+__private.topDefaultLimit = 100;
+__private.topMaxLimit = 100;
+
+/**
+ * Parses a bounded integer query parameter.
+ * @private
+ * @param {object} query - API query parameters.
+ * @param {string} field - Field name to parse.
+ * @param {number|undefined} defaultValue - Value to use when the field is absent.
+ * @param {number} minimum - Inclusive minimum value.
+ * @param {number} maximum - Inclusive maximum value.
+ * @return {object} Parsed value or an error message.
+ */
+__private.parseTopInteger = function (query, field, defaultValue, minimum, maximum) {
+  var raw = query[field];
+
+  if (raw === undefined) {
+    return { value: defaultValue };
+  }
+
+  var value = Number(raw);
+
+  if (raw === '' || !Number.isInteger(value)) {
+    return { error: 'Invalid ' + field + ': expected an integer value' };
+  }
+  if (value < minimum) {
+    return { error: 'Invalid ' + field + ': value must be at least ' + minimum };
+  }
+  if (value > maximum) {
+    return { error: 'Invalid ' + field + ': value must be at most ' + maximum };
+  }
+
+  return { value: value };
+};
+
+/**
+ * Normalizes `/api/accounts/top` query parameters into explicit database
+ * filters and pagination values.
+ * @private
+ * @param {object} query - API query parameters after schema validation.
+ * @return {object} Normalized filter, limit, and offset values or an error message.
+ */
+__private.normalizeTopQuery = function (query) {
+  query = query || {};
+
+  var limit = __private.parseTopInteger(query, 'limit', __private.topDefaultLimit, 0, __private.topMaxLimit);
+  var offset = __private.parseTopInteger(query, 'offset', 0, 0, Number.MAX_SAFE_INTEGER);
+  var isDelegate = __private.parseTopInteger(query, 'isDelegate', undefined, 0, 1);
+  var filter = {};
+
+  if (limit.error) {
+    return { error: limit.error };
+  }
+  if (offset.error) {
+    return { error: offset.error };
+  }
+  if (isDelegate.error) {
+    return { error: isDelegate.error };
+  }
+
+  // Keep this whitelist explicit so public query parameters cannot become
+  // arbitrary `mem_accounts` WHERE predicates.
+  if (isDelegate.value === 0 || isDelegate.value === 1) {
+    filter.isDelegate = isDelegate.value;
+  }
+
+  // Rich-list results and counts should ignore empty accounts.
+  filter.balance = { $gt: 0 };
+
+  return {
+    filter: filter,
+    limit: limit.value,
+    offset: offset.value
+  };
+};
 
 /**
  * Initializes library with scope content and generates a Vote instance.
@@ -143,12 +218,23 @@ Accounts.prototype.getAccount = function (filter, fields, cb) {
 /**
  * Gets accounts information, calls logic.account.getAll().
  * @implements module:accounts#Account~getAll
- * @param {object} filter
- * @param {object} fields
+ * @param {object} filter - Query conditions and optional pagination/sort controls.
+ * @param {object} fields - Account fields to return.
  * @param {function} cb - Callback function.
+ * @return {void}
  */
 Accounts.prototype.getAccounts = function (filter, fields, cb) {
   library.logic.account.getAll(filter, fields, cb);
+};
+
+/**
+ * Counts accounts matching filter criteria.
+ * @param {object} filter - Query conditions for `mem_accounts`.
+ * @param {function} cb - Callback function.
+ * @return {void}
+ */
+Accounts.prototype.countAccounts = function (filter, cb) {
+  library.logic.account.count(filter, cb);
 };
 
 /**
@@ -347,6 +433,10 @@ Accounts.prototype.shared = {
 
         if (account.delegates) {
           modules.delegates.getDelegates(req.body, {}, function (err, res) {
+            if (err) {
+              return setImmediate(cb, err);
+            }
+
             var delegates = res.delegates.filter(function (delegate) {
               return account.delegates.indexOf(delegate.publicKey) !== -1;
             });
@@ -471,27 +561,67 @@ Accounts.prototype.internal = {
     return setImmediate(cb, null, { success: true, count: Object.keys(__private.accounts).length });
   },
 
+  /**
+   * Gets richest accounts with bounded pagination and optional filters.
+   * @param {object} query - Sanitized API query parameters.
+   * @param {function} cb - Callback function.
+   * @return {setImmediateCallback} Callback with accounts, count, limit, and offset.
+   */
   top: function (query, cb) {
-    self.getAccounts({
-      sort: {
-        balance: -1
-      },
-      offset: query.offset,
-      limit: (query.limit || 100)
-    }, function (err, raw) {
+    var normalized = __private.normalizeTopQuery(query);
+
+    if (normalized.error) {
+      return setImmediate(cb, normalized.error);
+    }
+
+    self.countAccounts(normalized.filter, function (err, count) {
       if (err) {
         return setImmediate(cb, err);
       }
 
-      var accounts = raw.map(function (account) {
-        return {
-          address: account.address,
-          balance: account.balance,
-          publicKey: account.publicKey
-        };
-      });
+      // `limit=0` lets clients fetch only pagination metadata without relying
+      // on an unbounded account query.
+      if (normalized.limit === 0) {
+        return setImmediate(cb, null, {
+          success: true,
+          accounts: [],
+          count: count,
+          limit: normalized.limit,
+          offset: normalized.offset
+        });
+      }
 
-      return setImmediate(cb, null, { success: true, accounts: accounts });
+      self.getAccounts(Object.assign({}, normalized.filter, {
+        sort: {
+          balance: -1,
+          // Secondary sort keeps pagination stable when accounts share balance.
+          address: 1
+        },
+        offset: normalized.offset,
+        limit: normalized.limit
+      }), ['address', 'balance', 'publicKey', 'username', 'isDelegate'], function (err, raw) {
+        if (err) {
+          return setImmediate(cb, err);
+        }
+
+        var accounts = raw.map(function (account) {
+          return {
+            address: account.address,
+            balance: account.balance,
+            publicKey: account.publicKey,
+            username: account.username,
+            isDelegate: account.isDelegate
+          };
+        });
+
+        return setImmediate(cb, null, {
+          success: true,
+          accounts: accounts,
+          count: count,
+          limit: normalized.limit,
+          offset: normalized.offset
+        });
+      });
     });
   },
 

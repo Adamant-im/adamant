@@ -277,6 +277,11 @@ Utils.prototype.loadBlocksData = function (filter, options, cb) {
       // FIXME: That SQL query have mess logic, need to be refactored
       library.db.query(sql.loadBlocksData(filter), params).then(function (rows) {
         return setImmediate(cb, null, rows);
+      }).catch(function (err) {
+        // A rejection here would otherwise never call back, stalling the
+        // dbSequence task that owns this query.
+        library.logger.error('blocks', `Failed to load blocks data: ${err?.message || err}`, err && err.stack);
+        return setImmediate(cb, 'Blocks#loadBlockData error');
       });
     }).catch(function (err ) {
       library.logger.error('blocks', `Failed to get height by last id ${filter.lastid}: ${err?.message || err}`, err.stack);

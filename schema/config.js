@@ -112,9 +112,6 @@ module.exports = {
       trustProxy: {
         type: 'boolean'
       },
-      topAccounts: {
-        type: 'boolean'
-      },
       cacheEnabled: {
         type: 'boolean'
       },
@@ -359,6 +356,14 @@ module.exports = {
           snapshot: {
             type: 'integer',
             minimum: 1
+          },
+          memCheckpoints: {
+            type: 'object',
+            properties: {
+              enabled: {
+                type: 'boolean'
+              }
+            }
           }
         },
         required: ['loadPerIteration']
@@ -442,6 +447,6 @@ module.exports = {
         format: 'hex'
       }
     },
-    required: ['port', 'address', 'generalLog', 'debugLog', 'consoleLog', 'trustProxy', 'topAccounts', 'cacheEnabled', 'db', 'redis', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'dapp', 'wsClient', 'wsNode', 'nethash']
+    required: ['port', 'address', 'generalLog', 'debugLog', 'consoleLog', 'trustProxy', 'cacheEnabled', 'db', 'redis', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'dapp', 'wsClient', 'wsNode', 'nethash']
   }
 };

@@ -75,6 +75,23 @@ describe('accounts', function () {
   });
 
   describe('getAccount()', () => {
+    before(function (done) {
+      // Shared test DB mem_* can drift (rebuild/checkpoint tests); restore genesis
+      // delegate fixture fields only when the row exists but username is empty.
+      modulesLoader.getDbConnection(function (err, db) {
+        if (err) {
+          return done(err);
+        }
+
+        db.none(
+            'UPDATE mem_accounts SET "username" = ${username}, "isDelegate" = 1 WHERE "address" = ${address} AND COALESCE("username", \'\') = \'\'',
+            { username: testAccount.username, address: testAccount.address }
+        ).then(function () {
+          done();
+        }).catch(done);
+      });
+    });
+
     it('should throw error when called without parameters', () => {
       expect(accounts.getAccount).to.throw();
     });
@@ -355,6 +372,181 @@ describe('accounts', function () {
     });
   });
 
+  describe('internal.top()', () => {
+    const rawTopAccounts = [
+      {
+        address: 'U5338684603617333081',
+        balance: '1960000000000000',
+        publicKey: '9184c87b846dec0dc4010def579fecf5dad592a59b37a013c7e6975597681f58',
+        username: null,
+        isDelegate: 0
+      },
+      {
+        address: 'U12559234133690317086',
+        balance: '100000000000000',
+        publicKey: 'd365e59c9880bd5d97c78475010eb6d96c7a3949140cda7e667f9513218f9089',
+        username: 'kind',
+        isDelegate: 1
+      }
+    ];
+
+    let countAccountsStub;
+    let getAccountsStub;
+
+    afterEach(() => {
+      if (countAccountsStub) {
+        countAccountsStub.restore();
+        countAccountsStub = null;
+      }
+
+      if (getAccountsStub) {
+        getAccountsStub.restore();
+        getAccountsStub = null;
+      }
+    });
+
+    it('should return paginated top accounts with metadata', (done) => {
+      countAccountsStub = sinon.stub(accounts, 'countAccounts').callsFake((filter, cb) => {
+        cb(null, 50);
+      });
+      getAccountsStub = sinon.stub(accounts, 'getAccounts').callsFake((filter, fields, cb) => {
+        cb(null, rawTopAccounts);
+      });
+
+      accounts.internal.top({ limit: 2, offset: 10 }, (err, response) => {
+        expect(err).not.to.exist;
+        expect(countAccountsStub.firstCall.args[0]).to.eql({
+          balance: { $gt: 0 }
+        });
+        expect(getAccountsStub.firstCall.args[0]).to.eql({
+          balance: { $gt: 0 },
+          sort: {
+            balance: -1,
+            address: 1
+          },
+          offset: 10,
+          limit: 2
+        });
+        expect(getAccountsStub.firstCall.args[1]).to.eql(['address', 'balance', 'publicKey', 'username', 'isDelegate']);
+        expect(response).to.eql({
+          success: true,
+          accounts: rawTopAccounts,
+          count: 50,
+          limit: 2,
+          offset: 10
+        });
+        done();
+      });
+    });
+
+    it('should default pagination and filter delegates when requested', (done) => {
+      countAccountsStub = sinon.stub(accounts, 'countAccounts').callsFake((filter, cb) => {
+        cb(null, 1);
+      });
+      getAccountsStub = sinon.stub(accounts, 'getAccounts').callsFake((filter, fields, cb) => {
+        cb(null, [rawTopAccounts[1]]);
+      });
+
+      accounts.internal.top({ isDelegate: 1 }, (err, response) => {
+        expect(err).not.to.exist;
+        expect(countAccountsStub.firstCall.args[0]).to.eql({
+          isDelegate: 1,
+          balance: { $gt: 0 }
+        });
+        expect(getAccountsStub.firstCall.args[0]).to.eql({
+          isDelegate: 1,
+          balance: { $gt: 0 },
+          sort: {
+            balance: -1,
+            address: 1
+          },
+          offset: 0,
+          limit: 100
+        });
+        expect(response.accounts).to.eql([rawTopAccounts[1]]);
+        expect(response.count).to.equal(1);
+        expect(response.limit).to.equal(100);
+        expect(response.offset).to.equal(0);
+        done();
+      });
+    });
+
+    it('should normalize string query parameters from HTTP requests', (done) => {
+      countAccountsStub = sinon.stub(accounts, 'countAccounts').callsFake((filter, cb) => {
+        cb(null, 1);
+      });
+      getAccountsStub = sinon.stub(accounts, 'getAccounts').callsFake((filter, fields, cb) => {
+        cb(null, [rawTopAccounts[1]]);
+      });
+
+      accounts.internal.top({ limit: '2', offset: '3', isDelegate: '1' }, (err, response) => {
+        expect(err).not.to.exist;
+        expect(countAccountsStub.firstCall.args[0]).to.eql({
+          isDelegate: 1,
+          balance: { $gt: 0 }
+        });
+        expect(getAccountsStub.firstCall.args[0]).to.include({
+          isDelegate: 1,
+          offset: 3,
+          limit: 2
+        });
+        expect(response.limit).to.equal(2);
+        expect(response.offset).to.equal(3);
+        done();
+      });
+    });
+
+    it('should return count-only pagination when limit is zero', (done) => {
+      countAccountsStub = sinon.stub(accounts, 'countAccounts').callsFake((filter, cb) => {
+        cb(null, 50);
+      });
+      getAccountsStub = sinon.stub(accounts, 'getAccounts');
+
+      accounts.internal.top({ limit: 0, offset: 20 }, (err, response) => {
+        expect(err).not.to.exist;
+        expect(getAccountsStub.called).to.be.false;
+        expect(countAccountsStub.firstCall.args[0]).to.eql({
+          balance: { $gt: 0 }
+        });
+        expect(response).to.eql({
+          success: true,
+          accounts: [],
+          count: 50,
+          limit: 0,
+          offset: 20
+        });
+        done();
+      });
+    });
+
+    it('should reject out-of-range pagination before querying accounts', (done) => {
+      countAccountsStub = sinon.stub(accounts, 'countAccounts');
+      getAccountsStub = sinon.stub(accounts, 'getAccounts');
+
+      accounts.internal.top({ limit: '101' }, (err, response) => {
+        expect(err).to.equal('Invalid limit: value must be at most 100');
+        expect(response).not.to.exist;
+        expect(countAccountsStub.called).to.be.false;
+        expect(getAccountsStub.called).to.be.false;
+        done();
+      });
+    });
+
+    it('should forward count errors', (done) => {
+      countAccountsStub = sinon.stub(accounts, 'countAccounts').callsFake((filter, cb) => {
+        cb('Account#count error');
+      });
+      getAccountsStub = sinon.stub(accounts, 'getAccounts');
+
+      accounts.internal.top({}, (err, response) => {
+        expect(err).to.equal('Account#count error');
+        expect(response).not.to.exist;
+        expect(getAccountsStub.called).to.be.false;
+        done();
+      });
+    });
+  });
+
   describe('shared', () => {
     const accountKeys = [
       'address',
@@ -497,6 +689,55 @@ describe('accounts', function () {
             );
             done();
           });
+        });
+      });
+
+      it('should return an empty delegate list for an account without votes', (done) => {
+        const getAccountStub = sinon.stub(accounts, 'getAccount').callsFake((filter, cb) => {
+          cb(null, { address: filter.address, delegates: null });
+        });
+
+        const body = { address: testAccount.address };
+        accounts.shared.getDelegates({ body }, (err, response) => {
+          getAccountStub.restore();
+
+          expect(err).not.to.exist;
+          expect(response).to.eql({ delegates: [] });
+          done();
+        });
+      });
+
+      it('should return account lookup errors', (done) => {
+        const getAccountStub = sinon.stub(accounts, 'getAccount').callsFake((filter, cb) => {
+          cb('Account#get error');
+        });
+
+        const body = { address: testAccount.address };
+        accounts.shared.getDelegates({ body }, (err, response) => {
+          getAccountStub.restore();
+
+          expect(response).not.to.exist;
+          expect(err).to.equal('Account#get error');
+          done();
+        });
+      });
+
+      it('should return delegate listing errors instead of throwing', (done) => {
+        const getAccountStub = sinon.stub(accounts, 'getAccount').callsFake((filter, cb) => {
+          cb(null, { address: filter.address, delegates: [testAccount.publicKey] });
+        });
+        const getDelegatesStub = sinon.stub(modules.delegates, 'getDelegates').callsFake((query, filter, cb) => {
+          cb('Invalid sort field');
+        });
+
+        const body = { address: testAccount.address };
+        accounts.shared.getDelegates({ body }, (err, response) => {
+          getAccountStub.restore();
+          getDelegatesStub.restore();
+
+          expect(response).not.to.exist;
+          expect(err).to.equal('Invalid sort field');
+          done();
         });
       });
     });

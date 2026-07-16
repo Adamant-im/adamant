@@ -55,7 +55,6 @@ var lastCommit = '';
 
 if (typeof gc !== 'undefined') {
   setInterval(function () {
-    // eslint-disable-next-line no-undef
     gc();
   }, 60000);
 }
@@ -88,9 +87,6 @@ var appConfig = require('./helpers/config.js')(programOpts.config, {
 });
 var genesisblock = require(path.resolve(process.cwd(), (programOpts.genesis || 'genesisBlock.json')));
 
-// Define top endpoint availability
-process.env.TOP = appConfig.topAccounts;
-
 /**
  * The config object to handle ADAMANT modules and ADAMANT api.
  * It loads `modules` and `api` folders content.
@@ -115,6 +111,7 @@ var config = {
     peers: './modules/peers.js',
     delegates: './modules/delegates.js',
     rounds: './modules/rounds.js',
+    memCheckpoints: './modules/memCheckpoints.js',
     multisignatures: './modules/multisignatures.js',
     dapps: './modules/dapps.js',
     chats: './modules/chats.js',
@@ -186,7 +183,7 @@ d.run(function () {
     /**
      * Loads `payloadHash` and generate dapp password if it is empty and required.
      * Then updates config.json with new random  password.
-     * @function config
+     * @method config
      * @param {nodeStyleCallback} cb - Callback function with the mutated `appConfig`.
      * @throws {Error} If failed to assign nethash from genesis block.
      */
@@ -233,7 +230,7 @@ d.run(function () {
 
     /**
      * Returns hash of last git commit.
-     * @function lastCommit
+     * @method lastCommit
      * @param {nodeStyleCallback} cb - Callback function with Hash of last git commit.
      */
     lastCommit: function (cb) {
@@ -258,9 +255,8 @@ d.run(function () {
 
     /**
      * ws client PWA,
-     * @function clientWs
-     * @param {object} wsconfig - config from ws client PWA,
-     * @param scope
+     * @method clientWs
+     * @param {object} scope - The results from current execution.
      * @param {nodeStyleCallback} cb - Callback function with created Method:
      * `emit`.
      */
@@ -276,7 +272,7 @@ d.run(function () {
     }],
     /**
      * Once config is completed, creates app, http & https servers & sockets with express.
-     * @function network
+     * @method network
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {nodeStyleCallback} cb - Callback function with created Object:
@@ -358,7 +354,7 @@ d.run(function () {
     /**
      * Once config, public, genesisblock, logger, build and network are completed,
      * adds configuration to `network.app`.
-     * @function connect
+     * @method connect
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {Function} cb - Callback function.
@@ -403,11 +399,9 @@ d.run(function () {
             return value;
           }
 
-          /* eslint-disable eqeqeq */
           if (isNaN(value) || parseInt(value) != value || isNaN(parseInt(value, radix))) {
             return value;
           }
-          /* eslint-enable eqeqeq */
           return parseInt(value);
         }
       }));
@@ -491,12 +485,12 @@ d.run(function () {
     /**
      * Once db, bus, schema and genesisblock are completed,
      * loads transaction, block, account and peers from logic folder.
-     * @function logic
+     * @method logic
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {Function} cb - Callback function.
      */
-    logic: ['db', 'bus', 'schema', 'genesisblock', function (scope, cb) {
+    logic: ['db', 'bus', 'schema', 'genesisblock', 'clientWs', function (scope, cb) {
       var Transaction = require('./logic/transaction.js');
       var Chat = require('./logic/chat.js');
       var State = require('./logic/state.js');
@@ -538,8 +532,8 @@ d.run(function () {
           logger.info('consensus', 'Configured activation heights', consensus.activationHeights);
           cb(null, consensus);
         },
-        account: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'logger', function (scope, cb) {
-          new Account(scope.db, scope.schema, scope.logger, cb);
+        account: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'logger', 'clientWs', function (scope, cb) {
+          new Account(scope.db, scope.schema, scope.logger, scope.clientWs, cb);
         }],
         transaction: ['db', 'bus', 'ed', 'schema', 'genesisblock', 'account', 'logger', 'clientWs', 'consensus', function (scope, cb) {
           new Transaction(scope.db, scope.ed, scope.schema, scope.genesisblock, scope.account, scope.logger, scope.clientWs, scope.consensus, cb);
@@ -562,7 +556,7 @@ d.run(function () {
      * Once network, connect, config, logger, bus, sequence,
      * dbSequence, balancesSequence, db and logic are completed,
      * loads modules from `modules` folder using `config.modules`.
-     * @function modules
+     * @method modules
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {nodeStyleCallback} cb - Callback function with resulted load.
@@ -616,7 +610,7 @@ d.run(function () {
     /**
      * Loads api from `api` folder using `config.api`, once modules, logger and
      * network are completed.
-     * @function api
+     * @method api
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {Function} cb - Callback function.
@@ -649,7 +643,7 @@ d.run(function () {
     /**
      * Once 'ready' is completed, binds and listens for connections on the
      * specified host and port for `scope.network.server`.
-     * @function listen
+     * @method listen
      * @param {object} scope - The results from current execution,
      * at least will contain the required elements.
      * @param {nodeStyleCallback} cb - Callback function with `scope.network`.
@@ -687,24 +681,24 @@ d.run(function () {
        * @property {object} api - Undefined.
        * @property {undefined} balancesSequence - Sequence function, sequence Array.
        * @property {string} build - Empty.
-       * @property {Object} bus - Message function, bus constructor.
-       * @property {Object} config - Configuration.
+       * @property {object} bus - Message function, bus constructor.
+       * @property {object} config - Configuration.
        * @property {undefined} connect - Undefined.
-       * @property {Object} db - Database constructor, database functions.
+       * @property {object} db - Database constructor, database functions.
        * @property {function} dbSequence - Database function.
-       * @property {Object} ed - Crypto functions from ADAMANT node-sodium.
-       * @property {Object} genesisblock - Block information.
+       * @property {object} ed - Crypto functions from ADAMANT node-sodium.
+       * @property {object} genesisblock - Block information.
        * @property {string} lastCommit - Hash transaction.
-       * @property {Object} listen - Network information.
-       * @property {Object} logger - Log functions.
-       * @property {Object} logic - several logic functions and objects.
-       * @property {Object} modules - Several modules functions.
-       * @property {Object} network - Several network functions.
+       * @property {object} listen - Network information.
+       * @property {object} logger - Log functions.
+       * @property {object} logic - several logic functions and objects.
+       * @property {object} modules - Several modules functions.
+       * @property {object} network - Several network functions.
        * @property {string} nonce
        * @property {string} public - Path to ADAMANT public folder.
        * @property {undefined} ready
-       * @property {Object} schema - ZSchema with objects.
-       * @property {Object} sequence - Sequence function, sequence Array.
+       * @property {object} schema - ZSchema with objects.
+       * @property {object} sequence - Sequence function, sequence Array.
        */
       scope.logger.info('startup', 'Modules ready and launched');
       var cleanupStarted = false;
@@ -732,7 +726,7 @@ d.run(function () {
 
         cleanupStarted = true;
         cleanupSignalCount = 0;
-        scope.logger.info('exit', 'Cleaning up...');
+        scope.logger.info('exit', 'Cleaning up…');
 
         var moduleMap = scope.modules || {};
         var moduleNames = Object.keys(moduleMap);
@@ -946,7 +940,7 @@ process.on('uncaughtException', function (err) {
   });
   /**
    * emits cleanup once 'uncaughtException'.
-   * @fires cleanup
+   * @emits cleanup
    */
   process.emit('cleanup');
 });

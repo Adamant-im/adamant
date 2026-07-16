@@ -268,6 +268,56 @@ describe('TransactionSubscription', () => {
     });
   });
 
+  describe('subscribeToBalances', () => {
+    it('should ignore unsupported fields and non-string values', () => {
+      const subscribed = sub.subscribeToBalances(
+          'votes',
+          'u_balance',
+          '',
+          0,
+          true,
+          null,
+          undefined,
+          {}
+      );
+
+      expect(subscribed).to.equal(false);
+      expect(sub.balanceFields).to.deep.equal(new Set());
+    });
+
+    it('should subscribe only to supported public balance fields', () => {
+      const subscribed = sub.subscribeToBalances(
+          'balance',
+          'unconfirmedBalance',
+          'balance'
+      );
+
+      expect(subscribed).to.equal(true);
+      expect(sub.balanceFields).to.deep.equal(
+          new Set(['balance', 'unconfirmedBalance'])
+      );
+    });
+  });
+
+  describe('subscribeToBlocks', () => {
+    it('should accept only scalar booleans', () => {
+      expect(sub.subscribeToBlocks('true')).to.equal(false);
+      expect(sub.subscribeToBlocks(1)).to.equal(false);
+      expect(sub.subscribeToBlocks([true])).to.equal(false);
+      expect(sub.blocks).to.equal(false);
+    });
+
+    it('should enable and disable block events', () => {
+      expect(sub.subscribeToBlocks(true)).to.equal(true);
+      expect(sub.blocks).to.equal(true);
+      expect(sub.hasSubscriptions()).to.equal(true);
+
+      expect(sub.subscribeToBlocks(false)).to.equal(true);
+      expect(sub.blocks).to.equal(false);
+      expect(sub.hasSubscriptions()).to.equal(false);
+    });
+  });
+
   describe('impliesTransaction', () => {
     const transaction = {
       id: '12154642911137703318',
@@ -375,7 +425,7 @@ describe('TransactionSubscription', () => {
       expect(implies).to.equal(false);
     });
 
-    it('should return false when subsribed to another transaction asset chat type', () => {
+    it('should return false when subscribed to another transaction asset chat type', () => {
       sub.subscribeToAssetChatTypes(TransactionType.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE);
 
       const implies = sub.impliesTransaction(transaction);
@@ -383,7 +433,7 @@ describe('TransactionSubscription', () => {
       expect(implies).to.equal(false);
     });
 
-    it('should return false when subsribed to another transaction asset chat type with correct address', () => {
+    it('should return false when subscribed to another transaction asset chat type with correct address', () => {
       sub.subscribeToAddresses(transaction.recipientId);
       sub.subscribeToAssetChatTypes(TransactionType.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE);
 
@@ -392,7 +442,7 @@ describe('TransactionSubscription', () => {
       expect(implies).to.equal(false);
     });
 
-    it('should return true when not subsribed to message transaction type but to asset chat type', () => {
+    it('should return true when not subscribed to message transaction type but to asset chat type', () => {
       sub.subscribeToAssetChatTypes(TransactionType.CHAT_MESSAGE_TYPES.ORDINARY_MESSAGE);
 
       const implies = sub.impliesTransaction(transaction);
@@ -400,7 +450,7 @@ describe('TransactionSubscription', () => {
       expect(implies).to.equal(true);
     });
 
-    it('should return true for chat message transaction when subsribed to another transaction type but also to asset chat type', () => {
+    it('should return true for chat message transaction when subscribed to another transaction type but also to asset chat type', () => {
       sub.subscribeToTypes(TransactionType.SEND);
       sub.subscribeToAssetChatTypes(TransactionType.CHAT_MESSAGE_TYPES.ORDINARY_MESSAGE);
 

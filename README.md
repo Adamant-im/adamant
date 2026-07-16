@@ -2,19 +2,20 @@
 
 ADAMANT is a **decentralized, blockchain-based messaging platform**. Applications use ADAMANT as an anonymous, encrypted relay and storage layer for secure communication. Examples include the [Messenger app](https://github.com/Adamant-im/adamant-im), [Blockchain 2FA](https://github.com/Adamant-im/adamant-2fa), and [Exchange bot](https://github.com/Adamant-im/adamant-exchangebot).
 
-For more information, refer to the ADAMANT website:
-
-- Clear web: https://adamant.im
-- Tor: http://adamantim24okpwfr4wxjgsh6vtw4odoiabhsfaqaktnfqzrjrspjuid.onion
-
-![ADAMANT nodes](./img/adm-nodes.jpeg)
-
 Additional information:
 
+- ADAMANT website: https://adamant.im
+- Tor website: http://adamantim24okpwfr4wxjgsh6vtw4odoiabhsfaqaktnfqzrjrspjuid.onion
 - [How decentralized blockchain messenger works](https://news.adamant.im/how-decentralized-blockchain-messenger-works-b9932834a639)
 - [Encryption overview in ADAMANT Messenger](https://news.adamant.im/encryption-overview-in-adamant-messenger-878ecec1ff78)
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
+
+> Developed and maintained by the ADAMANT developer community and **cryptofoundry** as part of an open-source blockchain ecosystem developed since 2016.
+> We build custom crypto software, trading bots, payment systems and blockchain infrastructure. [Tell us what to build](https://adamant.business#contact).
+>
+
+![ADAMANT nodes](./img/adm-nodes.jpeg)
 
 ## Node and API Documentation
 
@@ -66,8 +67,8 @@ The node stores derived consensus state in memory mirror tables such as `mem_acc
 
 ```text
 [WRN] loader Detected unapplied rounds in mem_round
-[WRN] loader Recreating memory tables
-[inf] loader Rebuilding blockchain, current block height: 1
+[WRN] loader Recreating memory tables…
+[inf] loader Rebuilding blockchain, current block height: 1…
 ```
 
 If this happens, do not try to repair `mem_*` tables with manual SQL edits. The reliable recovery options are restoring a trusted database snapshot or letting the node rebuild/replay derived state from the blockchain.

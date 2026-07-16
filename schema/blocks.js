@@ -40,6 +40,10 @@ module.exports = {
         type: 'string',
         format: 'publicKey'
       },
+      numberOfTransactions: {
+        type: 'integer',
+        minimum: 0
+      },
       totalAmount: {
         type: 'integer',
         minimum: 0,

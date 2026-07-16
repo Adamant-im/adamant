@@ -261,3 +261,135 @@ describe('GET /accounts', function () {
     });
   });
 });
+
+/**
+ * Calls the top accounts endpoint with optional query parameters.
+ * @param {string} params - URL query string without the leading question mark.
+ * @param {function} done - Mocha callback.
+ * @return {object} Supertest request.
+ */
+function getTopAccounts (params, done) {
+  return node.get('/api/accounts/top' + (params ? '?' + params : ''), done);
+}
+
+/**
+ * Asserts common top accounts pagination response fields.
+ * @param {object} body - Parsed API response body.
+ * @param {number} limit - Expected normalized limit.
+ * @param {number} offset - Expected normalized offset.
+ * @return {void}
+ */
+function expectTopPagination (body, limit, offset) {
+  node.expect(body).to.have.property('success').to.be.true;
+  node.expect(body).to.have.property('accounts').that.is.an('array');
+  node.expect(body).to.have.property('count').that.is.a('number');
+  node.expect(body).to.have.property('limit').to.equal(limit);
+  node.expect(body).to.have.property('offset').to.equal(offset);
+  node.expect(body.accounts.length).to.be.at.most(limit);
+  node.expect(body.count).to.be.at.least(body.accounts.length);
+}
+
+/**
+ * Asserts that each top account exposes the explorer/client-facing fields.
+ * @param {Array<object>} accounts - Accounts returned by `/api/accounts/top`.
+ * @return {void}
+ */
+function expectTopAccountFields (accounts) {
+  accounts.forEach(function (account) {
+    node.expect(account).to.have.property('address').that.is.a('string');
+    node.expect(account).to.have.property('balance').that.is.a('string');
+    node.expect(account).to.have.property('publicKey');
+    node.expect(account).to.have.property('username');
+    node.expect(account).to.have.property('isDelegate').that.is.a('number');
+  });
+}
+
+/**
+ * Asserts deterministic top-account ordering by balance and address.
+ * @param {Array<object>} accounts - Accounts returned by `/api/accounts/top`.
+ * @return {void}
+ */
+function expectTopAccountsSorted (accounts) {
+  for (var index = 1; index < accounts.length; index++) {
+    var previous = accounts[index - 1];
+    var current = accounts[index];
+    var previousBalance = BigInt(previous.balance);
+    var currentBalance = BigInt(current.balance);
+
+    node.expect(previousBalance >= currentBalance).to.equal(true);
+
+    if (previousBalance === currentBalance) {
+      node.expect(previous.address <= current.address).to.equal(true);
+    }
+  }
+}
+
+describe('GET /api/accounts/top', function () {
+  it('should return default paginated top accounts', function (done) {
+    getTopAccounts('', function (err, res) {
+      expectTopPagination(res.body, 100, 0);
+      expectTopAccountFields(res.body.accounts);
+      expectTopAccountsSorted(res.body.accounts);
+      done();
+    });
+  });
+
+  it('should support limit and offset pagination', function (done) {
+    getTopAccounts('limit=2&offset=1', function (err, res) {
+      expectTopPagination(res.body, 2, 1);
+      expectTopAccountFields(res.body.accounts);
+      expectTopAccountsSorted(res.body.accounts);
+      done();
+    });
+  });
+
+  it('should support count-only pagination', function (done) {
+    getTopAccounts('limit=0', function (err, res) {
+      expectTopPagination(res.body, 0, 0);
+      node.expect(res.body.accounts).to.eql([]);
+      done();
+    });
+  });
+
+  it('should filter delegate accounts', function (done) {
+    getTopAccounts('limit=5&isDelegate=1', function (err, res) {
+      expectTopPagination(res.body, 5, 0);
+      expectTopAccountFields(res.body.accounts);
+      expectTopAccountsSorted(res.body.accounts);
+      res.body.accounts.forEach(function (account) {
+        node.expect(account.isDelegate).to.equal(1);
+      });
+      done();
+    });
+  });
+
+  it('should filter non-delegate accounts', function (done) {
+    getTopAccounts('limit=5&isDelegate=0', function (err, res) {
+      expectTopPagination(res.body, 5, 0);
+      expectTopAccountFields(res.body.accounts);
+      expectTopAccountsSorted(res.body.accounts);
+      res.body.accounts.forEach(function (account) {
+        node.expect(account.isDelegate).to.equal(0);
+      });
+      done();
+    });
+  });
+
+  it('should reject limits above the public maximum', function (done) {
+    getTopAccounts('limit=101', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('error');
+      node.expect(res.body.error).to.contain('Invalid limit: value must be at most 100');
+      done();
+    });
+  });
+
+  it('should reject invalid delegate filters', function (done) {
+    getTopAccounts('isDelegate=2', function (err, res) {
+      node.expect(res.body).to.have.property('success').to.be.false;
+      node.expect(res.body).to.have.property('error');
+      node.expect(res.body.error).to.contain('Invalid isDelegate: value must be at most 1');
+      done();
+    });
+  });
+});

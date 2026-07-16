@@ -346,7 +346,7 @@ __private.loadDelegates = function (cb) {
   if (!secrets || !secrets.length) {
     return setImmediate(cb);
   } else {
-    library.logger.info('delegates', ['Loading', secrets.length, 'delegates from config'].join(' '));
+    library.logger.info('delegates', ['Loading', secrets.length, 'delegates from config…'].join(' '));
   }
 
   async.eachSeries(secrets, function (secret, cb) {
@@ -452,7 +452,7 @@ Delegates.prototype.getDelegates = function (query, filter, cb) {
     ...filter,
     isDelegate: 1,
     sort: sortFilter
-  }, ['username', 'address', 'publicKey', 'votesWeight', 'vote', 'missedblocks', 'producedblocks'], function (err, delegates) {
+  }, ['username', 'address', 'publicKey', 'votesWeight', 'vote', 'missedblocks', 'producedblocks', 'fees', 'rewards'], function (err, delegates) {
     if (err) {
       return setImmediate(cb, err);
     }
@@ -471,6 +471,10 @@ Delegates.prototype.getDelegates = function (query, filter, cb) {
       totalSupply = __private.blockReward.calcSupply(lastBlock.height);
 
     for (var i = 0; i < delegates.length; i++) {
+      delegates[i].forged = new bignum(delegates[i].fees).plus(new bignum(delegates[i].rewards)).toString();
+      delete delegates[i].fees;
+      delete delegates[i].rewards;
+
       // TODO: 'rate' property is deprecated and need to be removed after transitional period
       delegates[i].rate = i + 1;
       delegates[i].rank = i + 1;
@@ -805,12 +809,23 @@ Delegates.prototype.shared = {
         return setImmediate(cb, 'Delegate publicKey does not match address');
       }
 
-      modules.delegates.getDelegates(req.body, filter, function (err, data) {
+      // `rank` and `rate` are derived from the full, ordered delegate list, so
+      // ranking must be computed over all delegates. We request the ranked list
+      // (empty filter) and then select the requested delegate, instead of
+      // pushing `filter` into the accounts query: a single-row result is always
+      // ranked first and would report `rank`/`rate` (and outsider productivity)
+      // as 1 for every delegate.
+      modules.delegates.getDelegates(req.body, {}, function (err, data) {
         if (err) {
           return setImmediate(cb, err);
         }
 
-        var delegate = data.delegates[0];
+        var delegate = data.delegates.find(function (delegate) {
+          if (filter.address) {
+            return delegate.address.toUpperCase() === filter.address.toUpperCase();
+          }
+          return delegate.username === filter.username;
+        });
 
         if (delegate) {
           return setImmediate(cb, null, { delegate: delegate });
@@ -822,25 +837,40 @@ Delegates.prototype.shared = {
   },
 
   getNextForgers: function (req, cb) {
-    var currentBlock = modules.blocks.lastBlock.get();
-    var limit = req.body.limit || 10;
-
-    modules.delegates.generateDelegateList(currentBlock.height, function (err, activeDelegates) {
+    library.schema.validate(req.body, schema.getNextForgers, function (err) {
       if (err) {
-        return setImmediate(cb, err);
+        return setImmediate(cb, err[0].message);
       }
 
-      var currentBlockSlot = slots.getSlotNumber(currentBlock.timestamp);
-      var currentSlot = slots.getSlotNumber();
-      var nextForgers = [];
+      var currentBlock = modules.blocks.lastBlock.get();
+      var limit = req.body.limit || 10;
 
-      for (var i = 1; i <= slots.delegates && i <= limit; i++) {
-        if (activeDelegates[(currentSlot + i) % slots.delegates]) {
-          nextForgers.push(activeDelegates[(currentSlot + i) % slots.delegates]);
+      if (!Number.isFinite(currentBlock.height)) {
+        return setImmediate(cb, 'Blockchain is loading');
+      }
+
+      // This response is a snapshot for the current chain tip. Height advances
+      // only after a block is accepted, so every projected slot must use the
+      // delegate list for the next block. Clients should refresh the snapshot
+      // after accepting a block instead of inferring future height transitions.
+      var nextBlockHeight = currentBlock.height + 1;
+      modules.delegates.generateDelegateList(nextBlockHeight, function (err, activeDelegates) {
+        if (err) {
+          return setImmediate(cb, err);
         }
-      }
 
-      return setImmediate(cb, null, { currentBlock: currentBlock.height, currentBlockSlot: currentBlockSlot, currentSlot: currentSlot, delegates: nextForgers });
+        var currentBlockSlot = slots.getSlotNumber(currentBlock.timestamp);
+        var currentSlot = slots.getSlotNumber();
+        var nextForgers = [];
+
+        for (var i = 1; i <= slots.delegates && i <= limit; i++) {
+          if (activeDelegates[(currentSlot + i) % slots.delegates]) {
+            nextForgers.push(activeDelegates[(currentSlot + i) % slots.delegates]);
+          }
+        }
+
+        return setImmediate(cb, null, { currentBlock: currentBlock.height, currentBlockSlot: currentBlockSlot, currentSlot: currentSlot, delegates: nextForgers });
+      });
     });
   },
 

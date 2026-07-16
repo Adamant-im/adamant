@@ -14,6 +14,7 @@ const scenarios = require('../../scripts/live-test/scenarios.js');
 const target = require('../../scripts/live-test/target.js');
 const transactions = require('../../scripts/live-test/transactions.js');
 const testDefaultConfig = require('../config.default.json');
+const testConfig = require('../config.json');
 
 describe('live scenario runner utilities', () => {
   let tempDir;
@@ -392,6 +393,48 @@ describe('live scenario runner utilities', () => {
     expect(routing.check.status).to.equal(404);
   });
 
+  it('should report malformed top account balances without aborting the API matrix', async () => {
+    const definitions = scenarios.buildRestApiChecks(null);
+    const topAccountsDefinition = definitions.find((check) => {
+      return check.id === 'accounts.top';
+    });
+    const context = {
+      metrics: {
+        latency: function () {}
+      }
+    };
+    const execution = await scenarios.executeRestApiCheck(context, {
+      get: async function () {
+        return {
+          ok: true,
+          status: 200,
+          body: {
+            success: true,
+            accounts: [
+              {
+                address: 'U1',
+                balance: '100',
+                isDelegate: 0
+              },
+              {
+                address: 'U2',
+                balance: 'not-a-balance',
+                isDelegate: 0
+              }
+            ],
+            count: 2,
+            limit: 3,
+            offset: 0
+          },
+          latencyMs: 1
+        };
+      }
+    }, topAccountsDefinition);
+
+    expect(execution.check.passed).to.equal(false);
+    expect(execution.check.failure).to.equal('top account balance is not an integer string');
+  });
+
   it('should build three complex checks per docs section and query-language endpoint', () => {
     const responseBodies = {
       'blocks.list': {
@@ -702,7 +745,7 @@ describe('live scenario runner utilities', () => {
     });
 
     expect(metadata.consensusActivationHeights).to.deep.equal({
-      fairSystem: testDefaultConfig.consensusActivationHeights.fairSystem,
+      fairSystem: testConfig.consensusActivationHeights.fairSystem,
       spaceship: 30
     });
     expect(JSON.stringify(metadata)).not.to.include('secret value');
@@ -710,7 +753,7 @@ describe('live scenario runner utilities', () => {
     expect(metadata.overrides.some((entry) => entry.value === 'XXXXXXXXXX')).to.equal(true);
   });
 
-  it('should always use test/config.default.json as activation metadata base', () => {
+  it('should use the target config path as activation metadata base', () => {
     const baseConfigPath = writeTempFile('config.default.json', JSON.stringify({
       consensusActivationHeights: {
         fairSystem: 10,
@@ -724,12 +767,13 @@ describe('live scenario runner utilities', () => {
       manifest: {
         baseConfig: baseConfigPath
       },
+      configPath: baseConfigPath,
       nodes: []
     });
 
     expect(metadata.consensusActivationHeights).to.deep.equal({
-      fairSystem: testDefaultConfig.consensusActivationHeights.fairSystem,
-      spaceship: testDefaultConfig.consensusActivationHeights.spaceship
+      fairSystem: 10,
+      spaceship: 20
     });
   });
 
