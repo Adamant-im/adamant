@@ -47,8 +47,11 @@ class TransportWsApi {
 
     self.logger.info('ws-node-client', `Connecting to random peers via WebSocket…`);
 
-    // Clear existing connections
-    self.connections.forEach(({ socket }) => {
+    // Clear existing connections. Reset syncProtocol before removing listeners
+    // so peers remain eligible for a later WebSocket upgrade (removeAllListeners
+    // would otherwise prevent handleDisconnect from calling switchToHttp).
+    self.connections.forEach(({ socket, peer }) => {
+      self.peers.switchToHttp(peer);
       socket.removeAllListeners();
       socket.disconnect();
     });
@@ -287,7 +290,7 @@ class TransportWsApi {
             maxConnections: this.maxConnections
           });
         } else {
-          const reason = err ?? 'Every peer is already connected via WebSocket';
+          const reason = err ?? 'No more suitable HTTP peers available for WebSocket connections';
           self.logger.info('ws-node-client', `${reason}. No peers updated.`, {
             connectedPeers: this.connections.size,
             maxConnections: this.maxConnections
@@ -311,6 +314,9 @@ class TransportWsApi {
     const connection = this.connections.get(peerUrl);
 
     if (connection) {
+      // Must reset before removeAllListeners(): disconnect handlers are cleared
+      // intentionally, so handleDisconnect will not run switchToHttp.
+      this.peers.switchToHttp(peer);
       connection.socket.removeAllListeners();
       connection.socket.disconnect();
       this.connections.delete(peerUrl);
