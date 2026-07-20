@@ -82,4 +82,24 @@ describe('TransportWsApi peer syncProtocol lifecycle', function () {
     expect(socketB.removeAllListeners.calledOnce).to.equal(true);
     expect(transport.connections.size).to.equal(0);
   });
+
+  it('should reset syncProtocol via cleanupConnection during rotatePeers()', function () {
+    const peer = { ip: '1.2.3.4', port: 36666 };
+    const replacement = { ip: '9.9.9.9', port: 36666 };
+    const socket = fakeSocket();
+
+    transport.connections.set('ws://1.2.3.4:36666', { socket, peer });
+    peers.list.callsFake(function (options, cb) {
+      cb(null, [replacement]);
+    });
+    sinon.stub(transport, 'connectToPeer');
+
+    transport.rotatePeers();
+
+    expect(peers.switchToHttp.calledWith(peer)).to.equal(true);
+    expect(socket.removeAllListeners.calledOnce).to.equal(true);
+    expect(socket.disconnect.calledOnce).to.equal(true);
+    expect(transport.connections.has('ws://1.2.3.4:36666')).to.equal(false);
+    expect(transport.connectToPeer.calledOnceWith(replacement)).to.equal(true);
+  });
 });
