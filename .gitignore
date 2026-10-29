@@ -49,3 +49,6 @@ nodejs
 .ai-tasks/
 .claude/
 .cursor/
+
+# Private docs
+.security/
