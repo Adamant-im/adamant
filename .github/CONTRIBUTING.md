@@ -58,7 +58,7 @@ You need to specify at least some peers in `peers.list`, e.g.:
         "port": 36667
       },
       {
-        "ip": "95.217.19.144",
+        "ip": "167.86.113.240",
         "port": 36667
       }
     ],
