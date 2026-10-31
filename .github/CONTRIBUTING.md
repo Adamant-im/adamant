@@ -50,7 +50,7 @@ You need to specify at least some peers in `peers.list`, e.g.:
     "enabled": true,
     "list": [
       {
-        "ip": "162.55.32.80",
+        "ip": "167.86.99.198",
         "port": 36667
       },
       {
@@ -58,7 +58,7 @@ You need to specify at least some peers in `peers.list`, e.g.:
         "port": 36667
       },
       {
-        "ip": "95.217.19.144",
+        "ip": "167.86.113.240",
         "port": 36667
       }
     ],
@@ -280,7 +280,7 @@ npm run scenario:testnet -- --all
 Run against an explicit public or local testnet endpoint:
 
 ```sh
-npm run scenario:testnet -- --all --node=162.55.32.80:36667
+npm run scenario:testnet -- --all --node=167.86.99.198:36667
 ```
 
 Run against a managed localnet manifest created by `start:localnet`:

@@ -1319,7 +1319,7 @@ describe('live scenario runner utilities', () => {
             nodes: [
               {
                 id: 'node-recipient',
-                apiUrl: 'http://162.55.32.80:36667',
+                apiUrl: 'http://167.86.99.198:36667',
                 ready: true,
                 detailsComplete: true,
                 error: null,
@@ -1381,7 +1381,7 @@ describe('live scenario runner utilities', () => {
         '| Node | API | ADM version | Height | Registered delegates | Public API | wsClient | wsServer / wsNode |'
     );
     expect(markdown).to.include(
-        '| node-recipient | http://162.55.32.80:36667 | 0.9.0, commit abc | 10288000 | 101 |'
+        '| node-recipient | http://167.86.99.198:36667 | 0.9.0, commit abc | 10288000 | 101 |'
     );
     expect(markdown).to.include(
         'runner config enabled=true, public=true; observed reachable=true, denied=false'
