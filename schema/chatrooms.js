@@ -1,18 +1,10 @@
 'use strict';
 
-const constants = require('../helpers/constants.js');
-
 module.exports = {
   getChats: {
     id: 'chats.getTransactions',
     type: 'object',
     properties: {
-      blockId: {
-        type: 'string',
-        format: 'id',
-        minLength: 1,
-        maxLength: 20
-      },
       type: {
         type: 'integer',
         minimum: 0,
@@ -24,107 +16,23 @@ module.exports = {
         minLength: 1,
         maxLength: 22
       },
-      senderPublicKey: {
-        type: 'string',
-        format: 'publicKey'
-      },
-      ownerPublicKey: {
-        type: 'string',
-        format: 'publicKey'
-      },
-      ownerAddress: {
-        type: 'string',
-        format: 'address',
-        minLength: 1,
-        maxLength: 22
-      },
       recipientId: {
         type: 'string',
         format: 'address',
         minLength: 1,
         maxLength: 22
       },
-      amount: {
-        type: 'integer',
-        minimum: 0,
-        maximum: constants.fixedPoint
+      userId: {
+        type: 'string',
+        format: 'address',
+        minLength: 1,
+        maxLength: 22
       },
-      fee: {
-        type: 'integer',
-        minimum: 0,
-        maximum: constants.fixedPoint
-      },
-      senderPublicKeys: {
-        type: 'array',
-        minItems: 1,
-        'items': {
-          type: 'string',
-          format: 'publicKey'
-        }
-      },
-      recipientPublicKeys: {
-        type: 'array',
-        minItems: 1,
-        'items': {
-          type: 'string',
-          format: 'publicKey'
-        }
-      },
-      senderIds: {
-        type: 'array',
-        minItems: 1,
-        'items': {
-          type: 'string',
-          format: 'address',
-          minLength: 1,
-          maxLength: 22
-        }
-      },
-      recipientIds: {
-        type: 'array',
-        minItems: 1,
-        'items': {
-          type: 'string',
-          format: 'address',
-          minLength: 1,
-          maxLength: 22
-        }
-      },
-      fromHeight: {
-        type: 'integer',
-        minimum: 1
-      },
-      toHeight: {
-        type: 'integer',
-        minimum: 1
-      },
-      fromTimestamp: {
-        type: 'integer',
-        minimum: 0
-      },
-      toTimestamp: {
-        type: 'integer',
-        minimum: 1
-      },
-      fromUnixTime: {
-        type: 'integer',
-        minimum: (constants.epochTime.getTime() / 1000)
-      },
-      toUnixTime: {
-        type: 'integer',
-        minimum: (constants.epochTime.getTime() / 1000 + 1)
-      },
-      minAmount: {
-        type: 'integer',
-        minimum: 0
-      },
-      maxAmount: {
-        type: 'integer',
-        minimum: 1
-      },
-      minConfirmations: {
-        type: 'integer',
-        minimum: 0
+      companionId: {
+        type: 'string',
+        format: 'address',
+        minLength: 1,
+        maxLength: 22
       },
       orderBy: {
         type: 'string'
@@ -137,8 +45,12 @@ module.exports = {
       offset: {
         type: 'integer',
         minimum: 0
-      }
-    }
+      },
+      returnUnconfirmed: {},
+      includeDirectTransfers: {},
+      withoutDirectTransfers: {}
+    },
+    additionalProperties: false
   },
   normalize: {
     id: 'chats.normalize',

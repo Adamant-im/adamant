@@ -1,4 +1,3 @@
-var _ = require('lodash');
 var async = require('async');
 var constants = require('../helpers/constants.js');
 var crypto = require('crypto');
@@ -13,6 +12,10 @@ var sql = require('../sql/chats.js');
 var TransactionPool = require('../logic/transactionPool.js');
 var transactionTypes = require('../helpers/transactionTypes.js');
 const { preparePaging } = require('../helpers/pagination.js');
+const {
+  CHATS_QUERY_FIELDS,
+  normalizeAndOnlyFilters
+} = require('../helpers/andOnlyQuery.js');
 var Transfer = require('../logic/transfer.js');
 
 // Private fields
@@ -146,20 +149,24 @@ __private.list = function (filter, cb) {
   );
 
   if (filter.senderId) {
-    where.push('"t_senderId" = ${name}');
-    params.name = filter.senderId;
+    where.push('"t_senderId" = ${senderId}');
+    params.senderId = filter.senderId;
   }
   if (filter.recipientId) {
-    where.push('"t_recipientId" = ${name}');
-    params.name = filter.recipientId;
+    where.push('"t_recipientId" = ${recipientId}');
+    params.recipientId = filter.recipientId;
   }
   if (filter.isIn || filter.inId) {
-    where.push('("t_recipientId" = ${name} OR "t_senderId" = ${name})');
-    params.name = filter.isIn || filter.inId;
+    where.push('("t_recipientId" = ${inId} OR "t_senderId" = ${inId})');
+    params.inId = filter.isIn || filter.inId;
   }
   if (filter.fromHeight) {
-    where.push('"b_height" > ${height}');
-    params.height = filter.fromHeight;
+    where.push('"b_height" > ${fromHeight}');
+    params.fromHeight = filter.fromHeight;
+  }
+  if (filter.toHeight) {
+    where.push('"b_height" <= ${toHeight}');
+    params.toHeight = filter.toHeight;
   }
   if (!filter.limit) {
     params.limit = 100;
@@ -297,30 +304,24 @@ Chats.prototype.internal = {
   getTransactions: function (req, cb) {
     async.waterfall([
       function (waterCb) {
-        var params = {};
-        var pattern = /(and|or){1}:/i;
-
-        // Filter out 'and:'/'or:' from params to perform schema validation
-        _.each(req.body, function (value, key) {
-          var param = String(key).replace(pattern, '');
-          // Dealing with array-like parameters (csv comma separated)
-          if (_.includes(['senderIds', 'recipientIds', 'senderPublicKeys', 'recipientPublicKeys'], param)) {
-            value = String(value).split(',');
-            req.body[key] = value;
-          }
-          params[param] = value;
+        const normalized = normalizeAndOnlyFilters(req.body, {
+          supportedFields: CHATS_QUERY_FIELDS
         });
 
-        library.schema.validate(params, schema.getTransactions, function (err) {
+        if (normalized.error) {
+          return setImmediate(waterCb, normalized.error);
+        }
+
+        library.schema.validate(normalized.filter, schema.getTransactions, function (err) {
           if (err) {
             return setImmediate(waterCb, err[0].message);
           } else {
-            return setImmediate(waterCb, null);
+            return setImmediate(waterCb, null, normalized.filter);
           }
         });
       },
-      function (waterCb) {
-        __private.list(req.body, function (err, data) {
+      function (filter, waterCb) {
+        __private.list(filter, function (err, data) {
           if (err) {
             return setImmediate(waterCb, 'Failed to get transactions: ' + err);
           } else {

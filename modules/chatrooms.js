@@ -1,6 +1,5 @@
 'use strict';
 
-const _ = require('lodash');
 const async = require('async');
 const Chat = require('../logic/chat.js');
 const sql = require('../sql/chats.js');
@@ -9,6 +8,10 @@ const schema = require('../schema/chatrooms.js');
 const Transfer = require('../logic/transfer.js');
 const OrderBy = require('../helpers/orderBy.js');
 const { preparePaging } = require('../helpers/pagination.js');
+const {
+  CHATROOMS_QUERY_FIELDS,
+  normalizeAndOnlyFilters
+} = require('../helpers/andOnlyQuery.js');
 
 // Private fields
 let modules, library, self, __private = {}, shared = {};
@@ -86,19 +89,19 @@ __private.listChats = function (filter, cb) {
   }
   where.push(`(NOT("c_type" = ${transactionTypes.CHAT_MESSAGE_TYPES.SIGNAL_MESSAGE}) OR c_type IS NULL) `);
   if (filter.senderId) {
-    where.push('"t_senderId" = ${name}');
-    params.name = filter.senderId;
+    where.push('"t_senderId" = ${senderId}');
+    params.senderId = filter.senderId;
   }
 
   if (filter.recipientId) {
-    where.push('"t_recipientId" = ${name}');
-    params.name = filter.recipientId;
+    where.push('"t_recipientId" = ${recipientId}');
+    params.recipientId = filter.recipientId;
   }
 
   if (filter.userId) {
-    whereOr.push('"t_senderId" = ${name}');
-    whereOr.push('"t_recipientId" = ${name}');
-    params.name = filter.userId;
+    whereOr.push('"t_senderId" = ${userId}');
+    whereOr.push('"t_recipientId" = ${userId}');
+    params.userId = filter.userId;
   }
 
   if (!filter.limit) {
@@ -230,20 +233,20 @@ __private.listMessages = function (filter, cb) {
   }
 
   if (filter.senderId) {
-    where.push('"t_senderId" = ${name}');
-    params.name = filter.senderId;
+    where.push('"t_senderId" = ${senderId}');
+    params.senderId = filter.senderId;
   }
 
   if (filter.recipientId) {
-    where.push('"t_recipientId" = ${name}');
-    params.name = filter.recipientId;
+    where.push('"t_recipientId" = ${recipientId}');
+    params.recipientId = filter.recipientId;
   }
 
   if (filter.companionId && filter.userId) {
-    whereOr.push('("t_senderId" = ${pname} AND "t_recipientId" = ${name})');
-    whereOr.push('("t_recipientId" = ${pname} AND "t_senderId" = ${name})');
-    params.pname = filter.companionId;
-    params.name = filter.userId;
+    whereOr.push('("t_senderId" = ${companionId} AND "t_recipientId" = ${userId})');
+    whereOr.push('("t_recipientId" = ${companionId} AND "t_senderId" = ${userId})');
+    params.companionId = filter.companionId;
+    params.userId = filter.userId;
   }
 
   if (!filter.limit) {
@@ -367,6 +370,24 @@ Chatrooms.prototype.isLoaded = function () {
   return !!modules;
 };
 
+__private.normalizeQuery = function (body, cb) {
+  const normalized = normalizeAndOnlyFilters(body, {
+    supportedFields: CHATROOMS_QUERY_FIELDS
+  });
+
+  if (normalized.error) {
+    return setImmediate(cb, normalized.error);
+  }
+
+  library.schema.validate(normalized.filter, schema.getChats, function (err) {
+    if (err) {
+      return setImmediate(cb, err[0].message);
+    }
+
+    return setImmediate(cb, null, normalized.filter);
+  });
+};
+
 Chatrooms.prototype.internal = {
   getChats: function (req, cb) {
     const validRequest = req.path.match(/^\/([Uu][0-9]+)\/?([Uu][0-9]+)?$/);
@@ -385,18 +406,10 @@ Chatrooms.prototype.internal = {
 
     async.waterfall([
       function (waterCb) {
-        const params = req.body;
-
-        library.schema.validate(params, schema.getChats, function (err) {
-          if (err) {
-            return setImmediate(waterCb, err[0].message);
-          } else {
-            return setImmediate(waterCb, null);
-          }
-        });
+        __private.normalizeQuery(req.body, waterCb);
       },
-      function (waterCb) {
-        __private.listChats(req.body, function (err, data) {
+      function (filter, waterCb) {
+        __private.listChats(filter, function (err, data) {
           if (err) {
             return setImmediate(waterCb, 'Failed to get transactions: ' + err);
           } else {
@@ -428,17 +441,10 @@ Chatrooms.prototype.internal = {
 
     async.waterfall([
       function (waterCb) {
-        const params = req.body;
-        library.schema.validate(params, schema.getChats, function (err) {
-          if (err) {
-            return setImmediate(waterCb, err[0].message);
-          } else {
-            return setImmediate(waterCb, null);
-          }
-        });
+        __private.normalizeQuery(req.body, waterCb);
       },
-      function (waterCb) {
-        __private.listMessages(req.body, function (err, data) {
+      function (filter, waterCb) {
+        __private.listMessages(filter, function (err, data) {
           if (err) {
             return setImmediate(waterCb, 'Failed to get transactions: ' + err);
           } else {

@@ -1,4 +1,3 @@
-var _ = require('lodash');
 var async = require('async');
 var constants = require('../helpers/constants.js');
 var crypto = require('crypto');
@@ -13,6 +12,11 @@ var sql = require('../sql/states.js');
 var TransactionPool = require('../logic/transactionPool.js');
 var transactionTypes = require('../helpers/transactionTypes.js');
 const { preparePaging } = require('../helpers/pagination.js');
+const {
+  normalizeAndOnlyFilters,
+  STATES_CSV_FIELDS,
+  STATES_QUERY_FIELDS
+} = require('../helpers/andOnlyQuery.js');
 
 // Private fields
 var modules, library, self, __private = {}, shared = {};
@@ -141,6 +145,10 @@ __private.list = function (filter, cb) {
   if (filter.fromHeight) {
     where.push('"b_height" > ${height}');
     params.height = filter.fromHeight;
+  }
+  if (filter.toHeight) {
+    where.push('"b_height" <= ${toHeight}');
+    params.toHeight = filter.toHeight;
   }
   if (!filter.limit) {
     params.limit = 100;
@@ -278,30 +286,25 @@ States.prototype.internal = {
   getTransactions: function (req, cb) {
     async.waterfall([
       function (waterCb) {
-        var params = {};
-        var pattern = /(and|or){1}:/i;
-
-        // Filter out 'and:'/'or:' from params to perform schema validation
-        _.each(req.body, function (value, key) {
-          var param = String(key).replace(pattern, '');
-          // Dealing with array-like parameters (csv comma separated)
-          if (_.includes(['senderIds', 'senderPublicKeys', 'keyIds'], param)) {
-            value = String(value).split(',');
-            req.body[key] = value;
-          }
-          params[param] = value;
+        const normalized = normalizeAndOnlyFilters(req.body, {
+          supportedFields: STATES_QUERY_FIELDS,
+          csvFields: STATES_CSV_FIELDS
         });
 
-        library.schema.validate(params, schema.getTransactions, function (err) {
+        if (normalized.error) {
+          return setImmediate(waterCb, normalized.error);
+        }
+
+        library.schema.validate(normalized.filter, schema.getTransactions, function (err) {
           if (err) {
             return setImmediate(waterCb, err[0].message);
           } else {
-            return setImmediate(waterCb, null);
+            return setImmediate(waterCb, null, normalized.filter);
           }
         });
       },
-      function (waterCb) {
-        __private.list(req.body, function (err, data) {
+      function (filter, waterCb) {
+        __private.list(filter, function (err, data) {
           if (err) {
             return setImmediate(waterCb, 'Failed to get transactions: ' + err);
           } else {

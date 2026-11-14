@@ -527,4 +527,53 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
       orderBy: 'timestamp:asc'
     });
   });
+
+  describe('AND-only filters', function () {
+    function chatIds (body) {
+      return body.chats.map((chat) => chat.lastTransaction.id).sort();
+    }
+
+    it('should apply and:type the same way as type', function (done) {
+      getChats(sender.address, function (err, unfiltered) {
+        node.expect(unfiltered.body).to.have.property('success').to.be.true;
+        getChats(sender.address, function (plainErr, plain) {
+          node.expect(plain.body).to.have.property('success').to.be.true;
+          node.expect(plain.body.count).to.be.below(unfiltered.body.count);
+          getChats(sender.address, function (prefixedErr, prefixed) {
+            node.expect(prefixed.body).to.have.property('success').to.be.true;
+            node.expect(prefixed.body.count).to.equal(plain.body.count);
+            node.expect(chatIds(prefixed.body)).to.eql(chatIds(plain.body));
+            prefixed.body.chats.forEach(function (chat) {
+              node.expect(chat.lastTransaction.asset.chat.type).to.equal(1);
+            });
+            done();
+          }, { 'and:type': 1 });
+        }, { type: 1 });
+      });
+    });
+
+    it('should apply and:type on a room the same way as type', function (done) {
+      getMessages(sender.address, recipient1.address, function (err, plain) {
+        node.expect(plain.body).to.have.property('success').to.be.true;
+        node.expect(plain.body.count).to.equal(2);
+        getMessages(sender.address, recipient1.address, function (prefixedErr, prefixed) {
+          node.expect(prefixed.body).to.have.property('success').to.be.true;
+          node.expect(prefixed.body.count).to.equal(plain.body.count);
+          done();
+        }, { 'and:type': 1 });
+      }, { type: 1 });
+    });
+
+    it('should reject or: and filters the room query does not apply', function (done) {
+      getChats(sender.address, function (err, response) {
+        node.expect(response.body).to.have.property('success').to.be.false;
+        node.expect(response.body.error).to.equal('OR filters are not supported');
+        getChats(sender.address, function (heightErr, heightResponse) {
+          node.expect(heightResponse.body).to.have.property('success').to.be.false;
+          node.expect(heightResponse.body.error).to.equal('Parameter is not supported: toHeight');
+          done();
+        }, { toHeight: 1 });
+      }, { 'or:type': 1 });
+    });
+  });
 });
