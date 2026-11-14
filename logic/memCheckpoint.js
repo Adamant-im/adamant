@@ -442,7 +442,7 @@ MemCheckpoint.prototype.createCheckpoint = function (block, round, nethash, onPi
         return execStatementsSequential(t, sql.copyLiveToSlotStatements(slot));
       }).then(function () {
         // Guard against a copy that captured state ahead of the checkpoint block.
-        return t.oneOrNone(sql.getSlotAccountsMaxBlockHeight(slot));
+        return t.oneOrNone(sql.getSlotAccountsBlockAboveHeight(slot), { height: block.height });
       }).then(function (row) {
         var copiedHeight = row && row.height !== null ? parseInt(row.height, 10) : 0;
 
