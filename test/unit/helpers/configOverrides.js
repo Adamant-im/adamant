@@ -354,6 +354,50 @@ describe('configOverrides', () => {
       expect(console.error.firstCall.args[1]).to.include('Failed to validate config data');
     });
 
+    it('should keep a legacy max cap instead of inheriting default route policies', () => {
+      const raw = JSON.parse(fs.readFileSync(testConfigPath, 'utf8'));
+
+      raw.api.options.limits = {
+        max: 40,
+        delayMs: 0,
+        delayAfter: 0,
+        windowMs: 60000
+      };
+      raw.peers.options.limits = {
+        max: 80,
+        delayMs: 1,
+        delayAfter: 2,
+        windowMs: 60000
+      };
+
+      const config = Config(writeTempFile('legacy-limits.json', JSON.stringify(raw)));
+
+      expect(config.api.options.limits.max).to.equal(40);
+      expect(config.api.options.limits).not.to.have.property('limit');
+      expect(config.api.options.limits).not.to.have.property('routes');
+      expect(config.peers.options.limits.max).to.equal(80);
+      expect(config.peers.options.limits).not.to.have.property('limit');
+      expect(config.peers.options.limits).not.to.have.property('routes');
+    });
+
+    it('should inherit production limits when the limits block is absent', () => {
+      const raw = JSON.parse(fs.readFileSync(testConfigPath, 'utf8'));
+      const defaults = require('../../../config.default.json');
+
+      delete raw.api.options.limits;
+      delete raw.peers.options.limits;
+
+      const config = Config(writeTempFile('inherited-limits.json', JSON.stringify(raw)));
+
+      expect(config.api.options.limits.limit).to.equal(defaults.api.options.limits.limit);
+      expect(config.api.options.limits.routes.publish.limit).to.equal(
+          defaults.api.options.limits.routes.publish.limit
+      );
+      expect(config.peers.options.limits.routes.sync.limit).to.equal(
+          defaults.peers.options.limits.routes.sync.limit
+      );
+    });
+
     it('should fail during schema validation for zero snapshot override', () => {
       sinon.stub(console, 'error');
       sinon.stub(process, 'exit').throws(new Error('process.exit'));

@@ -1,5 +1,23 @@
 const { Server } = require('socket.io');
+const AbuseWindow = require('../helpers/abuse-window');
+const normalizeIp = AbuseWindow.normalizeIp;
 const TransactionSubscription = require('./clientWs/transactionSubscription');
+
+const LIMIT_DEFAULTS = {
+  maxConnections: 1000,
+  maxConnectionsPerIp: 30,
+  maxAddresses: 100,
+  maxTypes: 16,
+  maxAssetChatTypes: 8,
+  maxSubscriptionEvents: 60,
+  windowMs: 10000
+};
+
+const CAP_FIELDS = {
+  address: { set: 'addresses', limit: 'maxAddresses' },
+  types: { set: 'types', limit: 'maxTypes' },
+  assetChatTypes: { set: 'assetChatTypes', limit: 'maxAssetChatTypes' }
+};
 
 class ClientWs {
   /**
@@ -10,6 +28,12 @@ class ClientWs {
    */
   constructor (config, logger, cb) {
     this.enabled = Boolean(config && config.enabled);
+    this.trustProxy = Boolean(config && config.trustProxy);
+    this.limits = normalizeClientLimits(config && config.limits);
+    this.connectionCount = 0;
+    this.connectionsByIp = new Map();
+    this.admitted = new Set();
+    this.subscriptionWindows = new Map();
     this.describes = {};
     this.transactionSubscriptions = new Set();
     this.blockSubscriptions = new Set();
@@ -208,29 +232,40 @@ class ClientWs {
    */
   handleConnection (socket) {
     try {
+      if (!this.admitConnection(socket)) {
+        this.logLimit(socket);
+        if (typeof socket.disconnect === 'function') {
+          socket.disconnect(true);
+        }
+        return;
+      }
+
       const describe = new TransactionSubscription(socket);
 
       socket.on(
           'address',
-          this.subscribe.bind(this, socket, describe, describe.subscribeToAddresses.bind(describe))
+          this.subscribe.bind(this, socket, describe, 'address', describe.subscribeToAddresses.bind(describe))
       );
       socket.on(
           'types',
-          this.subscribe.bind(this, socket, describe, describe.subscribeToTypes.bind(describe))
+          this.subscribe.bind(this, socket, describe, 'types', describe.subscribeToTypes.bind(describe))
       );
       socket.on(
           'assetChatTypes',
-          this.subscribe.bind(this, socket, describe, describe.subscribeToAssetChatTypes.bind(describe))
+          this.subscribe.bind(this, socket, describe, 'assetChatTypes', describe.subscribeToAssetChatTypes.bind(describe))
       );
       socket.on(
           'balances',
-          this.subscribe.bind(this, socket, describe, describe.subscribeToBalances.bind(describe))
+          this.subscribe.bind(this, socket, describe, null, describe.subscribeToBalances.bind(describe))
       );
       socket.on(
           'blocks',
           this.subscribeToBlocks.bind(this, socket, describe)
       );
-      socket.on('disconnect', this.removeSubscription.bind(this, socket.id));
+      socket.on('disconnect', () => {
+        this.releaseConnection(socket);
+        this.removeSubscription(socket.id);
+      });
     } catch (e) {
       this.logError('Connection socket error', e);
     }
@@ -240,14 +275,24 @@ class ClientWs {
    * Applies one subscription request and retains subscriptions that accepted it.
    * @param {object} socket - Connected Socket.IO client.
    * @param {TransactionSubscription} describe - Subscription state for the socket.
+   * @param {string|null} kind - Cap group, or null when only the event rate applies.
    * @param {Function} subscribe - Bound subscription method.
    * @param {string|string[]|number|number[]} value - Requested subscription values.
    * @return {void}
    */
-  subscribe (socket, describe, subscribe, value) {
-    const values = Array.isArray(value) ? value : [value];
+  subscribe (socket, describe, kind, subscribe, value) {
+    if (!this.allowSubscriptionEvent(socket)) {
+      return;
+    }
 
-    if (subscribe(...values)) {
+    const values = Array.isArray(value) ? value : [value];
+    const allowed = this.limitSubscriptionValues(describe, kind, values);
+
+    if (!allowed.length) {
+      return;
+    }
+
+    if (subscribe(...allowed)) {
       this.registerSubscription(socket, describe);
     }
   }
@@ -260,6 +305,10 @@ class ClientWs {
    * @return {void}
    */
   subscribeToBlocks (socket, describe, enabled) {
+    if (!this.allowSubscriptionEvent(socket)) {
+      return;
+    }
+
     if (describe.subscribeToBlocks(enabled)) {
       this.registerSubscription(socket, describe);
     }
@@ -335,6 +384,115 @@ class ClientWs {
     }
 
     delete this.describes[socketId];
+  }
+
+  /**
+   * Accepts a connection when the global and per-IP caps still have room.
+   * A non-positive cap disables that check.
+   * @param {object} socket - Connected Socket.IO client.
+   * @return {boolean} Whether the socket was admitted.
+   */
+  admitConnection (socket) {
+    const limits = this.limits;
+    const ip = resolveClientIp(socket, this.trustProxy);
+
+    if (limits.maxConnections > 0 && this.connectionCount >= limits.maxConnections) {
+      return false;
+    }
+
+    const current = this.connectionsByIp.get(ip) || 0;
+
+    if (limits.maxConnectionsPerIp > 0 && current >= limits.maxConnectionsPerIp) {
+      return false;
+    }
+
+    this.admitted.add(socket);
+    this.connectionCount += 1;
+    this.connectionsByIp.set(ip, current + 1);
+    return true;
+  }
+
+  /**
+   * Releases connection counters for a socket that was admitted.
+   * @param {object} socket - Disconnected Socket.IO client.
+   * @return {void}
+   */
+  releaseConnection (socket) {
+    if (!this.admitted.has(socket)) {
+      return;
+    }
+
+    const ip = resolveClientIp(socket, this.trustProxy);
+    const current = this.connectionsByIp.get(ip) || 0;
+
+    this.admitted.delete(socket);
+    this.subscriptionWindows.delete(socket);
+    this.connectionCount = Math.max(0, this.connectionCount - 1);
+
+    if (current <= 1) {
+      this.connectionsByIp.delete(ip);
+    } else {
+      this.connectionsByIp.set(ip, current - 1);
+    }
+  }
+
+  /**
+   * Applies the per-socket subscription mutation budget.
+   * @param {object} socket - Connected Socket.IO client.
+   * @return {boolean} Whether this mutation is allowed.
+   */
+  allowSubscriptionEvent (socket) {
+    let subscriptionWindow = this.subscriptionWindows.get(socket);
+
+    if (!subscriptionWindow) {
+      subscriptionWindow = new AbuseWindow(this.limits.maxSubscriptionEvents, this.limits.windowMs);
+      this.subscriptionWindows.set(socket, subscriptionWindow);
+    }
+
+    return subscriptionWindow.allow('event');
+  }
+
+  /**
+   * Trims one subscription request to the remaining per-socket cap.
+   * @param {TransactionSubscription} describe - Subscription state.
+   * @param {string|null} kind - Cap group.
+   * @param {Array} values - Requested values.
+   * @return {Array} Values that still fit.
+   */
+  limitSubscriptionValues (describe, kind, values) {
+    const spec = CAP_FIELDS[kind];
+
+    if (!spec) {
+      return values;
+    }
+
+    const max = this.limits[spec.limit];
+
+    if (!(max > 0)) {
+      return values;
+    }
+
+    const remaining = max - describe[spec.set].size;
+
+    if (remaining <= 0) {
+      return [];
+    }
+
+    return values.slice(0, remaining);
+  }
+
+  /**
+   * Logs a rejected client connection without subscription values or payloads.
+   * @param {object} socket - Rejected Socket.IO client.
+   * @return {void}
+   */
+  logLimit (socket) {
+    if (this.logger && typeof this.logger.debug === 'function') {
+      this.logger.debug(
+          'ws-client-server',
+          'Rejected client WebSocket connection from ' + resolveClientIp(socket, this.trustProxy)
+      );
+    }
   }
 
   /**
@@ -494,3 +652,57 @@ function formatBlock (block) {
 }
 
 module.exports = ClientWs;
+module.exports.limitDefaults = LIMIT_DEFAULTS;
+
+/**
+ * Fills omitted client WebSocket limits from the production defaults.
+ * Zero disables the matching cap.
+ * @param {object} [limits] - Operator limits.
+ * @return {object} Normalized limits.
+ */
+function normalizeClientLimits (limits) {
+  const source = limits && typeof limits === 'object' ? limits : {};
+  const normalized = {};
+
+  Object.keys(LIMIT_DEFAULTS).forEach(function (key) {
+    if (!Object.prototype.hasOwnProperty.call(source, key)) {
+      normalized[key] = LIMIT_DEFAULTS[key];
+      return;
+    }
+
+    const value = Math.floor(Number(source[key]));
+    normalized[key] = Number.isFinite(value) && value >= 0 ? value : LIMIT_DEFAULTS[key];
+  });
+
+  if (normalized.windowMs === 0) {
+    normalized.windowMs = LIMIT_DEFAULTS.windowMs;
+  }
+
+  return normalized;
+}
+
+/**
+ * Resolves the client address, honoring X-Forwarded-For only when trustProxy is enabled.
+ * @param {object} socket - Socket.IO client.
+ * @param {boolean} trustProxy - Whether the node sits behind a trusted reverse proxy.
+ * @return {string} Client IP.
+ */
+function resolveClientIp (socket, trustProxy) {
+  const handshake = (socket && socket.handshake) || {};
+  const headers = handshake.headers || {};
+
+  if (trustProxy) {
+    const forwarded = headers['x-forwarded-for'];
+
+    if (typeof forwarded === 'string' && forwarded.trim()) {
+      return normalizeIp(forwarded.split(',')[0]);
+    }
+  }
+
+  const address = handshake.address ||
+    (socket && socket.conn && socket.conn.remoteAddress) ||
+    (socket && socket.request && socket.request.socket && socket.request.socket.remoteAddress) ||
+    'unknown';
+
+  return normalizeIp(address);
+}

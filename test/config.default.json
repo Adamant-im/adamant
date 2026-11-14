@@ -56,10 +56,17 @@
     },
     "options": {
       "limits": {
+        "limit": 0,
         "max": 0,
         "delayMs": 0,
         "delayAfter": 0,
-        "windowMs": 60000
+        "maxDelayMs": 0,
+        "windowMs": 60000,
+        "standardHeaders": true,
+        "legacyHeaders": false,
+        "statusCode": 429,
+        "message": "Too many requests, please try again later.",
+        "requestPropertyName": "rateLimit"
       }
     }
   },
@@ -84,10 +91,17 @@
     },
     "options": {
       "limits": {
+        "limit": 0,
         "max": 0,
         "delayMs": 0,
         "delayAfter": 0,
-        "windowMs": 60000
+        "maxDelayMs": 0,
+        "windowMs": 60000,
+        "standardHeaders": true,
+        "legacyHeaders": false,
+        "statusCode": 429,
+        "message": "Too many requests, please try again later.",
+        "requestPropertyName": "rateLimit"
       },
       "timeout": 5000
     }
@@ -136,7 +150,16 @@
   },
   "wsClient": {
     "portWS": 36665,
-    "enabled": true
+    "enabled": true,
+    "limits": {
+      "maxConnections": 1000,
+      "maxConnectionsPerIp": 30,
+      "maxAddresses": 100,
+      "maxTypes": 16,
+      "maxAssetChatTypes": 8,
+      "maxSubscriptionEvents": 60,
+      "windowMs": 10000
+    }
   },
   "wsNode": {
     "enabled": true,

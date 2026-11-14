@@ -58,10 +58,37 @@
     },
     "options": {
       "limits": {
-        "max": 0,
-        "delayMs": 0,
-        "delayAfter": 0,
-        "windowMs": 60000
+        "limit": 3000,
+        "max": 3000,
+        "delayMs": 25,
+        "delayAfter": 1000,
+        "maxDelayMs": 1000,
+        "windowMs": 60000,
+        "standardHeaders": true,
+        "legacyHeaders": false,
+        "statusCode": 429,
+        "message": "Too many requests, please try again later.",
+        "requestPropertyName": "rateLimit",
+        "routes": {
+          "status": {
+            "limit": 12000,
+            "delayMs": 0,
+            "delayAfter": 0,
+            "maxDelayMs": 0
+          },
+          "read": {
+            "limit": 3000,
+            "delayMs": 25,
+            "delayAfter": 1000,
+            "maxDelayMs": 1000
+          },
+          "publish": {
+            "limit": 300,
+            "delayMs": 50,
+            "delayAfter": 120,
+            "maxDelayMs": 1500
+          }
+        }
       }
     }
   },
@@ -102,10 +129,37 @@
     },
     "options": {
       "limits": {
-        "max": 0,
-        "delayMs": 0,
-        "delayAfter": 0,
-        "windowMs": 60000
+        "limit": 12000,
+        "max": 12000,
+        "delayMs": 5,
+        "delayAfter": 6000,
+        "maxDelayMs": 200,
+        "windowMs": 60000,
+        "standardHeaders": true,
+        "legacyHeaders": false,
+        "statusCode": 429,
+        "message": "Too many requests, please try again later.",
+        "requestPropertyName": "rateLimit",
+        "routes": {
+          "status": {
+            "limit": 20000,
+            "delayMs": 0,
+            "delayAfter": 0,
+            "maxDelayMs": 0
+          },
+          "sync": {
+            "limit": 12000,
+            "delayMs": 5,
+            "delayAfter": 8000,
+            "maxDelayMs": 200
+          },
+          "broadcast": {
+            "limit": 12000,
+            "delayMs": 5,
+            "delayAfter": 6000,
+            "maxDelayMs": 200
+          }
+        }
       },
       "timeout": 5000
     }
@@ -155,12 +209,24 @@
   },
   "wsClient": {
     "portWS": 36668,
-    "enabled": true
+    "enabled": true,
+    "limits": {
+      "maxConnections": 1000,
+      "maxConnectionsPerIp": 30,
+      "maxAddresses": 100,
+      "maxTypes": 16,
+      "maxAssetChatTypes": 8,
+      "maxSubscriptionEvents": 60,
+      "windowMs": 10000
+    }
   },
   "wsNode": {
     "enabled": true,
     "maxBroadcastConnections": 15,
-    "maxReceiveConnections": 25
+    "maxReceiveConnections": 25,
+    "handshakeLimit": 60,
+    "handshakeLimitPerNonce": 30,
+    "handshakeWindowMs": 60000
   },
   "nethash": "bd330166898377fb28743ceef5e43a5d9d0a3efd9b3451fb7bc53530bb0a6d64"
 }

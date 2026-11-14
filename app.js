@@ -264,7 +264,10 @@ d.run(function () {
       const ClientWs = require('./modules/clientWs');
 
       const clientWs = new ClientWs(
-          Object.assign(scope.config.wsClient, { cors: appConfig.cors }),
+          Object.assign(scope.config.wsClient, {
+            cors: appConfig.cors,
+            trustProxy: appConfig.trustProxy
+          }),
           logger
       );
 
@@ -278,13 +281,13 @@ d.run(function () {
      * @param {nodeStyleCallback} cb - Callback function with created Object:
      * `{express, app, server, io, https, https_io}`.
      */
-    network: ['config', function (scope, cb) {
+    network: ['config', 'logger', function (scope, cb) {
       var express = require('express');
       var compression = require('compression');
       var cors = require('cors');
       var app = express();
 
-      require('./helpers/request-limiter')(app, appConfig);
+      require('./helpers/request-limiter')(app, appConfig, scope.logger);
 
       app.use(compression({
         level: 9

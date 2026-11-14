@@ -32,10 +32,12 @@ function Config (configPath, overrideOptions) {
     const configData = JSON.parse(configJson);
     const defaultConfigData = JSON.parse(defaultConfigJson);
     const legacyLoggingConfig = getLegacyLoggingConfig(configData);
+    const legacyRateLimits = getLegacyRateLimitAliases(configData);
     const configEvents = [];
 
     deepMergeMissing(configData, defaultConfigData);
     applyLegacyLoggingConfig(configData, legacyLoggingConfig);
+    preserveLegacyRateLimitAliases(configData, legacyRateLimits);
     configOverrides.applyOverrides(
         configData,
         configOverrides.resolveOverrides(overrideOptions),
@@ -47,6 +49,8 @@ function Config (configPath, overrideOptions) {
       value: configEvents,
       enumerable: false
     });
+
+    assertRateLimitAliases(configData);
 
     var validator = new z_schema();
     var valid = validator.validate(configData, configSchema.config);
@@ -62,6 +66,99 @@ function Config (configPath, overrideOptions) {
     console.error('Error occurred while processing config file:', error);
     process.exit(1);
   }
+}
+
+/**
+ * Records whether a raw limits block set `limit`, legacy `max`, or route policies.
+ * @param {object} configData - User config before default values are merged.
+ * @return {object} Presence flags for the API and peer limit blocks.
+ */
+function getLegacyRateLimitAliases (configData) {
+  return {
+    api: snapshotLimits(configData.api && configData.api.options && configData.api.options.limits),
+    peers: snapshotLimits(configData.peers && configData.peers.options && configData.peers.options.limits)
+  };
+}
+
+/**
+ * @param {object} limits - Raw limits block.
+ * @return {object|null} Presence flags, or null when the block was absent.
+ */
+function snapshotLimits (limits) {
+  if (!limits || typeof limits !== 'object' || Array.isArray(limits)) {
+    return null;
+  }
+
+  return {
+    hadLimit: Object.prototype.hasOwnProperty.call(limits, 'limit'),
+    hadMax: Object.prototype.hasOwnProperty.call(limits, 'max'),
+    hadRoutes: Object.prototype.hasOwnProperty.call(limits, 'routes')
+  };
+}
+
+/**
+ * Keeps an explicit legacy `max` from being replaced by a default `limit` or route policy.
+ * Operators inherit the new defaults by deleting the limits block.
+ * @param {object} configData - Config after missing defaults were merged.
+ * @param {object} snapshot - Presence flags captured before the merge.
+ * @return {void}
+ */
+function preserveLegacyRateLimitAliases (configData, snapshot) {
+  preserveOne(
+      configData.api && configData.api.options && configData.api.options.limits,
+      snapshot.api
+  );
+  preserveOne(
+      configData.peers && configData.peers.options && configData.peers.options.limits,
+      snapshot.peers
+  );
+}
+
+/**
+ * @param {object} limits - Merged limits block.
+ * @param {object|null} shot - Presence flags for the raw block.
+ * @return {void}
+ */
+function preserveOne (limits, shot) {
+  if (!limits || !shot) {
+    return;
+  }
+
+  if (!shot.hadLimit && shot.hadMax) {
+    delete limits.limit;
+  }
+
+  if (!shot.hadRoutes) {
+    delete limits.routes;
+  }
+}
+
+/**
+ * Rejects a limits block that sets neither `limit` nor legacy `max`.
+ * @param {object} configData - Effective config.
+ * @return {void}
+ */
+function assertRateLimitAliases (configData) {
+  [
+    ['api.options.limits', configData.api && configData.api.options && configData.api.options.limits],
+    ['peers.options.limits', configData.peers && configData.peers.options && configData.peers.options.limits]
+  ].forEach(function (entry) {
+    const label = entry[0];
+    const limits = entry[1];
+
+    if (!limits || typeof limits !== 'object') {
+      return;
+    }
+
+    const hasLimit = Object.prototype.hasOwnProperty.call(limits, 'limit');
+    const hasMax = Object.prototype.hasOwnProperty.call(limits, 'max');
+
+    if (!hasLimit && !hasMax) {
+      throw new Error(
+          label + ' must include "limit" (preferred) or legacy "max". Set the value to 0 to disable that surface.'
+      );
+    }
+  });
 }
 
 /**

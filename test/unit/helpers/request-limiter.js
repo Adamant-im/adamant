@@ -3,8 +3,11 @@
 const { expect } = require('chai');
 const express = require('express');
 const request = require('supertest');
+const sinon = require('sinon');
 
 const RequestLimiter = require('../../../helpers/request-limiter.js');
+const ZSchema = require('../../../helpers/z_schema.js');
+const configSchema = require('../../../schema/config.js');
 
 describe('RequestLimiter', () => {
   /**
@@ -49,11 +52,15 @@ describe('RequestLimiter', () => {
           .to.be.an('object')
           .that.has.property('client')
           .that.is.an('object');
-      expect(limiter.client).to.have.property('delayAfter').to.equal(0);
+      expect(limiter.client).to.have.property('delayAfter').to.equal(1000);
       expect(limiter.client).to.have.property('delayMs').that.is.a('function');
-      expect(limiter.client).to.have.property('max').to.equal(0);
+      expect(limiter.client).to.have.property('max').to.equal(3000);
+      expect(limiter.client).to.have.property('limit').to.equal(3000);
       expect(limiter.client).to.have.property('windowMs').to.equal(60000);
       expect(limiter.client.delayMs(100)).to.equal(0);
+      expect(limiter.client.delayMs(1001)).to.equal(25);
+      expect(limiter.client.routes.publish.limit).to.equal(300);
+      expect(limiter.client.routes.status.limit).to.equal(12000);
     });
 
     it('should return the default peer limits', () => {
@@ -61,11 +68,15 @@ describe('RequestLimiter', () => {
           .to.be.an('object')
           .that.has.property('peer')
           .that.is.an('object');
-      expect(limiter.peer).to.have.property('delayAfter').to.equal(0);
+      expect(limiter.peer).to.have.property('delayAfter').to.equal(6000);
       expect(limiter.peer).to.have.property('delayMs').that.is.a('function');
-      expect(limiter.peer).to.have.property('max').to.equal(0);
+      expect(limiter.peer).to.have.property('max').to.equal(12000);
+      expect(limiter.peer).to.have.property('limit').to.equal(12000);
       expect(limiter.peer).to.have.property('windowMs').to.equal(60000);
       expect(limiter.peer.delayMs(100)).to.equal(0);
+      expect(limiter.peer.routes.sync.limit).to.equal(12000);
+      expect(limiter.peer.routes.sync.delayAfter).to.equal(8000);
+      expect(limiter.peer.routes.status.limit).to.equal(20000);
     });
 
     it('should enable the client middleware', () => {
@@ -110,6 +121,7 @@ describe('RequestLimiter', () => {
           .that.is.an('object');
       expect(limiter.client).to.have.property('delayMs').that.is.a('function');
       expect(limiter.client).to.have.property('max').to.equal(5);
+      expect(limiter.client).to.have.property('limit').to.equal(5);
       expect(limiter.client).to.have.property('delayAfter').to.equal(3);
       expect(limiter.client).to.have.property('windowMs').to.equal(4);
       expect(limiter.client.delayMs(4)).to.equal(2);
@@ -188,5 +200,285 @@ describe('RequestLimiter', () => {
     for (let i = 0; i < 6; i++) {
       await request(app).get('/api/test').expect(200);
     }
+  });
+
+  it('should prefer limit over legacy max', async () => {
+    RequestLimiter(app, {
+      api: {
+        options: {
+          limits: {
+            limit: 1,
+            max: 50,
+            delayAfter: 0,
+            delayMs: 0,
+            windowMs: 60000
+          }
+        }
+      }
+    });
+    app.get('/api/test', (req, res) => res.sendStatus(200));
+
+    await request(app).get('/api/test').expect(200);
+    const limited = await request(app).get('/api/test').expect(429);
+
+    expect(limited.body).to.deep.equal({
+      success: false,
+      error: 'Too many requests, please try again later.'
+    });
+    expect(limited.headers).to.have.property('retry-after');
+    expect(limited.headers).to.have.property('ratelimit-limit', '1');
+    expect(limited.headers).not.to.have.property('x-ratelimit-limit');
+  });
+
+  it('should disable a surface when limit is 0, including route policies', async () => {
+    RequestLimiter(app, {
+      api: {
+        options: {
+          limits: {
+            limit: 0,
+            max: 1,
+            delayAfter: 0,
+            delayMs: 0,
+            windowMs: 60000,
+            routes: {
+              publish: {
+                limit: 1,
+                delayAfter: 0,
+                delayMs: 0
+              }
+            }
+          }
+        }
+      }
+    });
+    app.post('/api/transactions', (req, res) => res.sendStatus(200));
+
+    for (let i = 0; i < 4; i++) {
+      await request(app).post('/api/transactions').send({ transaction: null }).expect(200);
+    }
+  });
+
+  it('should keep separate budgets for status, read, publish, sync, and broadcast', async () => {
+    RequestLimiter(app, {
+      api: {
+        options: {
+          limits: {
+            limit: 10,
+            delayAfter: 0,
+            delayMs: 0,
+            windowMs: 60000,
+            routes: {
+              status: { limit: 2, delayAfter: 0, delayMs: 0 },
+              read: { limit: 2, delayAfter: 0, delayMs: 0 },
+              publish: { limit: 1, delayAfter: 0, delayMs: 0 }
+            }
+          }
+        }
+      },
+      peers: {
+        options: {
+          limits: {
+            limit: 10,
+            delayAfter: 0,
+            delayMs: 0,
+            windowMs: 60000,
+            routes: {
+              status: { limit: 2, delayAfter: 0, delayMs: 0 },
+              sync: { limit: 3, delayAfter: 0, delayMs: 0 },
+              broadcast: { limit: 1, delayAfter: 0, delayMs: 0 }
+            }
+          }
+        }
+      }
+    });
+    app.use('/api/', (req, res) => res.sendStatus(200));
+    app.use('/peer/', (req, res) => res.sendStatus(200));
+
+    await request(app).get('/api/loader/status').expect(200);
+    await request(app).get('/api/node/status').expect(200);
+    await request(app).get('/api/loader/status/ping').expect(429);
+    await request(app).get('/api/transactions').expect(200);
+    await request(app).get('/api/blocks').expect(200);
+    await request(app).get('/api/delegates').expect(429);
+    await request(app).post('/api/transactions').send({}).expect(200);
+    await request(app).post('/api/transactions').send({ not: 'a transaction' }).expect(429);
+
+    await request(app).get('/peer/ping').expect(200);
+    await request(app).get('/peer/height').expect(200);
+    await request(app).get('/peer/list').expect(429);
+    await request(app).get('/peer/blocks').expect(200);
+    await request(app).get('/peer/blocks/common').expect(200);
+    await request(app).get('/peer/transactions').expect(200);
+    await request(app).get('/peer/blocks').expect(429);
+    await request(app).post('/peer/transactions').send({ transaction: '{' }).expect(200);
+    await request(app).post('/peer/blocks').send({ block: null }).expect(429);
+  });
+
+  it('should not bill CORS preflight against the shared bucket', async () => {
+    RequestLimiter(app, {
+      api: {
+        options: {
+          limits: {
+            max: 1,
+            delayAfter: 0,
+            delayMs: 0,
+            windowMs: 60000
+          }
+        }
+      }
+    });
+    app.use('/api/', (req, res) => res.sendStatus(200));
+
+    await request(app).options('/api/transactions').expect(200);
+    await request(app).options('/api/transactions').expect(200);
+    await request(app).get('/api/transactions').expect(200);
+    await request(app).get('/api/transactions').expect(429);
+  });
+
+  it('should slow requests only after delayAfter', async () => {
+    RequestLimiter(app, {
+      api: {
+        options: {
+          limits: {
+            limit: 10,
+            delayAfter: 1,
+            delayMs: 40,
+            maxDelayMs: 40,
+            windowMs: 60000
+          }
+        }
+      }
+    });
+    app.get('/api/blocks', (req, res) => res.sendStatus(200));
+
+    await request(app).get('/api/blocks').expect(200);
+    const started = Date.now();
+    await request(app).get('/api/blocks').expect(200);
+
+    expect(Date.now() - started).to.be.at.least(30);
+  });
+
+  it('should allow an honest burst under the production defaults', async function () {
+    this.timeout(20000);
+    const nodeConfig = require('../../../config.default.json');
+
+    expect(nodeConfig.api.options.limits.limit).to.equal(RequestLimiter.defaults.api.limit);
+    expect(nodeConfig.api.options.limits.routes.publish.limit).to.equal(300);
+    expect(nodeConfig.peers.options.limits.routes.sync.limit).to.equal(12000);
+    expect(nodeConfig.peers.options.limits.routes.sync.limit).to.be.above(
+        nodeConfig.api.options.limits.routes.publish.limit
+    );
+
+    RequestLimiter(app, nodeConfig);
+    app.use('/api/', (req, res) => res.sendStatus(200));
+    app.use('/peer/', (req, res) => res.sendStatus(200));
+
+    for (let i = 0; i < 40; i++) {
+      await request(app).get('/peer/blocks').expect(200);
+      await request(app).post('/peer/transactions').send({}).expect(200);
+      await request(app).get('/api/loader/status').expect(200);
+      await request(app).post('/api/transactions').send({}).expect(200);
+    }
+  });
+
+  it('should warn when a configured surface is disabled', () => {
+    const logger = { warn: sinon.spy() };
+
+    RequestLimiter(app, {
+      api: {
+        options: {
+          limits: {
+            max: 0,
+            delayAfter: 0,
+            delayMs: 0,
+            windowMs: 60000
+          }
+        }
+      }
+    }, logger);
+
+    expect(logger.warn.called).to.equal(true);
+    expect(logger.warn.firstCall.args[0]).to.equal('limits');
+    expect(logger.warn.firstCall.args[1]).to.match(/Public API request limits are disabled/);
+  });
+
+  describe('config schema', () => {
+    function validate (config) {
+      const validator = new ZSchema();
+      const valid = validator.validate(config, configSchema.config);
+
+      return {
+        valid: valid,
+        errors: validator.getLastErrors()
+      };
+    }
+
+    it('should accept the production defaults', () => {
+      const result = validate(require('../../../config.default.json'));
+
+      expect(result.valid, JSON.stringify(result.errors)).to.equal(true);
+    });
+
+    it('should accept a legacy max block and a limit block without max', () => {
+      const legacy = JSON.parse(JSON.stringify(require('../../../config.default.json')));
+      const modern = JSON.parse(JSON.stringify(legacy));
+      const oldLimits = {
+        max: 10,
+        delayMs: 0,
+        delayAfter: 0,
+        windowMs: 60000
+      };
+
+      legacy.api.options.limits = oldLimits;
+      legacy.peers.options.limits = oldLimits;
+      delete modern.api.options.limits.max;
+      delete modern.peers.options.limits.max;
+
+      expect(validate(legacy).valid).to.equal(true);
+      expect(validate(modern).valid).to.equal(true);
+    });
+
+    it('should reject a limits block that sets neither limit nor max', () => {
+      const config = JSON.parse(JSON.stringify(require('../../../config.default.json')));
+
+      delete config.api.options.limits.limit;
+      delete config.api.options.limits.max;
+
+      const result = validate(config);
+
+      expect(result.valid).to.equal(false);
+      expect(JSON.stringify(result.errors)).to.match(/anyOf|limit|max/i);
+    });
+  });
+
+  describe('request classes', () => {
+    const cases = [
+      ['GET', '/api/loader/status/ping', 'status'],
+      ['GET', '/api/blocks/getFees', 'status'],
+      ['GET', '/api/transactions?limit=1', 'read'],
+      ['POST', '/api/transactions', 'publish'],
+      ['POST', '/api/states/get', 'read'],
+      ['PUT', '/api/signatures', 'publish'],
+      ['OPTIONS', '/api/transactions', null],
+      ['GET', '/peer/ping', 'status'],
+      ['GET', '/peer/blocks/common', 'sync'],
+      ['GET', '/peer/signatures', 'sync'],
+      ['POST', '/peer/blocks', 'broadcast'],
+      ['POST', '/peer/dapp/message', 'broadcast'],
+      ['OPTIONS', '/peer/blocks', null]
+    ];
+
+    cases.forEach(function (entry) {
+      const method = entry[0];
+      const path = entry[1];
+      const expected = entry[2];
+      const classify = path.startsWith('/peer/') ?
+        RequestLimiter.classifyPeerRequest :
+        RequestLimiter.classifyApiRequest;
+
+      it('should classify ' + method + ' ' + path, () => {
+        expect(classify({ method: method, originalUrl: path })).to.equal(expected);
+      });
+    });
   });
 });

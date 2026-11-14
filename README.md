@@ -73,6 +73,19 @@ The node stores derived consensus state in memory mirror tables such as `mem_acc
 
 If this happens, do not try to repair `mem_*` tables with manual SQL edits. The reliable recovery options are restoring a trusted database snapshot or letting the node rebuild/replay derived state from the blockchain.
 
+## Anti-abuse Limits
+
+`config.default.json` enables separate limits for public REST, peer HTTP, client WebSocket subscriptions, and node-to-node WebSocket handshakes. The numbers are in that file. `limit` is the preferred hard cap. Existing configs that still set legacy `max` keep that value: `limit` overrides `max` only when `limit` is present. Set the resolved cap to `0` to disable one HTTP surface, including its route policies. Delete an existing `api.options.limits` or `peers.options.limits` block to inherit the current defaults.
+
+HTTP classes use separate per-IP budgets over `windowMs`:
+
+- Public REST: `status` (cheap node and fee reads), `read` (lists and lookups), and `publish` (transaction submission).
+- Peer HTTP: `status` (`/peer/ping`, `/peer/height`, `/peer/list`), `sync` (block and transaction reads), and `broadcast` (block, transaction, and signature posts).
+
+Peer caps are high so normal sync and relay stay on the fast path. A hard limit responds with `429`, a JSON `success: false` body, standard `RateLimit-*` headers, and `Retry-After`. Slow-down starts after `delayAfter` and is capped by `maxDelayMs`. Client WebSocket limits cap connections per IP, subscriptions per socket, and subscription changes per window. Node WebSocket limits cap new handshakes per IP and per nonce. Nonce, address, and banned-peer checks still run for attempts under the IP cap.
+
+Set `trustProxy` to `true` only behind a reverse proxy that overwrites `X-Forwarded-For`. With `trustProxy: false`, every client behind one proxy shares that proxy's address. With `trustProxy: true` and a client-supplied forwarding header, a caller can choose the address used for the limit key.
+
 ## Development and Tests
 
 Refer to [CONTRIBUTING.md](./.github/CONTRIBUTING.md).

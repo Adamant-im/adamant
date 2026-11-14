@@ -28,9 +28,14 @@ describe('ClientWs Socket.IO integration', function () {
   this.timeout(5000);
 
   let client;
+  let extraClient;
   let clientWs;
 
   afterEach(async function () {
+    if (extraClient) {
+      extraClient.close();
+      extraClient = null;
+    }
     if (client) {
       client.close();
       client = null;
@@ -93,5 +98,51 @@ describe('ClientWs Socket.IO integration', function () {
       balance: '100',
       unconfirmedBalance: '90'
     });
+  });
+
+  it('should disconnect a second socket from the same address when the per-IP cap is 1', async function () {
+    clientWs = new ClientWs({
+      enabled: true,
+      portWS: 0,
+      cors: { origin: '*' },
+      limits: {
+        maxConnections: 10,
+        maxConnectionsPerIp: 1,
+        maxSubscriptionEvents: 10,
+        windowMs: 10000
+      }
+    }, { debug: sinon.spy() });
+
+    await waitFor(() => clientWs.io.httpServer.address());
+    const port = clientWs.io.httpServer.address().port;
+    const url = `http://127.0.0.1:${port}`;
+    const options = {
+      forceNew: true,
+      reconnection: false,
+      transports: ['websocket']
+    };
+
+    client = io(url, options);
+    await new Promise((resolve, reject) => {
+      client.once('connect', resolve);
+      client.once('connect_error', reject);
+    });
+
+    extraClient = io(url, options);
+    const outcome = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Timed out waiting for the extra socket to close')), 2000);
+      extraClient.once('disconnect', () => {
+        clearTimeout(timer);
+        resolve('closed');
+      });
+      extraClient.once('connect_error', () => {
+        clearTimeout(timer);
+        resolve('error');
+      });
+    });
+
+    expect(['closed', 'error']).to.include(outcome);
+    expect(clientWs.connectionCount).to.equal(1);
+    expect(client.connected).to.equal(true);
   });
 });
