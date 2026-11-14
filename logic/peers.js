@@ -26,8 +26,20 @@ function Peers (logger, cb) {
   };
   self = this;
   __private.peers = {};
+  __private.maxPeers = 0;
   return setImmediate(cb, null, this);
 }
+
+/**
+ * Caps how many peers may be kept in memory. Zero disables the cap.
+ * Existing peers are left in place; only new inserts are refused.
+ * @param {number} maxPeers
+ */
+Peers.prototype.setMaxPeers = function (maxPeers) {
+  var parsed = parseInt(maxPeers, 10);
+
+  __private.maxPeers = (isFinite(parsed) && parsed > 0) ? parsed : 0;
+};
 
 /**
  * Finds the peer by nonce
@@ -82,13 +94,20 @@ Peers.prototype.get = function (peer) {
 Peers.prototype.upsert = function (peer, insertOnly) {
   // Insert new peer
   var insert = function (peer) {
+    if (__private.maxPeers && Object.keys(__private.peers).length >= __private.maxPeers) {
+      library.logger.debug('peers', 'Rejecting peer because the peer table is full', peer.string);
+      return false;
+    }
+
     if (!_.isEmpty(modules.peers.acceptable([peer]))) {
       peer.updated = Date.now();
       __private.peers[peer.string] = peer;
       library.logger.info('peers', 'Added new peer', peer.string);
-    } else {
-      library.logger.debug('peers', 'Rejecting unacceptable peer', peer.string);
+      return true;
     }
+
+    library.logger.debug('peers', 'Rejecting unacceptable peer', peer.string);
+    return false;
   };
 
   // Update existing peer
@@ -129,8 +148,8 @@ Peers.prototype.upsert = function (peer, insertOnly) {
     } else {
       return false;
     }
-  } else {
-    insert(peer);
+  } else if (!insert(peer)) {
+    return false;
   }
 
   // Stats for tracking changes

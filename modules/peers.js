@@ -51,6 +51,8 @@ function Peers (cb, scope) {
 
   self.events = new EventEmitter();
 
+  library.logic.peers.setMaxPeers(__private.probeOptions().maxPeers);
+
   setImmediate(cb, null, self);
 }
 
@@ -158,63 +160,69 @@ __private.getByFilter = function (filter, cb) {
 };
 
 /**
- * Pings to every member of peers list.
+ * Inserts configured seed peers and probes them with the same outbound bound
+ * as the periodic update. Seeds stay in memory when the dial fails.
  * @param {Function} cb - Callback function.
  * @private
  * @return {setImmediateCallback} cb
  */
 __private.insertSeeds = function (cb) {
-  var updated = 0;
+  var seeds = [];
+  var configured = library.config.peers.list || [];
+
   library.logger.trace('peers', 'Peers->insertSeeds');
-  async.each(library.config.peers.list, function (peer, eachCb) {
-    peer = library.logic.peers.create(peer);
-    library.logger.trace('peers', 'Processing seed peer: ' + peer.string);
-    self.ping(peer, function (err) {
-      ++updated;
-      return setImmediate(eachCb);
-    });
-  }, function (err) {
-    library.logger.trace('peers', 'Peers->insertSeeds - Peers discovered', { updated: updated, total: library.config.peers.list.length });
+  configured.forEach(function (seed) {
+    var peer = library.logic.peers.create(seed);
+
+    if (!library.logic.peers.exists(peer)) {
+      peer.state = Peer.STATE.DISCONNECTED;
+      library.logic.peers.upsert(peer, true);
+    }
+
+    var live = library.logic.peers.get(peer);
+
+    if (live) {
+      seeds.push(live);
+    }
+  });
+
+  library.logger.trace('peers', 'Peers->insertSeeds - probing seeds', { total: seeds.length });
+  __private.probePeers(seeds, __private.probeOptions(), function () {
     return setImmediate(cb);
   });
 };
 
 /**
- * Loads peers from database and checks every peer state and updated time.
- * Pings when checks are true.
+ * Loads peers from the database into memory without dialing them.
+ * Startup used to open one outbound connection per stored row, including dead
+ * addresses. Those peers are marked disconnected and left for the bounded
+ * update cycle. runtime.sql already resets non-banned rows to disconnected.
  * @param {Function} cb - Callback function.
  * @implements library.db
  * @private
  * @return {setImmediateCallback} cb
  */
 __private.dbLoad = function (cb) {
-  var updated = 0;
   library.logger.trace('peers', 'Importing peers from database');
   library.db.any(sql.getAll).then(function (rows) {
-    library.logger.info('peers', 'Imported peers from database', { count: rows.length });
-    async.each(rows, function (peer, eachCb) {
-      peer = library.logic.peers.create(peer);
+    var imported = 0;
+
+    rows.forEach(function (row) {
+      var peer = library.logic.peers.create(row);
 
       if (library.logic.peers.exists(peer)) {
-        peer = library.logic.peers.get(peer);
-        if (peer && peer.state > 0 && Date.now() - peer.updated > 3000) {
-          self.ping(peer, function (err) {
-            ++updated;
-            return setImmediate(eachCb);
-          });
-        } else {
-          return setImmediate(eachCb);
-        }
-      } else {
-        self.ping(peer, function (err) {
-          ++updated;
-          return setImmediate(eachCb);
-        });
+        return;
       }
-    }, function (err) {
-      library.logger.trace('peers', 'Peers->dbLoad Peers discovered', { updated: updated, total: rows.length });
-      return setImmediate(cb);
+
+      peer.state = Peer.STATE.DISCONNECTED;
+
+      if (library.logic.peers.upsert(peer, true)) {
+        imported++;
+      }
     });
+
+    library.logger.info('peers', 'Imported peers from database', { count: imported, rows: rows.length });
+    return setImmediate(cb);
   }).catch(function (err) {
     library.logger.error('peers', 'Import peers from database failed', { error: err.message || err });
     return setImmediate(cb);
@@ -357,9 +365,22 @@ Peers.prototype.remove = function (pip, port) {
   if (self.isFrozen(pip, port)) {
     // FIXME: Keeping peer frozen is bad idea at all
     library.logger.debug('peers', 'Cannot remove frozen peer', pip + ':' + port);
-  } else {
-    return library.logic.peers.remove({ ip: pip, port: port });
+    return;
   }
+
+  var removed = library.logic.peers.remove({ ip: pip, port: port });
+
+  if (removed && library.db) {
+    library.db.none(sql.removeByAddress, { ip: pip, port: port }).catch(function (err) {
+      library.logger.debug('peers', 'Failed to delete peer from database', {
+        error: err.message || err,
+        ip: pip,
+        port: port
+      });
+    });
+  }
+
+  return removed;
 };
 
 /**
@@ -567,6 +588,181 @@ Peers.prototype.list = function (options, cb) {
   });
 };
 
+/**
+ * Reads a non-negative integer config value, or returns the fallback.
+ * @param {*} value
+ * @param {number} fallback
+ * @return {number}
+ * @private
+ */
+__private.nonNegativeInt = function (value, fallback) {
+  var parsed = parseInt(value, 10);
+
+  if (!isFinite(parsed) || parsed < 0) {
+    return fallback;
+  }
+
+  return parsed;
+};
+
+/**
+ * Outbound health-check limits. Missing config keeps the safe defaults so an
+ * older config.json still bounds peer-update dials.
+ * @return {object}
+ * @private
+ */
+__private.probeOptions = function () {
+  var options = (library.config.peers && library.config.peers.options) || {};
+  var resolved = {
+    updateConcurrency: Math.max(1, __private.nonNegativeInt(options.updateConcurrency, 8)),
+    probeSpacingMs: __private.nonNegativeInt(options.probeSpacingMs, 50),
+    maxProbeTargets: Math.max(1, __private.nonNegativeInt(options.maxProbeTargets, 20)),
+    unverifiedProbeLimit: __private.nonNegativeInt(options.unverifiedProbeLimit, 5),
+    minUpdateAgeMs: __private.nonNegativeInt(options.minUpdateAgeMs, 3000),
+    unreachableBackoffInitialMs: __private.nonNegativeInt(options.unreachableBackoffInitialMs, 30000),
+    unreachableBackoffMaxMs: __private.nonNegativeInt(options.unreachableBackoffMaxMs, 60 * 60 * 1000),
+    unreachableEvictAfter: Math.max(1, __private.nonNegativeInt(options.unreachableEvictAfter, 6)),
+    unreachableEvictAfterMs: __private.nonNegativeInt(options.unreachableEvictAfterMs, 24 * 60 * 60 * 1000),
+    minConnectedPeers: __private.nonNegativeInt(options.minConnectedPeers, 10),
+    maxPeers: Math.max(1, __private.nonNegativeInt(options.maxPeers, 500))
+  };
+
+  if (resolved.unreachableBackoffMaxMs < resolved.unreachableBackoffInitialMs) {
+    resolved.unreachableBackoffMaxMs = resolved.unreachableBackoffInitialMs;
+  }
+
+  if (resolved.unverifiedProbeLimit > resolved.maxProbeTargets) {
+    resolved.unverifiedProbeLimit = resolved.maxProbeTargets;
+  }
+
+  return resolved;
+};
+
+/**
+ * Counts peers that have answered us and are still connected.
+ * Eviction stops while this count is below the configured floor.
+ * @return {number}
+ * @private
+ */
+__private.countVerifiedConnected = function () {
+  return library.logic.peers.list().reduce(function (count, peer) {
+    if (peer && peer.state === Peer.STATE.CONNECTED && peer.lastOutboundSuccessAt) {
+      return count + 1;
+    }
+
+    return count;
+  }, 0);
+};
+
+/**
+ * Applies backoff after a network failure and drops peers that stay unreachable.
+ * Protocol errors (nethash, version, headers, bad status) are ignored here;
+ * transport already removes those peers. Seed peers are never removed.
+ * @param {object} peer
+ * @param {string|Error|null|undefined} err
+ * @private
+ */
+__private.noteProbeResult = function (peer, err) {
+  if (!peer) {
+    return;
+  }
+
+  var live = library.logic.peers.get(peer) || peer;
+  var now = Date.now();
+  var options = __private.probeOptions();
+
+  if (!err) {
+    live.clearNetworkFailures(now);
+    return;
+  }
+
+  if (!Peer.isNetworkError(err)) {
+    return;
+  }
+
+  var failures = live.recordNetworkFailure(now, options);
+  var neverReachable = !live.lastOutboundSuccessAt;
+  var unreachableLongEnough = neverReachable ||
+    (now - live.lastOutboundSuccessAt) >= options.unreachableEvictAfterMs;
+
+  if (failures < options.unreachableEvictAfter || !unreachableLongEnough) {
+    return;
+  }
+
+  if (!live.ip || !live.port || self.isFrozen(live.ip, live.port)) {
+    library.logger.debug('peers', 'Keeping unreachable seed peer', live.string);
+    return;
+  }
+
+  if (__private.countVerifiedConnected() < options.minConnectedPeers) {
+    library.logger.debug('peers', 'Keeping unreachable peer because too few verified peers are connected', live.string);
+    return;
+  }
+
+  library.logger.info('peers', 'Removing unreachable peer', live.string);
+  self.remove(live.ip, live.port);
+};
+
+/**
+ * Dials peers with a concurrency cap and a minimum gap between new attempts.
+ * The gap keeps a failed burst from opening many distinct connections in the
+ * same few milliseconds.
+ * @param {object[]} targets
+ * @param {object} options
+ * @param {Function} cb
+ * @private
+ */
+__private.probePeers = function (targets, options, cb) {
+  var updated = 0;
+  var spacing = options.probeSpacingMs;
+  var lastStart = Date.now() - spacing;
+
+  function startNext (peer, eachCb) {
+    var wait = 0;
+
+    if (spacing > 0) {
+      var now = Date.now();
+      var earliest = lastStart + spacing;
+
+      wait = Math.max(0, earliest - now);
+      lastStart = now + wait;
+    }
+
+    setTimeout(function () {
+      library.logger.trace('peers', 'Updating peer', peer.string);
+      self.ping(peer, function (err) {
+        updated++;
+        __private.noteProbeResult(peer, err);
+        return setImmediate(eachCb);
+      });
+    }, wait);
+  }
+
+  async.eachLimit(targets, options.updateConcurrency, startNext, function () {
+    library.logger.trace('peers', 'Peers updated', { updated: updated, total: targets.length });
+
+    if (options.notify && updated) {
+      self.events.emit('peers:update');
+    }
+
+    return setImmediate(cb);
+  });
+};
+
+/**
+ * Probes one bounded sample of due peers.
+ * @param {Function} cb
+ */
+Peers.prototype.runPeerUpdate = function (cb) {
+  var options = __private.probeOptions();
+  var peers = library.logic.peers.list();
+  var targets = Peer.selectProbeTargets(peers, options, Date.now());
+
+  options.notify = true;
+  library.logger.trace('peers', 'Updating peers', { count: peers.length, probing: targets.length });
+  __private.probePeers(targets, options, cb);
+};
+
 // Events
 /**
  * assigns scope to modules variable
@@ -581,8 +777,8 @@ Peers.prototype.onBind = function (scope) {
 
 /**
  * Triggers onPeersReady after:
- * - Ping to every member of peers list.
- * - Load peers from database and checks every peer state and updated time.
+ * - Insert and probe configured seed peers.
+ * - Load stored peers into memory without dialing them.
  * - Discover peers by getting list and validates them.
  */
 Peers.prototype.onBlockchainReady = function () {
@@ -608,7 +804,9 @@ Peers.prototype.onBlockchainReady = function () {
 };
 
 /**
- * Discovers peers and updates them in 10sec intervals loop.
+ * Discovers peers and probes a bounded sample on a 5 second interval.
+ * The job waits until the sample finishes, so a large dead peer table cannot
+ * start another full dial wave while the previous one is still opening sockets.
  */
 Peers.prototype.onPeersReady = function () {
   library.logger.trace('peers', 'Peers ready');
@@ -624,35 +822,12 @@ Peers.prototype.onPeersReady = function () {
         });
       },
       updatePeers: function (seriesCb) {
-        var updated = 0;
-        var peers = library.logic.peers.list();
-
-        library.logger.trace('peers', 'Updating peers', { count: peers.length });
-
-        async.each(peers, function (peer, eachCb) {
-          // If peer is not banned and not been updated during last 3 sec - ping
-          if (peer && peer.state > 0 && (!peer.updated || Date.now() - peer.updated > 3000)) {
-            library.logger.trace('peers', 'Updating peer', peer);
-            self.ping(peer, function (err) {
-              ++updated;
-              return setImmediate(eachCb);
-            });
-          } else {
-            return setImmediate(eachCb);
-          }
-        }, function () {
-          library.logger.trace('peers', 'Peers updated', { updated: updated, total: peers.length });
-          if (updated) {
-            self.events.emit('peers:update');
-          }
-          return setImmediate(seriesCb);
-        });
+        self.runPeerUpdate(seriesCb);
       }
     }, function () {
       return setImmediate(cb);
     });
   }
-  // Loop in 10sec intervals (5sec + 5sec connect timeout from pingPeer)
   jobsQueue.register('peersDiscoveryAndUpdate', peersDiscoveryAndUpdate, 5000);
 };
 

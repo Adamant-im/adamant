@@ -230,5 +230,118 @@ describe('peer', () => {
       expect(peerCopy.state).to.equal(1);
       peer.state = initialState;
     });
+
+    it('should omit outbound failure state from the persisted copy', () => {
+      peer.recordNetworkFailure(1_000, {
+        unreachableBackoffInitialMs: 30_000,
+        unreachableBackoffMaxMs: 60_000
+      });
+      peer.lastOutboundSuccessAt = 1_000;
+
+      const peerCopy = peer.object();
+
+      expect(peerCopy).not.to.have.property('consecutiveNetworkFailures');
+      expect(peerCopy).not.to.have.property('nextAttemptAt');
+      expect(peerCopy).not.to.have.property('lastOutboundSuccessAt');
+    });
+  });
+
+  describe('network probe policy', () => {
+    const backoff = {
+      unreachableBackoffInitialMs: 30_000,
+      unreachableBackoffMaxMs: 60_000
+    };
+
+    function makePeer (ip, extra) {
+      const created = new Peer(Object.assign({
+        ip: ip,
+        port: 36666,
+        state: Peer.STATE.DISCONNECTED,
+        updated: 1
+      }, extra));
+
+      return created;
+    }
+
+    it('should keep protocol failures out of the network-error set', () => {
+      expect(Peer.isNetworkError('ECONNREFUSED Request failed GET http://203.0.113.10/peer/height')).to.equal(true);
+      expect(Peer.isNetworkError('ETIMEDOUT Request failed GET http://203.0.113.10/peer/height')).to.equal(true);
+      expect(Peer.isNetworkError({ code: 'EHOSTUNREACH' })).to.equal(true);
+      expect(Peer.isNetworkError('Peer is not on the same network abc GET http://203.0.113.10/peer/height')).to.equal(false);
+      expect(Peer.isNetworkError('Peer is using incompatible version 0.0.1 GET http://203.0.113.10/peer/height')).to.equal(false);
+      expect(Peer.isNetworkError('Invalid response headers {} GET http://203.0.113.10/peer/height')).to.equal(false);
+      expect(Peer.isNetworkError('ERR_BAD_RESPONSE Request failed GET http://203.0.113.10/peer/height')).to.equal(false);
+      expect(Peer.isNetworkError()).to.equal(false);
+    });
+
+    it('should not record backoff from the success-rate path', () => {
+      peer.state = Peer.STATE.BANNED;
+      peer.recordRequest('ECONNREFUSED');
+
+      expect(peer.state).to.equal(Peer.STATE.BANNED);
+      expect(peer.nextAttemptAt).to.equal(undefined);
+      expect(peer.consecutiveNetworkFailures).to.equal(undefined);
+    });
+
+    it('should back off exponentially up to the configured cap', () => {
+      expect(Peer.networkBackoffMs(1, backoff)).to.equal(30_000);
+      expect(Peer.networkBackoffMs(2, backoff)).to.equal(60_000);
+      expect(Peer.networkBackoffMs(3, backoff)).to.equal(60_000);
+
+      const now = 10_000;
+      const failures = peer.recordNetworkFailure(now, backoff);
+
+      expect(failures).to.equal(1);
+      expect(peer.nextAttemptAt).to.be.at.least(now + 30_000);
+      expect(peer.nextAttemptAt).to.be.at.most(now + 30_000 + 7_500);
+    });
+
+    it('should clear backoff after an outbound success', () => {
+      peer.recordNetworkFailure(1_000, backoff);
+      peer.clearNetworkFailures(5_000);
+
+      expect(peer.consecutiveNetworkFailures).to.equal(0);
+      expect(peer.nextAttemptAt).to.equal(0);
+      expect(peer.lastOutboundSuccessAt).to.equal(5_000);
+    });
+
+    it('should dial a bounded sample instead of every known peer', () => {
+      const verified = [1, 2].map((index) => {
+        const created = makePeer('203.0.113.' + index, { state: Peer.STATE.CONNECTED });
+        created.lastOutboundSuccessAt = 1;
+        return created;
+      });
+      const handshakeOnly = [];
+
+      for (let index = 0; index < 40; index++) {
+        handshakeOnly.push(makePeer('203.0.114.' + (index + 1), {
+          state: Peer.STATE.CONNECTED
+        }));
+      }
+
+      const banned = makePeer('203.0.115.1', { state: Peer.STATE.BANNED });
+      const backedOff = makePeer('203.0.115.2', { state: Peer.STATE.DISCONNECTED });
+      backedOff.nextAttemptAt = 1_000_000;
+      const fresh = makePeer('203.0.115.3', { state: Peer.STATE.DISCONNECTED, updated: 9_000 });
+
+      const targets = Peer.selectProbeTargets(
+          verified.concat(handshakeOnly, [banned, backedOff, fresh]),
+          {
+            maxProbeTargets: 6,
+            unverifiedProbeLimit: 2,
+            minUpdateAgeMs: 1_000
+          },
+          10_000
+      );
+      const targetIps = targets.map((item) => item.ip);
+
+      expect(targets).to.have.length(4);
+      expect(targetIps).to.include('203.0.113.1');
+      expect(targetIps).to.include('203.0.113.2');
+      expect(targets.filter((item) => !item.lastOutboundSuccessAt)).to.have.length(2);
+      expect(targetIps).to.not.include(banned.ip);
+      expect(targetIps).to.not.include(backedOff.ip);
+      expect(targetIps).to.not.include(fresh.ip);
+    });
   });
 });

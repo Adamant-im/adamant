@@ -259,4 +259,35 @@ describe('peers', () => {
       expect(peers.list().length).equal(0);
     });
   });
+
+  describe('setMaxPeers()', () => {
+    const extraPeers = [
+      { ip: '50.2.3.21', port: 36666, state: 1 },
+      { ip: '50.2.3.22', port: 36666, state: 1 },
+      { ip: '50.2.3.23', port: 36666, state: 1 }
+    ];
+
+    afterEach(() => {
+      peers.setMaxPeers(0);
+      removeAll();
+    });
+
+    it('should refuse new peers once the table is full and still update existing ones', () => {
+      removeAll();
+      peers.setMaxPeers(2);
+
+      expect(peers.upsert(extraPeers[0])).to.equal(true);
+      expect(peers.upsert(extraPeers[1])).to.equal(true);
+      expect(peers.upsert(extraPeers[2])).to.equal(false);
+      expect(peers.list()).to.have.length(2);
+
+      const updated = _.clone(extraPeers[0]);
+      updated.height = 4;
+      updated.state = 2;
+
+      expect(peers.upsert(updated)).to.equal(true);
+      expect(peers.get(extraPeers[0]).height).to.equal(4);
+      expect(peers.get(extraPeers[0]).state).to.equal(2);
+    });
+  });
 });

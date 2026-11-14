@@ -261,6 +261,50 @@ module.exports = {
               },
               allowPrivatePeers: {
                 type: 'boolean'
+              },
+              updateConcurrency: {
+                type: 'integer',
+                minimum: 1,
+                maximum: 100
+              },
+              probeSpacingMs: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 60000
+              },
+              maxProbeTargets: {
+                type: 'integer',
+                minimum: 1,
+                maximum: 1000
+              },
+              unverifiedProbeLimit: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 1000
+              },
+              unreachableBackoffInitialMs: {
+                type: 'integer',
+                minimum: 0
+              },
+              unreachableBackoffMaxMs: {
+                type: 'integer',
+                minimum: 0
+              },
+              unreachableEvictAfter: {
+                type: 'integer',
+                minimum: 1
+              },
+              unreachableEvictAfterMs: {
+                type: 'integer',
+                minimum: 0
+              },
+              minConnectedPeers: {
+                type: 'integer',
+                minimum: 0
+              },
+              maxPeers: {
+                type: 'integer',
+                minimum: 1
               }
             },
             required: ['limits', 'timeout']
