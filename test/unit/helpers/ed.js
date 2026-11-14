@@ -139,3 +139,22 @@ describe('ed', () => {
     });
   });
 });
+
+describe('known-answer account derivation', () => {
+  const accounts = require('../../../helpers/accounts.js');
+  const fixtures = require('../../genesisPasses.json');
+
+  function expectAccount (entry) {
+    const hash = ed.createPassPhraseHash(entry.secret);
+    const publicKey = ed.makeKeypair(hash).publicKey.toString('hex');
+
+    expect(publicKey).to.equal(entry.publicKey);
+    expect(accounts.getAddressByPublicKey(publicKey)).to.equal(entry.address);
+  }
+
+  it('should preserve genesis, transfer, and delegate accounts', () => {
+    expectAccount(fixtures.genesis);
+    fixtures.transfer.forEach(expectAccount);
+    fixtures.delegates.forEach(expectAccount);
+  });
+});
