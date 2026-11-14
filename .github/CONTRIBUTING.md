@@ -71,6 +71,8 @@ You need to specify at least some peers in `peers.list`, e.g.:
 
 The database layer enables `pg-native` by default through `pg-promise`. It uses the native `libpq` client library and the npm `libpq` addon. This is the closest path to the PostgreSQL C client used by production deployments, but the addon is compiled for one Node.js ABI at a time.
 
+npm 11.19 and newer does not run a dependency install script unless `package.json` `allowScripts` allows it. This repository allows `libpq@1.8.15` (the locked addon that builds `pg-native`) and denies `javascript-obfuscator`. `npm ci` must leave that field unchanged. A checkout is wrong if `npm install-scripts ls` still reports an unreviewed package.
+
 On macOS/Homebrew, install the client library and rebuild the addon after changing Node.js versions. `libpq` is enough for the native addon; the PostgreSQL server formula is only needed for the local test database, not for `pg-native` itself. If you already run a compatible PostgreSQL server locally, keep using it and install only `libpq`.
 
 ```sh

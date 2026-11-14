@@ -39,25 +39,34 @@ The bundled installers support:
 
 - Ubuntu 20.04, 22.04, 24.04, and 26.04 LTS: `tools/install_node.sh`
 - RHEL-compatible releases 8-10, including CentOS Stream, Rocky Linux, AlmaLinux, and RHEL: `tools/install_node_centos.sh`
+- Ubuntu repair from a published blockchain image: `tools/fix_node.sh`
 
 Ubuntu 20.04 is supported by the script, but its standard security maintenance has ended. Use Ubuntu Pro or upgrade the operating system for continued security updates.
 
-Run an installer as root from the official download URL and select the network, Git branch, and Node.js major version as needed:
+The installers share `tools/lib/adamant_node_common.sh`. Run them from a Git checkout so that library is the file you reviewed. Cloning the repository and recording the commit is the verified download path:
 
 ```sh
-sudo bash -c "$(wget -O - https://adamant.im/install_node.sh)" -O -b dev -n mainnet -j 24
-sudo bash -c "$(wget -O - https://adamant.im/install_node_centos.sh)" -O -b dev -n mainnet -j 24
+git clone --branch dev https://github.com/Adamant-im/adamant.git
+cd adamant
+git rev-parse HEAD
+sudo bash tools/install_node.sh -b dev -n mainnet -j 24
 ```
 
-Both installers update system packages, preserve existing ADAMANT configuration files and local Git changes, and reuse existing users and databases. A blockchain image is skipped when the selected database already contains tables. Installation logs are written to `/var/log/adamant_<network>_install.log`.
+Use `tools/install_node_centos.sh` on RHEL-compatible hosts. Add `-f` only when you accept a restart while the node is syncing or rebuilding. The default Node.js major is 24. Supported majors are 22, 24, and 26 (`jod` is 22, `krypton` is 24).
 
-To replace an Ubuntu node database with a newly downloaded blockchain image, use:
+Both installers update system packages, preserve existing ADAMANT configuration files and local Git changes, and reuse existing users and databases. Dependencies are installed with `npm ci` from the lockfile. PM2 is started from an ecosystem file with a 120 second `kill_timeout`, and a systemd drop-in gives the PM2 service a longer stop timeout, disables core dumps, and orders it before PostgreSQL and Redis stop. A re-run refuses to restart a node that is still loading, rebuilding, or syncing unless `-f` is set.
+
+A blockchain image is loaded only when `db_backup.sql.gz.sha256` or `db_test_backup.sql.gz.sha256` is published next to the image and `sha256sum -c` succeeds. The file is the normal `sha256sum` line (`<64 hex>  <filename>`). Gzip integrity is checked after the digest. An image is skipped when the selected database already contains tables. If the checksum file is missing or is not a digest, the installer asks whether to continue from height 1 and does not load SQL. Installation logs are mode `0600` at `/var/log/adamant_<network>_install.log`.
+
+To replace an Ubuntu node database with a newly downloaded blockchain image:
 
 ```sh
 sudo bash tools/fix_node.sh -n mainnet
 ```
 
-The repair tool drops the database to free disk space, downloads and validates the replacement image, then recreates the database and restores it from the snapshot. Back up any required data first. Repair logs are written to `/var/log/adamant_<network>_fix.log`.
+By default the repair tool verifies the image before it drops the database. If there is not enough free space for that download, it stops and leaves the database in place. `-d` drops the database first; use it only when a failed download is an acceptable outcome. Back up any required data first. Repair logs are mode `0600` at `/var/log/adamant_<network>_fix.log`.
+
+After PostgreSQL or Redis maintenance, restart the node with the saved ecosystem file and wait until the log contains `Cleaned up successfully`. Keep PostgreSQL and Redis server packages out of unattended upgrades on node hosts. The node does not recover by itself from a database restart.
 
 ### Critical Shutdown Notice
 
