@@ -69,6 +69,8 @@ function Config (configPath, overrideOptions) {
 
     validateForce(configData);
 
+    // Forging secrets stay in the form stored on disk. Encrypted blobs are
+    // decrypted later in memory and are never written back into this object.
     return configData;
   } catch (error) {
     console.error('Error occurred while processing config file:', error);

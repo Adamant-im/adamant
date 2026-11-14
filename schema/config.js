@@ -452,7 +452,13 @@ module.exports = {
             type: 'boolean'
           },
           secret: {
-            type: 'array'
+            type: 'array',
+            items: {
+              type: 'string'
+            }
+          },
+          controlSocket: {
+            type: 'string'
           }
         },
         required: ['force', 'secret']

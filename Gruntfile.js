@@ -102,7 +102,8 @@ module.exports = function (grunt) {
         'logic',
         'schema',
         'tasks',
-        'test'
+        'test',
+        'tools/adm-node.js'
       ]
     }
   });

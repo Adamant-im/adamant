@@ -194,7 +194,8 @@
   },
   "forging": {
     "force": false,
-    "secret": []
+    "secret": [],
+    "controlSocket": ""
   },
   "loading": {
     "loadPerIteration": 5000,
