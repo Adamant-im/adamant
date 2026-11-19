@@ -4,6 +4,7 @@ const { expect } = require('chai');
 const { Client } = require('pg');
 
 const database = require('../../../helpers/database.js');
+const Sequence = require('../../../helpers/sequence.js');
 
 describe('helpers/database', () => {
   describe('isLostConnectionError()', () => {
@@ -29,21 +30,26 @@ describe('helpers/database', () => {
 
   describe('markLostClient()', () => {
     it('records the connectivity error so the pool destroys the client on release', () => {
-      const client = {};
+      const client = { _queryable: true };
       const err = new Error('server closed the connection unexpectedly');
 
       database.markLostClient(err, client);
 
       expect(client.$connectionError).to.equal(err);
+      expect(client._queryable).to.equal(false);
     });
 
     it('does not replace an error already recorded for that client', () => {
       const first = new Error('Connection terminated');
-      const client = { $connectionError: first };
+      const client = {
+        $connectionError: first,
+        _queryable: true
+      };
 
       database.markLostClient(new Error('Query read timeout'), client);
 
       expect(client.$connectionError).to.equal(first);
+      expect(client._queryable).to.equal(false);
     });
 
     it('does not mark a client for a normal SQL error', () => {
@@ -155,6 +161,70 @@ describe('helpers/database', () => {
       }
 
       throw lastError;
+    });
+
+    it('releases an in-flight transaction timeout and advances the sequence', async function () {
+      this.timeout(5000);
+
+      const timeoutMs = 200;
+      const probeTable = 'database_reconnect_probe';
+      const sequence = new Sequence();
+      let acquiredClient;
+      let sequenceError;
+
+      const onAcquire = function (client) {
+        acquiredClient = acquiredClient || client;
+      };
+
+      db.$pool.on('acquire', onAcquire);
+      database.enableQueryTimeout(db.$pool, timeoutMs);
+
+      await db.none(`DROP TABLE IF EXISTS "${probeTable}"`);
+      const started = Date.now();
+
+      try {
+        await new Promise(function (resolve, reject) {
+          sequence.add(function (cb) {
+            db.tx(function (t) {
+              return t.none(`CREATE TABLE "${probeTable}" (id integer)`).then(function () {
+                return t.one('SELECT pg_sleep(1)');
+              });
+            }).then(function () {
+              cb();
+            }).catch(cb);
+          }, function (err) {
+            sequenceError = err;
+          });
+
+          sequence.add(function (cb) {
+            cb();
+          }, function (err) {
+            if (err) {
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        });
+      } finally {
+        db.$pool.removeListener('acquire', onAcquire);
+        database.enableQueryTimeout(db.$pool, database.QUERY_TIMEOUT_MS);
+      }
+
+      expect(sequenceError).to.be.instanceOf(Error);
+      expect(Date.now() - started).to.be.lessThan(timeoutMs * 1.6);
+      expect(acquiredClient).to.not.equal(undefined);
+      expect(db.$pool._clients).to.not.include(acquiredClient);
+
+      const recovered = await db.one('SELECT 1 AS ok');
+      expect(Number(recovered.ok)).to.equal(1);
+      expect(db.$pool._clients).to.not.include(acquiredClient);
+
+      const probe = await db.one(
+          'SELECT to_regclass($1) AS table_name',
+          [probeTable]
+      );
+      expect(probe.table_name).to.equal(null);
     });
   });
 });

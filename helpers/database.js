@@ -256,17 +256,25 @@ function isLostConnectionError (err) {
 }
 
 /**
- * Marks a client so pg-promise destroys it on release instead of returning it
- * to the pool. A dead client that is checked out again never opens a new session.
+ * Marks a client so pg-promise fails queued transaction cleanup and destroys it
+ * on release instead of returning it to the pool. A dead client that is checked
+ * out again never opens a new session.
  * @param {Error} err
  * @param {object} client
  */
 function markLostClient (err, client) {
-  if (!client || !isLostConnectionError(err) || client.$connectionError) {
+  if (!client || !isLostConnectionError(err)) {
     return;
   }
 
-  client.$connectionError = err;
+  // A read timeout is reported before the driver has stopped the active query.
+  // Make pg-promise's automatic ROLLBACK fail immediately instead of queueing
+  // behind it; releasing the client then closes the transaction on the server.
+  client._queryable = false;
+
+  if (!client.$connectionError) {
+    client.$connectionError = err;
+  }
 }
 
 /**
