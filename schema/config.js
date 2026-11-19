@@ -305,6 +305,24 @@ module.exports = {
               maxPeers: {
                 type: 'integer',
                 minimum: 1
+              },
+              maxPeersPerIp: {
+                type: 'integer',
+                minimum: 0
+              },
+              maxPeersPerSubnet: {
+                type: 'integer',
+                minimum: 0
+              },
+              subnetMaskIpv4: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 32
+              },
+              subnetMaskIpv6: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 128
               }
             },
             required: ['limits', 'timeout']

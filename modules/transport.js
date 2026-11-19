@@ -388,17 +388,39 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
     url: 'http://' + peer.ip + ':' + peer.port + url,
     method: options.method,
     headers: __private.headers,
-    timeout: library.config.peers.options.timeout
+    timeout: library.config.peers.options.timeout,
+    maxRedirects: 0,
+    validateStatus: function () { return true; }
   };
+  var absoluteTimeout = library.config.peers.options.timeout;
+  var controller = new AbortController();
+  var absoluteTimeoutId = setTimeout(function () {
+    controller.abort();
+  }, absoluteTimeout);
+
+  req.signal = controller.signal;
 
   if (options.data) {
     req.data = options.data;
   }
 
+  function maybeRecordRequest (errorCode) {
+    if (options.recordRequest === false) {
+      return;
+    }
+
+    __private.recordRequest({
+      peer: peer,
+      error: errorCode
+    });
+  }
+
   axios(req)
       .then((res) => {
+        clearTimeout(absoluteTimeoutId);
         if (res.status !== 200) {
-        // Remove peer
+          maybeRecordRequest('ERESPONSE');
+          // Remove peer
           __private.removePeer({ peer: peer, code: 'ERESPONSE ' + res.status }, req.method + ' ' + req.url);
 
           return setImmediate(cb, ['Received bad response code', res.status, req.method, req.url].join(' '));
@@ -407,38 +429,49 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
 
           var report = library.schema.validate(headers, schema.headers);
           if (!report) {
-          // Remove peer
+            maybeRecordRequest('EHEADERS');
+            // Remove peer
             __private.removePeer({ peer: peer, code: 'EHEADERS' }, req.method + ' ' + req.url);
 
             return setImmediate(cb, ['Invalid response headers', JSON.stringify(headers), req.method, req.url].join(' '));
           }
 
           if (!modules.system.networkCompatible(headers.nethash)) {
-          // Remove peer
+            maybeRecordRequest('ENETHASH');
+            // Remove peer
             __private.removePeer({ peer: peer, code: 'ENETHASH' }, req.method + ' ' + req.url);
 
             return setImmediate(cb, ['Peer is not on the same network', headers.nethash, req.method, req.url].join(' '));
           }
 
           if (!modules.system.versionCompatible(headers.version)) {
-          // Remove peer
+            maybeRecordRequest('EVERSION');
+            // Remove peer
             __private.removePeer({ peer: peer, code: 'EVERSION:' + headers.version }, req.method + ' ' + req.url);
 
             return setImmediate(cb, ['Peer is using incompatible version', headers.version, req.method, req.url].join(' '));
           }
 
           modules.peers.update(peer);
-          __private.recordRequest({ peer });
+          maybeRecordRequest();
 
           return setImmediate(cb, null, { body: res.data, peer: peer });
         }
       })
       .catch((err) => {
-        if (peer) {
-          __private.recordRequest({ peer: peer, error: err.code });
+        clearTimeout(absoluteTimeoutId);
+
+        var errorCode = err && err.code;
+
+        if (controller.signal.aborted && (!errorCode || errorCode === 'ERR_CANCELED')) {
+          errorCode = 'ETIMEDOUT';
         }
 
-        return setImmediate(cb, [err.code, 'Request failed', req.method, req.url].join(' '));
+        if (peer) {
+          maybeRecordRequest(errorCode || 'EUNKNOWN');
+        }
+
+        return setImmediate(cb, [errorCode || err.code, 'Request failed', req.method, req.url].join(' '));
       });
 };
 
@@ -829,7 +862,7 @@ Transport.prototype.internal = {
         });
       }
 
-      modules.peers.update(peer);
+      modules.peers.recordInboundPeer(peer);
 
       return setImmediate(cb, null, peer);
     });

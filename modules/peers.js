@@ -51,7 +51,15 @@ function Peers (cb, scope) {
 
   self.events = new EventEmitter();
 
-  library.logic.peers.setMaxPeers(__private.probeOptions().maxPeers);
+  var options = __private.probeOptions();
+
+  library.logic.peers.setMaxPeers(options.maxPeers);
+  library.logic.peers.setAdmissionPolicy({
+    maxPeersPerIp: options.maxPeersPerIp,
+    maxPeersPerSubnet: options.maxPeersPerSubnet,
+    subnetMaskIpv4: options.subnetMaskIpv4,
+    subnetMaskIpv6: options.subnetMaskIpv6
+  });
 
   setImmediate(cb, null, self);
 }
@@ -316,6 +324,16 @@ Peers.prototype.update = function (peer) {
 };
 
 /**
+ * Tracks inbound handshake data without marking the peer outbound-verified.
+ * @param {peer} peer
+ * @return {boolean}
+ */
+Peers.prototype.recordInboundPeer = function (peer) {
+  peer.state = Peer.STATE.DISCONNECTED;
+  return library.logic.peers.upsert(peer);
+};
+
+/**
  * Changes the connection type to ws
  * @param {Peer} peer
  */
@@ -393,7 +411,50 @@ Peers.prototype.remove = function (pip, port) {
  * @return {boolean} Returns `true` if peer has been updated
  */
 Peers.prototype.recordRequest = function (ip, port, error) {
-  return library.logic.peers.recordRequest({ ip, port }, error);
+  if (!library.logic.peers.recordRequest({ ip, port }, error)) {
+    return false;
+  }
+
+  var peer = library.logic.peers.get({ ip: ip, port: port });
+
+  if (!peer) {
+    return false;
+  }
+
+  var now = Date.now();
+  var options = __private.probeOptions();
+
+  if (!error) {
+    peer.clearNetworkFailures(now);
+    return true;
+  }
+
+  if (!Peer.isNetworkError(error)) {
+    return true;
+  }
+
+  var failures = peer.recordNetworkFailure(now, options);
+  var neverReachable = !peer.lastOutboundSuccessAt;
+  var unreachableLongEnough = neverReachable ||
+    (now - peer.lastOutboundSuccessAt) >= options.unreachableEvictAfterMs;
+
+  if (failures < options.unreachableEvictAfter || !unreachableLongEnough) {
+    return true;
+  }
+
+  if (!peer.ip || !peer.port || self.isFrozen(peer.ip, peer.port)) {
+    library.logger.debug('peers', 'Keeping unreachable seed peer', peer.string);
+    return true;
+  }
+
+  if (!neverReachable && __private.countVerifiedConnected() < options.minConnectedPeers) {
+    library.logger.debug('peers', 'Keeping previously verified unreachable peer because too few verified peers are connected', peer.string);
+    return true;
+  }
+
+  library.logger.info('peers', 'Removing unreachable peer', peer.string);
+  self.remove(peer.ip, peer.port);
+  return true;
 };
 
 /**
@@ -407,7 +468,8 @@ Peers.prototype.ping = function (peer, cb) {
   library.logger.trace('peers', 'Pinging peer: ' + peer.string);
   modules.transport.getFromPeer(peer, {
     api: '/height',
-    method: 'GET'
+    method: 'GET',
+    recordRequest: false
   }, function (err, res) {
     if (err) {
       library.logger.trace('peers', 'Ping peer failed: ' + peer.string, err);
@@ -528,38 +590,58 @@ Peers.prototype.list = function (options, cb) {
   options.matched = 0;
 
   function randomList (options, peers, cb) {
-    // Get full peers list (random)
-    __private.getByFilter({}, function (err, peersList) {
-      var accepted, found, matched, picked;
+    var now = Date.now();
 
-      found = peersList.length;
-      // Apply filters
-      peersList = peersList.filter(function (peer) {
-        if (options.syncProtocol && peer.syncProtocol !== options.syncProtocol) {
-          return false;
-        }
+    var peersList = _.shuffle(library.logic.peers.list());
+    var accepted, found, matched, picked;
 
-        if (options.broadhash) {
-          // Skip banned and disconnected peers (state 0 and 1)
-          return options.allowedStates.indexOf(peer.state) !== -1 && (
-            // Matched broadhash when attempt 0
-            options.attempt === 0 ? (peer.broadhash === options.broadhash) :
-              // Unmatched broadhash when attempt 1
-              options.attempt === 1 ? (peer.broadhash !== options.broadhash) : false
-          );
+    found = peersList.length;
+    // Apply filters
+    peersList = peersList.filter(function (peer) {
+      if (peer.nextAttemptAt && now < peer.nextAttemptAt) {
+        return false;
+      }
+
+      if (options.syncProtocol && peer.syncProtocol !== options.syncProtocol) {
+        return false;
+      }
+
+      if (options.broadhash) {
+        // Skip banned and disconnected peers (state 0 and 1)
+        return options.allowedStates.indexOf(peer.state) !== -1 && (
+          // Matched broadhash when attempt 0
+          options.attempt === 0 ? (peer.broadhash === options.broadhash) :
+            // Unmatched broadhash when attempt 1
+            options.attempt === 1 ? (peer.broadhash !== options.broadhash) : false
+        );
+      } else {
+        // Skip banned and disconnected peers (state 0 and 1)
+        return options.allowedStates.indexOf(peer.state) !== -1;
+      }
+    });
+
+    if (peersList.length) {
+      var verified = [];
+      var unverified = [];
+
+      peersList.forEach(function (peer) {
+        if (peer.lastOutboundSuccessAt) {
+          verified.push(peer);
         } else {
-          // Skip banned and disconnected peers (state 0 and 1)
-          return options.allowedStates.indexOf(peer.state) !== -1;
+          unverified.push(peer);
         }
       });
-      matched = peersList.length;
-      // Apply limit
-      peersList = peersList.slice(0, options.limit);
-      picked = peersList.length;
-      accepted = self.acceptable(peers.concat(peersList));
-      library.logger.debug('peers', 'Listing peers', { attempt: options.attempts[options.attempt], found: found, matched: matched, picked: picked, accepted: accepted.length });
-      return setImmediate(cb, null, accepted);
-    });
+
+      peersList = _.shuffle(verified).concat(_.shuffle(unverified));
+    }
+
+    matched = peersList.length;
+    // Apply limit
+    peersList = peersList.slice(0, options.limit);
+    picked = peersList.length;
+    accepted = self.acceptable(peers.concat(peersList));
+    library.logger.debug('peers', 'Listing peers', { attempt: options.attempts[options.attempt], found: found, matched: matched, picked: picked, accepted: accepted.length });
+    return setImmediate(cb, null, accepted);
   }
 
   async.waterfall([
@@ -624,7 +706,11 @@ __private.probeOptions = function () {
     unreachableEvictAfter: Math.max(1, __private.nonNegativeInt(options.unreachableEvictAfter, 6)),
     unreachableEvictAfterMs: __private.nonNegativeInt(options.unreachableEvictAfterMs, 24 * 60 * 60 * 1000),
     minConnectedPeers: __private.nonNegativeInt(options.minConnectedPeers, 10),
-    maxPeers: Math.max(1, __private.nonNegativeInt(options.maxPeers, 500))
+    maxPeers: Math.max(1, __private.nonNegativeInt(options.maxPeers, 500)),
+    maxPeersPerIp: __private.nonNegativeInt(options.maxPeersPerIp, 6),
+    maxPeersPerSubnet: __private.nonNegativeInt(options.maxPeersPerSubnet, 64),
+    subnetMaskIpv4: Math.max(0, Math.min(32, __private.nonNegativeInt(options.subnetMaskIpv4, 24))),
+    subnetMaskIpv6: Math.max(0, Math.min(128, __private.nonNegativeInt(options.subnetMaskIpv6, 64)))
   };
 
   if (resolved.unreachableBackoffMaxMs < resolved.unreachableBackoffInitialMs) {
@@ -652,55 +738,6 @@ __private.countVerifiedConnected = function () {
 
     return count;
   }, 0);
-};
-
-/**
- * Applies backoff after a network failure and drops peers that stay unreachable.
- * Protocol errors (nethash, version, headers, bad status) are ignored here;
- * transport already removes those peers. Seed peers are never removed.
- * @param {object} peer
- * @param {string|Error|null|undefined} err
- * @private
- */
-__private.noteProbeResult = function (peer, err) {
-  if (!peer) {
-    return;
-  }
-
-  var live = library.logic.peers.get(peer) || peer;
-  var now = Date.now();
-  var options = __private.probeOptions();
-
-  if (!err) {
-    live.clearNetworkFailures(now);
-    return;
-  }
-
-  if (!Peer.isNetworkError(err)) {
-    return;
-  }
-
-  var failures = live.recordNetworkFailure(now, options);
-  var neverReachable = !live.lastOutboundSuccessAt;
-  var unreachableLongEnough = neverReachable ||
-    (now - live.lastOutboundSuccessAt) >= options.unreachableEvictAfterMs;
-
-  if (failures < options.unreachableEvictAfter || !unreachableLongEnough) {
-    return;
-  }
-
-  if (!live.ip || !live.port || self.isFrozen(live.ip, live.port)) {
-    library.logger.debug('peers', 'Keeping unreachable seed peer', live.string);
-    return;
-  }
-
-  if (__private.countVerifiedConnected() < options.minConnectedPeers) {
-    library.logger.debug('peers', 'Keeping unreachable peer because too few verified peers are connected', live.string);
-    return;
-  }
-
-  library.logger.info('peers', 'Removing unreachable peer', live.string);
-  self.remove(live.ip, live.port);
 };
 
 /**
@@ -732,7 +769,7 @@ __private.probePeers = function (targets, options, cb) {
       library.logger.trace('peers', 'Updating peer', peer.string);
       self.ping(peer, function (err) {
         updated++;
-        __private.noteProbeResult(peer, err);
+        self.recordRequest(peer.ip, peer.port, err);
         return setImmediate(eachCb);
       });
     }, wait);

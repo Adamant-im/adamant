@@ -111,7 +111,9 @@ Peer.NETWORK_ERROR_CODES = {
   EAI_AGAIN: true,
   EADDRNOTAVAIL: true,
   EPIPE: true,
-  ERR_NETWORK: true
+  ERR_NETWORK: true,
+  ERR_CANCELED: true,
+  ABORT_ERR: true
 };
 
 /**

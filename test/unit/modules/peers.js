@@ -80,6 +80,26 @@ describe('peers', function () {
         var inserted = __peers.find(function (p) {
           return p.ip + ':' + p.port === validPeer.ip + ':' + validPeer.port;
         });
+
+        describe('recordInboundPeer()', function () {
+          it('should keep inbound-only peer disconnected until outbound success', function (done) {
+            var inboundPeer = _.clone(validPeer);
+            inboundPeer.ip = '40.41.40.60';
+            inboundPeer.port = 46666;
+            inboundPeer.state = Peer.STATE.CONNECTED;
+
+            peers.recordInboundPeer(inboundPeer);
+
+            peers.shared.getPeer({
+              body: { ip: inboundPeer.ip, port: inboundPeer.port }
+            }, function (error, response) {
+              expect(error).not.to.exist;
+              expect(response.success).to.be.true;
+              expect(response.peer.state).to.equal(Peer.STATE.DISCONNECTED);
+              done();
+            });
+          });
+        });
         expect(inserted).to.be.an('object');
         expect(inserted).not.to.be.empty;
         done();
@@ -261,12 +281,21 @@ describe('peers', function () {
 
     it('should disconnect from the peer after 10 failed requests', (done) => {
       const targetPeer = currentPeers[0];
+      const previousThreshold = config.peers.options.unreachableEvictAfter;
+      config.peers.options.unreachableEvictAfter = 100;
 
       Array.from({ length: 10 }).forEach(() => {
         peers.recordRequest(targetPeer.ip, targetPeer.port, 'ECONNRESET');
       });
 
-      expectState(targetPeer, Peer.STATE.DISCONNECTED, done);
+      expectState(targetPeer, Peer.STATE.DISCONNECTED, () => {
+        var live = modulesLoader.scope.logic.peers.get(targetPeer);
+        if (live) {
+          live.nextAttemptAt = 0;
+        }
+        config.peers.options.unreachableEvictAfter = previousThreshold;
+        done();
+      });
     });
 
     it('should reconnect to the peer after 10 success requests', (done) => {
@@ -287,18 +316,19 @@ describe('peers', function () {
     });
 
     it('should remove added peer', function (done) {
-      getPeers(function (err, __peers) {
-        currentPeers = __peers;
-        var peerToRemove = currentPeers.find(function (p) {
-          return p.ip + ':' + p.port === validPeer.ip + ':' + validPeer.port;
-        });
-        expect(peerToRemove).to.be.an('object').and.not.to.be.empty;
-        expect(peerToRemove.state).that.equals(2);
+      peers.shared.getPeer({
+        body: { ip: validPeer.ip, port: validPeer.port }
+      }, function (error, response) {
+        expect(error).to.not.exist;
+        expect(response.success).to.be.true;
+        expect(response.peer).to.be.an('object').and.not.to.be.empty;
+        expect(response.peer.state).that.equals(2);
 
-        expect(peers.remove(peerToRemove.ip, peerToRemove.port)).to.be.true;
-        getPeers(function (err, __peers) {
-          expect(currentPeers.length - 1).that.equals(__peers.length);
-          currentPeers = __peers;
+        expect(peers.remove(validPeer.ip, validPeer.port)).to.be.true;
+        peers.shared.getPeer({
+          body: { ip: validPeer.ip, port: validPeer.port }
+        }, function (errorAfter) {
+          expect(errorAfter).to.equal('Peer not found');
           done();
         });
       });
@@ -432,7 +462,11 @@ describe('peers', function () {
       'unreachableEvictAfter',
       'unreachableEvictAfterMs',
       'minConnectedPeers',
-      'maxPeers'
+      'maxPeers',
+      'maxPeersPerIp',
+      'maxPeersPerSubnet',
+      'subnetMaskIpv4',
+      'subnetMaskIpv6'
     ];
     var savedOptions = {};
     var nextPort = 25000;
@@ -449,13 +483,23 @@ describe('peers', function () {
         unreachableEvictAfter: 6,
         unreachableEvictAfterMs: 0,
         minConnectedPeers: 0,
-        maxPeers: 500
+        maxPeers: 500,
+        maxPeersPerIp: 0,
+        maxPeersPerSubnet: 0,
+        subnetMaskIpv4: 24,
+        subnetMaskIpv6: 64
       }, overrides);
 
       optionKeys.forEach(function (key) {
         config.peers.options[key] = values[key];
       });
       logicPeers.setMaxPeers(values.maxPeers);
+      logicPeers.setAdmissionPolicy({
+        maxPeersPerIp: values.maxPeersPerIp,
+        maxPeersPerSubnet: values.maxPeersPerSubnet,
+        subnetMaskIpv4: values.subnetMaskIpv4,
+        subnetMaskIpv6: values.subnetMaskIpv6
+      });
     }
 
     function holdSeeds () {
@@ -523,6 +567,12 @@ describe('peers', function () {
         }
       });
       logicPeers.setMaxPeers(__privateMaxPeers());
+      logicPeers.setAdmissionPolicy({
+        maxPeersPerIp: savedOptions.maxPeersPerIp || 0,
+        maxPeersPerSubnet: savedOptions.maxPeersPerSubnet || 0,
+        subnetMaskIpv4: savedOptions.subnetMaskIpv4 || 24,
+        subnetMaskIpv6: savedOptions.subnetMaskIpv6 || 64
+      });
       logicPeers.list().forEach(function (peer) {
         if (peers.isFrozen(peer.ip, peer.port)) {
           peer.nextAttemptAt = 0;
@@ -584,6 +634,49 @@ describe('peers', function () {
         expect(called).to.deep.equal([due.ip + ':' + due.port]);
         expect(called).to.not.include(banned.ip + ':' + banned.port);
         expect(called).to.not.include(waiting.ip + ':' + waiting.port);
+        done();
+      });
+    });
+
+    it('should skip peers in backoff when selecting random outbound peers', function (done) {
+      var ready = addPeer({ state: Peer.STATE.DISCONNECTED, nextAttemptAt: 0 });
+      var waiting = addPeer({ state: Peer.STATE.DISCONNECTED, nextAttemptAt: Date.now() + 120_000 });
+      var broadhash = modules.system.getBroadhash();
+      ready.broadhash = broadhash;
+      waiting.broadhash = broadhash;
+
+      peers.list({
+        limit: 10,
+        allowedStates: [Peer.STATE.DISCONNECTED, Peer.STATE.CONNECTED],
+        broadhash: broadhash
+      }, function (err, listed) {
+        expect(err).to.not.exist;
+        expect(listed.map(function (peer) { return peer.ip + ':' + peer.port; })).to.include(ready.string);
+        expect(listed.map(function (peer) { return peer.ip + ':' + peer.port; })).to.not.include(waiting.string);
+        done();
+      });
+    });
+
+    it('should prioritize outbound-verified peers for random outbound selection', function (done) {
+      var verified = addPeer({
+        state: Peer.STATE.CONNECTED,
+        lastOutboundSuccessAt: 1
+      });
+      var unverified = addPeer({
+        state: Peer.STATE.DISCONNECTED
+      });
+      var broadhash = modules.system.getBroadhash();
+      verified.broadhash = broadhash;
+      unverified.broadhash = broadhash;
+
+      peers.list({
+        limit: 2,
+        allowedStates: [Peer.STATE.DISCONNECTED, Peer.STATE.CONNECTED],
+        broadhash: broadhash
+      }, function (err, listed) {
+        expect(err).to.not.exist;
+        expect(listed).to.have.length(2);
+        expect(listed[0].ip + ':' + listed[0].port).to.equal(verified.string);
         done();
       });
     });
@@ -682,9 +775,23 @@ describe('peers', function () {
       });
     });
 
-    it('should keep unreachable peers while too few verified peers are connected', function (done) {
+    it('should evict never-verified peers even when verified-peer floor is not reached', function (done) {
       applyProbeOptions({ unreachableEvictAfter: 1, minConnectedPeers: 2 });
       var peer = addPeer({});
+
+      sinon.stub(modules.transport, 'getFromPeer').callsFake(function (target, request, cb) {
+        setImmediate(cb, networkError(target));
+      });
+
+      peers.runPeerUpdate(function () {
+        expect(logicPeers.get(peer)).to.equal(undefined);
+        done();
+      });
+    });
+
+    it('should keep previously verified unreachable peers while too few verified peers are connected', function (done) {
+      applyProbeOptions({ unreachableEvictAfter: 1, minConnectedPeers: 2 });
+      var peer = addPeer({ lastOutboundSuccessAt: Date.now() - (2 * 24 * 60 * 60 * 1000) });
 
       sinon.stub(modules.transport, 'getFromPeer').callsFake(function (target, request, cb) {
         setImmediate(cb, networkError(target));

@@ -267,6 +267,7 @@ describe('peer', () => {
       expect(Peer.isNetworkError('ECONNREFUSED Request failed GET http://203.0.113.10/peer/height')).to.equal(true);
       expect(Peer.isNetworkError('ETIMEDOUT Request failed GET http://203.0.113.10/peer/height')).to.equal(true);
       expect(Peer.isNetworkError({ code: 'EHOSTUNREACH' })).to.equal(true);
+      expect(Peer.isNetworkError({ code: 'ERR_CANCELED' })).to.equal(true);
       expect(Peer.isNetworkError('Peer is not on the same network abc GET http://203.0.113.10/peer/height')).to.equal(false);
       expect(Peer.isNetworkError('Peer is using incompatible version 0.0.1 GET http://203.0.113.10/peer/height')).to.equal(false);
       expect(Peer.isNetworkError('Invalid response headers {} GET http://203.0.113.10/peer/height')).to.equal(false);

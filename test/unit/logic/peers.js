@@ -272,13 +272,13 @@ describe('peers', () => {
       removeAll();
     });
 
-    it('should refuse new peers once the table is full and still update existing ones', () => {
+    it('should keep table size bounded and still update existing peers', () => {
       removeAll();
       peers.setMaxPeers(2);
 
       expect(peers.upsert(extraPeers[0])).to.equal(true);
       expect(peers.upsert(extraPeers[1])).to.equal(true);
-      expect(peers.upsert(extraPeers[2])).to.equal(false);
+      expect(peers.upsert(extraPeers[2])).to.equal(true);
       expect(peers.list()).to.have.length(2);
 
       const updated = _.clone(extraPeers[0]);
@@ -288,6 +288,78 @@ describe('peers', () => {
       expect(peers.upsert(updated)).to.equal(true);
       expect(peers.get(extraPeers[0]).height).to.equal(4);
       expect(peers.get(extraPeers[0]).state).to.equal(2);
+    });
+  });
+
+  describe('setAdmissionPolicy()', () => {
+    afterEach(() => {
+      peers.setMaxPeers(0);
+      peers.setAdmissionPolicy({
+        maxPeersPerIp: 0,
+        maxPeersPerSubnet: 0,
+        subnetMaskIpv4: 24,
+        subnetMaskIpv6: 64
+      });
+      removeAll();
+    });
+
+    it('should reject additional ports from one ip when per-ip cap is reached', () => {
+      removeAll();
+      peers.setAdmissionPolicy({ maxPeersPerIp: 2, maxPeersPerSubnet: 0 });
+
+      expect(peers.upsert({ ip: '51.10.0.1', port: 20001, state: 1 })).to.equal(true);
+      expect(peers.upsert({ ip: '51.10.0.1', port: 20002, state: 1 })).to.equal(true);
+      expect(peers.upsert({ ip: '51.10.0.1', port: 20003, state: 1 })).to.equal(false);
+      expect(peers.list()).to.have.length(2);
+    });
+
+    it('should reject additional peers from one subnet when per-subnet cap is reached', () => {
+      removeAll();
+      peers.setAdmissionPolicy({ maxPeersPerIp: 0, maxPeersPerSubnet: 2, subnetMaskIpv4: 24 });
+
+      expect(peers.upsert({ ip: '51.11.0.1', port: 21001, state: 1 })).to.equal(true);
+      expect(peers.upsert({ ip: '51.11.0.2', port: 21002, state: 1 })).to.equal(true);
+      expect(peers.upsert({ ip: '51.11.0.3', port: 21003, state: 1 })).to.equal(false);
+      expect(peers.upsert({ ip: '51.11.1.3', port: 21004, state: 1 })).to.equal(true);
+    });
+
+    it('should evict stale unverified peer when table is full', () => {
+      removeAll();
+      peers.setMaxPeers(2);
+
+      expect(peers.upsert({ ip: '52.20.0.1', port: 22001, state: 1 })).to.equal(true);
+      expect(peers.upsert({ ip: '52.20.0.2', port: 22002, state: 1 })).to.equal(true);
+
+      var first = peers.get({ ip: '52.20.0.1', port: 22001 });
+      var second = peers.get({ ip: '52.20.0.2', port: 22002 });
+      first.updated = 1;
+      second.updated = 2;
+
+      expect(peers.upsert({ ip: '52.20.0.3', port: 22003, state: 1 })).to.equal(true);
+
+      expect(peers.get({ ip: '52.20.0.1', port: 22001 })).to.equal(undefined);
+      expect(peers.get({ ip: '52.20.0.2', port: 22002 })).to.not.equal(undefined);
+      expect(peers.get({ ip: '52.20.0.3', port: 22003 })).to.not.equal(undefined);
+    });
+
+    it('should keep verified peers when evicting for capacity', () => {
+      removeAll();
+      peers.setMaxPeers(2);
+
+      expect(peers.upsert({ ip: '52.21.0.1', port: 23001, state: 2 })).to.equal(true);
+      expect(peers.upsert({ ip: '52.21.0.2', port: 23002, state: 1 })).to.equal(true);
+
+      var verified = peers.get({ ip: '52.21.0.1', port: 23001 });
+      var unverified = peers.get({ ip: '52.21.0.2', port: 23002 });
+      verified.lastOutboundSuccessAt = 100;
+      verified.updated = 1;
+      unverified.updated = 2;
+
+      expect(peers.upsert({ ip: '52.21.0.3', port: 23003, state: 1 })).to.equal(true);
+
+      expect(peers.get({ ip: '52.21.0.1', port: 23001 })).to.not.equal(undefined);
+      expect(peers.get({ ip: '52.21.0.2', port: 23002 })).to.equal(undefined);
+      expect(peers.get({ ip: '52.21.0.3', port: 23003 })).to.not.equal(undefined);
     });
   });
 });
