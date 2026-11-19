@@ -296,8 +296,6 @@ source "$ADAMANT_LIB"
 interpreter="$(command -v node)"
 ecosystem="$HOME/.adamant/ecosystem.${PROCESS_NAME}.json"
 adamant_stop_process_for_repair "$ecosystem" "$PROCESS_NAME" "$interpreter"
-printf '%s\n' "$ecosystem" >"$HOME/.adamant/ecosystem-path"
-printf '%s\n' "$(dirname "$interpreter")" >"$HOME/.adamant/node-bin-dir"
 EOSU
 
 adamant_terminate_database_connections "$PSQL_BIN" "$databasename"
@@ -331,8 +329,9 @@ runuser -u "$username" -- env \
   IMAGE_FILENAME="$image_filename" \
   bash --noprofile --norc -s <<'EOSU'
 set -Eeuo pipefail
-gzip -dc "$HOME/.adamant/images/${IMAGE_FILENAME}" | psql -X --set=ON_ERROR_STOP=1 "$DATABASE_NAME"
-rm -f -- "$HOME/.adamant/images/${IMAGE_FILENAME}" "$HOME/.adamant/images/${IMAGE_FILENAME}.sha256"
+gzip -dc "$HOME/.adamant/images/${IMAGE_FILENAME}" \
+  | psql -X --set=ON_ERROR_STOP=1 --single-transaction "$DATABASE_NAME"
+rm -f -- "$HOME/.adamant/images/${IMAGE_FILENAME}"
 EOSU
 database_dropped="false"
 
@@ -353,14 +352,14 @@ ecosystem="$HOME/.adamant/ecosystem.${PROCESS_NAME}.json"
 adamant_start_process_from_ecosystem "$ecosystem" "$PROCESS_NAME" "$interpreter"
 EOSU
 
-node_bin_dir="$(cat "${NODE_HOME}/.adamant/node-bin-dir")"
-ecosystem_path="$(cat "${NODE_HOME}/.adamant/ecosystem-path")"
+ecosystem_path="${NODE_HOME}/.adamant/ecosystem.${processname}.json"
 # shellcheck disable=SC2119
 mapfile -t database_units < <(adamant_detect_database_units | tr ' ' '\n')
-adamant_install_pm2_systemd "$username" "$NODE_HOME" "$node_bin_dir" "${database_units[@]}"
+adamant_install_pm2_systemd "$username" "$NODE_HOME" "${database_units[@]}"
 adamant_print_database_maintenance debian "$username" "$ecosystem_path"
 
-port_read="$(jq -r '.port // empty' "$CFG_PATH" 2>/dev/null || true)"
+port_read="$(runuser -u "$username" -- env CFG_PATH="$CFG_PATH" \
+  jq -r '.port // empty' "$CFG_PATH" 2>/dev/null || true)"
 if [[ "$port_read" =~ ^[0-9]+$ ]]; then
   port="$port_read"
 fi

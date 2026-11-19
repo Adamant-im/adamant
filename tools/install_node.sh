@@ -30,15 +30,24 @@ port=""
 image_url=""
 
 db_password_file=""
+cleanup_db_password() {
+  if [[ -n "${db_password_file:-}" ]]; then
+    local secret="$db_password_file"
+    db_password_file=""
+    adamant_remove_secret_file "$secret"
+  fi
+}
 on_error() {
   local exit_status=$?
-  if [[ -n "${db_password_file:-}" ]]; then
-    rm -f -- "$db_password_file"
+  trap - ERR
+  if ! cleanup_db_password; then
+    printf 'WARNING: Could not remove the temporary database password file.\n' >&2
   fi
   printf '\n[ERROR] Line %s failed. Installation stopped.\n\n' "${BASH_LINENO[0]}" >&2
   exit "$exit_status"
 }
 trap on_error ERR
+trap cleanup_db_password EXIT
 
 adamant_apply_network mainnet
 branch="master"
@@ -225,7 +234,7 @@ fi
 DB_PASSWORD="$(adamant_prompt_db_password "$username")"
 
 printf '\nUpdating installed system packages. Existing package configuration files will be preserved.\n'
-printf 'If an ADAMANT node is running, a PostgreSQL or Redis upgrade may restart it without a graceful node shutdown.\n'
+printf 'Any active PM2 node process was stopped gracefully before this package mutation.\n'
 apt-get update
 apt-get "${APT_OPTIONS[@]}" upgrade
 
@@ -390,12 +399,7 @@ fi
 REPO_DIR="${NODE_HOME}/adamant"
 adamant_repair_node_user_permissions "$username" "$NODE_HOME" "$REPO_DIR"
 
-previous_umask="$(umask)"
-umask 077
-db_password_file="$(mktemp "${NODE_HOME}/.adamant-db-password.XXXXXX")"
-umask "$previous_umask"
-printf '%s' "$DB_PASSWORD" >"$db_password_file"
-chown "$username:$username" "$db_password_file"
+db_password_file="$(adamant_create_secret_file "$username" "$DB_PASSWORD")"
 unset DB_PASSWORD
 
 PSQL_BIN="$(command -v psql)"
@@ -440,14 +444,13 @@ source "$ADAMANT_LIB"
 adamant_user_install
 EOSU
 
-rm -f -- "$db_password_file"
+adamant_remove_secret_file "$db_password_file"
 db_password_file=""
 
-node_bin_dir="$(cat "${NODE_HOME}/.adamant/node-bin-dir")"
-ecosystem_path="$(cat "${NODE_HOME}/.adamant/ecosystem-path")"
+ecosystem_path="${NODE_HOME}/.adamant/ecosystem.${processname}.json"
 # shellcheck disable=SC2119
 mapfile -t database_units < <(adamant_detect_database_units | tr ' ' '\n')
-adamant_install_pm2_systemd "$username" "$NODE_HOME" "$node_bin_dir" "${database_units[@]}"
+adamant_install_pm2_systemd "$username" "$NODE_HOME" "${database_units[@]}"
 adamant_print_database_maintenance debian "$username" "$ecosystem_path"
 
 minutes="$(( (SECONDS + 59) / 60 ))"

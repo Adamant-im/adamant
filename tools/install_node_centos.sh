@@ -31,18 +31,26 @@ port=""
 image_url=""
 
 db_password_file=""
+cleanup_db_password() {
+  if [[ -n "${db_password_file:-}" ]]; then
+    local secret="$db_password_file"
+    db_password_file=""
+    adamant_remove_secret_file "$secret"
+  fi
+}
 on_error() {
   local exit_status=$?
-  if [[ -n "${db_password_file:-}" ]]; then
-    rm -f -- "$db_password_file"
+  trap - ERR
+  if ! cleanup_db_password; then
+    printf 'WARNING: Could not remove the temporary database password file.\n' >&2
   fi
   printf '\n[ERROR] Line %s failed. Installation stopped.\n\n' "${BASH_LINENO[0]}" >&2
   exit "$exit_status"
 }
 trap on_error ERR
+trap cleanup_db_password EXIT
 
 readonly POSTGRESQL_VERSION="18"
-readonly ADAMANT_PGDG_RPM_KEY_FINGERPRINT="B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8"
 adamant_apply_network mainnet
 branch="master"
 nodejs="24"
@@ -241,38 +249,34 @@ dnf -y install \
   ca-certificates curl git gnupg2 gzip jq tar \
   gcc gcc-c++ make automake autoconf libtool pkgconf-pkg-config python3
 
-pgdg_rpm="https://download.postgresql.org/pub/repos/yum/reporpms/EL-${el_major}-${pgdg_arch}/pgdg-redhat-repo-latest.noarch.rpm"
-pgdg_key_url="https://www.postgresql.org/media/keys/ACCC4CF8.asc"
 pgdg_enabled=false
-if curl --proto '=https' --proto-redir '=https' -fsSL -o /dev/null "$pgdg_rpm"; then
+pgdg_artifact=()
+mapfile -t pgdg_artifact < <(adamant_select_pgdg_rpm "$el_major" "$pgdg_arch")
+if (( ${#pgdg_artifact[@]} != 2 )); then
+  printf 'WARNING: No reviewed PGDG repository RPM is pinned for EL %s on %s.\n' \
+    "$el_major" "$pgdg_arch"
+else
+  pgdg_rpm_filename="${pgdg_artifact[0]}"
+  pgdg_rpm_sha256="${pgdg_artifact[1]}"
+  pgdg_rpm="https://download.postgresql.org/pub/repos/yum/reporpms/EL-${el_major}-${pgdg_arch}/${pgdg_rpm_filename}"
   pgdg_work_dir="/var/lib/adamant/pgdg-repo"
-  pgdg_rpm_file="${pgdg_work_dir}/pgdg-redhat-repo.noarch.rpm"
-  pgdg_key_file="${pgdg_work_dir}/ACCC4CF8.asc"
+  pgdg_rpm_file="${pgdg_work_dir}/${pgdg_rpm_filename}"
   adamant_install_mode_directory /var/lib/adamant
   adamant_install_mode_directory "$pgdg_work_dir"
   chmod 0700 "$pgdg_work_dir"
-  curl --proto '=https' --proto-redir '=https' -fsSL "$pgdg_rpm" -o "$pgdg_rpm_file"
-  curl --proto '=https' --proto-redir '=https' -fsSL "$pgdg_key_url" -o "$pgdg_key_file"
-  pgdg_key_fingerprint="$(gpg --show-keys --with-colons "$pgdg_key_file" \
-    | awk -F: '$1 == "fpr" { print $10; exit }')"
-  if [[ "$pgdg_key_fingerprint" != "$ADAMANT_PGDG_RPM_KEY_FINGERPRINT" ]]; then
-    printf 'WARNING: Unexpected PGDG RPM key fingerprint: %s. Skipping PGDG repository.\n' \
-      "${pgdg_key_fingerprint:-unknown}"
-  elif ! rpm --import "$pgdg_key_file"; then
-    printf 'WARNING: Could not import the PGDG RPM key. Skipping PGDG repository.\n'
-  elif ! rpmkeys --checksig "$pgdg_rpm_file" | grep -Eq 'digests signatures OK'; then
-    printf 'WARNING: PGDG repository RPM signature verification failed. Skipping PGDG repository.\n'
+  if ! curl --proto '=https' --proto-redir '=https' -fsSL "$pgdg_rpm" -o "$pgdg_rpm_file"; then
+    printf 'WARNING: PGDG RPM is unavailable; using distribution PostgreSQL packages.\n'
+  elif ! adamant_verify_file_sha256 "$pgdg_rpm_sha256" "$pgdg_rpm_file"; then
+    printf 'WARNING: PGDG repository RPM failed its reviewed SHA-256 check. Skipping PGDG repository.\n'
   elif dnf -y install "$pgdg_rpm_file"; then
     pgdg_enabled=true
   else
     printf 'WARNING: The PGDG repository package did not install; using distribution PostgreSQL packages.\n'
   fi
-else
-  printf 'WARNING: PGDG RPM is unavailable; using distribution PostgreSQL packages.\n'
 fi
 
 printf '\nUpdating installed system packages.\n'
-printf 'If an ADAMANT node is running, a PostgreSQL or Redis upgrade may restart it without a graceful node shutdown.\n'
+printf 'Any active PM2 node process was stopped gracefully before this package mutation.\n'
 dnf -y upgrade --refresh
 dnf -y install redis libpq-devel
 
@@ -318,7 +322,10 @@ else
   postgresql_installed=false
   if [[ "$pgdg_enabled" == "true" ]]; then
     printf 'Installing PostgreSQL %s from the official PGDG repository.\n' "$POSTGRESQL_VERSION"
-    dnf -qy module disable postgresql || true
+    postgresql_module_disabled=false
+    if dnf -qy module disable postgresql; then
+      postgresql_module_disabled=true
+    fi
     if dnf -y install \
       "postgresql${POSTGRESQL_VERSION}" \
       "postgresql${POSTGRESQL_VERSION}-server" \
@@ -333,6 +340,11 @@ else
         "$POSTGRESQL_VERSION"
       dnf -y remove pgdg-redhat-repo || true
       pgdg_enabled=false
+      if [[ "$postgresql_module_disabled" == "true" ]] \
+        && ! dnf -qy module reset postgresql; then
+        printf 'Could not restore the distribution PostgreSQL module after PGDG fallback.\n' >&2
+        exit 1
+      fi
     fi
   fi
   if [[ "$postgresql_installed" != "true" ]]; then
@@ -371,12 +383,7 @@ fi
 REPO_DIR="${NODE_HOME}/adamant"
 adamant_repair_node_user_permissions "$username" "$NODE_HOME" "$REPO_DIR"
 
-previous_umask="$(umask)"
-umask 077
-db_password_file="$(mktemp "${NODE_HOME}/.adamant-db-password.XXXXXX")"
-umask "$previous_umask"
-printf '%s' "$DB_PASSWORD" >"$db_password_file"
-chown "$username:$username" "$db_password_file"
+db_password_file="$(adamant_create_secret_file "$username" "$DB_PASSWORD")"
 unset DB_PASSWORD
 
 PSQL_BIN="$(command -v psql || true)"
@@ -441,13 +448,12 @@ source "$ADAMANT_LIB"
 adamant_user_install
 EOSU
 
-rm -f -- "$db_password_file"
+adamant_remove_secret_file "$db_password_file"
 db_password_file=""
 
-node_bin_dir="$(cat "${NODE_HOME}/.adamant/node-bin-dir")"
-ecosystem_path="$(cat "${NODE_HOME}/.adamant/ecosystem-path")"
+ecosystem_path="${NODE_HOME}/.adamant/ecosystem.${processname}.json"
 mapfile -t database_units < <(adamant_detect_database_units "${postgresql_service}.service" | tr ' ' '\n')
-adamant_install_pm2_systemd "$username" "$NODE_HOME" "$node_bin_dir" "${database_units[@]}"
+adamant_install_pm2_systemd "$username" "$NODE_HOME" "${database_units[@]}"
 adamant_print_database_maintenance rhel "$username" "$ecosystem_path"
 
 minutes="$(( (SECONDS + 59) / 60 ))"

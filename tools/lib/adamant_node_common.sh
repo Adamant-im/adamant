@@ -28,6 +28,7 @@ readonly ADAMANT_PM2_LOGROTATE_VERSION="3.0.0"
 readonly ADAMANT_MIN_RELEASE_AGE_DAYS="7"
 # PM2 waits this long after SIGINT before SIGKILL. systemd must wait longer.
 readonly ADAMANT_KILL_TIMEOUT_MS="120000"
+readonly ADAMANT_GRACEFUL_STOP_TIMEOUT_SEC="180"
 readonly ADAMANT_SYSTEMD_STOP_TIMEOUT_SEC="180"
 # node-schedule 1.3 (pm2-logrotate 3.0.0) rejects day-of-month 0.
 # "0 0 1 * *" is 00:00 on the first day of each month.
@@ -334,6 +335,51 @@ adamant_prompt_db_password() {
   done
 }
 
+adamant_create_secret_file() {
+  local user="$1"
+  local value="$2"
+  local directory file
+
+  if ! directory="$(mktemp -d /run/adamant-secret.XXXXXX)"; then
+    return 1
+  fi
+  if ! chown root:root "$directory" || ! chmod 0711 "$directory"; then
+    rmdir -- "$directory"
+    return 1
+  fi
+  file="${directory}/secret"
+  if ! (
+    umask 077
+    printf '%s' "$value" >"$file"
+  ); then
+    rmdir -- "$directory"
+    return 1
+  fi
+  if ! chown "$user" "$file" || ! chmod 0600 "$file"; then
+    rm -f -- "$file"
+    rmdir -- "$directory"
+    return 1
+  fi
+  printf '%s' "$file"
+}
+
+adamant_remove_secret_file() {
+  local file="$1"
+  local directory
+
+  [[ -n "$file" ]] || return 0
+  directory="${file%/*}"
+  case "$directory" in
+    /run/adamant-secret.*) ;;
+    *)
+      printf 'Refusing to remove secret outside /run: %s.\n' "$file" >&2
+      return 1
+      ;;
+  esac
+  rm -f -- "$file"
+  rmdir -- "$directory"
+}
+
 adamant_install_mode_directory() {
   local path="$1"
 
@@ -530,7 +576,12 @@ adamant_download_verified_archive() {
   rm -f -- "$part" "$dest"
   printf 'Downloading %s (%s bytes).\n' "$url" "$image_bytes"
   curl --proto '=https' --proto-redir '=https' -fL --retry 3 --connect-timeout 30 \
-    -o "$part" "$url"
+    --max-filesize "$image_bytes" -o "$part" "$url"
+  if [[ "$(wc -c <"$part" | tr -d '[:space:]')" != "$image_bytes" ]]; then
+    rm -f -- "$part"
+    printf 'Downloaded size changed for %s; the archive was deleted.\n' "$filename" >&2
+    return 1
+  fi
   mv -- "$part" "$dest"
   if ! adamant_verify_file_sha256 "$expected_hash" "$dest"; then
     rm -f -- "$dest"
@@ -548,19 +599,19 @@ adamant_download_verified_archive() {
 adamant_json_bool() {
   local json="$1"
   local key="$2"
-  local compact rest
+  local value
 
-  compact="${json//[[:space:]]/}"
-  rest="${compact#*"\"${key}\":"}"
-  if [[ "$rest" == "$compact" ]]; then
-    printf ''
-    return 0
-  fi
-  if [[ "$rest" == true* ]]; then
-    printf 'true'
-  elif [[ "$rest" == false* ]]; then
-    printf 'false'
-  fi
+  value="$(printf '%s' "$json" | JSON_KEY="$key" node -e '
+const fs = require("fs");
+let data;
+try { data = JSON.parse(fs.readFileSync(0, "utf8")); }
+catch (error) { process.exit(1); }
+if (!data || Array.isArray(data) || typeof data !== "object") process.exit(1);
+const value = data[process.env.JSON_KEY];
+if (typeof value !== "boolean") process.exit(1);
+process.stdout.write(String(value));
+')" || return 1
+  printf '%s' "$value"
 }
 
 # Return 1 and print a reason when an online node must not be restarted.
@@ -570,6 +621,7 @@ adamant_loader_block_reason() {
   local status_code="$3"
   local sync_body="$4"
   local sync_code="$5"
+  local force="${6:-false}"
   local loaded="" syncing="" combined=""
 
   case "$pm2_status" in
@@ -582,8 +634,12 @@ adamant_loader_block_reason() {
       printf 'The pm2 process list could not be read.\n'
       return 1
       ;;
-    *)
+    missing|stopped|errored)
       return 0
+      ;;
+    *)
+      printf 'The pm2 process has unexpected state %s.\n' "$pm2_status"
+      return 1
       ;;
   esac
 
@@ -594,6 +650,9 @@ adamant_loader_block_reason() {
 
   combined="${status_body} ${sync_body}"
   if [[ "$combined" == *"Blockchain is loading"* ]]; then
+    if [[ "$force" == "true" ]]; then
+      return 0
+    fi
     printf 'The node is still loading or rebuilding the blockchain.\n'
     return 1
   fi
@@ -601,23 +660,32 @@ adamant_loader_block_reason() {
     printf 'The node API refused access, so the installer cannot tell whether it is syncing.\n'
     return 1
   fi
+  if [[ "$status_code" != "200" || "$sync_code" != "200" ]]; then
+    printf 'The node loader endpoints did not both return HTTP 200 (status %s, sync %s).\n' \
+      "$status_code" "$sync_code"
+    return 1
+  fi
 
-  loaded="$(adamant_json_bool "$status_body" loaded)"
-  syncing="$(adamant_json_bool "$sync_body" syncing)"
+  if ! loaded="$(adamant_json_bool "$status_body" loaded)"; then
+    printf 'The loader status response is not valid JSON with a boolean loaded field.\n'
+    return 1
+  fi
+  if ! syncing="$(adamant_json_bool "$sync_body" syncing)"; then
+    printf 'The loader sync response is not valid JSON with a boolean syncing field.\n'
+    return 1
+  fi
   if [[ "$loaded" == "false" ]]; then
+    if [[ "$force" == "true" ]]; then
+      return 0
+    fi
     printf 'The node reports loaded=false and may still be rebuilding.\n'
     return 1
   fi
   if [[ "$syncing" == "true" ]]; then
-    printf 'The node reports syncing=true.\n'
-    return 1
-  fi
-  if [[ -z "$loaded" || -z "$syncing" ]]; then
-    if [[ "$sync_code" == "000" || -z "$sync_code" ]]; then
-      printf 'The node process is %s, but the sync API did not respond.\n' "$pm2_status"
-      return 1
+    if [[ "$force" == "true" ]]; then
+      return 0
     fi
-    printf 'The loader status response was not readable.\n'
+    printf 'The node reports syncing=true.\n'
     return 1
   fi
   if [[ "$loaded" != "true" || "$syncing" != "false" ]]; then
@@ -639,7 +707,7 @@ adamant_pm2_process_status() {
     printf 'unknown'
     return 0
   fi
-  status="$(PROCESS_NAME="$process" printf '%s' "$raw" | node -e '
+  status="$(printf '%s' "$raw" | PROCESS_NAME="$process" node -e '
 const fs = require("fs");
 const name = process.env.PROCESS_NAME;
 let data;
@@ -699,7 +767,9 @@ try {
   status_body="$(cat "$status_file" 2>/dev/null || true)"
   sync_body="$(cat "$sync_file" 2>/dev/null || true)"
   rm -f -- "$status_file" "$sync_file"
-  reason="$(adamant_loader_block_reason "$pm2_status" "$status_body" "$status_code" "$sync_body" "$sync_code" || true)"
+  reason="$(adamant_loader_block_reason \
+    "$pm2_status" "$status_body" "$status_code" "$sync_body" "$sync_code" \
+    "${FORCE_RESTART:-false}" || true)"
   if [[ -n "$reason" ]]; then
     printf '%s' "$reason"
   fi
@@ -714,15 +784,11 @@ adamant_refuse_if_node_busy() {
   local force="$6"
   local output=""
 
-  if [[ "$force" == "true" ]]; then
-    printf 'Force flag set; a syncing or rebuilding node may be restarted.\n'
-    return 0
-  fi
   if ! id -u "$user" >/dev/null 2>&1; then
     return 0
   fi
   if [[ ! -s "$home/.nvm/nvm.sh" ]]; then
-    if [[ -f "$config_file" ]]; then
+    if [[ -f "$config_file" || -d "$home/.pm2" ]]; then
       printf 'The node checkout exists, but nvm is missing; PM2 state cannot be verified safely.\n' >&2
       return 1
     fi
@@ -733,6 +799,7 @@ adamant_refuse_if_node_busy() {
     PROCESS_NAME="$process" \
     API_PORT="$port" \
     CONFIG_FILE="$config_file" \
+    FORCE_RESTART="$force" \
     ADAMANT_LIB="$ADAMANT_TRUSTED_LIBRARY" \
     bash --noprofile --norc -s <<'EOS'
 set -Eeuo pipefail
@@ -776,6 +843,7 @@ document = {
             "args": os.environ["APP_ARGS"],
             "interpreter": os.environ["INTERPRETER"],
             "kill_timeout": int(os.environ["KILL_TIMEOUT"]),
+            "stop_exit_codes": [130, 143],
             "autorestart": True,
         }
     ]
@@ -861,7 +929,7 @@ adamant_write_pm2_systemd_unit() {
     printf 'Refusing unsafe system user name %q.\n' "$user" >&2
     return 1
   fi
-  if [[ -z "$home" || "${home#/}" == "$home" || "$home" == *$'\n'* ]]; then
+  if [[ ! "$home" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
     printf 'Refusing unsafe home directory %q.\n' "$home" >&2
     return 1
   fi
@@ -895,8 +963,7 @@ EOF
 adamant_install_pm2_systemd() {
   local user="$1"
   local home="$2"
-  local _node_bin_dir="$3"
-  shift 3
+  shift 2
   local service="pm2-${user}.service"
   local service_file="/etc/systemd/system/${service}"
   local dropin="/etc/systemd/system/pm2-${user}.service.d/10-adamant.conf"
@@ -930,6 +997,43 @@ adamant_pgdg_policy_usable() {
     return 1
   fi
   [[ "$policy" == *"postgresql.org"* ]]
+}
+
+adamant_select_pgdg_rpm() {
+  local release="$1"
+  local arch="$2"
+  local filename="" sha256=""
+
+  case "${release}:${arch}" in
+    8:x86_64)
+      filename="pgdg-redhat-repo-42.0-65.rhel8PGDG.noarch.rpm"
+      sha256="d9779fef97f1c751a84939cf5b5b0c3b0062a496a43c77a5c53e1ee3388cf11e"
+      ;;
+    8:aarch64)
+      filename="pgdg-redhat-repo-42.0-65.rhel8PGDG.noarch.rpm"
+      sha256="bc775c8a1da1dec90b6649e15b3fb72de879e764eaff3c361e80ad17303ec466"
+      ;;
+    9:x86_64)
+      filename="pgdg-redhat-repo-42.0-71.rhel9PGDG.noarch.rpm"
+      sha256="7ecd0114a3cfa5a1451af441a7a97b0954fff13ddd1a482b0e401f7e4113e772"
+      ;;
+    9:aarch64)
+      filename="pgdg-redhat-repo-42.0-71.rhel9PGDG.noarch.rpm"
+      sha256="00af84dbda336e8850cb35480d9376c8225787a3a22d4ad76ff33ad26683a511"
+      ;;
+    10:x86_64)
+      filename="pgdg-redhat-repo-42.0-71.rhel10PGDG.noarch.rpm"
+      sha256="8264bc5fbd7d5ee331c020c2290f874362921bfc196666532a3e572cd045af55"
+      ;;
+    10:aarch64)
+      filename="pgdg-redhat-repo-42.0-71.rhel10PGDG.noarch.rpm"
+      sha256="d81e8f5ecfd7b6c14ed7d987d966ebc0776f3dc5d9c7c141924c74bc27934360"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+  printf '%s\n%s\n' "$filename" "$sha256"
 }
 
 adamant_prompt_blockchain_image() {
@@ -1000,14 +1104,11 @@ adamant_sync_git_checkout() {
 }
 
 adamant_install_toolchain() {
-  local previous_pm2=""
-
   cd "$HOME" || return
   export NVM_DIR="$HOME/.nvm"
   if [[ -s "$NVM_DIR/nvm.sh" ]]; then
     # shellcheck disable=SC1091
     source "$NVM_DIR/nvm.sh"
-    previous_pm2="$(command -v pm2 || true)"
   fi
   printf '\nInstalling or updating nvm v%s and Node.js %s.\n' "$ADAMANT_NVM_VERSION" "$NODEJS_VERSION"
   if [[ -d "$NVM_DIR/.git" ]]; then
@@ -1040,11 +1141,6 @@ adamant_install_toolchain() {
   if [[ "$(npm --version)" != "$ADAMANT_NPM_VERSION" ]]; then
     printf 'npm %s is active, expected %s.\n' "$(npm --version)" "$ADAMANT_NPM_VERSION" >&2
     return 1
-  fi
-  if [[ -n "$previous_pm2" ]]; then
-    printf '%s\n' "$previous_pm2" >"$HOME/.adamant/previous-pm2-bin"
-  else
-    rm -f -- "$HOME/.adamant/previous-pm2-bin"
   fi
   printf 'Using Node.js %s and npm %s.\n' "$(node --version)" "$(npm --version)"
 }
@@ -1145,7 +1241,7 @@ adamant_pm2_field() {
   local raw
 
   raw="$(pm2 jlist 2>/dev/null || true)"
-  PROCESS_NAME="$process" FIELD="$field" printf '%s' "$raw" | node -e '
+  printf '%s' "$raw" | PROCESS_NAME="$process" FIELD="$field" node -e '
 const fs = require("fs");
 const name = process.env.PROCESS_NAME;
 const field = process.env.FIELD;
@@ -1158,26 +1254,85 @@ process.stdout.write(String(found.pm2_env[field]));
 '
 }
 
+adamant_pm2_pid() {
+  local process="$1"
+  local raw pid
+
+  raw="$(pm2 jlist 2>/dev/null)" || return 1
+  pid="$(printf '%s' "$raw" | PROCESS_NAME="$process" node -e '
+const fs = require("fs");
+const name = process.env.PROCESS_NAME;
+let data;
+try { data = JSON.parse(fs.readFileSync(0, "utf8")); }
+catch (error) { process.exit(1); }
+const found = Array.isArray(data) ? data.find((item) => item && item.name === name) : null;
+const pid = found && Number(found.pid);
+if (!Number.isSafeInteger(pid) || pid <= 1) process.exit(1);
+process.stdout.write(String(pid));
+')" || return 1
+  printf '%s' "$pid"
+}
+
+adamant_wait_for_pm2_stop() {
+  local process="$1"
+  local elapsed=0 status=""
+
+  while (( elapsed <= ADAMANT_GRACEFUL_STOP_TIMEOUT_SEC )); do
+    status="$(adamant_pm2_process_status "$process")"
+    case "$status" in
+      stopped|missing)
+        return 0
+        ;;
+      online|launching|stopping)
+        ;;
+      *)
+        printf 'PM2 state became %s while waiting for %s to stop gracefully.\n' \
+          "${status:-empty}" "$process" >&2
+        return 1
+        ;;
+    esac
+    if (( elapsed == ADAMANT_GRACEFUL_STOP_TIMEOUT_SEC )); then
+      break
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+  printf 'Process %s did not finish graceful cleanup within %s seconds. '\
+    "$process" "$ADAMANT_GRACEFUL_STOP_TIMEOUT_SEC" >&2
+  printf 'No forced signal was sent; resolve the running cleanup before continuing.\n' >&2
+  return 1
+}
+
+adamant_signal_pm2_process_gracefully() {
+  local process="$1"
+  local pid
+
+  pid="$(adamant_pm2_pid "$process")" || {
+    printf 'Cannot read a safe PID for PM2 process %s.\n' "$process" >&2
+    return 1
+  }
+  printf 'Sending SIGINT once to %s (PID %s) and waiting for cleanup.\n' "$process" "$pid"
+  if ! kill -s INT -- "$pid"; then
+    case "$(adamant_pm2_process_status "$process")" in
+      stopped|missing) return 0 ;;
+      *) return 1 ;;
+    esac
+  fi
+  adamant_wait_for_pm2_stop "$process"
+}
+
 adamant_apply_pm2_ecosystem() {
   local ecosystem="$1"
   local process="$2"
   local interpreter="$3"
-  local previous_pm2="" actual_timeout="" actual_interpreter="" busy="" pm2_list=""
+  local actual_timeout="" actual_interpreter="" actual_stop_codes=""
+  local busy="" pm2_list=""
 
-  if [[ -s "$HOME/.adamant/previous-pm2-bin" ]]; then
-    previous_pm2="$(cat "$HOME/.adamant/previous-pm2-bin")"
-  fi
-  if [[ "${FORCE_RESTART:-false}" != "true" ]]; then
-    busy="$(adamant_print_restart_block_reason || true)"
-    if [[ -n "$busy" ]]; then
-      printf '%s\n' "$busy" >&2
-      printf 'Dependencies are installed, but the running node was not restarted.\n' >&2
-      return 1
-    fi
-  fi
-  if [[ -n "$previous_pm2" && -x "$previous_pm2" ]] && "$previous_pm2" describe "$process" >/dev/null 2>&1; then
-    printf 'Applying the ecosystem file before replacing the pm2 binary.\n'
-    "$previous_pm2" startOrRestart "$ecosystem" --update-env
+  busy="$(adamant_print_restart_block_reason || true)"
+  if [[ -n "$busy" ]]; then
+    printf '%s\n' "$busy" >&2
+    printf 'Dependencies are installed, but the running node was not restarted.\n' >&2
+    return 1
   fi
   adamant_run_quiet "Installing pm2 ${ADAMANT_PM2_VERSION}." \
     npm install --global --min-release-age="$ADAMANT_MIN_RELEASE_AGE_DAYS" "pm2@${ADAMANT_PM2_VERSION}"
@@ -1196,12 +1351,17 @@ adamant_apply_pm2_ecosystem() {
   pm2 save
   actual_timeout="$(adamant_pm2_field "$process" kill_timeout)"
   actual_interpreter="$(adamant_pm2_field "$process" exec_interpreter)"
+  actual_stop_codes="$(adamant_pm2_field "$process" stop_exit_codes)"
   if [[ "$actual_timeout" != "$ADAMANT_KILL_TIMEOUT_MS" ]]; then
     printf 'pm2 kill_timeout is %q, expected %s.\n' "$actual_timeout" "$ADAMANT_KILL_TIMEOUT_MS" >&2
     return 1
   fi
   if [[ "$actual_interpreter" != "$interpreter" ]]; then
     printf 'pm2 interpreter is %q, expected %s.\n' "$actual_interpreter" "$interpreter" >&2
+    return 1
+  fi
+  if [[ "$actual_stop_codes" != "130,143" ]]; then
+    printf 'pm2 stop_exit_codes is %q, expected 130,143.\n' "$actual_stop_codes" >&2
     return 1
   fi
   printf 'pm2 process %s is using kill_timeout %s and interpreter %s.\n' \
@@ -1228,8 +1388,9 @@ adamant_user_install() {
     # shellcheck disable=SC2153
     adamant_download_verified_archive "$image_dir" "${IMAGE_URL:?}" "${IMAGE_FILENAME:?}" "${IMAGE_SHA256:?}"
     printf 'Streaming the blockchain image into PostgreSQL.\n'
-    gzip -dc "${image_dir}/${IMAGE_FILENAME}" | psql -X --set=ON_ERROR_STOP=1 "$DATABASE_NAME"
-    rm -f -- "${image_dir}/${IMAGE_FILENAME}" "${image_dir}/${IMAGE_FILENAME}.sha256"
+    gzip -dc "${image_dir}/${IMAGE_FILENAME}" \
+      | psql -X --set=ON_ERROR_STOP=1 --single-transaction "$DATABASE_NAME"
+    rm -f -- "${image_dir}/${IMAGE_FILENAME}"
   fi
   interpreter="$(command -v node)"
   # shellcheck disable=SC2153
@@ -1241,8 +1402,6 @@ adamant_user_install() {
   adamant_apply_pm2_ecosystem "$ecosystem" "$PROCESS_NAME" "$interpreter"
   adamant_configure_logrotate
   pm2 save
-  printf '%s\n' "$ecosystem" >"$HOME/.adamant/ecosystem-path"
-  printf '%s\n' "$(dirname "$interpreter")" >"$HOME/.adamant/node-bin-dir"
 }
 
 adamant_stop_process_for_repair() {
@@ -1250,6 +1409,7 @@ adamant_stop_process_for_repair() {
   local process="$2"
   local interpreter="$3"
   local pm2_status=""
+  local actual_timeout="" actual_interpreter="" actual_stop_codes=""
 
   if ! command -v pm2 >/dev/null 2>&1; then
     printf 'pm2 is not installed for user %s.\n' "$(id -un)" >&2
@@ -1258,17 +1418,34 @@ adamant_stop_process_for_repair() {
   pm2_status="$(adamant_pm2_process_status "$process")"
   adamant_write_ecosystem_file "$ecosystem" "$process" "$REPO_DIR" "$interpreter" "${APP_ARGS:-}"
   case "$pm2_status" in
-  missing)
-    printf 'pm2 process %s is not registered; skipping stop.\n' "$process"
+  missing|stopped|errored)
+    printf 'pm2 process %s is not running; skipping stop.\n' "$process"
     ;;
-  unknown|missing-cli|"")
+  online|launching)
+    actual_timeout="$(adamant_pm2_field "$process" kill_timeout)"
+    actual_interpreter="$(adamant_pm2_field "$process" exec_interpreter)"
+    actual_stop_codes="$(adamant_pm2_field "$process" stop_exit_codes)"
+    if [[ "$actual_timeout" != "$ADAMANT_KILL_TIMEOUT_MS" \
+      || "$actual_interpreter" != "$interpreter" \
+      || "$actual_stop_codes" != "130,143" ]]; then
+      printf 'Applying the reviewed shutdown configuration to %s before stopping it.\n' "$process"
+      pm2 startOrRestart "$ecosystem" --update-env
+      if [[ "$(adamant_pm2_field "$process" kill_timeout)" != "$ADAMANT_KILL_TIMEOUT_MS" \
+        || "$(adamant_pm2_field "$process" exec_interpreter)" != "$interpreter" \
+        || "$(adamant_pm2_field "$process" stop_exit_codes)" != "130,143" ]]; then
+        printf 'PM2 did not apply the reviewed shutdown configuration for %s.\n' "$process" >&2
+        return 1
+      fi
+    fi
+    adamant_signal_pm2_process_gracefully "$process"
+    ;;
+  unknown|missing-cli|stopping|"")
     printf 'Cannot verify pm2 state for %s (status: %s).\n' "$process" "${pm2_status:-empty}" >&2
     return 1
     ;;
   *)
-    printf 'Stopping %s with kill_timeout %s.\n' "$process" "$ADAMANT_KILL_TIMEOUT_MS"
-    pm2 startOrRestart "$ecosystem" --update-env
-    pm2 stop "$process"
+    printf 'Refusing to stop %s from unexpected pm2 state %s.\n' "$process" "$pm2_status" >&2
+    return 1
     ;;
   esac
   pm2 save

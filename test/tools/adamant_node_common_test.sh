@@ -124,6 +124,7 @@ expect_ok "8 GiB image fits in 20 GiB free" adamant_space_allows_bytes 214748364
 expect_fail "image larger than free space is refused" adamant_space_allows_bytes 1000 8057675352 "$ADAMANT_IMAGE_MARGIN_BYTES"
 expect_fail "reject arithmetic-overflow boundary" adamant_space_allows_bytes 9223372036854775807 9223372036854775807 1
 expect_fail "reject numbers above int64" adamant_space_allows_bytes 9223372036854775807 9223372036854775808 0
+expect_ok "space comparison handles decimal padding" adamant_space_allows_bytes 00020 0005 0005
 
 usable_policy="$(printf '%s\n' \
   'postgresql-18:' \
@@ -143,10 +144,21 @@ expect_fail "online rebuilding node blocks restart" adamant_loader_block_reason 
 expect_fail "blockchain loading text blocks restart" adamant_loader_block_reason launching '{"success":false,"error":"Blockchain is loading"}' 500 '' 000
 expect_fail "closed API blocks restart" adamant_loader_block_reason online '{"success":false,"error":"API access denied"}' 403 '' 403
 expect_fail "silent online node blocks restart" adamant_loader_block_reason online '' 000 '' 000
+expect_fail "malformed loader JSON blocks restart" \
+  adamant_loader_block_reason online '{"loaded":true' 200 '{"syncing":false' 200
 expect_fail "missing pm2 cli blocks restart" adamant_loader_block_reason missing-cli '' 000 '' 000
+expect_fail "unexpected pm2 state blocks restart" adamant_loader_block_reason "one-launch-status" '' 000 '' 000
 expect_ok "idle online node can restart" adamant_loader_block_reason online '{"loaded": true}' 200 '{"syncing": false}' 200
 expect_ok "stopped node can start" adamant_loader_block_reason stopped '' 000 '' 000
 expect_ok "missing process can start" adamant_loader_block_reason missing '' 000 '' 000
+expect_ok "force permits confirmed sync state" \
+  adamant_loader_block_reason online '{"loaded":true}' 200 '{"syncing":true}' 200 true
+expect_ok "force permits confirmed loading state" \
+  adamant_loader_block_reason launching '{"success":false,"error":"Blockchain is loading"}' 500 '' 000 true
+expect_fail "force does not permit malformed loader JSON" \
+  adamant_loader_block_reason online '{"loaded":true' 200 '{"syncing":false' 200 true
+expect_fail "force does not permit unknown PM2 state" \
+  adamant_loader_block_reason unknown '' 000 '' 000 true
 
 tmp="$(mktemp -d)"
 (
@@ -179,6 +191,47 @@ else
   fail "psql format helper streams SQL over stdin"
 fi
 
+checksum_file="$tmp/db_backup.sql.gz.sha256"
+printf '%s  %s\n' \
+  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" \
+  "db_backup.sql.gz" >"$checksum_file"
+expect_eq "$(adamant_read_checksum_file "$checksum_file" db_backup.sql.gz)" \
+  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" \
+  "read trusted checksum from a local file"
+ln -s "$checksum_file" "$tmp/checksum-link"
+expect_fail "reject symlinked trusted checksum" adamant_read_checksum_file "$tmp/checksum-link" db_backup.sql.gz
+
+mkdir "$tmp/node-home"
+ln -s "$tmp" "$tmp/node-home/.adamant"
+expect_fail "reject symlinked node metadata directory" adamant_prepare_image_directory "$tmp/node-home"
+
+pm2() {
+  if [[ "${1:-}" == "jlist" ]]; then
+    printf '%s' \
+      '[{"name":"adamant","pid":4242,"pm2_env":{"status":"online","kill_timeout":120000,"exec_interpreter":"/opt/node/bin/node","stop_exit_codes":[130,143]}}]'
+    return 0
+  fi
+  return 1
+}
+expect_eq "$(adamant_pm2_process_status adamant)" "online" "PM2 process name reaches JSON parser"
+expect_eq "$(adamant_pm2_process_status missing)" "missing" "missing PM2 process remains distinguishable"
+expect_eq "$(adamant_pm2_field adamant kill_timeout)" "120000" "PM2 kill timeout reaches JSON parser"
+expect_eq "$(adamant_pm2_field adamant exec_interpreter)" "/opt/node/bin/node" "PM2 interpreter reaches JSON parser"
+expect_eq "$(adamant_pm2_field adamant stop_exit_codes)" "130,143" "PM2 graceful exit codes reach JSON parser"
+expect_eq "$(adamant_pm2_pid adamant)" "4242" "PM2 PID reaches JSON parser"
+unset -f pm2
+
+(
+  adamant_pm2_pid() { printf '4242'; }
+  adamant_pm2_process_status() { printf 'stopped'; }
+  kill() {
+    printf '%s\n' "$*" >"$tmp/graceful-signal.args"
+  }
+  adamant_signal_pm2_process_gracefully adamant
+)
+expect_eq "$(cat "$tmp/graceful-signal.args")" "-s INT -- 4242" \
+  "repair path sends one catchable signal and waits"
+
 adamant_write_ecosystem_file "$tmp/ecosystem.json" adamant "$tmp/repo" "$tmp/node" "--config test/config.json --genesis test/genesisBlock.json"
 python3 - "$tmp/ecosystem.json" "$ADAMANT_KILL_TIMEOUT_MS" "$tmp/node" <<'PY'
 import json
@@ -190,6 +243,7 @@ assert app["script"] == "app.js"
 assert app["cwd"].endswith("/repo")
 assert app["interpreter"] == sys.argv[3]
 assert app["kill_timeout"] == int(sys.argv[2])
+assert app["stop_exit_codes"] == [130, 143]
 assert app["args"] == "--config test/config.json --genesis test/genesisBlock.json"
 assert app["autorestart"] is True
 PY
@@ -208,10 +262,78 @@ else
 fi
 expect_fail "reject unsafe unit name" adamant_write_systemd_dropin "$tmp/bad.conf" 'postgresql.service;reboot'
 
+adamant_write_pm2_systemd_unit "$tmp/pm2-adamant.service" adamant "$tmp/home"
+pm2_unit="$(cat "$tmp/pm2-adamant.service")"
+# shellcheck disable=SC2016
+if [[ "$pm2_unit" == *$'User=adamant'* \
+  && "$pm2_unit" == *'source "$HOME/.nvm/nvm.sh" && pm2 resurrect'* \
+  && "$pm2_unit" == *"PM2_HOME=${tmp}/home/.pm2"* \
+  && "$pm2_unit" != *'node-bin-dir'* ]]; then
+  pass "systemd unit invokes PM2 only as the service user"
+else
+  printf '%s\n' "$pm2_unit" >&2
+  fail "systemd unit invokes PM2 only as the service user"
+fi
+expect_fail "reject systemd home with assignment injection" \
+  adamant_write_pm2_systemd_unit "$tmp/bad.service" adamant "/home/adamant Evil=1"
+
+for release in 8 9 10; do
+  for arch in x86_64 aarch64; do
+    artifact="$(adamant_select_pgdg_rpm "$release" "$arch")"
+    rpm_name="$(printf '%s\n' "$artifact" | sed -n '1p')"
+    rpm_hash="$(printf '%s\n' "$artifact" | sed -n '2p')"
+    if [[ "$rpm_name" == *"rhel${release}PGDG.noarch.rpm" && "$rpm_hash" =~ ^[0-9a-f]{64}$ ]]; then
+      pass "reviewed PGDG RPM is pinned for EL ${release} ${arch}"
+    else
+      printf 'artifact: %s\\n' "$artifact" >&2
+      fail "reviewed PGDG RPM is pinned for EL ${release} ${arch}"
+    fi
+  done
+done
+expect_fail "reject unsupported PGDG RPM target" adamant_select_pgdg_rpm 11 x86_64
+
 if grep -n 'adamant_checksum_url' tools/install_node.sh tools/install_node_centos.sh tools/fix_node.sh >/dev/null; then
   fail "installers do not trust image-host checksum URLs"
 else
   pass "installers do not trust image-host checksum URLs"
+fi
+if grep -En 'pgdg-redhat-repo-latest|ACCC4CF8' tools/install_node_centos.sh >/dev/null; then
+  fail "RHEL installer does not fetch mutable or wrong-key PGDG RPMs"
+else
+  pass "RHEL installer does not fetch mutable or wrong-key PGDG RPMs"
+fi
+if grep -En 'cat .*\.adamant.*(node-bin-dir|ecosystem-path)' \
+  tools/install_node.sh tools/install_node_centos.sh tools/fix_node.sh tools/lib/adamant_node_common.sh >/dev/null; then
+  fail "root does not read service-owned PM2 marker files"
+else
+  pass "root does not read service-owned PM2 marker files"
+fi
+if grep -n 'mktemp.*NODE_HOME' tools/install_node.sh tools/install_node_centos.sh >/dev/null; then
+  fail "database password is not staged in a service-owned directory"
+else
+  pass "database password is staged in a root-owned directory"
+fi
+if grep -En 'chown .*images|chown -[A-Za-z]*R' tools/fix_node.sh tools/lib/adamant_node_common.sh >/dev/null; then
+  fail "root does not recursively chown service-controlled image paths"
+else
+  pass "root does not recursively chown service-controlled image paths"
+fi
+if [[ "$(grep -lF -- '--single-transaction' \
+  tools/lib/adamant_node_common.sh tools/fix_node.sh | wc -l | tr -d '[:space:]')" == "2" ]]; then
+  pass "blockchain image restore is transaction-wrapped"
+else
+  fail "blockchain image restore is transaction-wrapped"
+fi
+if grep -n 'module reset postgresql' tools/install_node_centos.sh >/dev/null; then
+  pass "PGDG failure restores the distribution PostgreSQL module"
+else
+  fail "PGDG failure restores the distribution PostgreSQL module"
+fi
+if grep -F "requestShutdown('SIGTERM', 143)" app.js >/dev/null \
+  && grep -F "requestShutdown('SIGINT', 130)" app.js >/dev/null; then
+  pass "graceful signal exit codes remain distinguishable from fatal exit 0"
+else
+  fail "graceful signal exit codes remain distinguishable from fatal exit 0"
 fi
 
 python3 - <<'PY'

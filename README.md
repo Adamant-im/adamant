@@ -54,9 +54,9 @@ sudo bash tools/install_node.sh -b dev -n mainnet -j 24
 
 Use `tools/install_node_centos.sh` on RHEL-compatible hosts. Add `-f` only when you accept a restart while the node is syncing or rebuilding. The default Node.js major is 24. Supported majors are 22, 24, and 26 (`jod` is 22, `krypton` is 24).
 
-Both installers update system packages, preserve existing ADAMANT configuration files and local Git changes, and reuse existing users and databases. Dependencies are installed with `npm ci` from the lockfile. PM2 is started from an ecosystem file with a 120 second `kill_timeout`, and a systemd drop-in gives the PM2 service a longer stop timeout, disables core dumps, and orders it before PostgreSQL and Redis stop. A re-run refuses to restart a node that is still loading, rebuilding, or syncing unless `-f` is set.
+Both installers update system packages, preserve existing ADAMANT configuration files and local Git changes, and reuse existing users and databases. Dependencies are installed with `npm ci` from the lockfile. PM2 is started from an ecosystem file with a 120 second `kill_timeout`, and a systemd drop-in gives the PM2 service a longer stop timeout, disables core dumps, and orders it before PostgreSQL and Redis stop. Existing PM2 processes are reconciled with that ecosystem and stopped before package updates; the final stop sends one `SIGINT` and waits for cleanup, and a timeout aborts without another signal. A re-run refuses to restart a node with unknown process state and permits `-f` only after confirming sync or rebuild activity.
 
-A blockchain image is loaded only when `db_backup.sql.gz.sha256` or `db_test_backup.sql.gz.sha256` is published next to the image and `sha256sum -c` succeeds. The file is the normal `sha256sum` line (`<64 hex>  <filename>`). Gzip integrity is checked after the digest. An image is skipped when the selected database already contains tables. If the checksum file is missing or is not a digest, the installer asks whether to continue from height 1 and does not load SQL. Installation logs are mode `0600` at `/var/log/adamant_<network>_install.log`.
+A blockchain image is loaded only after the operator supplies a local SHA-256 file from a trust channel independent of the image host. The file must contain the normal `sha256sum` line (`<64 hex>  <filename>`), and the downloaded file must match it. Gzip integrity is checked after the digest, then the SQL restore runs in a single transaction. The scripts never trust a checksum downloaded beside the image. An image is skipped when the selected database already contains tables; decline the image prompt to synchronize from height 1. Installation logs are mode `0600` at `/var/log/adamant_<network>_install.log`.
 
 To replace an Ubuntu node database with a newly downloaded blockchain image:
 
@@ -64,7 +64,7 @@ To replace an Ubuntu node database with a newly downloaded blockchain image:
 sudo bash tools/fix_node.sh -n mainnet
 ```
 
-By default the repair tool verifies the image before it drops the database. If there is not enough free space for that download, it stops and leaves the database in place. `-d` drops the database first; use it only when a failed download is an acceptable outcome. Back up any required data first. Repair logs are mode `0600` at `/var/log/adamant_<network>_fix.log`.
+By default the repair tool verifies the image against the operator-provided, independently trusted checksum before it drops the database. If there is not enough free space for that download, it stops and leaves the database in place. `-d` drops the database first; use it only when a failed download is an acceptable outcome. Back up any required data first. Repair logs are mode `0600` at `/var/log/adamant_<network>_fix.log`.
 
 After PostgreSQL or Redis maintenance, restart the node with the saved ecosystem file and wait until the log contains `Cleaned up successfully`. Keep PostgreSQL and Redis server packages out of unattended upgrades on node hosts. The node does not recover by itself from a database restart.
 
