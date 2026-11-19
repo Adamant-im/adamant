@@ -45,6 +45,7 @@ branch="master"
 nodejs="24"
 force_restart="false"
 use_image="false"
+image_sha256=""
 
 usage() {
   printf 'Usage: %s [-h] [-f] [-b branch] [-n mainnet|testnet] [-j 22|24|26]\n' "${0##*/}"
@@ -155,14 +156,10 @@ printf '\nInstalling download tools needed to verify the blockchain image.\n'
 apt-get update
 apt-get "${APT_OPTIONS[@]}" install ca-certificates curl
 
+adamant_publish_trusted_library
 adamant_prompt_blockchain_image
-if [[ "$use_image" == "true" ]] && ! adamant_image_checksum_published "$image_url" "$image_filename"; then
-  printf 'WARNING: %s has no usable SHA-256 file at %s.\n' \
-    "$image_url" "$(adamant_checksum_url "$image_url")"
-  printf 'The installer will not load an unverified blockchain image.\n'
-  if adamant_confirm_exact_yes "Continue without a blockchain image and synchronize from height 1? Type \"yes\": "; then
-    use_image="false"
-  else
+if [[ "$use_image" == "true" ]]; then
+  if ! image_sha256="$(adamant_prompt_trusted_image_sha256 "$image_filename")"; then
     printf '\nInstallation cancelled.\n\n'
     trap - ERR
     exit 1
@@ -177,6 +174,51 @@ if id -u "$username" >/dev/null 2>&1; then
   if [[ -n "$NODE_HOME" && -d "$NODE_HOME" ]]; then
     adamant_refuse_if_node_busy "$username" "$NODE_HOME" "$processname" "$port" \
       "${NODE_HOME}/adamant/${configfile}" "$force_restart"
+    if [[ -s "${NODE_HOME}/.nvm/nvm.sh" ]]; then
+      app_args=""
+      if [[ "$network" != "mainnet" ]]; then
+        app_args="--config test/config.json --genesis test/genesisBlock.json"
+      fi
+      pm2_status="$(runuser -u "$username" -- env \
+        HOME="$NODE_HOME" \
+        PROCESS_NAME="$processname" \
+        ADAMANT_LIB="$ADAMANT_TRUSTED_LIBRARY" \
+        bash --noprofile --norc -s <<'EOSU'
+set -Eeuo pipefail
+# shellcheck disable=SC1090
+source "$HOME/.nvm/nvm.sh"
+# shellcheck disable=SC1091
+source "$ADAMANT_LIB"
+adamant_pm2_process_status "$PROCESS_NAME"
+EOSU
+)"
+      case "$pm2_status" in
+      online|launching|stopping)
+        printf '\nStopping existing process %s before package upgrades.\n' "$processname"
+        runuser -u "$username" -- env \
+          HOME="$NODE_HOME" \
+          REPO_DIR="$NODE_HOME/adamant" \
+          PROCESS_NAME="$processname" \
+          APP_ARGS="$app_args" \
+          ADAMANT_LIB="$ADAMANT_TRUSTED_LIBRARY" \
+          bash --noprofile --norc -s <<'EOSU'
+set -Eeuo pipefail
+# shellcheck disable=SC1090
+source "$HOME/.nvm/nvm.sh"
+# shellcheck disable=SC1091
+source "$ADAMANT_LIB"
+interpreter="$(command -v node)"
+ecosystem="$HOME/.adamant/ecosystem.${PROCESS_NAME}.json"
+adamant_stop_process_for_repair "$ecosystem" "$PROCESS_NAME" "$interpreter"
+EOSU
+        ;;
+      missing|stopped|errored) ;;
+      *)
+        printf 'Cannot safely determine pm2 state before package upgrades (status: %s).\n' "$pm2_status" >&2
+        exit 1
+        ;;
+      esac
+    fi
   fi
 fi
 
@@ -347,7 +389,6 @@ if [[ -z "$NODE_HOME" || ! -d "$NODE_HOME" ]]; then
 fi
 REPO_DIR="${NODE_HOME}/adamant"
 adamant_repair_node_user_permissions "$username" "$NODE_HOME" "$REPO_DIR"
-adamant_publish_library_to_user "$username" "$NODE_HOME"
 
 previous_umask="$(umask)"
 umask 077
@@ -387,9 +428,10 @@ runuser -u "$username" -- env \
   USE_IMAGE="$use_image" \
   IMAGE_URL="$image_url" \
   IMAGE_FILENAME="$image_filename" \
+  IMAGE_SHA256="$image_sha256" \
   FORCE_RESTART="$force_restart" \
   API_PORT="$port" \
-  ADAMANT_LIB="${NODE_HOME}/.adamant/adamant_node_common.sh" \
+  ADAMANT_LIB="$ADAMANT_TRUSTED_LIBRARY" \
   bash --noprofile --norc -s <<'EOSU'
 set -Eeuo pipefail
 trap 'status=$?; printf "\n[ERROR] User setup failed at line %s.\n\n" "$LINENO" >&2; exit "$status"' ERR

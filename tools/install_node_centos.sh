@@ -42,11 +42,13 @@ on_error() {
 trap on_error ERR
 
 readonly POSTGRESQL_VERSION="18"
+readonly ADAMANT_PGDG_RPM_KEY_FINGERPRINT="B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8"
 adamant_apply_network mainnet
 branch="master"
 nodejs="24"
 force_restart="false"
 use_image="false"
+image_sha256=""
 
 usage() {
   printf 'Usage: %s [-h] [-f] [-b branch] [-n mainnet|testnet] [-j 22|24|26]\n' "${0##*/}"
@@ -166,14 +168,10 @@ fi
 printf '\nInstalling download tools needed to verify the blockchain image.\n'
 dnf -y install ca-certificates curl
 
+adamant_publish_trusted_library
 adamant_prompt_blockchain_image
-if [[ "$use_image" == "true" ]] && ! adamant_image_checksum_published "$image_url" "$image_filename"; then
-  printf 'WARNING: %s has no usable SHA-256 file at %s.\n' \
-    "$image_url" "$(adamant_checksum_url "$image_url")"
-  printf 'The installer will not load an unverified blockchain image.\n'
-  if adamant_confirm_exact_yes "Continue without a blockchain image and synchronize from height 1? Type \"yes\": "; then
-    use_image="false"
-  else
+if [[ "$use_image" == "true" ]]; then
+  if ! image_sha256="$(adamant_prompt_trusted_image_sha256 "$image_filename")"; then
     printf '\nInstallation cancelled.\n\n'
     trap - ERR
     exit 1
@@ -188,6 +186,51 @@ if id -u "$username" >/dev/null 2>&1; then
   if [[ -n "$NODE_HOME" && -d "$NODE_HOME" ]]; then
     adamant_refuse_if_node_busy "$username" "$NODE_HOME" "$processname" "$port" \
       "${NODE_HOME}/adamant/${configfile}" "$force_restart"
+    if [[ -s "${NODE_HOME}/.nvm/nvm.sh" ]]; then
+      app_args=""
+      if [[ "$network" != "mainnet" ]]; then
+        app_args="--config test/config.json --genesis test/genesisBlock.json"
+      fi
+      pm2_status="$(runuser -u "$username" -- env \
+        HOME="$NODE_HOME" \
+        PROCESS_NAME="$processname" \
+        ADAMANT_LIB="$ADAMANT_TRUSTED_LIBRARY" \
+        bash --noprofile --norc -s <<'EOSU'
+set -Eeuo pipefail
+# shellcheck disable=SC1090
+source "$HOME/.nvm/nvm.sh"
+# shellcheck disable=SC1091
+source "$ADAMANT_LIB"
+adamant_pm2_process_status "$PROCESS_NAME"
+EOSU
+)"
+      case "$pm2_status" in
+      online|launching|stopping)
+        printf '\nStopping existing process %s before package upgrades.\n' "$processname"
+        runuser -u "$username" -- env \
+          HOME="$NODE_HOME" \
+          REPO_DIR="$NODE_HOME/adamant" \
+          PROCESS_NAME="$processname" \
+          APP_ARGS="$app_args" \
+          ADAMANT_LIB="$ADAMANT_TRUSTED_LIBRARY" \
+          bash --noprofile --norc -s <<'EOSU'
+set -Eeuo pipefail
+# shellcheck disable=SC1090
+source "$HOME/.nvm/nvm.sh"
+# shellcheck disable=SC1091
+source "$ADAMANT_LIB"
+interpreter="$(command -v node)"
+ecosystem="$HOME/.adamant/ecosystem.${PROCESS_NAME}.json"
+adamant_stop_process_for_repair "$ecosystem" "$PROCESS_NAME" "$interpreter"
+EOSU
+        ;;
+      missing|stopped|errored) ;;
+      *)
+        printf 'Cannot safely determine pm2 state before package upgrades (status: %s).\n' "$pm2_status" >&2
+        exit 1
+        ;;
+      esac
+    fi
   fi
 fi
 
@@ -195,13 +238,31 @@ DB_PASSWORD="$(adamant_prompt_db_password "$username")"
 
 printf '\nInstalling package-management and build prerequisites.\n'
 dnf -y install \
-  ca-certificates curl git gzip jq tar \
+  ca-certificates curl git gnupg2 gzip jq tar \
   gcc gcc-c++ make automake autoconf libtool pkgconf-pkg-config python3
 
 pgdg_rpm="https://download.postgresql.org/pub/repos/yum/reporpms/EL-${el_major}-${pgdg_arch}/pgdg-redhat-repo-latest.noarch.rpm"
+pgdg_key_url="https://www.postgresql.org/media/keys/ACCC4CF8.asc"
 pgdg_enabled=false
 if curl --proto '=https' --proto-redir '=https' -fsSL -o /dev/null "$pgdg_rpm"; then
-  if dnf -y install "$pgdg_rpm"; then
+  pgdg_work_dir="/var/lib/adamant/pgdg-repo"
+  pgdg_rpm_file="${pgdg_work_dir}/pgdg-redhat-repo.noarch.rpm"
+  pgdg_key_file="${pgdg_work_dir}/ACCC4CF8.asc"
+  adamant_install_mode_directory /var/lib/adamant
+  adamant_install_mode_directory "$pgdg_work_dir"
+  chmod 0700 "$pgdg_work_dir"
+  curl --proto '=https' --proto-redir '=https' -fsSL "$pgdg_rpm" -o "$pgdg_rpm_file"
+  curl --proto '=https' --proto-redir '=https' -fsSL "$pgdg_key_url" -o "$pgdg_key_file"
+  pgdg_key_fingerprint="$(gpg --show-keys --with-colons "$pgdg_key_file" \
+    | awk -F: '$1 == "fpr" { print $10; exit }')"
+  if [[ "$pgdg_key_fingerprint" != "$ADAMANT_PGDG_RPM_KEY_FINGERPRINT" ]]; then
+    printf 'WARNING: Unexpected PGDG RPM key fingerprint: %s. Skipping PGDG repository.\n' \
+      "${pgdg_key_fingerprint:-unknown}"
+  elif ! rpm --import "$pgdg_key_file"; then
+    printf 'WARNING: Could not import the PGDG RPM key. Skipping PGDG repository.\n'
+  elif ! rpmkeys --checksig "$pgdg_rpm_file" | grep -Eq 'digests signatures OK'; then
+    printf 'WARNING: PGDG repository RPM signature verification failed. Skipping PGDG repository.\n'
+  elif dnf -y install "$pgdg_rpm_file"; then
     pgdg_enabled=true
   else
     printf 'WARNING: The PGDG repository package did not install; using distribution PostgreSQL packages.\n'
@@ -309,7 +370,6 @@ if [[ -z "$NODE_HOME" || ! -d "$NODE_HOME" ]]; then
 fi
 REPO_DIR="${NODE_HOME}/adamant"
 adamant_repair_node_user_permissions "$username" "$NODE_HOME" "$REPO_DIR"
-adamant_publish_library_to_user "$username" "$NODE_HOME"
 
 previous_umask="$(umask)"
 umask 077
@@ -369,9 +429,10 @@ runuser -u "$username" -- env \
   USE_IMAGE="$use_image" \
   IMAGE_URL="$image_url" \
   IMAGE_FILENAME="$image_filename" \
+  IMAGE_SHA256="$image_sha256" \
   FORCE_RESTART="$force_restart" \
   API_PORT="$port" \
-  ADAMANT_LIB="${NODE_HOME}/.adamant/adamant_node_common.sh" \
+  ADAMANT_LIB="$ADAMANT_TRUSTED_LIBRARY" \
   bash --noprofile --norc -s <<'EOSU'
 set -Eeuo pipefail
 trap 'status=$?; printf "\n[ERROR] User setup failed at line %s.\n\n" "$LINENO" >&2; exit "$status"' ERR

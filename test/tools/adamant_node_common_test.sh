@@ -51,6 +51,16 @@ expect_eq() {
   fi
 }
 
+file_mode() {
+  local path="$1"
+
+  if stat -c '%a' "$path" >/dev/null 2>&1; then
+    stat -c '%a' "$path"
+  else
+    stat -f '%Lp' "$path"
+  fi
+}
+
 bash -n tools/lib/adamant_node_common.sh \
   tools/install_node.sh \
   tools/install_node_centos.sh \
@@ -112,6 +122,8 @@ headers="$(printf 'HTTP/2 200\r\nContent-Type: application/octet-stream\r\nConte
 expect_eq "$(printf '%s' "$headers" | adamant_content_length_from_headers)" "8057675352" "read Content-Length"
 expect_ok "8 GiB image fits in 20 GiB free" adamant_space_allows_bytes 21474836480 8057675352 "$ADAMANT_IMAGE_MARGIN_BYTES"
 expect_fail "image larger than free space is refused" adamant_space_allows_bytes 1000 8057675352 "$ADAMANT_IMAGE_MARGIN_BYTES"
+expect_fail "reject arithmetic-overflow boundary" adamant_space_allows_bytes 9223372036854775807 9223372036854775807 1
+expect_fail "reject numbers above int64" adamant_space_allows_bytes 9223372036854775807 9223372036854775808 0
 
 usable_policy="$(printf '%s\n' \
   'postgresql-18:' \
@@ -131,6 +143,7 @@ expect_fail "online rebuilding node blocks restart" adamant_loader_block_reason 
 expect_fail "blockchain loading text blocks restart" adamant_loader_block_reason launching '{"success":false,"error":"Blockchain is loading"}' 500 '' 000
 expect_fail "closed API blocks restart" adamant_loader_block_reason online '{"success":false,"error":"API access denied"}' 403 '' 403
 expect_fail "silent online node blocks restart" adamant_loader_block_reason online '' 000 '' 000
+expect_fail "missing pm2 cli blocks restart" adamant_loader_block_reason missing-cli '' 000 '' 000
 expect_ok "idle online node can restart" adamant_loader_block_reason online '{"loaded": true}' 200 '{"syncing": false}' 200
 expect_ok "stopped node can start" adamant_loader_block_reason stopped '' 000 '' 000
 expect_ok "missing process can start" adamant_loader_block_reason missing '' 000 '' 000
@@ -144,10 +157,27 @@ tmp="$(mktemp -d)"
   mkdir -m 0700 "$tmp/existing"
   adamant_install_mode_directory "$tmp/existing"
 )
-expect_eq "$(stat -c '%a' "$tmp/postgresql-common")" "755" "PGDG parent directory is 0755 under umask 077"
-expect_eq "$(stat -c '%a' "$tmp/postgresql-common/pgdg")" "755" "PGDG key directory is 0755 under umask 077"
-expect_eq "$(stat -c '%a' "$tmp/postgresql-common/pgdg/key.asc")" "644" "PGDG key file is 0644 under umask 077"
-expect_eq "$(stat -c '%a' "$tmp/existing")" "755" "existing directory mode is repaired to 0755"
+expect_eq "$(file_mode "$tmp/postgresql-common")" "755" "PGDG parent directory is 0755 under umask 077"
+expect_eq "$(file_mode "$tmp/postgresql-common/pgdg")" "755" "PGDG key directory is 0755 under umask 077"
+expect_eq "$(file_mode "$tmp/postgresql-common/pgdg/key.asc")" "644" "PGDG key file is 0644 under umask 077"
+expect_eq "$(file_mode "$tmp/existing")" "755" "existing directory mode is repaired to 0755"
+
+(
+  runuser() {
+    printf '%s\n' "$*" >"$tmp/runuser.args"
+    cat >"$tmp/streamed.sql"
+  }
+  adamant_psql_format_gexec psql postgres \
+    'ALTER ROLE %I WITH LOGIN PASSWORD %L' \
+    "'adamant'" \
+    "'secret'"
+)
+if grep -F -- '-f - postgres' "$tmp/runuser.args" >/dev/null \
+  && grep -F -- "ALTER ROLE %I WITH LOGIN PASSWORD %L" "$tmp/streamed.sql" >/dev/null; then
+  pass "psql format helper streams SQL over stdin"
+else
+  fail "psql format helper streams SQL over stdin"
+fi
 
 adamant_write_ecosystem_file "$tmp/ecosystem.json" adamant "$tmp/repo" "$tmp/node" "--config test/config.json --genesis test/genesisBlock.json"
 python3 - "$tmp/ecosystem.json" "$ADAMANT_KILL_TIMEOUT_MS" "$tmp/node" <<'PY'
@@ -177,6 +207,12 @@ else
   fail "systemd drop-in orders databases and sets stop timeout"
 fi
 expect_fail "reject unsafe unit name" adamant_write_systemd_dropin "$tmp/bad.conf" 'postgresql.service;reboot'
+
+if grep -n 'adamant_checksum_url' tools/install_node.sh tools/install_node_centos.sh tools/fix_node.sh >/dev/null; then
+  fail "installers do not trust image-host checksum URLs"
+else
+  pass "installers do not trust image-host checksum URLs"
+fi
 
 python3 - <<'PY'
 import json

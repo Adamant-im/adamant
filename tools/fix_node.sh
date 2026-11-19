@@ -46,6 +46,7 @@ trap on_error ERR
 
 adamant_apply_network mainnet
 drop_first="false"
+image_sha256=""
 
 usage() {
   printf 'Usage: %s [-h] [-d] [-n mainnet|testnet]\n' "${0##*/}"
@@ -234,21 +235,24 @@ if ! adamant_role_exists "$PSQL_BIN" "$username"; then
   exit 1
 fi
 
-adamant_publish_library_to_user "$username" "$NODE_HOME"
-if ! adamant_image_checksum_published "$image_url" "$image_filename"; then
-  printf '\nRefusing to repair from %s.\n' "$image_url" >&2
-  printf 'Publish a SHA-256 file at %s before loading this image. The database was not dropped.\n\n' \
-    "$(adamant_checksum_url "$image_url")" >&2
+adamant_publish_trusted_library
+if ! image_sha256="$(adamant_prompt_trusted_image_sha256 "$image_filename")"; then
+  printf '\nRepair cancelled before database changes.\n\n' >&2
   trap - ERR
   exit 1
 fi
 
-image_dir="${NODE_HOME}/.adamant/images"
-mkdir -p "$image_dir"
-chown "$username:$username" "$image_dir"
 if [[ "$drop_first" != "true" ]]; then
   image_bytes="$(adamant_remote_content_length "$image_url")"
-  free_bytes="$(adamant_free_bytes "$image_dir")"
+  free_bytes="$(runuser -u "$username" -- env HOME="$NODE_HOME" ADAMANT_LIB="$ADAMANT_TRUSTED_LIBRARY" \
+    bash --noprofile --norc -s <<'EOSU'
+set -Eeuo pipefail
+# shellcheck disable=SC1091
+source "$ADAMANT_LIB"
+adamant_prepare_image_directory "$HOME"
+adamant_free_bytes "$HOME/.adamant/images"
+EOSU
+)"
   if ! adamant_space_allows_bytes "$free_bytes" "$image_bytes" "$ADAMANT_IMAGE_MARGIN_BYTES"; then
     printf '\nNot enough free disk space to download %s bytes before dropping %s (free %s, margin %s).\n' \
       "$image_bytes" "$databasename" "$free_bytes" "$ADAMANT_IMAGE_MARGIN_BYTES" >&2
@@ -261,12 +265,14 @@ if [[ "$drop_first" != "true" ]]; then
     HOME="$NODE_HOME" \
     IMAGE_URL="$image_url" \
     IMAGE_FILENAME="$image_filename" \
-    ADAMANT_LIB="${NODE_HOME}/.adamant/adamant_node_common.sh" \
+    IMAGE_SHA256="$image_sha256" \
+    ADAMANT_LIB="$ADAMANT_TRUSTED_LIBRARY" \
     bash --noprofile --norc -s <<'EOSU'
 set -Eeuo pipefail
 # shellcheck disable=SC1091
 source "$ADAMANT_LIB"
-adamant_download_verified_archive "$HOME/.adamant/images" "$IMAGE_URL" "$IMAGE_FILENAME"
+adamant_prepare_image_directory "$HOME"
+adamant_download_verified_archive "$HOME/.adamant/images" "$IMAGE_URL" "$IMAGE_FILENAME" "$IMAGE_SHA256"
 EOSU
 fi
 
@@ -280,7 +286,7 @@ runuser -u "$username" -- env \
   REPO_DIR="$REPO_DIR" \
   PROCESS_NAME="$processname" \
   APP_ARGS="$app_args" \
-  ADAMANT_LIB="${NODE_HOME}/.adamant/adamant_node_common.sh" \
+  ADAMANT_LIB="$ADAMANT_TRUSTED_LIBRARY" \
   bash --noprofile --norc -s <<'EOSU'
 set -Eeuo pipefail
 # shellcheck disable=SC1091
@@ -307,12 +313,14 @@ if [[ "$drop_first" == "true" ]]; then
     HOME="$NODE_HOME" \
     IMAGE_URL="$image_url" \
     IMAGE_FILENAME="$image_filename" \
-    ADAMANT_LIB="${NODE_HOME}/.adamant/adamant_node_common.sh" \
+    IMAGE_SHA256="$image_sha256" \
+    ADAMANT_LIB="$ADAMANT_TRUSTED_LIBRARY" \
     bash --noprofile --norc -s <<'EOSU'
 set -Eeuo pipefail
 # shellcheck disable=SC1091
 source "$ADAMANT_LIB"
-adamant_download_verified_archive "$HOME/.adamant/images" "$IMAGE_URL" "$IMAGE_FILENAME"
+adamant_prepare_image_directory "$HOME"
+adamant_download_verified_archive "$HOME/.adamant/images" "$IMAGE_URL" "$IMAGE_FILENAME" "$IMAGE_SHA256"
 EOSU
 fi
 
@@ -333,7 +341,7 @@ runuser -u "$username" -- env \
   HOME="$NODE_HOME" \
   REPO_DIR="$REPO_DIR" \
   PROCESS_NAME="$processname" \
-  ADAMANT_LIB="${NODE_HOME}/.adamant/adamant_node_common.sh" \
+  ADAMANT_LIB="$ADAMANT_TRUSTED_LIBRARY" \
   bash --noprofile --norc -s <<'EOSU'
 set -Eeuo pipefail
 # shellcheck disable=SC1091

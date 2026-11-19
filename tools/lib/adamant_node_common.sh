@@ -33,6 +33,9 @@ readonly ADAMANT_SYSTEMD_STOP_TIMEOUT_SEC="180"
 # "0 0 1 * *" is 00:00 on the first day of each month.
 readonly ADAMANT_LOGROTATE_INTERVAL="0 0 1 * *"
 readonly ADAMANT_IMAGE_MARGIN_BYTES="$((256 * 1024 * 1024))"
+readonly ADAMANT_MAX_SAFE_INTEGER="9223372036854775807"
+readonly ADAMANT_TRUSTED_LIBRARY_DIR="/usr/local/lib/adamant"
+readonly ADAMANT_TRUSTED_LIBRARY="$ADAMANT_TRUSTED_LIBRARY_DIR/adamant_node_common.sh"
 
 adamant_apply_network() {
   case "$1" in
@@ -130,6 +133,16 @@ adamant_assert_port() {
   fi
 }
 
+adamant_normalize_sha256() {
+  local value="$1"
+
+  if [[ ! "$value" =~ ^[0-9A-Fa-f]{64}$ ]]; then
+    printf 'Invalid SHA-256 digest %q.\n' "$value" >&2
+    return 1
+  fi
+  printf '%s' "$value" | tr '[:upper:]' '[:lower:]'
+}
+
 adamant_dollar_quote() {
   local value="$1"
   local tag=""
@@ -172,17 +185,10 @@ adamant_psql_format_gexec() {
   local psql_bin="$1"
   local database="$2"
   local template="$3"
-  local sql_file previous_umask status=0
   shift 3
 
-  previous_umask="$(umask)"
-  umask 077
-  sql_file="$(mktemp)"
-  umask "$previous_umask"
-  adamant_render_format_sql "$template" "$@" >"$sql_file"
-  runuser -u postgres -- "$psql_bin" -X --set=ON_ERROR_STOP=1 -f "$sql_file" "$database" || status=$?
-  rm -f -- "$sql_file"
-  return "$status"
+  adamant_render_format_sql "$template" "$@" \
+    | runuser -u postgres -- "$psql_bin" -X --set=ON_ERROR_STOP=1 -f - "$database"
 }
 
 adamant_psql_scalar() {
@@ -342,28 +348,29 @@ adamant_repair_node_user_permissions() {
   local path
 
   for path in "$home/.nvm" "$home/.pm2" "$home/.adamant" "$repo"; do
+    if [[ -L "$path" ]]; then
+      printf 'Refusing to repair symlinked node path %s.\n' "$path" >&2
+      return 1
+    fi
     if [[ -e "$path" ]]; then
-      chown -R "$user:$user" "$path"
-      chmod -R u+rwX "$path"
+      if [[ "$(stat -c '%U' "$path" 2>/dev/null || true)" != "$user" ]]; then
+        printf 'Refusing to change ownership of %s from root. Fix ownership manually before rerunning.\n' "$path" >&2
+        return 1
+      fi
+      runuser -u "$user" -- chmod -R u+rwX -- "$path"
     fi
   done
 }
 
-adamant_publish_library_to_user() {
-  local user="$1"
-  local home="$2"
-  local destination="$home/.adamant/adamant_node_common.sh"
-
-  if ! install -d -m 0750 -o "$user" -g "$user" "$home/.adamant"; then
-    adamant_install_mode_directory "$home/.adamant"
-    chmod 0750 "$home/.adamant"
-    chown "$user:$user" "$home/.adamant"
+adamant_publish_trusted_library() {
+  if [[ -L "$ADAMANT_TRUSTED_LIBRARY_DIR" || -L "$ADAMANT_TRUSTED_LIBRARY" ]]; then
+    printf 'Refusing to publish through a symlink under %s.\n' \
+      "$ADAMANT_TRUSTED_LIBRARY_DIR" >&2
+    return 1
   fi
-  if ! install -m 0640 -o "$user" -g "$user" "$ADAMANT_COMMON_SRC" "$destination"; then
-    install -m 0640 "$ADAMANT_COMMON_SRC" "$destination"
-    chown "$user:$user" "$destination"
-    chmod 0640 "$destination"
-  fi
+  install -d -m 0755 "$ADAMANT_TRUSTED_LIBRARY_DIR"
+  install -m 0644 "$ADAMANT_COMMON_SRC" "$ADAMANT_TRUSTED_LIBRARY"
+  chown root:root "$ADAMANT_TRUSTED_LIBRARY_DIR" "$ADAMANT_TRUSTED_LIBRARY"
 }
 
 adamant_content_length_from_headers() {
@@ -390,13 +397,27 @@ adamant_space_allows_bytes() {
   local free_bytes="$1"
   local need_bytes="$2"
   local margin_bytes="$3"
+  local free_normalized need_normalized margin_normalized value
 
   [[ "$free_bytes" =~ ^[0-9]+$ && "$need_bytes" =~ ^[0-9]+$ && "$margin_bytes" =~ ^[0-9]+$ ]] || return 1
-  (( free_bytes >= need_bytes + margin_bytes ))
-}
-
-adamant_checksum_url() {
-  printf '%s.sha256' "$1"
+  free_normalized="${free_bytes#"${free_bytes%%[!0]*}"}"
+  need_normalized="${need_bytes#"${need_bytes%%[!0]*}"}"
+  margin_normalized="${margin_bytes#"${margin_bytes%%[!0]*}"}"
+  [[ -n "$free_normalized" ]] || free_normalized=0
+  [[ -n "$need_normalized" ]] || need_normalized=0
+  [[ -n "$margin_normalized" ]] || margin_normalized=0
+  for value in "$free_normalized" "$need_normalized" "$margin_normalized"; do
+    if (( ${#value} > ${#ADAMANT_MAX_SAFE_INTEGER} )); then
+      return 1
+    fi
+    if (( ${#value} == ${#ADAMANT_MAX_SAFE_INTEGER} )) \
+      && [[ "$value" != "$ADAMANT_MAX_SAFE_INTEGER" ]] \
+      && [[ "$(printf '%s\n%s\n' "$value" "$ADAMANT_MAX_SAFE_INTEGER" | LC_ALL=C sort | tail -1)" == "$value" ]]; then
+      return 1
+    fi
+  done
+  (( 10#$free_normalized >= 10#$margin_normalized )) || return 1
+  (( 10#$need_normalized <= 10#$free_normalized - 10#$margin_normalized ))
 }
 
 adamant_parse_checksum_text() {
@@ -417,7 +438,7 @@ adamant_parse_checksum_text() {
     printf 'Checksum file does not contain a SHA-256 digest.\n' >&2
     return 1
   fi
-  hash="${BASH_REMATCH[1],,}"
+  hash="$(adamant_normalize_sha256 "${BASH_REMATCH[1]}")"
   name="${BASH_REMATCH[3]:-}"
   name="${name#\*}"
   if [[ -n "$name" && "$name" != "$expected_name" ]]; then
@@ -427,16 +448,41 @@ adamant_parse_checksum_text() {
   printf '%s' "$hash"
 }
 
-adamant_fetch_checksum() {
-  local url="$1"
+adamant_read_checksum_file() {
+  local path="$1"
   local expected_name="$2"
-  local body=""
+  local size text
 
-  if ! body="$(curl --proto '=https' --proto-redir '=https' -fsSL --retry 3 --connect-timeout 20 --max-time 60 --max-filesize 4096 "$url")"; then
-    printf 'Could not download checksum %s.\n' "$url" >&2
+  if [[ -L "$path" || ! -f "$path" || ! -r "$path" ]]; then
+    printf 'Checksum file %s is not a regular readable file.\n' "$path" >&2
     return 1
   fi
-  adamant_parse_checksum_text "$body" "$expected_name"
+  size="$(wc -c <"$path" | tr -d '[:space:]')"
+  if [[ ! "$size" =~ ^[0-9]+$ ]] || (( size > 512 )); then
+    printf 'Checksum file %s is too large.\n' "$path" >&2
+    return 1
+  fi
+  text="$(cat -- "$path")"
+  adamant_parse_checksum_text "$text" "$expected_name"
+}
+
+adamant_verify_file_sha256() {
+  local expected="$1"
+  local path="$2"
+  local actual
+
+  expected="$(adamant_normalize_sha256 "$expected")"
+  if [[ ! -f "$path" || -L "$path" ]]; then
+    printf 'Cannot verify non-regular file %s.\n' "$path" >&2
+    return 1
+  fi
+  actual="$(sha256sum "$path" | awk 'NR == 1 { print $1 }')"
+  actual="$(adamant_normalize_sha256 "$actual")"
+  if [[ "$actual" != "$expected" ]]; then
+    printf 'SHA-256 mismatch for %s: expected %s, got %s.\n' \
+      "$path" "$expected" "$actual" >&2
+    return 1
+  fi
 }
 
 adamant_remote_content_length() {
@@ -452,6 +498,10 @@ adamant_remote_content_length() {
     printf 'The image server did not provide a Content-Length for %s.\n' "$url" >&2
     return 1
   fi
+  if ! adamant_space_allows_bytes "$ADAMANT_MAX_SAFE_INTEGER" "$length" 0; then
+    printf 'Content-Length %s is outside the supported range.\n' "$length" >&2
+    return 1
+  fi
   printf '%s' "$length"
 }
 
@@ -459,16 +509,15 @@ adamant_download_verified_archive() {
   local destination_dir="$1"
   local url="$2"
   local filename="$3"
-  local checksum_url hash part dest free_bytes image_bytes
+  local expected_hash="$4"
+  local part dest free_bytes image_bytes
 
   if [[ ! "$filename" =~ ^[A-Za-z0-9._-]+$ ]]; then
     printf 'Refusing image filename %q.\n' "$filename" >&2
     return 1
   fi
+  expected_hash="$(adamant_normalize_sha256 "$expected_hash")"
   mkdir -p "$destination_dir"
-  checksum_url="$(adamant_checksum_url "$url")"
-  printf 'Checking published SHA-256 for %s.\n' "$filename"
-  hash="$(adamant_fetch_checksum "$checksum_url" "$filename")" || return 1
   image_bytes="$(adamant_remote_content_length "$url")" || return 1
   free_bytes="$(adamant_free_bytes "$destination_dir")" || return 1
   if ! adamant_space_allows_bytes "$free_bytes" "$image_bytes" "$ADAMANT_IMAGE_MARGIN_BYTES"; then
@@ -478,19 +527,18 @@ adamant_download_verified_archive() {
   fi
   part="${destination_dir}/${filename}.part"
   dest="${destination_dir}/${filename}"
-  rm -f -- "$part" "$dest" "${dest}.sha256"
+  rm -f -- "$part" "$dest"
   printf 'Downloading %s (%s bytes).\n' "$url" "$image_bytes"
   curl --proto '=https' --proto-redir '=https' -fL --retry 3 --connect-timeout 30 \
     -o "$part" "$url"
   mv -- "$part" "$dest"
-  printf '%s  %s\n' "$hash" "$filename" >"${dest}.sha256"
-  if ! (cd "$destination_dir" && sha256sum -c "${filename}.sha256"); then
-    rm -f -- "$dest" "${dest}.sha256"
+  if ! adamant_verify_file_sha256 "$expected_hash" "$dest"; then
+    rm -f -- "$dest"
     printf 'SHA-256 verification failed for %s. The archive was deleted.\n' "$filename" >&2
     return 1
   fi
   if ! gzip --test "$dest"; then
-    rm -f -- "$dest" "${dest}.sha256"
+    rm -f -- "$dest"
     printf 'gzip rejected %s. The archive was deleted.\n' "$filename" >&2
     return 1
   fi
@@ -526,6 +574,10 @@ adamant_loader_block_reason() {
 
   case "$pm2_status" in
     online|launching|stopping) ;;
+    missing-cli)
+      printf 'The pm2 CLI is unavailable for the node user.\n'
+      return 1
+      ;;
     unknown)
       printf 'The pm2 process list could not be read.\n'
       return 1
@@ -580,7 +632,7 @@ adamant_pm2_process_status() {
   local raw="" status=""
 
   if ! command -v pm2 >/dev/null 2>&1; then
-    printf 'missing'
+    printf 'missing-cli'
     return 0
   fi
   if ! raw="$(pm2 jlist 2>/dev/null)"; then
@@ -670,15 +722,18 @@ adamant_refuse_if_node_busy() {
     return 0
   fi
   if [[ ! -s "$home/.nvm/nvm.sh" ]]; then
+    if [[ -f "$config_file" ]]; then
+      printf 'The node checkout exists, but nvm is missing; PM2 state cannot be verified safely.\n' >&2
+      return 1
+    fi
     return 0
   fi
-  adamant_publish_library_to_user "$user" "$home"
   output="$(runuser -u "$user" -- env \
     HOME="$home" \
     PROCESS_NAME="$process" \
     API_PORT="$port" \
     CONFIG_FILE="$config_file" \
-    ADAMANT_LIB="$home/.adamant/adamant_node_common.sh" \
+    ADAMANT_LIB="$ADAMANT_TRUSTED_LIBRARY" \
     bash --noprofile --norc -s <<'EOS'
 set -Eeuo pipefail
 # shellcheck disable=SC1090
@@ -797,11 +852,53 @@ adamant_write_systemd_dropin() {
   chmod 0644 "$destination"
 }
 
+adamant_write_pm2_systemd_unit() {
+  local destination="$1"
+  local user="$2"
+  local home="$3"
+
+  if [[ ! "$user" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
+    printf 'Refusing unsafe system user name %q.\n' "$user" >&2
+    return 1
+  fi
+  if [[ -z "$home" || "${home#/}" == "$home" || "$home" == *$'\n'* ]]; then
+    printf 'Refusing unsafe home directory %q.\n' "$home" >&2
+    return 1
+  fi
+  if [[ -L "$home" ]]; then
+    printf 'Refusing symlinked home directory %s.\n' "$home" >&2
+    return 1
+  fi
+  cat >"$destination" <<EOF
+[Unit]
+Description=PM2 process manager for ${user}
+After=network.target
+
+[Service]
+Type=forking
+User=${user}
+Environment=HOME=${home}
+Environment=PM2_HOME=${home}/.pm2
+PIDFile=${home}/.pm2/pm2.pid
+ExecStart=/usr/bin/env bash -lc 'source "\$HOME/.nvm/nvm.sh" && pm2 resurrect'
+ExecReload=/usr/bin/env bash -lc 'source "\$HOME/.nvm/nvm.sh" && pm2 reload all'
+ExecStop=/usr/bin/env bash -lc 'source "\$HOME/.nvm/nvm.sh" && pm2 kill'
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  chmod 0644 "$destination"
+}
+
 adamant_install_pm2_systemd() {
   local user="$1"
   local home="$2"
-  local node_bin_dir="$3"
+  local _node_bin_dir="$3"
   shift 3
+  local service="pm2-${user}.service"
+  local service_file="/etc/systemd/system/${service}"
   local dropin="/etc/systemd/system/pm2-${user}.service.d/10-adamant.conf"
   local -a units=("$@")
 
@@ -809,11 +906,17 @@ adamant_install_pm2_systemd() {
     printf '\nWARNING: systemd was not detected. Configure pm2 startup manually for user %s.\n' "$user"
     return 0
   fi
+  if ! runuser -u "$user" -- env HOME="$home" bash --noprofile --norc -lc \
+    "source \"\$HOME/.nvm/nvm.sh\" && command -v pm2 >/dev/null"; then
+    printf 'pm2 is unavailable for user %s; cannot configure systemd startup.\n' "$user" >&2
+    return 1
+  fi
   printf '\nEnabling pm2 startup for user %s.\n' "$user"
-  env PATH="${node_bin_dir}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
-    "${node_bin_dir}/pm2" startup systemd -u "$user" --hp "$home"
+  adamant_write_pm2_systemd_unit "$service_file" "$user" "$home"
   adamant_write_systemd_dropin "$dropin" "${units[@]}"
   systemctl daemon-reload
+  systemctl enable "$service" >/dev/null
+  systemctl restart "$service"
   printf 'Installed %s (TimeoutStopSec=%s, LimitCORE=0).\n' \
     "$dropin" "$ADAMANT_SYSTEMD_STOP_TIMEOUT_SEC"
 }
@@ -833,7 +936,7 @@ adamant_prompt_blockchain_image() {
   local response
 
   printf '\nA blockchain image can reduce synchronization time, but its source must be trusted.\n'
-  printf 'The image is loaded only after its published SHA-256 file matches the download.\n'
+  printf 'The image is loaded only after a locally provided trusted SHA-256 file matches the download.\n'
   printf 'Without an image, the node verifies the blockchain from height 1, which may take several days.\n'
   response="$(adamant_read_tty "Use the official ADAMANT blockchain image to bootstrap? [Y/n]: ")"
   case "${response:-Y}" in
@@ -845,13 +948,6 @@ adamant_prompt_blockchain_image() {
       use_image="false"
       ;;
   esac
-}
-
-adamant_image_checksum_published() {
-  local url="$1"
-  local filename="$2"
-
-  adamant_fetch_checksum "$(adamant_checksum_url "$url")" "$filename" >/dev/null
 }
 
 adamant_run_quiet() {
@@ -1126,9 +1222,11 @@ adamant_user_install() {
   adamant_write_config_password "$CONFIG_FILE" "$DB_PASSWORD_FILE"
   # shellcheck disable=SC2153
   if [[ "${USE_IMAGE:?}" == "true" ]]; then
+    # shellcheck disable=SC2153
+    adamant_prepare_image_directory "$HOME"
     image_dir="$HOME/.adamant/images"
     # shellcheck disable=SC2153
-    adamant_download_verified_archive "$image_dir" "${IMAGE_URL:?}" "${IMAGE_FILENAME:?}"
+    adamant_download_verified_archive "$image_dir" "${IMAGE_URL:?}" "${IMAGE_FILENAME:?}" "${IMAGE_SHA256:?}"
     printf 'Streaming the blockchain image into PostgreSQL.\n'
     gzip -dc "${image_dir}/${IMAGE_FILENAME}" | psql -X --set=ON_ERROR_STOP=1 "$DATABASE_NAME"
     rm -f -- "${image_dir}/${IMAGE_FILENAME}" "${image_dir}/${IMAGE_FILENAME}.sha256"
@@ -1151,16 +1249,62 @@ adamant_stop_process_for_repair() {
   local ecosystem="$1"
   local process="$2"
   local interpreter="$3"
+  local pm2_status=""
 
+  if ! command -v pm2 >/dev/null 2>&1; then
+    printf 'pm2 is not installed for user %s.\n' "$(id -un)" >&2
+    return 1
+  fi
+  pm2_status="$(adamant_pm2_process_status "$process")"
   adamant_write_ecosystem_file "$ecosystem" "$process" "$REPO_DIR" "$interpreter" "${APP_ARGS:-}"
-  if pm2 describe "$process" >/dev/null 2>&1; then
+  case "$pm2_status" in
+  missing)
+    printf 'pm2 process %s is not registered; skipping stop.\n' "$process"
+    ;;
+  unknown|missing-cli|"")
+    printf 'Cannot verify pm2 state for %s (status: %s).\n' "$process" "${pm2_status:-empty}" >&2
+    return 1
+    ;;
+  *)
     printf 'Stopping %s with kill_timeout %s.\n' "$process" "$ADAMANT_KILL_TIMEOUT_MS"
     pm2 startOrRestart "$ecosystem" --update-env
     pm2 stop "$process"
-  else
-    printf 'WARNING: pm2 process %s is not registered; skipping stop.\n' "$process"
-  fi
+    ;;
+  esac
   pm2 save
+}
+
+adamant_prepare_image_directory() {
+  local home="$1"
+  local root_dir="${home}/.adamant"
+  local image_dir="${root_dir}/images"
+
+  if [[ -L "$root_dir" || -L "$image_dir" ]]; then
+    printf 'Refusing symlinked image directory under %s.\n' "$root_dir" >&2
+    return 1
+  fi
+  mkdir -p "$image_dir"
+  chmod 0700 "$root_dir" "$image_dir"
+}
+
+adamant_prompt_trusted_image_sha256() {
+  local filename="$1"
+  local checksum_path="" checksum=""
+
+  printf '\nTo verify the blockchain image, provide a SHA-256 file from a trusted channel.\n'
+  printf 'Do not use a checksum downloaded from the same host as the image archive.\n'
+  while true; do
+    checksum_path="$(adamant_read_tty "Path to trusted checksum file for ${filename}: ")"
+    if [[ -z "$checksum_path" ]]; then
+      printf 'Checksum file path cannot be empty.\n' >&2
+    elif checksum="$(adamant_read_checksum_file "$checksum_path" "$filename")"; then
+      printf '%s' "$checksum"
+      return 0
+    fi
+    if ! adamant_confirm_exact_yes "Type \"yes\" to provide another checksum file, or anything else to cancel: "; then
+      return 1
+    fi
+  done
 }
 
 adamant_start_process_from_ecosystem() {
