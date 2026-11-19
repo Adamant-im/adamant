@@ -776,7 +776,8 @@ d.run(function () {
        * @listens SIGTERM
        */
       process.on('SIGTERM', function () {
-        requestShutdown('SIGTERM', 0);
+        // Keep PM2 clean exits distinct from fatal paths that still exit with 0.
+        requestShutdown('SIGTERM', 143);
       });
 
       /**
@@ -788,7 +789,7 @@ d.run(function () {
        * @listens SIGINT
        */
       process.on('SIGINT', function () {
-        requestShutdown('SIGINT', 0);
+        requestShutdown('SIGINT', 130);
       });
     }
   });

@@ -1,0 +1,20 @@
+name: Shell scripts
+
+on:
+  pull_request:
+  push:
+    branches:
+      - dev
+      - master
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Check installer and repair scripts
+        run: bash test/tools/adamant_node_common_test.sh
+      - name: Run ShellCheck
+        run: shellcheck -x -P SCRIPTDIR tools/install_node.sh tools/install_node_centos.sh tools/fix_node.sh tools/lib/adamant_node_common.sh test/tools/adamant_node_common_test.sh
