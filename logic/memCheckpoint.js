@@ -69,6 +69,22 @@ function execStatementsSequential (t, statements) {
 }
 
 /**
+ * Normalize a block height before it is used by checkpoint guard SQL.
+ * @param {object} block Checkpoint block.
+ * @return {number} Validated integer height.
+ * @throws {Error} If the block height is missing or invalid.
+ */
+function normalizeCheckpointHeight (block) {
+  var height = Number(block && block.height);
+
+  if (!block || block.height === '' || !Number.isSafeInteger(height) || height < 1) {
+    throw new Error('Invalid checkpoint block height: ' + (block && block.height));
+  }
+
+  return height;
+}
+
+/**
  * Persisted mem-table checkpoint logic for crash recovery.
  * Checkpoints are a local recovery cache only; blocks remain the source of truth.
  *
@@ -396,9 +412,19 @@ MemCheckpoint.prototype.createCheckpoint = function (block, round, nethash, onPi
   // so the copied tables cannot mix state from different blocks. The snapshot is
   // established by the first statement below and stays frozen for the whole
   // transaction, so the copy can safely run after the critical section is released.
+  var createdSlot;
+  var checkpointHeight;
+
+  try {
+    checkpointHeight = normalizeCheckpointHeight(block);
+  } catch (err) {
+    self.library.logger.error('memCheckpoints', `Failed to create checkpoint: ${err?.message || err}`, err && err.stack);
+    signalPinned();
+    return Promise.resolve();
+  }
+
   var txMode = self.library.db.$config.pgp.txMode;
   var mode = new txMode.TransactionMode({ tiLevel: txMode.isolationLevel.repeatableRead });
-  var createdSlot;
 
   return self.library.db.tx({ mode: mode }, function (t) {
     return t.oneOrNone(sql.getLatestComplete).then(function (latestMeta) {
@@ -408,7 +434,7 @@ MemCheckpoint.prototype.createCheckpoint = function (block, round, nethash, onPi
       var meta = {
         slot: slot,
         schemaVersion: SCHEMA_VERSION,
-        height: block.height,
+        height: checkpointHeight,
         blockId: block.id,
         round: round,
         nethash: nethash,
@@ -442,12 +468,12 @@ MemCheckpoint.prototype.createCheckpoint = function (block, round, nethash, onPi
         return execStatementsSequential(t, sql.copyLiveToSlotStatements(slot));
       }).then(function () {
         // Guard against a copy that captured state ahead of the checkpoint block.
-        return t.oneOrNone(sql.getSlotAccountsBlockAboveHeight(slot), { height: block.height });
+        return t.oneOrNone(sql.getSlotAccountsBlockAboveHeight(slot), { height: checkpointHeight });
       }).then(function (row) {
         var copiedHeight = row && row.height !== null ? parseInt(row.height, 10) : 0;
 
-        if (copiedHeight > parseInt(block.height, 10)) {
-          throw new Error('Checkpoint copy captured state ahead of block ' + block.height + ' (found height ' + copiedHeight + ')');
+        if (copiedHeight > checkpointHeight) {
+          throw new Error('Checkpoint copy captured state ahead of block ' + checkpointHeight + ' (found height ' + copiedHeight + ')');
         }
 
         return self.computeDigest(t, slot, meta);
@@ -458,7 +484,7 @@ MemCheckpoint.prototype.createCheckpoint = function (block, round, nethash, onPi
   }).then(function () {
     self.library.logger.info('memCheckpoints', 'Created mem-table checkpoint', {
       slot: createdSlot,
-      height: block.height,
+      height: checkpointHeight,
       round: round,
       blockId: block.id
     });
