@@ -19,6 +19,7 @@ module.exports = {
       senderIds: {
         type: 'array',
         minItems: 1,
+        maxItems: 1000,
         'items': {
           type: 'string',
           format: 'address',
@@ -35,6 +36,7 @@ module.exports = {
       keyIds: {
         type: 'array',
         minItems: 1,
+        maxItems: 1000,
         'items': {
           type: 'string',
           format: 'key',

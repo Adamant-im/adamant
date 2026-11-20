@@ -533,6 +533,10 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
       return body.chats.map((chat) => chat.lastTransaction.id).sort();
     }
 
+    function messageIds (body) {
+      return body.messages.map((message) => message.id).sort();
+    }
+
     it('should apply and:type the same way as type', function (done) {
       getChats(sender.address, function (err, unfiltered) {
         node.expect(unfiltered.body).to.have.property('success').to.be.true;
@@ -564,6 +568,60 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
       }, { type: 1 });
     });
 
+    it('should apply path, senderId, and recipientId filters together', function (done) {
+      getChats(recipient1.address, function (err, plainChats) {
+        node.expect(plainChats.body).to.have.property('success').to.be.true;
+        node.expect(plainChats.body.chats).to.have.lengthOf(1);
+        getChats(recipient1.address, function (prefixedChatsErr, prefixedChats) {
+          node.expect(prefixedChats.body).to.have.property('success').to.be.true;
+          node.expect(chatIds(prefixedChats.body)).to.eql(chatIds(plainChats.body));
+
+          getMessages(sender.address, recipient1.address, function (plainMessagesErr, plainMessages) {
+            node.expect(plainMessages.body).to.have.property('success').to.be.true;
+            node.expect(plainMessages.body.messages).to.have.lengthOf(2);
+            getMessages(sender.address, recipient1.address, function (prefixedMessagesErr, prefixedMessages) {
+              node.expect(prefixedMessages.body).to.have.property('success').to.be.true;
+              node.expect(messageIds(prefixedMessages.body)).to.eql(messageIds(plainMessages.body));
+              prefixedMessages.body.messages.forEach(function (message) {
+                node.expect(message.senderId).to.equal(sender.address);
+                node.expect(message.recipientId).to.equal(recipient1.address);
+              });
+              done();
+            }, {
+              'and:type': 1,
+              'and:senderId': sender.address,
+              'and:recipientId': recipient1.address
+            });
+          }, {
+            type: 1,
+            senderId: sender.address,
+            recipientId: recipient1.address
+          });
+        }, { 'and:senderId': sender.address });
+      }, { senderId: sender.address });
+    });
+
+    it('should apply and: pagination to the same page as plain pagination', function (done) {
+      getChats(sender.address, function (err, plain) {
+        node.expect(plain.body).to.have.property('success').to.be.true;
+        getChats(sender.address, function (prefixedErr, prefixed) {
+          node.expect(prefixed.body).to.have.property('success').to.be.true;
+          node.expect(prefixed.body.count).to.equal(plain.body.count);
+          node.expect(chatIds(prefixed.body)).to.eql(chatIds(plain.body));
+          node.expect(prefixed.body.chats).to.have.lengthOf(1);
+          done();
+        }, {
+          'and:orderBy': 'timestamp:asc',
+          'and:limit': 1,
+          'and:offset': 1
+        });
+      }, {
+        orderBy: 'timestamp:asc',
+        limit: 1,
+        offset: 1
+      });
+    });
+
     it('should reject or: and filters the room query does not apply', function (done) {
       getChats(sender.address, function (err, response) {
         node.expect(response.body).to.have.property('success').to.be.false;
@@ -574,6 +632,26 @@ describe('GET /api/chatrooms/:ID/:ID', function () {
           done();
         }, { toHeight: 1 });
       }, { 'or:type': 1 });
+    });
+
+    it('should reject path-only filter names', function (done) {
+      getChats(sender.address, function (err, plainResponse) {
+        node.expect(plainResponse.body).to.have.property('success').to.be.false;
+        node.expect(plainResponse.body.error).to.equal('Parameter is not supported: companionId');
+        getChats(sender.address, function (prefixedErr, prefixedResponse) {
+          node.expect(prefixedResponse.body).to.have.property('success').to.be.false;
+          node.expect(prefixedResponse.body.error).to.equal('Parameter is not supported: companionId');
+          done();
+        }, { 'and:companionId': recipient1.address });
+      }, { companionId: recipient1.address });
+    });
+
+    it('should reject nested filter values', function (done) {
+      getChats(sender.address, function (err, response) {
+        node.expect(response.body).to.have.property('success').to.be.false;
+        node.expect(response.body.error).to.equal('Invalid value for parameter: type');
+        done();
+      }, { 'and:type[nested]': 1 });
     });
   });
 });

@@ -125,7 +125,7 @@ __private.list = function (filter, cb) {
     where.push('"st_type" = ${type}');
     params.type = filter.type;
   }
-  if (filter.key) {
+  if (typeof filter.key !== 'undefined') {
     where.push('"st_stored_key" = ${key}');
     params.key = filter.key;
   }

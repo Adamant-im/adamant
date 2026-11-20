@@ -5,6 +5,7 @@ const chatsSchema = require('../../../schema/chats.js');
 const chatroomsSchema = require('../../../schema/chatrooms.js');
 const statesSchema = require('../../../schema/states.js');
 const {
+  CHATROOMS_PATH_FIELDS,
   CHATROOMS_QUERY_FIELDS,
   CHATS_QUERY_FIELDS,
   STATES_CSV_FIELDS,
@@ -57,6 +58,13 @@ describe('helpers/andOnlyQuery', () => {
     expect(normalized.filter).to.deep.equal({ senderId: 'U1' });
   });
 
+  it('rejects non-object filter containers', () => {
+    [null, false, 0, '', []].forEach((source) => {
+      expect(normalizeAndOnlyFilters(source, options).error)
+          .to.equal('Filter parameters must be an object');
+    });
+  });
+
   it('rejects conflicting values for one field', () => {
     const normalized = normalizeAndOnlyFilters({
       key: 'eth:address',
@@ -64,6 +72,26 @@ describe('helpers/andOnlyQuery', () => {
     }, options);
 
     expect(normalized.error).to.equal('Conflicting values for parameter: key');
+  });
+
+  it('rejects malformed nested and scalar array values', () => {
+    [
+      { keyIds: { nested: 'alpha' } },
+      { keyIds: { toString: 1 } },
+      { keyIds: null },
+      { keyIds: 1 },
+      { keyIds: true }
+    ].forEach((source) => {
+      expect(normalizeAndOnlyFilters(source, options).error)
+          .to.equal('Invalid value for parameter: keyIds');
+    });
+
+    expect(normalizeAndOnlyFilters({
+      returnUnconfirmed: { nested: true }
+    }, options).error).to.equal('Invalid value for parameter: returnUnconfirmed');
+    expect(normalizeAndOnlyFilters({
+      senderId: ['U1']
+    }, options).error).to.equal('Invalid value for parameter: senderId');
   });
 
   it('rejects or: instead of ignoring it', () => {
@@ -84,6 +112,11 @@ describe('helpers/andOnlyQuery', () => {
         .to.equal('Parameter is not supported: keysIds');
     expect(normalizeAndOnlyFilters({ 'and:fromTimestamp': 1 }, options).error)
         .to.equal('Parameter is not supported: fromTimestamp');
+    expect(normalizeAndOnlyFilters({
+      'and:companionId': 'U2'
+    }, {
+      supportedFields: CHATROOMS_QUERY_FIELDS
+    }).error).to.equal('Parameter is not supported: companionId');
   });
 
   it('keeps query schemas aligned with the fields each endpoint applies', () => {
@@ -96,7 +129,7 @@ describe('helpers/andOnlyQuery', () => {
     expect(chatsSchema.getTransactions.additionalProperties).to.equal(false);
 
     expect(Object.keys(chatroomsSchema.getChats.properties).sort())
-        .to.deep.equal(CHATROOMS_QUERY_FIELDS.slice().sort());
+        .to.deep.equal(CHATROOMS_QUERY_FIELDS.concat(CHATROOMS_PATH_FIELDS).sort());
     expect(chatroomsSchema.getChats.additionalProperties).to.equal(false);
   });
 
@@ -111,6 +144,14 @@ describe('helpers/andOnlyQuery', () => {
     expect(validator.validate({
       keyIds: ['this-key-is-way-too-long']
     }, statesSchema.getTransactions)).to.equal(false);
+
+    expect(validator.validate({
+      keyIds: new Array(1001).fill('a')
+    }, statesSchema.getTransactions)).to.equal(false);
+
+    expect(validator.validate({
+      key: ''
+    }, statesSchema.getTransactions)).to.equal(true);
 
     expect(validator.validate({
       blockId: '1'

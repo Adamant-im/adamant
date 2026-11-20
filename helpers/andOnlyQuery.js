@@ -47,20 +47,25 @@ const CHATS_QUERY_FIELDS = Object.freeze([
 
 /**
  * Query fields accepted by GET /api/chatrooms.
- * `userId` and `companionId` are filled from the path before normalization.
  */
 const CHATROOMS_QUERY_FIELDS = Object.freeze([
   'type',
   'senderId',
   'recipientId',
-  'userId',
-  'companionId',
   'orderBy',
   'limit',
   'offset',
   'returnUnconfirmed',
   'includeDirectTransfers',
   'withoutDirectTransfers'
+]);
+
+/**
+ * Fields supplied internally from the chatroom request path.
+ */
+const CHATROOMS_PATH_FIELDS = Object.freeze([
+  'userId',
+  'companionId'
 ]);
 
 /**
@@ -100,7 +105,21 @@ function normalizeAndOnlyFilters (source, options) {
   const csvFields = options && options.csvFields ? options.csvFields : [];
   const supportedFields = options && options.supportedFields ? options.supportedFields : null;
   const filter = {};
-  const entries = Object.entries(source || {});
+
+  if (typeof source === 'undefined') {
+    source = {};
+  }
+
+  if (source === null || typeof source !== 'object' || Array.isArray(source)) {
+    return { error: 'Filter parameters must be an object' };
+  }
+
+  const sourcePrototype = Object.getPrototypeOf(source);
+  if (sourcePrototype !== Object.prototype && sourcePrototype !== null) {
+    return { error: 'Filter parameters must be an object' };
+  }
+
+  const entries = Object.entries(source);
 
   for (let i = 0; i < entries.length; i++) {
     const key = String(entries[i][0]);
@@ -130,9 +149,22 @@ function normalizeAndOnlyFilters (source, options) {
       return { error: 'Parameter is not supported: ' + name };
     }
 
+    const isCsvField = csvFields.indexOf(name) !== -1;
+
+    if (value === null || (
+      typeof value === 'object' &&
+      (!Array.isArray(value) || !isCsvField)
+    )) {
+      return { error: 'Invalid value for parameter: ' + name };
+    }
+
     let normalized = value;
-    if (csvFields.indexOf(name) !== -1 && !Array.isArray(value)) {
-      normalized = String(value).split(',');
+    if (isCsvField && !Array.isArray(value)) {
+      if (typeof value !== 'string') {
+        return { error: 'Invalid value for parameter: ' + name };
+      }
+
+      normalized = value.split(',');
     }
 
     if (Object.prototype.hasOwnProperty.call(filter, name) && !valuesEqual(filter[name], normalized)) {
@@ -146,6 +178,7 @@ function normalizeAndOnlyFilters (source, options) {
 }
 
 module.exports = {
+  CHATROOMS_PATH_FIELDS,
   CHATROOMS_QUERY_FIELDS,
   CHATS_QUERY_FIELDS,
   STATES_CSV_FIELDS,

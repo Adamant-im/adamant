@@ -93,8 +93,9 @@ describe('GET /api/states/get', () => {
 
 describe('GET /api/states/get filters', () => {
   const testAccount = node.randomAccount();
-  const alphaKey = 'alpha';
-  const betaKey = 'beta';
+  const alphaKey = '';
+  const betaKey = '0';
+  const sqlLikeKey = 'x\' OR 1=1 --';
   let confirmed = [];
 
   function query (params, done) {
@@ -109,7 +110,7 @@ describe('GET /api/states/get filters', () => {
   before((done) => {
     sendADM({
       secret: node.iAccount.password,
-      amount: node.fees.stateFee * 2,
+      amount: node.fees.stateFee * 3,
       recipientId: testAccount.address
     }, () => done());
   });
@@ -129,12 +130,20 @@ describe('GET /api/states/get filters', () => {
       value: 'beta-value',
       keyPair: testAccount.keypair
     });
+    const sqlLike = node.createStateTransaction({
+      key: sqlLikeKey,
+      value: 'sql-like-value',
+      keyPair: testAccount.keypair
+    });
 
     storeState({ transaction: alpha }, (err, res) => {
       expect(res.body).to.have.property('success').that.is.true;
       storeState({ transaction: beta }, (betaErr, betaRes) => {
         expect(betaRes.body).to.have.property('success').that.is.true;
-        node.onNewBlock(() => done());
+        storeState({ transaction: sqlLike }, (sqlErr, sqlRes) => {
+          expect(sqlRes.body).to.have.property('success').that.is.true;
+          node.onNewBlock(() => done());
+        });
       });
     });
   });
@@ -143,7 +152,7 @@ describe('GET /api/states/get filters', () => {
     query({ senderId: testAccount.address, orderBy: 'timestamp:asc' }, (err, res) => {
       expect(res.body).to.have.property('success').that.is.true;
       confirmed = res.body.transactions;
-      expect(confirmed).to.have.lengthOf(2);
+      expect(confirmed).to.have.lengthOf(3);
       done();
     });
   });
@@ -184,6 +193,31 @@ describe('GET /api/states/get filters', () => {
     });
   });
 
+  it('should keep numeric-looking KVS keys as strings', (done) => {
+    query({
+      'and:senderId': testAccount.address,
+      'and:key': betaKey
+    }, (err, res) => {
+      expect(res.body).to.have.property('success').that.is.true;
+      expect(res.body.transactions).to.have.lengthOf(1);
+      expect(res.body.transactions[0].asset.state.key).to.equal(betaKey);
+      done();
+    });
+  });
+
+  it('should keep SQL-like KVS keys as query parameters', (done) => {
+    query({
+      'and:senderId': testAccount.address,
+      'and:key': sqlLikeKey
+    }, (err, res) => {
+      expect(res.body).to.have.property('success').that.is.true;
+      expect(res.body.transactions).to.have.lengthOf(1);
+      expect(res.body.count).to.equal(1);
+      expect(res.body.transactions[0].asset.state.key).to.equal(sqlLikeKey);
+      done();
+    });
+  });
+
   it('should filter by keyIds, including keys that are not addresses', (done) => {
     query({
       senderId: testAccount.address,
@@ -193,6 +227,29 @@ describe('GET /api/states/get filters', () => {
       expect(res.body.transactions).to.have.lengthOf(1);
       expect(res.body.transactions[0].asset.state.key).to.equal(alphaKey);
       done();
+    });
+  });
+
+  it('should apply and: pagination to the same page as plain pagination', (done) => {
+    query({
+      senderId: testAccount.address,
+      orderBy: 'timestamp:asc',
+      limit: 1,
+      offset: 1
+    }, (err, plain) => {
+      query({
+        'and:senderId': testAccount.address,
+        'and:orderBy': 'timestamp:asc',
+        'and:limit': 1,
+        'and:offset': 1
+      }, (prefixedErr, prefixed) => {
+        expect(plain.body).to.have.property('success').that.is.true;
+        expect(prefixed.body).to.have.property('success').that.is.true;
+        expect(idsOf(prefixed.body)).to.deep.equal(idsOf(plain.body));
+        expect(prefixed.body.count).to.equal(plain.body.count);
+        expect(prefixed.body.transactions).to.have.lengthOf(1);
+        done();
+      });
     });
   });
 
@@ -250,10 +307,25 @@ describe('GET /api/states/get filters', () => {
           }, (timeErr, timeResponse) => {
             expect(timeResponse.body).to.have.property('success').that.is.false;
             expect(timeResponse.body.error).to.equal('Parameter is not supported: fromTimestamp');
-            done();
+
+            query({
+              'keyIds[nested]': alphaKey
+            }, (nestedErr, nestedResponse) => {
+              expect(nestedResponse.body).to.have.property('success').that.is.false;
+              expect(nestedResponse.body.error).to.equal('Invalid value for parameter: keyIds');
+              done();
+            });
           });
         });
       });
+    });
+  });
+
+  it('should reject a non-object POST filter body', (done) => {
+    node.post('/api/states/get', [], (err, res) => {
+      expect(res.body).to.have.property('success').that.is.false;
+      expect(res.body.error).to.equal('Filter parameters must be an object');
+      done();
     });
   });
 

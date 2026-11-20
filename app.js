@@ -386,7 +386,19 @@ d.run(function () {
       }));
       scope.network.app.use(methodOverride());
 
-      var ignore = ['id', 'name', 'lastBlockId', 'blockId', 'transactionId', 'address', 'recipientId', 'senderId', 'previousBlock'];
+      var ignore = [
+        'id',
+        'name',
+        'lastBlockId',
+        'blockId',
+        'transactionId',
+        'address',
+        'recipientId',
+        'senderId',
+        'previousBlock',
+        'key',
+        'keyIds'
+      ];
 
       scope.network.app.use(queryParser({
         parser: function (value, radix, name) {
@@ -395,7 +407,7 @@ d.run(function () {
           }
 
           // Ignore conditional fields for transactions list
-          if (/^.+?:(blockId|recipientId|senderId)$/.test(name)) {
+          if (/^.+?:(blockId|recipientId|senderId|key|keyIds)$/.test(name)) {
             return value;
           }
 

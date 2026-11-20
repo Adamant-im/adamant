@@ -241,11 +241,48 @@ describe('GET /api/chats/get', () => {
         expect(err).not.to.exist;
         expect(response.body).to.have.property('success').that.is.true;
         expect(response.body.transactions).to.not.be.empty;
-        response.body.transactions.forEach((transaction) => {
-          expect(transaction.senderId).to.equal(iAccount.address);
-          expect(transaction.recipientId).to.equal(recipient.address);
+
+        getChatsQuery({
+          'and:senderId': iAccount.address,
+          'and:recipientId': recipient.address
+        }, (prefixedErr, prefixed) => {
+          expect(prefixedErr).not.to.exist;
+          expect(prefixed.body).to.have.property('success').that.is.true;
+          expect(transactionIds(prefixed.body)).to.deep.equal(transactionIds(response.body));
+          prefixed.body.transactions.forEach((transaction) => {
+            expect(transaction.senderId).to.equal(iAccount.address);
+            expect(transaction.recipientId).to.equal(recipient.address);
+          });
+          done();
         });
-        done();
+      });
+    });
+
+    it('should apply and: pagination to the same page as plain pagination', (done) => {
+      getTransactions({
+        recipientId: recipient.address,
+        includeDirectTransfers: 1,
+        orderBy: 'timestamp:asc',
+        limit: 1,
+        offset: 1
+      }, (err, plain) => {
+        expect(err).not.to.exist;
+        expect(plain.body).to.have.property('success').that.is.true;
+
+        getChatsQuery({
+          'and:recipientId': recipient.address,
+          'and:includeDirectTransfers': 1,
+          'and:orderBy': 'timestamp:asc',
+          'and:limit': 1,
+          'and:offset': 1
+        }, (prefixedErr, prefixed) => {
+          expect(prefixedErr).not.to.exist;
+          expect(prefixed.body).to.have.property('success').that.is.true;
+          expect(transactionIds(prefixed.body)).to.deep.equal(transactionIds(plain.body));
+          expect(prefixed.body.count).to.equal(plain.body.count);
+          expect(prefixed.body.transactions).to.have.lengthOf(1);
+          done();
+        });
       });
     });
 
@@ -280,6 +317,17 @@ describe('GET /api/chats/get', () => {
             });
           });
         });
+      });
+    });
+
+    it('should reject nested filter values', (done) => {
+      getChatsQuery({
+        'returnUnconfirmed[nested]': 1
+      }, (err, response) => {
+        expect(err).not.to.exist;
+        expect(response.body).to.have.property('success').that.is.false;
+        expect(response.body.error).to.equal('Invalid value for parameter: returnUnconfirmed');
+        done();
       });
     });
 

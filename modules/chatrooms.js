@@ -370,7 +370,7 @@ Chatrooms.prototype.isLoaded = function () {
   return !!modules;
 };
 
-__private.normalizeQuery = function (body, cb) {
+__private.normalizeQuery = function (body, pathParams, cb) {
   const normalized = normalizeAndOnlyFilters(body, {
     supportedFields: CHATROOMS_QUERY_FIELDS
   });
@@ -379,12 +379,17 @@ __private.normalizeQuery = function (body, cb) {
     return setImmediate(cb, normalized.error);
   }
 
-  library.schema.validate(normalized.filter, schema.getChats, function (err) {
+  const filter = {
+    ...normalized.filter,
+    ...pathParams
+  };
+
+  library.schema.validate(filter, schema.getChats, function (err) {
     if (err) {
       return setImmediate(cb, err[0].message);
     }
 
-    return setImmediate(cb, null, normalized.filter);
+    return setImmediate(cb, null, filter);
   });
 };
 
@@ -398,15 +403,12 @@ Chatrooms.prototype.internal = {
 
     const [, userId, companionId] = validRequest;
 
-    req.body = {
-      ...req.body,
-      userId: userId.toUpperCase(),
-      companionId: companionId?.toUpperCase()
-    };
-
     async.waterfall([
       function (waterCb) {
-        __private.normalizeQuery(req.body, waterCb);
+        __private.normalizeQuery(req.body, {
+          userId: userId.toUpperCase(),
+          ...(companionId ? { companionId: companionId.toUpperCase() } : {})
+        }, waterCb);
       },
       function (filter, waterCb) {
         __private.listChats(filter, function (err, data) {
@@ -433,15 +435,12 @@ Chatrooms.prototype.internal = {
 
     const [, userId, companionId] = validRequest;
 
-    req.body = {
-      ...req.body,
-      userId: userId.toUpperCase(),
-      companionId: companionId.toUpperCase()
-    };
-
     async.waterfall([
       function (waterCb) {
-        __private.normalizeQuery(req.body, waterCb);
+        __private.normalizeQuery(req.body, {
+          userId: userId.toUpperCase(),
+          companionId: companionId.toUpperCase()
+        }, waterCb);
       },
       function (filter, waterCb) {
         __private.listMessages(filter, function (err, data) {
