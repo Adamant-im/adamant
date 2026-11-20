@@ -1,5 +1,6 @@
 'use strict';
 
+var crypto = require('crypto');
 var fs = require('fs');
 var node = require('./../node.js');
 var path = require('path');
@@ -74,16 +75,32 @@ describe('DApp HTTP API', function () {
   });
 
   it('should never serve retired public DApp content', async function () {
-    var publicDappsPath = path.join(__dirname, '..', '..', 'public', 'dapps');
-    var testFile = path.join(publicDappsPath, 'retired-content-test.txt');
+    var publicPath = path.join(__dirname, '..', '..', 'public');
+    var publicDappsPath = path.join(publicPath, 'dapps');
+    var createdDappsPath = false;
+    var fixtureName = [
+      'retired-content-test-',
+      crypto.randomBytes(8).toString('hex'),
+      '.txt'
+    ].join('');
+    var testFile = path.join(publicDappsPath, fixtureName);
     var paths = [
-      '/dapps/retired-content-test.txt',
-      '/%64apps/retired-content-test.txt',
-      '/dapps%2Fretired-content-test.txt'
+      '/dapps/' + fixtureName,
+      '/%64apps/' + fixtureName,
+      '/dapps%2F' + fixtureName
     ];
 
-    fs.mkdirSync(publicDappsPath, { recursive: true });
-    fs.writeFileSync(testFile, 'must not be served');
+    node.expect(fs.lstatSync(publicPath).isDirectory()).to.equal(true);
+
+    if (!fs.existsSync(publicDappsPath)) {
+      fs.mkdirSync(publicDappsPath);
+      createdDappsPath = true;
+    } else {
+      node.expect(fs.lstatSync(publicDappsPath).isDirectory()).to.equal(true);
+      node.expect(fs.lstatSync(publicDappsPath).isSymbolicLink()).to.equal(false);
+    }
+
+    fs.writeFileSync(testFile, 'must not be served', { flag: 'wx' });
 
     try {
       var responses = await Promise.all(paths.map(function (retiredPath) {
@@ -94,7 +111,16 @@ describe('DApp HTTP API', function () {
         node.expect(response.status).to.equal(404);
       });
     } finally {
-      fs.rmSync(publicDappsPath, { recursive: true, force: true });
+      fs.rmSync(testFile, { force: true });
+      if (createdDappsPath) {
+        try {
+          fs.rmdirSync(publicDappsPath);
+        } catch (error) {
+          if (error.code !== 'ENOTEMPTY' && error.code !== 'ENOENT') {
+            throw error;
+          }
+        }
+      }
     }
   });
 });

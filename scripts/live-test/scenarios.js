@@ -2780,6 +2780,13 @@ async function runTransactionHappyPathScenario (context) {
     return context.skip('No funded transfer fixture account found in genesis passes.');
   }
 
+  const observationPeer = resolveDappObservationPeer(context);
+
+  context.assert(
+      observationPeer,
+      'DApp transaction peer verification requires at least two distinct target nodes.'
+  );
+
   const node = context.primaryNode;
   const client = context.clientFor(node);
   const funded = accountFromFixture(fixture);
@@ -2987,6 +2994,7 @@ async function runTransactionHappyPathScenario (context) {
   const primaryConfirmations = [dappConfirmation].concat(dappTransferConfirmations);
   const observation = await verifyDappTransactionsOnPeer(
       context,
+      observationPeer,
       primaryConfirmations,
       {
         sender: balanceAfterDappTransfers.sender,
@@ -5473,6 +5481,7 @@ async function waitForTransactionConfirmation (context, client, transactionId, l
 /**
  * Verifies DApp transaction import and balance state on an independent node.
  * @param {object} context - Runner context.
+ * @param {object} peer - Independent observation node.
  * @param {Array<object>} primaryConfirmations - Recipient-node confirmation states.
  * @param {object} expectedBalances - Confirmed balances from the recipient node.
  * @param {object} addresses - Sender and recipient account addresses.
@@ -5480,20 +5489,11 @@ async function waitForTransactionConfirmation (context, client, transactionId, l
  */
 async function verifyDappTransactionsOnPeer (
     context,
+    peer,
     primaryConfirmations,
     expectedBalances,
     addresses
 ) {
-  const candidates = context.target.transactionObservationNodes || context.target.nodes || [];
-  const peer = candidates.find(function (candidate) {
-    return candidate.apiUrl !== context.primaryNode.apiUrl;
-  });
-
-  context.assert(
-      peer,
-      'DApp transaction peer verification requires at least two distinct target nodes.'
-  );
-
   const peerClient = context.clientFor(peer);
   const peerConfirmations = await Promise.all(primaryConfirmations.map(function (confirmation) {
     return waitForTransactionConfirmation(
@@ -5542,6 +5542,19 @@ async function verifyDappTransactionsOnPeer (
       recipient: peerBalances.recipient.toString()
     }
   };
+}
+
+/**
+ * Finds an independent node for DApp transaction observation.
+ * @param {object} context - Runner context.
+ * @return {object|null} Independent target node, or null.
+ */
+function resolveDappObservationPeer (context) {
+  const candidates = context.target.transactionObservationNodes || context.target.nodes || [];
+
+  return candidates.find(function (candidate) {
+    return candidate.apiUrl !== context.primaryNode.apiUrl;
+  }) || null;
 }
 
 /**
@@ -5774,6 +5787,7 @@ module.exports = {
   publicBlockForgingResult,
   publicConfirmationResult,
   recordReason,
+  resolveDappObservationPeer,
   roundRate,
   selectScenarios,
   setSnapshotAcceptedProgress,

@@ -101,6 +101,50 @@ describe('live scenario runner utilities', () => {
     });
   });
 
+  it('should reject a missing DApp observation peer before publishing transactions', async () => {
+    const scenario = scenarios.SCENARIOS.find((candidate) => {
+      return candidate.id === 'transactions.happy-path';
+    });
+    const primaryNode = {
+      id: 'node-1',
+      apiUrl: 'http://127.0.0.1:36670'
+    };
+    let submissions = 0;
+    let failure;
+
+    try {
+      await scenario.run({
+        fixtureAccounts: {
+          transfer: {
+            secret: 'not-used-before-peer-check'
+          }
+        },
+        primaryNode,
+        target: {
+          nodes: [primaryNode]
+        },
+        clientFor: function () {
+          return {
+            post: function () {
+              submissions += 1;
+            }
+          };
+        },
+        assert: function (condition, message) {
+          if (!condition) {
+            throw Error(message);
+          }
+        }
+      });
+    } catch (error) {
+      failure = error;
+    }
+
+    expect(failure).to.be.an('error');
+    expect(failure.message).to.include('at least two distinct target nodes');
+    expect(submissions).to.equal(0);
+  });
+
   it('should use the third configured testnet peer for transaction observation', () => {
     const recipient = target.normalizeEndpoint('127.0.0.1:36667', { id: 'node-recipient' });
     const peer = target.resolveTestnetObservationPeer(testDefaultConfig, recipient, 'test/config.default.json');

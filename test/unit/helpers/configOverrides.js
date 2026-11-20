@@ -419,11 +419,42 @@ describe('configOverrides', () => {
       raw.loading.snapshot = 20;
 
       const config = Config(writeTempFile('explicit-snapshot.json', JSON.stringify(raw)), {
-        sets: ['loading.snapshot=10']
+        overrides: [{
+          path: 'loading.snapshot',
+          value: 10,
+          source: '--snapshot'
+        }]
       });
 
       expect(config.loading.snapshot).to.equal(10);
       expect(config.__configEvents.some((event) => event.type === 'migration')).to.equal(false);
+    });
+
+    it('should suppress persistent snapshot override files with legacy DApp config', () => {
+      const raw = JSON.parse(fs.readFileSync(testConfigPath, 'utf8'));
+      const overrideFile = writeTempFile('persistent-snapshot.json', JSON.stringify({
+        loading: {
+          snapshot: 20
+        }
+      }));
+
+      raw.dapp = {
+        masterrequired: true,
+        masterpassword: '',
+        autoexec: []
+      };
+
+      const config = Config(
+          writeTempFile('persistent-snapshot-config.json', JSON.stringify(raw)),
+          { file: overrideFile }
+      );
+
+      expect(config.loading).not.to.have.property('snapshot');
+      expect(config.__configEvents).to.deep.include({
+        type: 'migration',
+        path: 'loading.snapshot',
+        source: 'legacy config'
+      });
     });
 
     it('should apply the former DApp defaults to partial legacy configs', () => {
