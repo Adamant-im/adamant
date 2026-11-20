@@ -181,8 +181,7 @@ d.run(function () {
   var modules = [];
   async.auto({
     /**
-     * Loads `payloadHash` and generate dapp password if it is empty and required.
-     * Then updates config.json with new random  password.
+     * Loads `payloadHash` and applies runtime config defaults.
      * @method config
      * @param {nodeStyleCallback} cb - Callback function with the mutated `appConfig`.
      * @throws {Error} If failed to assign nethash from genesis block.
@@ -201,24 +200,7 @@ d.run(function () {
 
       appConfig.cors.credentials = true;
 
-      if (appConfig.dapp.masterrequired && !appConfig.dapp.masterpassword) {
-        var randomstring = require('randomstring');
-
-        appConfig.dapp.masterpassword = randomstring.generate({
-          length: 12,
-          readable: true,
-          charset: 'alphanumeric'
-        });
-
-        if (appConfig.loading.snapshot != null) {
-          delete appConfig.loading.snapshot;
-        }
-
-        fs.writeFileSync('./config.json', JSON.stringify(appConfig, null, 4));
-        cb(null, appConfig);
-      } else {
-        cb(null, appConfig);
-      }
+      cb(null, appConfig);
     },
     logger: function (cb) {
       cb(null, logger);
@@ -915,6 +897,23 @@ function parsePeersOption (peers, port) {
  */
 function logConfigEvents (logger, events) {
   (events || []).forEach(function (event) {
+    if (event.type === 'deprecated') {
+      var advice = event.path === 'forging.access' ?
+        '; use forging.secret and restart the node after changing it' :
+        '; the legacy DApp control API is no longer available';
+
+      logger.warn(
+          'config',
+          'Parameter ' +
+          event.path +
+          ' from ' +
+          event.source +
+          ' is deprecated and ignored' +
+          advice
+      );
+      return;
+    }
+
     logger.info(
         'config',
         'Parameter ' +

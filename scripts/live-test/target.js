@@ -268,6 +268,7 @@ function buildNodeConfiguration (config, source) {
   const apiAccess = api.access || {};
   const wsClient = config.wsClient || {};
   const wsServer = config.wsNode || {};
+  const forging = config.forging || {};
 
   return {
     source,
@@ -275,6 +276,11 @@ function buildNodeConfiguration (config, source) {
       enabled: api.enabled,
       public: apiAccess.public,
       limits: api.options && api.options.limits
+    },
+    forging: {
+      delegateSecretsCount: Array.isArray(forging.secret) ?
+        forging.secret.filter(Boolean).length :
+        forging.secret ? 1 : 0
     },
     wsClient: {
       enabled: wsClient.enabled,

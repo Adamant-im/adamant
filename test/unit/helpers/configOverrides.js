@@ -323,6 +323,71 @@ describe('configOverrides', () => {
       expect(config.consensusActivationHeights.fairSystem).to.equal(4359465);
     });
 
+    it('should ignore legacy direct config without exposing its values', () => {
+      const raw = JSON.parse(fs.readFileSync(testConfigPath, 'utf8'));
+
+      raw.forging.access = {
+        whiteList: ['127.0.0.1']
+      };
+      raw.dapp = {
+        masterrequired: true,
+        masterpassword: 'do-not-log-this-password',
+        autoexec: [{ dappid: '123' }]
+      };
+
+      const config = Config(writeTempFile('legacy-control-config.json', JSON.stringify(raw)));
+
+      expect(config.forging).not.to.have.property('access');
+      expect(config).not.to.have.property('dapp');
+      expect(config.__configEvents.map((event) => event.path)).to.deep.equal([
+        'forging.access',
+        'dapp'
+      ]);
+      expect(JSON.stringify(config.__configEvents)).not.to.include('do-not-log-this-password');
+    });
+
+    it('should ignore deprecated control API overrides', () => {
+      const overrideFile = writeTempFile('legacy-control-overrides.json', JSON.stringify({
+        forging: {
+          access: {
+            whiteList: ['0.0.0.0']
+          }
+        },
+        dapp: {
+          masterpassword: 'do-not-log-this-password',
+          autoexec: [{ dappid: '123' }]
+        }
+      }));
+      const config = Config(testConfigPath, {
+        file: overrideFile
+      });
+
+      expect(config.forging).not.to.have.property('access');
+      expect(config).not.to.have.property('dapp');
+      expect(config.__configEvents.map((event) => event.path)).to.deep.equal([
+        'forging.access',
+        'dapp'
+      ]);
+      expect(JSON.stringify(config.__configEvents)).not.to.include('do-not-log-this-password');
+    });
+
+    it('should strip a legacy access block from a whole forging override', () => {
+      const config = Config(testConfigPath, {
+        sets: [
+          'forging={ "force": false, "secret": [], "access": { "whiteList": ["0.0.0.0"] } }'
+        ]
+      });
+
+      expect(config.forging).to.deep.equal({
+        force: false,
+        secret: []
+      });
+      expect(config.__configEvents.map((event) => event.path)).to.deep.equal([
+        'forging',
+        'forging.access'
+      ]);
+    });
+
     it('should apply multiple config override files in order', () => {
       const firstOverrideFile = writeTempFile('first.json', JSON.stringify({
         port: 36668,

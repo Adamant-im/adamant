@@ -2124,23 +2124,20 @@ async function collectLiveConsensusNetworkState (context, definitions, activatio
         activationHeights
     );
     const client = context.clientFor(node);
-    const details = await Promise.all([
-      client.get('/api/transactions/count'),
-      client.get('/api/delegates/forging/status')
-    ]);
+    const transactionPools = await client.get('/api/transactions/count');
 
-    assertSuccessfulConsensusResponse(context, details[0], observedNode, '/api/transactions/count');
-    assertSuccessfulConsensusResponse(context, details[1], observedNode, '/api/delegates/forging/status');
+    assertSuccessfulConsensusResponse(context, transactionPools, observedNode, '/api/transactions/count');
 
     observation.transactionPools = {
-      confirmed: details[0].body.confirmed,
-      queued: details[0].body.queued,
-      unconfirmed: details[0].body.unconfirmed,
-      multisignature: details[0].body.multisignature
+      confirmed: transactionPools.body.confirmed,
+      queued: transactionPools.body.queued,
+      unconfirmed: transactionPools.body.unconfirmed,
+      multisignature: transactionPools.body.multisignature
     };
+    const configuredDelegateCount = getConfiguredDelegateCount(observedNode);
     observation.forging = {
-      enabled: details[1].body.enabled,
-      configuredDelegates: (details[1].body.delegates || []).length
+      enabled: configuredDelegateCount > 0,
+      configuredDelegates: configuredDelegateCount
     };
 
     return observation;
@@ -2897,23 +2894,21 @@ async function runTransactionHappyPathScenario (context) {
 
   const dappName = 'live' + crypto.randomBytes(5).toString('hex');
   const dappLink = 'https://example.com/' + dappName + '.zip';
-  const dapp = await submitAcceptedApiTransaction(
+  const dapp = tx.createDappTransaction(fresh, {
+    category: 0,
+    name: dappName,
+    description: 'ADAMANT live test dapp',
+    tags: 'live-test',
+    type: 1,
+    link: dappLink
+  });
+
+  await submitAcceptedTransaction(
       context,
       client,
       transactions,
-      'put',
-      '/api/dapps',
-      {
-        secret: fresh.secret,
-        category: 0,
-        name: dappName,
-        description: 'ADAMANT live test dapp',
-        tags: 'live-test',
-        type: 1,
-        link: dappLink
-      },
-      'dapp-registration',
-      transactionTypes.DAPP
+      dapp,
+      'dapp-registration'
   );
 
   if (context.options.waitBlocks > 0) {
@@ -2921,35 +2916,59 @@ async function runTransactionHappyPathScenario (context) {
   }
   await waitForDapp(context, client, dapp.id, 'dapp registration');
 
-  await submitAcceptedApiTransaction(
-      context,
-      client,
-      transactions,
-      'put',
-      '/api/dapps/transaction',
-      {
-        secret: fresh.secret,
-        amount: context.options.transferAmount,
-        dappId: dapp.id
-      },
-      'dapp-in-transfer',
-      transactionTypes.IN_TRANSFER
+  const balanceBeforeDappTransfers = {
+    sender: await getConfirmedAccountBalance(context, client, fresh.address, 'DApp author'),
+    recipient: await getConfirmedAccountBalance(context, client, recipient.address, 'DApp recipient')
+  };
+  const inTransfer = tx.createInTransferTransaction(
+      fresh,
+      dapp.id,
+      context.options.transferAmount
   );
-  await submitAcceptedApiTransaction(
+
+  await submitAcceptedTransaction(
       context,
       client,
       transactions,
-      'put',
-      '/api/dapps/withdrawal',
-      {
-        secret: fresh.secret,
-        recipientId: recipient.address,
-        amount: context.options.transferAmount,
-        dappId: dapp.id,
-        transactionId: String(Date.now()).slice(0, 13)
-      },
-      'dapp-out-transfer',
-      transactionTypes.OUT_TRANSFER
+      inTransfer,
+      'dapp-in-transfer'
+  );
+  const outTransfer = tx.createOutTransferTransaction(
+      fresh,
+      recipient.address,
+      dapp.id,
+      String(Date.now()).slice(0, 13),
+      context.options.transferAmount
+  );
+
+  await submitAcceptedTransaction(
+      context,
+      client,
+      transactions,
+      outTransfer,
+      'dapp-out-transfer'
+  );
+
+  const dappTransferConfirmations = await Promise.all([
+    waitForTransactionConfirmation(context, client, inTransfer.id, 'dapp-in-transfer'),
+    waitForTransactionConfirmation(context, client, outTransfer.id, 'dapp-out-transfer')
+  ]);
+  const balanceAfterDappTransfers = {
+    sender: await getConfirmedAccountBalance(context, client, fresh.address, 'DApp author'),
+    recipient: await getConfirmedAccountBalance(context, client, recipient.address, 'DApp recipient')
+  };
+  const transferAmount = BigInt(String(context.options.transferAmount));
+  const transferFee = BigInt(String(constants.fees.send));
+
+  context.assert(
+      balanceAfterDappTransfers.sender ===
+        balanceBeforeDappTransfers.sender - transferAmount - transferFee * 2n,
+      'DApp in/out transfers changed the author balance unexpectedly.'
+  );
+  context.assert(
+      balanceAfterDappTransfers.recipient ===
+        balanceBeforeDappTransfers.recipient + transferAmount,
+      'DApp out-transfer did not credit the recipient balance.'
   );
 
   context.metrics.increment('transactions.accepted', transactions.length);
@@ -2962,7 +2981,18 @@ async function runTransactionHappyPathScenario (context) {
     },
     transactions,
     rejections,
-    expectedFailures
+    expectedFailures,
+    dappTransfers: {
+      confirmations: dappTransferConfirmations,
+      balanceBefore: {
+        sender: balanceBeforeDappTransfers.sender.toString(),
+        recipient: balanceBeforeDappTransfers.recipient.toString()
+      },
+      balanceAfter: {
+        sender: balanceAfterDappTransfers.sender.toString(),
+        recipient: balanceAfterDappTransfers.recipient.toString()
+      }
+    }
   };
 }
 
@@ -3257,23 +3287,17 @@ async function runDelegatesScenario (context) {
 
   for (const node of context.target.nodes) {
     const client = context.clientFor(node);
-    const forgingStatus = await client.get('/api/delegates/forging/status');
     const delegates = await client.get('/api/delegates?limit=101');
     const nextForgers = await client.get('/api/delegates/getNextForgers?limit=10');
     const nodeStatus = await client.get('/api/node/status');
     const peers = await client.get('/api/peers?limit=100');
     const blocks = await client.get('/api/blocks?limit=1&orderBy=height:desc');
 
-    context.metrics.latency('delegates.status', forgingStatus.latencyMs);
     context.metrics.latency('delegates.list', delegates.latencyMs);
     context.metrics.latency('delegates.next-forgers', nextForgers.latencyMs);
     context.metrics.latency('delegates.node-status', nodeStatus.latencyMs);
     context.metrics.latency('delegates.peers', peers.latencyMs);
     context.metrics.latency('delegates.latest-block', blocks.latencyMs);
-    context.assert(
-        forgingStatus.ok && forgingStatus.body && forgingStatus.body.success,
-        'Unable to read forging status for ' + node.id
-    );
     context.assert(delegates.ok && delegates.body && delegates.body.success, 'Unable to list delegates for ' + node.id);
     context.assert(nextForgers.ok && nextForgers.body && nextForgers.body.success, 'Unable to list next forgers for ' + node.id);
     context.assert(nodeStatus.ok && nodeStatus.body && nodeStatus.body.success, 'Unable to read node status for ' + node.id);
@@ -3283,6 +3307,7 @@ async function runDelegatesScenario (context) {
     const network = nodeStatus.body.network || {};
     const loader = nodeStatus.body.loader || {};
     const latestBlock = blocks.body.blocks && blocks.body.blocks[0];
+    const configuredDelegateCount = getConfiguredDelegateCount(node);
 
     context.assert(latestBlock, 'Latest block is missing for ' + node.id);
 
@@ -3300,11 +3325,10 @@ async function runDelegatesScenario (context) {
     results.push({
       id: node.id,
       apiUrl: node.apiUrl,
-      delegateSecretsCount: node.delegateSecretsCount,
+      delegateSecretsCount: configuredDelegateCount,
       forging: {
-        enabled: forgingStatus.body.enabled,
-        configuredDelegateCount: (forgingStatus.body.delegates || []).length,
-        configuredDelegatePublicKeys: forgingStatus.body.delegates || []
+        enabled: configuredDelegateCount > 0,
+        configuredDelegateCount
       },
       delegates: {
         returnedCount: (delegates.body.delegates || []).length,
@@ -3345,18 +3369,27 @@ async function runDelegatesScenario (context) {
     });
   }
 
-  // Attribute the latest generator only after every node's configured forging keys are known.
-  results.forEach(function (result) {
-    result.latestBlock.generatorNodeIds = results.filter(function (candidate) {
-      return candidate.forging.configuredDelegatePublicKeys.indexOf(result.latestBlock.generatorPublicKey) !== -1;
-    }).map(function (candidate) {
-      return candidate.id;
-    });
-  });
-
   return {
     nodes: results
   };
+}
+
+/**
+ * Reads a report-safe configured forging count without copying passphrases or keys.
+ * @param {object} node - Live-test node metadata.
+ * @return {number} Configured forging delegate count.
+ */
+function getConfiguredDelegateCount (node) {
+  if (Number.isInteger(node.delegateSecretsCount) && node.delegateSecretsCount >= 0) {
+    return node.delegateSecretsCount;
+  }
+
+  const configuration = node.configuration || {};
+  const forging = configuration.forging || {};
+
+  return Number.isInteger(forging.delegateSecretsCount) && forging.delegateSecretsCount >= 0 ?
+    forging.delegateSecretsCount :
+    0;
 }
 
 /**
@@ -4720,37 +4753,6 @@ async function submitAcceptedTransaction (context, client, transactions, transac
 }
 
 /**
- * Submits an API-created transaction and records its returned transaction metadata.
- * @param {object} context - Runner context.
- * @param {HttpClient} client - Target REST client.
- * @param {Array<object>} transactions - Accepted transaction metadata sink.
- * @param {string} method - HTTP client method.
- * @param {string} path - API path.
- * @param {object} body - Request body.
- * @param {string} label - Human-readable action label.
- * @param {number} type - Expected transaction type.
- */
-async function submitAcceptedApiTransaction (context, client, transactions, method, path, body, label, type) {
-  const result = await client[method](path, body);
-
-  context.metrics.latency('transaction.submit', result.latencyMs);
-  context.assert(result.ok, 'HTTP failed while submitting ' + label + ': ' + result.status);
-  context.assert(result.body && result.body.success, 'Node rejected ' + label + ': ' + formatApiError(result.body));
-
-  const transaction = result.body.transaction || {
-    id: result.body.transactionId,
-    type
-  };
-  const metadata = publicTransaction(Object.assign({}, transaction, {
-    type: transaction.type === undefined ? type : transaction.type
-  }), label);
-
-  transactions.push(metadata);
-
-  return metadata;
-}
-
-/**
  * Runs one expected abuse rejection and records why/how it was rejected.
  * @param {object} context - Runner context.
  * @param {object} check - Abuse check definition.
@@ -5232,6 +5234,26 @@ async function waitForAccountBalance (context, client, address, minimumBalance, 
 }
 
 /**
+ * Reads one confirmed account balance.
+ * @param {object} context - Runner context.
+ * @param {HttpClient} client - Target REST client.
+ * @param {string} address - Account address.
+ * @param {string} label - Human-readable account label.
+ * @return {bigint} Confirmed internal balance.
+ */
+async function getConfirmedAccountBalance (context, client, address, label) {
+  const result = await client.get('/api/accounts/getBalance?address=' + encodeURIComponent(address));
+
+  context.metrics.latency('accounts.balance', result.latencyMs);
+  context.assert(
+      result.ok && result.body && result.body.success,
+      'Unable to read ' + label + ' balance.'
+  );
+
+  return BigInt(String(result.body.balance || '0'));
+}
+
+/**
  * Waits until an account delegate relationship reaches the expected state.
  * @param {object} context - Runner context.
  * @param {HttpClient} client - Target REST client.
@@ -5312,6 +5334,38 @@ async function waitForDapp (context, client, dappId, label) {
       dappId +
       '. Last response: ' +
       JSON.stringify(lastBody)
+  );
+}
+
+/**
+ * Waits for one submitted transaction to be confirmed.
+ * @param {object} context - Runner context.
+ * @param {HttpClient} client - Target REST client.
+ * @param {string} transactionId - Transaction id.
+ * @param {string} label - Human-readable transaction label.
+ * @return {object} Confirmed transaction state.
+ */
+async function waitForTransactionConfirmation (context, client, transactionId, label) {
+  const deadline = Date.now() + context.options.blockWaitTimeoutMs;
+  let state;
+
+  while (Date.now() < deadline) {
+    state = await getTransactionConfirmationState(context, client, transactionId);
+
+    if (state.state === 'confirmed' && state.confirmations > 0) {
+      return state;
+    }
+
+    await sleep(context.options.pollIntervalMs);
+  }
+
+  throw Error(
+      'Timed out waiting for ' +
+      label +
+      ' transaction ' +
+      transactionId +
+      ' to confirm. Last state: ' +
+      JSON.stringify(state)
   );
 }
 

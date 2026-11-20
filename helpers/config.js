@@ -35,6 +35,7 @@ function Config (configPath, overrideOptions) {
     const legacyRateLimits = getLegacyRateLimitAliases(configData);
     const configEvents = [];
 
+    configOverrides.removeDeprecatedConfig(configData, configEvents, 'config file');
     deepMergeMissing(configData, defaultConfigData);
     applyLegacyLoggingConfig(configData, legacyLoggingConfig);
     preserveLegacyRateLimitAliases(configData, legacyRateLimits);

@@ -453,18 +453,9 @@ module.exports = {
           },
           secret: {
             type: 'array'
-          },
-          access: {
-            type: 'object',
-            properties: {
-              whiteList: {
-                type: 'array'
-              }
-            },
-            required: ['whiteList']
           }
         },
-        required: ['force', 'secret', 'access']
+        required: ['force', 'secret']
       },
       loading: {
         type: 'object',
@@ -516,21 +507,6 @@ module.exports = {
           }
         },
         required: ['enabled', 'options']
-      },
-      dapp: {
-        type: 'object',
-        properties: {
-          masterrequired: {
-            type: 'boolean'
-          },
-          masterpassword: {
-            type: 'string'
-          },
-          autoexec: {
-            type: 'array'
-          }
-        },
-        required: ['masterrequired', 'masterpassword', 'autoexec']
       },
       wsClient: {
         type: 'object',
@@ -653,6 +629,6 @@ module.exports = {
         format: 'hex'
       }
     },
-    required: ['port', 'address', 'generalLog', 'debugLog', 'consoleLog', 'trustProxy', 'cacheEnabled', 'db', 'redis', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'dapp', 'wsClient', 'wsNode', 'nethash']
+    required: ['port', 'address', 'generalLog', 'debugLog', 'consoleLog', 'trustProxy', 'cacheEnabled', 'db', 'redis', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'wsClient', 'wsNode', 'nethash']
   }
 };

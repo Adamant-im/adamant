@@ -1817,9 +1817,7 @@ function appendForgingDetails (lines, nodes) {
     lines.push(
         '- Forging status: ' +
         (forging.enabled ? 'enabled' : 'disabled') +
-        '; configured fixture passphrases ' +
-        formatReportValue(node.delegateSecretsCount) +
-        '; configured public keys ' +
+        '; configured delegates ' +
         formatReportValue(forging.configuredDelegateCount) +
         '.'
     );
@@ -1883,9 +1881,7 @@ function appendForgingDetails (lines, nodes) {
         formatReportValue(latestBlock.generatorPublicKey) +
         ' (' +
         formatReportValue(latestBlock.generatorId) +
-        '); configured on ' +
-        formatList(latestBlock.generatorNodeIds) +
-        '; confirmations ' +
+        '); confirmations ' +
         formatReportValue(latestBlock.confirmations) +
         '.'
     );
@@ -1918,7 +1914,6 @@ function appendForgingDetails (lines, nodes) {
         formatList(nextForgers.publicKeys) +
         '.'
     );
-    lines.push('- Configured forging public keys: ' + formatList(forging.configuredDelegatePublicKeys) + '.');
   });
 }
 

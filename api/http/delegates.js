@@ -13,15 +13,8 @@ var httpApi = require('../../helpers/httpApi');
   - get   /get
   - get   /
   - get   /forging/getForgedByAccount
-    - post  /
+   - post  /
   - get  /getNextForgers
- * - Private API:
- *   - post   /forging/enable
- *   - post   /forging/disable
- *   - get   /forging/status
- * - Debug API:
- *   - get  /forging/disableAll
- *   - get  /forging/enableAll
  * @memberof module:delegates
  * @requires helpers/Router
  * @requires helpers/httpApi
@@ -48,19 +41,6 @@ function DelegatesHttpApi (delegatesModule, app, logger, cache) {
     'post /': 'registerDelegate',
     'get /getNextForgers': 'getNextForgers'
   });
-
-  router.map(delegatesModule.internal, {
-    'post /forging/enable': 'forgingEnable',
-    'post /forging/disable': 'forgingDisable',
-    'get /forging/status': 'forgingStatus'
-  });
-
-  if (process.env.DEBUG) {
-    router.map(delegatesModule.internal, {
-      'get /forging/disableAll': 'forgingDisableAll',
-      'get /forging/enableAll': 'forgingEnableAll'
-    });
-  }
 
   httpApi.registerEndpoint('/api/delegates', app, router, delegatesModule.isLoaded);
 }

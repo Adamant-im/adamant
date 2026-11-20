@@ -95,11 +95,10 @@ describe('peer', () => {
       expect(mapped.string).to.equal('40.40.40.40:36666');
     });
 
-    it('should convert dappid to array', () => {
+    it('should ignore legacy DApp peer properties', () => {
       const __peer = peer.accept({ dappid: 'random-dapp-id' });
-      expect(__peer.dappid).to.be.an('array');
-      expect(_.isEqual(__peer.dappid, ['random-dapp-id'])).to.be.true;
-      delete __peer.dappid;
+
+      expect(__peer).not.to.have.property('dappid');
     });
   });
 
@@ -191,7 +190,6 @@ describe('peer', () => {
       const updateData = {
         os: 'test os',
         version: '0.0.0',
-        dappid: ['test dappid'],
         broadhash: 'test broadhash',
         height: 3,
         nonce: 'ABCD123'

@@ -1843,8 +1843,7 @@ describe('live scenario runner utilities', () => {
                 delegateSecretsCount: 34,
                 forging: {
                   enabled: true,
-                  configuredDelegateCount: 2,
-                  configuredDelegatePublicKeys: ['public-key-1', 'public-key-2']
+                  configuredDelegateCount: 2
                 },
                 delegates: {
                   returnedCount: 101,
@@ -1891,7 +1890,6 @@ describe('live scenario runner utilities', () => {
                   id: 'block-id',
                   generatorPublicKey: 'generator-public-key',
                   generatorId: 'U123',
-                  generatorNodeIds: ['node-3'],
                   confirmations: 1,
                   rewardAdm: '0',
                   totalFeeAdm: '0.5',
@@ -1917,10 +1915,10 @@ describe('live scenario runner utilities', () => {
     expect(markdown).to.include('Reward stage: pre-reward; active false; protocol milestone 0');
     expect(markdown).to.include('Next reward stage: height 2000000; reward 0.5 ADM');
     expect(markdown).to.include(
-        'Latest block: height 4444; id block-id; generator generator-public-key (U123); configured on node-3'
+        'Latest block: height 4444; id block-id; generator generator-public-key (U123); confirmations 1'
     );
     expect(markdown).to.include('Latest generator totals: rewards 0 ADM; fees 61.24269306 ADM');
-    expect(markdown).to.include('Configured forging public keys: public-key-1, public-key-2');
+    expect(markdown).not.to.include('public-key-1');
   });
 
   it('should render exact normal and stress load details', () => {
