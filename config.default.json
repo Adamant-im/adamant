@@ -58,8 +58,8 @@
     },
     "options": {
       "limits": {
-        "limit": 12000,
-        "max": 12000,
+        "limit": 15300,
+        "max": 15300,
         "delayMs": 25,
         "delayAfter": 1000,
         "maxDelayMs": 1000,
@@ -129,8 +129,8 @@
     },
     "options": {
       "limits": {
-        "limit": 20000,
-        "max": 20000,
+        "limit": 44000,
+        "max": 44000,
         "delayMs": 5,
         "delayAfter": 6000,
         "maxDelayMs": 200,
@@ -227,6 +227,9 @@
     "limits": {
       "maxConnections": 1000,
       "maxConnectionsPerIp": 30,
+      "maxPendingConnections": 100,
+      "maxPendingConnectionsPerIp": 4,
+      "pendingTimeoutMs": 10000,
       "maxConnectionAttempts": 120,
       "connectionWindowMs": 60000,
       "maxAddresses": 100,
@@ -243,6 +246,9 @@
     "handshakeLimit": 60,
     "handshakeLimitPerNonce": 30,
     "handshakeWindowMs": 60000,
+    "maxPendingConnections": 16,
+    "maxPendingConnectionsPerIp": 2,
+    "pendingTimeoutMs": 10000,
     "eventLimit": 12000,
     "eventWindowMs": 60000
   },

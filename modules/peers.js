@@ -51,6 +51,7 @@ function Peers (cb, scope) {
 
   self.events = new EventEmitter();
   __private.outboundRequestState = new Map();
+  __private.rateLimitState = new Map();
 
   var options = __private.probeOptions();
 
@@ -522,28 +523,27 @@ Peers.prototype.recordRequest = function (ip, port, error) {
  * Defers one endpoint without changing peer health after temporary throttling.
  * @param {string} ip
  * @param {number} port
+ * @param {string} scope - `status`, `sync`, `broadcast`, or aggregate `all`.
  * @param {number} delayMs
  * @return {boolean} Whether an endpoint was deferred.
  */
-Peers.prototype.deferRequest = function (ip, port, delayMs) {
+Peers.prototype.deferRequest = function (ip, port, scope, delayMs) {
   var delay = Math.max(0, Math.floor(Number(delayMs) || 0));
   var nextAttemptAt = Date.now() + delay;
-  var peer = library.logic.peers.get({ ip: ip, port: port });
-  var endpoint = peer || library.logic.peers.create({ ip: ip, port: port });
+  var endpoint = library.logic.peers.create({ ip: ip, port: port });
+  var normalizedScope = ['status', 'sync', 'broadcast'].indexOf(scope) >= 0 ?
+    scope :
+    'all';
+  var state = __private.rateLimitState.get(endpoint.string) || {};
 
-  if (endpoint && endpoint.ip && endpoint.port) {
-    endpoint.nextAttemptAt = Math.max(endpoint.nextAttemptAt || 0, nextAttemptAt);
-  }
-
-  var state = __private.outboundRequestState.get(endpoint.string) || endpoint;
-  state.nextAttemptAt = Math.max(state.nextAttemptAt || 0, nextAttemptAt);
-  __private.outboundRequestState.delete(endpoint.string);
-  __private.outboundRequestState.set(endpoint.string, state);
+  state[normalizedScope] = Math.max(state[normalizedScope] || 0, nextAttemptAt);
+  __private.rateLimitState.delete(endpoint.string);
+  __private.rateLimitState.set(endpoint.string, state);
 
   var maxEntries = Math.max(100, __private.probeOptions().maxPeers * 2);
-  while (__private.outboundRequestState.size > maxEntries) {
-    var oldest = __private.outboundRequestState.keys().next().value;
-    __private.outboundRequestState.delete(oldest);
+  while (__private.rateLimitState.size > maxEntries) {
+    var oldest = __private.rateLimitState.keys().next().value;
+    __private.rateLimitState.delete(oldest);
   }
 
   return true;
@@ -552,9 +552,10 @@ Peers.prototype.deferRequest = function (ip, port, delayMs) {
 /**
  * Returns true while a tracked or untracked endpoint is in outbound backoff.
  * @param {peer} peer
+ * @param {string} [scope] - Peer HTTP request class.
  * @return {boolean}
  */
-Peers.prototype.isBackedOff = function (peer) {
+Peers.prototype.isBackedOff = function (peer, scope) {
   var live = library.logic.peers.get(peer);
   var now = Date.now();
 
@@ -565,7 +566,31 @@ Peers.prototype.isBackedOff = function (peer) {
   var endpoint = library.logic.peers.create(peer);
   var state = __private.outboundRequestState.get(endpoint.string);
 
-  return !!(state && state.nextAttemptAt && now < state.nextAttemptAt);
+  if (state && state.nextAttemptAt && now < state.nextAttemptAt) {
+    return true;
+  }
+
+  var rateLimit = __private.rateLimitState.get(endpoint.string);
+
+  if (!rateLimit) {
+    return false;
+  }
+
+  Object.keys(rateLimit).forEach(function (key) {
+    if (rateLimit[key] <= now) {
+      delete rateLimit[key];
+    }
+  });
+
+  if (Object.keys(rateLimit).length === 0) {
+    __private.rateLimitState.delete(endpoint.string);
+    return false;
+  }
+
+  return !!(
+    (rateLimit.all && now < rateLimit.all) ||
+    (scope && rateLimit[scope] && now < rateLimit[scope])
+  );
 };
 
 /**

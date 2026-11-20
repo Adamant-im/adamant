@@ -288,6 +288,9 @@ function buildNodeConfiguration (config, source) {
       handshakeLimit: wsServer.handshakeLimit,
       handshakeLimitPerNonce: wsServer.handshakeLimitPerNonce,
       handshakeWindowMs: wsServer.handshakeWindowMs,
+      maxPendingConnections: wsServer.maxPendingConnections,
+      maxPendingConnectionsPerIp: wsServer.maxPendingConnectionsPerIp,
+      pendingTimeoutMs: wsServer.pendingTimeoutMs,
       eventLimit: wsServer.eventLimit,
       eventWindowMs: wsServer.eventWindowMs
     }

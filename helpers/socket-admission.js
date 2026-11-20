@@ -4,7 +4,7 @@ const AbuseWindow = require('./abuse-window.js');
 const ipLimitKey = AbuseWindow.ipLimitKey;
 const resolveClientIp = AbuseWindow.resolveClientIp;
 
-const PENDING_TIMEOUT_MS = 30000;
+const DEFAULT_PENDING_TIMEOUT_MS = 10000;
 
 /**
  * Reserves bounded transport sessions before Engine.IO allocates one.
@@ -12,8 +12,11 @@ const PENDING_TIMEOUT_MS = 30000;
 class SocketAdmission {
   /**
    * @param {object} options - Admission policy.
-   * @param {number|null} options.maxConnections - Global active and pending cap, or null.
-   * @param {number|null} options.maxConnectionsPerIp - Per-IP active and pending cap, or null.
+   * @param {number|null} options.maxConnections - Total connection cap, or null.
+   * @param {number|null} options.maxConnectionsPerIp - Total per-IP cap, or null.
+   * @param {number|null} options.maxPendingConnections - Pre-authentication cap, or null.
+   * @param {number|null} options.maxPendingConnectionsPerIp - Pre-authentication per-IP cap, or null.
+   * @param {number} options.pendingTimeoutMs - Pre-authentication timeout.
    * @param {number} options.maxConnectionAttempts - Attempts allowed per window.
    * @param {number} options.connectionWindowMs - Attempt window length.
    * @param {boolean} options.trustProxy - Whether forwarding headers are trusted.
@@ -22,6 +25,11 @@ class SocketAdmission {
   constructor (options) {
     this.maxConnections = options.maxConnections;
     this.maxConnectionsPerIp = options.maxConnectionsPerIp;
+    this.maxPendingConnections = options.maxPendingConnections;
+    this.maxPendingConnectionsPerIp = options.maxPendingConnectionsPerIp;
+    this.pendingTimeoutMs = options.pendingTimeoutMs > 0 ?
+      options.pendingTimeoutMs :
+      DEFAULT_PENDING_TIMEOUT_MS;
     this.trustProxy = Boolean(options.trustProxy);
     this.onReject = options.onReject;
     this.attempts = new AbuseWindow(
@@ -31,6 +39,8 @@ class SocketAdmission {
     this.pending = new WeakMap();
     this.active = new WeakMap();
     this.connectionsByIp = new Map();
+    this.pendingConnectionsByIp = new Map();
+    this.reservationCount = 0;
     this.pendingCount = 0;
     this.activeCount = 0;
   }
@@ -61,8 +71,8 @@ class SocketAdmission {
   allowRequest (req, callback) {
     const address = resolveClientIp(req, this.trustProxy);
     const key = ipLimitKey(address);
-    const currentCount = this.pendingCount + this.activeCount;
     const currentByIp = this.connectionsByIp.get(key) || 0;
+    const pendingByIp = this.pendingConnectionsByIp.get(key) || 0;
 
     if (!this.attempts.allow(key)) {
       return this.reject(callback, 'Too many connection attempts', address);
@@ -70,7 +80,7 @@ class SocketAdmission {
 
     if (
       this.maxConnections !== null &&
-      currentCount >= this.maxConnections
+      this.connectionCount >= this.maxConnections
     ) {
       return this.reject(callback, 'Server connection limit exceeded', address);
     }
@@ -82,19 +92,36 @@ class SocketAdmission {
       return this.reject(callback, 'IP connection limit exceeded', address);
     }
 
+    if (
+      this.maxPendingConnections !== null &&
+      this.pendingCount >= this.maxPendingConnections
+    ) {
+      return this.reject(callback, 'Pending connection limit exceeded', address);
+    }
+
+    if (
+      this.maxPendingConnectionsPerIp !== null &&
+      pendingByIp >= this.maxPendingConnectionsPerIp
+    ) {
+      return this.reject(callback, 'Pending IP connection limit exceeded', address);
+    }
+
     const reservation = {
       key,
-      timer: null
+      timer: null,
+      promoted: false
     };
 
     reservation.timer = setTimeout(() => {
       this.releasePending(req);
-    }, PENDING_TIMEOUT_MS);
+    }, this.pendingTimeoutMs);
     reservation.timer.unref();
 
     this.pending.set(req, reservation);
+    this.reservationCount += 1;
     this.pendingCount += 1;
     this.connectionsByIp.set(key, currentByIp + 1);
+    this.pendingConnectionsByIp.set(key, pendingByIp + 1);
     callback(null, true);
     return true;
   }
@@ -115,11 +142,18 @@ class SocketAdmission {
       return false;
     }
 
-    clearTimeout(reservation.timer);
     this.pending.delete(req);
-    this.pendingCount -= 1;
+    this.reservationCount -= 1;
     this.active.set(socket, reservation);
     this.activeCount += 1;
+    clearTimeout(reservation.timer);
+    reservation.timer = setTimeout(() => {
+      if (!reservation.promoted) {
+        this.releaseActive(socket);
+        socket.close(true);
+      }
+    }, this.pendingTimeoutMs);
+    reservation.timer.unref();
     socket.once('close', () => {
       this.releaseActive(socket);
     });
@@ -135,6 +169,29 @@ class SocketAdmission {
   }
 
   /**
+   * Promotes a validated namespace socket out of the pending budget.
+   * @param {object} socket - Engine.IO socket.
+   * @return {boolean} Whether the socket was promoted.
+   */
+  promote (socket) {
+    const reservation = this.active.get(socket);
+
+    if (!reservation) {
+      return false;
+    }
+
+    if (reservation.promoted) {
+      return true;
+    }
+
+    clearTimeout(reservation.timer);
+    reservation.promoted = true;
+    this.pendingCount = Math.max(0, this.pendingCount - 1);
+    this.releaseIp(this.pendingConnectionsByIp, reservation.key);
+    return true;
+  }
+
+  /**
    * @param {object} req - Failed handshake request.
    * @return {void}
    */
@@ -147,8 +204,10 @@ class SocketAdmission {
 
     clearTimeout(reservation.timer);
     this.pending.delete(req);
+    this.reservationCount = Math.max(0, this.reservationCount - 1);
     this.pendingCount = Math.max(0, this.pendingCount - 1);
-    this.releaseIp(reservation.key);
+    this.releaseIp(this.pendingConnectionsByIp, reservation.key);
+    this.releaseIp(this.connectionsByIp, reservation.key);
   }
 
   /**
@@ -162,29 +221,42 @@ class SocketAdmission {
       return;
     }
 
+    clearTimeout(reservation.timer);
     this.active.delete(socket);
     this.activeCount = Math.max(0, this.activeCount - 1);
-    this.releaseIp(reservation.key);
+    if (!reservation.promoted) {
+      this.pendingCount = Math.max(0, this.pendingCount - 1);
+      this.releaseIp(this.pendingConnectionsByIp, reservation.key);
+    }
+    this.releaseIp(this.connectionsByIp, reservation.key);
   }
 
   /**
-   * @return {number} Active and pending transport count.
+   * @return {number} Total active and reserved transport count.
    */
   get connectionCount () {
-    return this.pendingCount + this.activeCount;
+    return this.reservationCount + this.activeCount;
   }
 
   /**
+   * @return {number} Pending, not-yet-promoted transport count.
+   */
+  get pendingConnectionCount () {
+    return this.pendingCount;
+  }
+
+  /**
+   * @param {Map<string, number>} counters - Counter map.
    * @param {string} key - IP allocation key.
    * @return {void}
    */
-  releaseIp (key) {
-    const current = this.connectionsByIp.get(key) || 0;
+  releaseIp (counters, key) {
+    const current = counters.get(key) || 0;
 
     if (current <= 1) {
-      this.connectionsByIp.delete(key);
+      counters.delete(key);
     } else {
-      this.connectionsByIp.set(key, current - 1);
+      counters.set(key, current - 1);
     }
   }
 

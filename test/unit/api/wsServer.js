@@ -266,7 +266,7 @@ describe('node WebSocket handshake limits', function () {
   });
 
   ['polling', 'upgrade', 'websocket'].forEach(function (mode) {
-    it('should enforce the transport cap before a ' + mode + ' session is allocated', async function () {
+    it('should enforce the authenticated cap after a ' + mode + ' transport is allocated', async function () {
       const firstPeer = {
         ip: '127.0.0.1',
         state: Peer.STATE.CONNECTED,
@@ -302,8 +302,9 @@ describe('node WebSocket handshake limits', function () {
       const second = connect(port, { nonce: 'second' }, transports);
       sockets.push(second);
       expect(await second.outcome).to.not.equal('open');
-      expect(admittedTransports.calledOnce).to.equal(true);
-      expect(wsServer.transportAdmission.connectionCount).to.equal(1);
+      expect(admittedTransports.calledTwice).to.equal(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(wsServer.transportAdmission.pendingConnectionCount).to.equal(0);
       expect(wsServer.admittedSockets.size).to.equal(1);
     });
   });
@@ -348,7 +349,7 @@ describe('node WebSocket handshake limits', function () {
     expect(wsServer.admittedSockets.size).to.equal(1);
   });
 
-  it('should reserve the peer cap for an Engine.IO session without a nonce', async function () {
+  it('should allow a healthy peer while an unauthenticated transport is pending', async function () {
     const peer = {
       ip: '127.0.0.1',
       state: Peer.STATE.CONNECTED,
@@ -356,6 +357,9 @@ describe('node WebSocket handshake limits', function () {
     };
     const port = await listen({
       maxBroadcastConnections: 1,
+      maxPendingConnections: 2,
+      maxPendingConnectionsPerIp: 2,
+      pendingTimeoutMs: 1000,
       handshakeLimit: 100,
       handshakeLimitPerNonce: 100,
       handshakeWindowMs: 60000
@@ -374,11 +378,13 @@ describe('node WebSocket handshake limits', function () {
     });
 
     expect(wsServer.admittedSockets.size).to.equal(0);
-    expect(wsServer.transportAdmission.connectionCount).to.equal(1);
+    expect(wsServer.transportAdmission.pendingConnectionCount).to.equal(1);
 
-    const blocked = connect(port, { nonce: 'known' });
-    sockets.push(blocked);
-    expect(await blocked.outcome).to.not.equal('open');
-    expect(wsServer.io.engine.clientsCount).to.equal(1);
+    const accepted = connect(port, { nonce: 'known' });
+    sockets.push(accepted);
+    expect(await accepted.outcome).to.equal('open');
+    expect(wsServer.transportAdmission.pendingConnectionCount).to.equal(1);
+    expect(wsServer.io.engine.clientsCount).to.equal(2);
+    expect(wsServer.admittedSockets.size).to.equal(1);
   });
 });

@@ -4,6 +4,7 @@ var _ = require('lodash');
 var async = require('async');
 var Broadcaster = require('../logic/broadcaster.js');
 var Peer = require('../logic/peer.js');
+var requestLimiter = require('../helpers/request-limiter.js');
 var bignum = require('../helpers/bignum.js');
 var constants = require('../helpers/constants.js');
 var crypto = require('crypto');
@@ -400,7 +401,12 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
     return setImmediate(cb, 'Peer is banned: ' + peer.string);
   }
 
-  if (modules.peers.isBackedOff(peer)) {
+  var requestScope = requestLimiter.classifyPeerRequest({
+    method: options.method,
+    originalUrl: url
+  }) || 'all';
+
+  if (modules.peers.isBackedOff(peer, requestScope)) {
     return setImmediate(cb, 'Peer outbound request is still in backoff: ' + peer.string);
   }
 
@@ -413,7 +419,9 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
   var req = {
     url: 'http://' + host + ':' + peer.port + url,
     method: options.method,
-    headers: __private.headers,
+    headers: Object.assign({}, __private.headers, {
+      [requestLimiter.peerRateLimitHeader]: requestLimiter.peerRateLimitVersion
+    }),
     timeout: requestTimeout,
     proxy: false,
     maxRedirects: 0,
@@ -448,11 +456,20 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
         clearTimeout(absoluteTimeoutId);
         if (res.status === 429) {
           var retryAfterMs = __private.retryAfterMs(res.headers['retry-after']);
+          var limitedScope = String(
+              res.headers['ratelimit-scope'] ||
+              requestScope
+          ).trim().toLowerCase();
 
-          modules.peers.deferRequest(peer.ip, peer.port, retryAfterMs);
+          modules.peers.deferRequest(
+              peer.ip,
+              peer.port,
+              limitedScope,
+              retryAfterMs
+          );
           return setImmediate(
               cb,
-              'ERATELIMIT 429 ' + req.method + ' ' + req.url +
+              'ERATELIMIT 429 ' + limitedScope + ' ' + req.method + ' ' + req.url +
                 ' retry in ' + retryAfterMs + 'ms'
           );
         }

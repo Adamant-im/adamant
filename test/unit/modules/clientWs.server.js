@@ -327,6 +327,9 @@ describe('ClientWs server', function () {
       limits: Object.assign({
         maxConnections: 0,
         maxConnectionsPerIp: 0,
+        maxPendingConnections: 0,
+        maxPendingConnectionsPerIp: 0,
+        pendingTimeoutMs: 10000,
         maxConnectionAttempts: 0,
         connectionWindowMs: 60000,
         maxAddresses: 0,

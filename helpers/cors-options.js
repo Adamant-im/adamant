@@ -6,6 +6,7 @@ const RATE_LIMIT_HEADERS = [
   'RateLimit-Limit',
   'RateLimit-Remaining',
   'RateLimit-Reset',
+  'RateLimit-Scope',
   'Retry-After',
   'X-RateLimit-Limit',
   'X-RateLimit-Remaining',

@@ -202,6 +202,7 @@ describe('ClientWs Socket.IO integration', function () {
       expect(outcome).to.equal('error');
       expect(admittedTransports.calledOnce).to.equal(true);
       expect(clientWs.transportAdmission.connectionCount).to.equal(1);
+      expect(clientWs.transportAdmission.pendingConnectionCount).to.equal(0);
     });
   });
 
@@ -231,7 +232,7 @@ describe('ClientWs Socket.IO integration', function () {
     });
 
     expect(clientWs.connectionCount).to.equal(0);
-    expect(clientWs.transportAdmission.connectionCount).to.equal(1);
+    expect(clientWs.transportAdmission.pendingConnectionCount).to.equal(1);
 
     extraClient = io(url, {
       forceNew: true,

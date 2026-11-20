@@ -727,14 +727,21 @@ describe('peers', function () {
       });
     });
 
-    it('should preserve peer health and defer after a 429 response', function (done) {
+    it('should keep a peer reachable outside the throttled route scope', function (done) {
       var peer = { ip: '127.0.0.1', port: 0 };
       var requests = 0;
       var server = http.createServer(function (req, res) {
         requests++;
-        res.statusCode = 429;
-        res.setHeader('Retry-After', '86400');
-        res.end();
+        expect(req.headers['x-adamant-rate-limit']).to.equal('1');
+        if (req.method === 'POST' && req.url === '/peer/transactions') {
+          res.statusCode = 429;
+          res.setHeader('Retry-After', '86400');
+          res.setHeader('RateLimit-Scope', 'broadcast');
+          return res.end();
+        }
+
+        setValidHeaders(res, server.address().port);
+        res.end(JSON.stringify({ success: true }));
       });
 
       listen(server, function (port) {
@@ -742,26 +749,74 @@ describe('peers', function () {
         peers.recordInboundPeer(peer);
         var live = modulesLoader.scope.logic.peers.get(peer);
         var previousSuccessRate = live.successRequestCount;
-        var started = Date.now();
 
         modules.transport.getFromPeer(peer, {
-          api: '/blocks',
-          method: 'GET',
+          api: '/transactions',
+          method: 'POST',
+          data: {},
           timeout: 500
         }, function (err) {
           expect(err).to.contain('ERATELIMIT 429');
           expect(modulesLoader.scope.logic.peers.get(peer)).to.equal(live);
           expect(live.successRequestCount).to.equal(previousSuccessRate);
-          expect(live.nextAttemptAt).to.be.above(started);
-          expect(live.nextAttemptAt - started).to.be.at.most(61000);
+          expect(live.nextAttemptAt).to.not.exist;
+          expect(peers.isBackedOff(peer, 'broadcast')).to.equal(true);
+          expect(peers.isBackedOff(peer, 'sync')).to.equal(false);
+          expect(peers.isBackedOff(peer, 'status')).to.equal(false);
 
           modules.transport.getFromPeer(peer, {
             api: '/blocks',
             method: 'GET',
             timeout: 500
-          }, function (backoffErr) {
-            expect(backoffErr).to.contain('still in backoff');
-            expect(requests).to.equal(1);
+          }, function (syncErr) {
+            expect(syncErr).to.not.exist;
+            expect(requests).to.equal(2);
+            forceRemove(peer);
+            closeServer(server, done);
+          });
+        });
+      });
+    });
+
+    it('should preserve a scoped throttle after an unrelated success', function () {
+      var peer = { ip: '40.41.40.65', port: 50002 };
+
+      peers.recordInboundPeer(peer);
+      peers.deferRequest(peer.ip, peer.port, 'broadcast', 1000);
+      peers.recordRequest(peer.ip, peer.port);
+
+      expect(peers.isBackedOff(peer, 'broadcast')).to.equal(true);
+      expect(peers.isBackedOff(peer, 'sync')).to.equal(false);
+      forceRemove(peer);
+    });
+
+    it('should apply an aggregate throttle to every peer request scope', function (done) {
+      var peer = { ip: '127.0.0.1', port: 0 };
+      var server = http.createServer(function (req, res) {
+        res.statusCode = 429;
+        res.setHeader('Retry-After', '1');
+        res.setHeader('RateLimit-Scope', 'all');
+        res.end();
+      });
+
+      listen(server, function (port) {
+        peer.port = port;
+        peers.recordInboundPeer(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/transactions',
+          method: 'POST',
+          data: {},
+          timeout: 500
+        }, function (err) {
+          expect(err).to.contain('ERATELIMIT 429 all');
+
+          modules.transport.getFromPeer(peer, {
+            api: '/height',
+            method: 'GET',
+            timeout: 500
+          }, function (statusErr) {
+            expect(statusErr).to.contain('still in backoff');
             forceRemove(peer);
             closeServer(server, done);
           });

@@ -264,6 +264,9 @@
     "limits": {
       "maxConnections": 1000,
       "maxConnectionsPerIp": 30,
+      "maxPendingConnections": 100,
+      "maxPendingConnectionsPerIp": 4,
+      "pendingTimeoutMs": 10000,
       "maxConnectionAttempts": 120,
       "connectionWindowMs": 60000,
       "maxAddresses": 100,
@@ -280,6 +283,9 @@
     "handshakeLimit": 60,
     "handshakeLimitPerNonce": 30,
     "handshakeWindowMs": 60000,
+    "maxPendingConnections": 16,
+    "maxPendingConnectionsPerIp": 2,
+    "pendingTimeoutMs": 10000,
     "eventLimit": 12000,
     "eventWindowMs": 60000
   },

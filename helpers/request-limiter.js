@@ -6,6 +6,8 @@ const AbuseWindow = require('./abuse-window.js');
 
 const API_CLASSES = ['status', 'read', 'publish'];
 const PEER_CLASSES = ['status', 'sync', 'broadcast'];
+const PEER_RATE_LIMIT_HEADER = 'x-adamant-rate-limit';
+const PEER_RATE_LIMIT_VERSION = '1';
 
 const API_STATUS_PATHS = new Set([
   '/api/loader/status',
@@ -62,7 +64,7 @@ const HEADER_DEFAULTS = {
  */
 const defaults = {
   api: Object.assign({}, HEADER_DEFAULTS, {
-    limit: 12000,
+    limit: 15300,
     delayMs: 25,
     delayAfter: 1000,
     maxDelayMs: 1000,
@@ -88,7 +90,7 @@ const defaults = {
     }
   }),
   peer: Object.assign({}, HEADER_DEFAULTS, {
-    limit: 20000,
+    limit: 44000,
     delayMs: 5,
     delayAfter: 6000,
     maxDelayMs: 200,
@@ -268,9 +270,10 @@ function createDelay (delayAfter, delayStep) {
  * Normalizes header and window fields shared by a surface.
  * @param {object} source - Operator config.
  * @param {object} fallback - Default policy.
+ * @param {number} [fixedStatusCode] - Required response status for this surface.
  * @return {object} Header fields and window.
  */
-function normalizeHeaders (source, fallback) {
+function normalizeHeaders (source, fallback, fixedStatusCode) {
   const requestPropertyName = typeof source.requestPropertyName === 'string' ?
     source.requestPropertyName.trim() :
     '';
@@ -291,7 +294,10 @@ function normalizeHeaders (source, fallback) {
     legacyHeaders: typeof source.legacyHeaders === 'boolean' ?
       source.legacyHeaders :
       fallback.legacyHeaders,
-    statusCode: normalizeStatusCode(readNumber(source, 'statusCode', fallback.statusCode), fallback.statusCode),
+    statusCode: fixedStatusCode || normalizeStatusCode(
+        readNumber(source, 'statusCode', fallback.statusCode),
+        fallback.statusCode
+    ),
     message: typeof source.message === 'string' && source.message.trim() ?
       source.message :
       fallback.message,
@@ -348,11 +354,12 @@ function normalizePolicy (source, fallback) {
  * @param {object} source - Operator limits.
  * @param {object} fallback - Built-in defaults for the surface.
  * @param {string[]} classNames - Class names for this surface.
+ * @param {number} [fixedStatusCode] - Required response status for this surface.
  * @return {object} Normalized surface.
  */
-function normalizeSurface (source, fallback, classNames) {
+function normalizeSurface (source, fallback, classNames, fixedStatusCode) {
   const config = source && typeof source === 'object' ? source : fallback;
-  const headers = normalizeHeaders(config, fallback);
+  const headers = normalizeHeaders(config, fallback, fixedStatusCode);
   const policy = normalizePolicy(config, Object.assign({}, fallback, headers));
   const routes = {};
   let hasRoutes = false;
@@ -380,12 +387,20 @@ function normalizeSurface (source, fallback, classNames) {
  * @param {string|null} className - Mounted class, or null for one shared bucket.
  * @param {function(object): (string|null)} classify - Request classifier.
  * @param {object} req - Express request.
+ * @param {boolean} requirePeerCapability - Skip unsupported peer callers.
  * @return {boolean} True when this middleware should ignore the request.
  */
-function shouldSkip (className, classify, req) {
+function shouldSkip (className, classify, req, requirePeerCapability) {
   const requestClass = classify(req);
 
   if (!requestClass) {
+    return true;
+  }
+
+  if (
+    requirePeerCapability &&
+    (!req.headers || req.headers[PEER_RATE_LIMIT_HEADER] !== PEER_RATE_LIMIT_VERSION)
+  ) {
     return true;
   }
 
@@ -423,16 +438,19 @@ function logLimited (logger, req, bucket) {
 /**
  * Builds the 429 handler. Headers, including Retry-After, are already set by express-rate-limit.
  * @param {object} logger - Node logger.
- * @param {string|null} className - Mounted class.
+ * @param {string} scope - Response budget scope.
  * @param {function(object): (string|null)} classify - Request classifier.
+ * @param {object} headers - Surface header settings.
  * @return {function} Express rate-limit handler.
  */
-function createHandler (logger, className, classify) {
+function createHandler (logger, scope, classify, headers) {
   return function (request, response, _next, options) {
-    const bucket = className || classify(request) || 'all';
+    const bucket = scope || classify(request) || 'all';
 
     logLimited(logger, request, bucket);
     response.status(options.statusCode);
+    setEffectiveRateLimitHeaders(request, response, headers);
+    response.setHeader('RateLimit-Scope', bucket);
 
     if (!response.writableEnded) {
       response.send(options.message);
@@ -446,9 +464,21 @@ function createHandler (logger, className, classify) {
  * @param {string|null} className - Mounted class.
  * @param {function(object): (string|null)} classify - Request classifier.
  * @param {object} logger - Node logger.
+ * @param {boolean} requirePeerCapability - Skip unsupported peer callers.
+ * @param {string} [requestPropertyName] - Property that stores this limiter's state.
  * @return {object} express-rate-limit options.
  */
-function rateOptions (policy, headers, className, classify, logger) {
+function rateOptions (
+    policy,
+    headers,
+    className,
+    classify,
+    logger,
+    requirePeerCapability,
+    requestPropertyName
+) {
+  const scope = className || 'all';
+
   return {
     windowMs: policy.windowMs,
     limit: policy.limit,
@@ -459,11 +489,12 @@ function rateOptions (policy, headers, className, classify, logger) {
       success: false,
       error: headers.message
     },
-    requestPropertyName: headers.requestPropertyName,
+    requestPropertyName: requestPropertyName || headers.requestPropertyName,
     skip: function (req) {
-      return policy.limit <= 0 || shouldSkip(className, classify, req);
+      return policy.limit <= 0 ||
+        shouldSkip(className, classify, req, requirePeerCapability);
     },
-    handler: createHandler(logger, className, classify)
+    handler: createHandler(logger, scope, classify, headers)
   };
 }
 
@@ -471,9 +502,10 @@ function rateOptions (policy, headers, className, classify, logger) {
  * @param {object} policy - Normalized policy.
  * @param {string|null} className - Mounted class.
  * @param {function(object): (string|null)} classify - Request classifier.
+ * @param {boolean} requirePeerCapability - Skip unsupported peer callers.
  * @return {object} express-slow-down options.
  */
-function slowOptions (policy, className, classify) {
+function slowOptions (policy, className, classify, requirePeerCapability) {
   const options = {
     windowMs: policy.windowMs,
     delayAfter: policy.delayAfter,
@@ -482,7 +514,7 @@ function slowOptions (policy, className, classify) {
     legacyHeaders: false,
     requestPropertyName: 'slowDown',
     skip: function (req) {
-      return shouldSkip(className, classify, req);
+      return shouldSkip(className, classify, req, requirePeerCapability);
     }
   };
 
@@ -504,9 +536,19 @@ function slowOptions (policy, className, classify) {
  * @param {function(object): (string|null)} classify - Request classifier.
  * @param {object} logger - Node logger.
  * @param {string} disabledMessage - Warning used when the surface is off.
+ * @param {boolean} requirePeerCapability - Skip unsupported peer callers.
  * @return {void}
  */
-function mountSurface (app, prefix, surface, classNames, classify, logger, disabledMessage) {
+function mountSurface (
+    app,
+    prefix,
+    surface,
+    classNames,
+    classify,
+    logger,
+    disabledMessage,
+    requirePeerCapability
+) {
   if (!surface.enabled) {
     if (logger && typeof logger.warn === 'function') {
       logger.warn('limits', disabledMessage);
@@ -519,7 +561,15 @@ function mountSurface (app, prefix, surface, classNames, classify, logger, disab
   }
 
   if (surface.hasRoutes) {
-    app.use(prefix, rateLimit(rateOptions(surface, surface, null, classify, logger)));
+    app.use(prefix, rateLimit(rateOptions(
+        surface,
+        surface,
+        null,
+        classify,
+        logger,
+        requirePeerCapability,
+        surface.requestPropertyName + 'Aggregate'
+    )));
   }
 
   const mounted = surface.hasRoutes ? classNames : [null];
@@ -528,13 +578,122 @@ function mountSurface (app, prefix, surface, classNames, classify, logger, disab
     const policy = className ? surface.routes[className] : surface;
 
     if (policy.limit > 0) {
-      app.use(prefix, rateLimit(rateOptions(policy, surface, className, classify, logger)));
+      app.use(prefix, rateLimit(rateOptions(
+          policy,
+          surface,
+          className,
+          classify,
+          logger,
+          requirePeerCapability,
+          surface.hasRoutes ?
+            surface.requestPropertyName + 'Route' :
+            surface.requestPropertyName
+      )));
     }
 
     if (policy.delayAfter > 0 && policy.delayStep > 0 && policy.maxDelayMs !== 0) {
-      app.use(prefix, slowDown(slowOptions(policy, className, classify)));
+      app.use(prefix, slowDown(slowOptions(
+          policy,
+          className,
+          classify,
+          requirePeerCapability
+      )));
     }
   });
+
+  app.use(prefix, function (req, res, next) {
+    setEffectiveRateLimitHeaders(req, res, surface);
+    next();
+  });
+}
+
+/**
+ * Picks the lowest remaining budget from aggregate and route limiters.
+ * @param {object} req - Express request.
+ * @param {object} headers - Surface header settings.
+ * @return {object|null} Effective rate-limit data and scope.
+ */
+function effectiveRateLimit (req, headers) {
+  const aggregate = req[headers.requestPropertyName + 'Aggregate'] ||
+    (!headers.routes ? req[headers.requestPropertyName] : null);
+  const route = req[headers.requestPropertyName + 'Route'];
+  const candidates = [];
+
+  if (aggregate) {
+    candidates.push({
+      info: aggregate,
+      scope: 'all',
+      windowMs: headers.windowMs
+    });
+  }
+  if (route) {
+    const scope = classifyRequestForScope(req);
+    const policy = headers.routes && headers.routes[scope];
+
+    candidates.push({
+      info: route,
+      scope: scope,
+      windowMs: policy ? policy.windowMs : headers.windowMs
+    });
+  }
+
+  candidates.sort(function (left, right) {
+    const remaining = left.info.remaining - right.info.remaining;
+    return remaining || left.info.limit - right.info.limit;
+  });
+
+  return candidates[0] || null;
+}
+
+/**
+ * @param {object} req - Express request.
+ * @return {string} Route limiter scope.
+ */
+function classifyRequestForScope (req) {
+  return requestPath(req).startsWith('/api/') ?
+    classifyApiRequest(req) || 'all' :
+    classifyPeerRequest(req) || 'all';
+}
+
+/**
+ * Replaces per-middleware headers with the effective limiting budget.
+ * @param {object} req - Express request.
+ * @param {object} res - Express response.
+ * @param {object} headers - Surface header settings.
+ * @return {void}
+ */
+function setEffectiveRateLimitHeaders (req, res, headers) {
+  const effective = effectiveRateLimit(req, headers);
+
+  if (!effective || res.headersSent) {
+    return;
+  }
+
+  const info = effective.info;
+  const windowMs = effective.windowMs;
+  const windowSeconds = Math.ceil(Number(info.resetTime instanceof Date ?
+    info.resetTime.getTime() - Date.now() :
+    windowMs) / 1000);
+
+  res.setHeader('RateLimit-Scope', effective.scope);
+
+  if (headers.standardHeaders) {
+    res.setHeader('RateLimit-Policy', info.limit + ';w=' + Math.ceil(windowMs / 1000));
+    res.setHeader('RateLimit-Limit', info.limit.toString());
+    res.setHeader('RateLimit-Remaining', Math.max(0, info.remaining).toString());
+    res.setHeader('RateLimit-Reset', Math.max(0, windowSeconds).toString());
+  }
+
+  if (headers.legacyHeaders) {
+    res.setHeader('X-RateLimit-Limit', info.limit.toString());
+    res.setHeader('X-RateLimit-Remaining', Math.max(0, info.remaining).toString());
+    if (info.resetTime instanceof Date) {
+      res.setHeader(
+          'X-RateLimit-Reset',
+          Math.ceil(info.resetTime.getTime() / 1000).toString()
+      );
+    }
+  }
 }
 
 /**
@@ -559,7 +718,12 @@ function requestLimiter (app, config, logger) {
 
   const limits = {
     client: normalizeSurface(config.api.options.limits, defaults.api, API_CLASSES),
-    peer: normalizeSurface(config.peers.options.limits, defaults.peer, PEER_CLASSES)
+    peer: normalizeSurface(
+        config.peers.options.limits,
+        defaults.peer,
+        PEER_CLASSES,
+        429
+    )
   };
 
   mountSurface(
@@ -569,7 +733,8 @@ function requestLimiter (app, config, logger) {
       API_CLASSES,
       classifyApiRequest,
       logger,
-      'Public API request limits are disabled. Set api.options.limits.limit above 0, or remove the limits block to inherit defaults.'
+      'Public API request limits are disabled. Set api.options.limits.limit above 0, or remove the limits block to inherit defaults.',
+      false
   );
   mountSurface(
       app,
@@ -578,7 +743,8 @@ function requestLimiter (app, config, logger) {
       PEER_CLASSES,
       classifyPeerRequest,
       logger,
-      'Peer HTTP request limits are disabled. Set peers.options.limits.limit above 0, or remove the limits block to inherit defaults.'
+      'Peer HTTP request limits are disabled. Set peers.options.limits.limit above 0, or remove the limits block to inherit defaults.',
+      true
   );
 
   limits.middleware = {
@@ -612,3 +778,5 @@ module.exports = requestLimiter;
 module.exports.defaults = defaults;
 module.exports.classifyApiRequest = classifyApiRequest;
 module.exports.classifyPeerRequest = classifyPeerRequest;
+module.exports.peerRateLimitHeader = PEER_RATE_LIMIT_HEADER;
+module.exports.peerRateLimitVersion = PEER_RATE_LIMIT_VERSION;

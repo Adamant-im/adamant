@@ -36,10 +36,20 @@ function ratePolicyProperties () {
 /**
  * Schema for one HTTP surface. `limit` is preferred. Legacy configs may set `max` instead.
  * @param {string[]} routeNames - Endpoint-class policy names.
+ * @param {number} [fixedStatusCode] - Required hard-limit response status.
  * @return {object} JSON schema.
  */
-function httpLimitsSchema (routeNames) {
+function httpLimitsSchema (routeNames, fixedStatusCode) {
   const routeProperties = {};
+  const statusCode = {
+    type: 'integer',
+    minimum: 400,
+    maximum: 599
+  };
+
+  if (fixedStatusCode) {
+    statusCode.enum = [fixedStatusCode];
+  }
 
   routeNames.forEach(function (name) {
     routeProperties[name] = {
@@ -60,11 +70,7 @@ function httpLimitsSchema (routeNames) {
       message: {
         type: 'string'
       },
-      statusCode: {
-        type: 'integer',
-        minimum: 400,
-        maximum: 599
-      },
+      statusCode: statusCode,
       requestPropertyName: {
         type: 'string',
         minLength: 1
@@ -306,7 +312,7 @@ module.exports = {
           },
           options: {
             properties: {
-              limits: httpLimitsSchema(['status', 'sync', 'broadcast']),
+              limits: httpLimitsSchema(['status', 'sync', 'broadcast'], 429),
               timeout: {
                 type: 'integer',
                 minimum: 1,
@@ -548,6 +554,18 @@ module.exports = {
                 type: 'integer',
                 minimum: 0
               },
+              maxPendingConnections: {
+                type: 'integer',
+                minimum: 0
+              },
+              maxPendingConnectionsPerIp: {
+                type: 'integer',
+                minimum: 0
+              },
+              pendingTimeoutMs: {
+                type: 'integer',
+                minimum: 1
+              },
               maxConnectionAttempts: {
                 type: 'integer',
                 minimum: 0
@@ -604,6 +622,18 @@ module.exports = {
             minimum: 0
           },
           handshakeWindowMs: {
+            type: 'integer',
+            minimum: 1
+          },
+          maxPendingConnections: {
+            type: 'integer',
+            minimum: 0
+          },
+          maxPendingConnectionsPerIp: {
+            type: 'integer',
+            minimum: 0
+          },
+          pendingTimeoutMs: {
             type: 'integer',
             minimum: 1
           },

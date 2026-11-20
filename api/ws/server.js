@@ -7,7 +7,10 @@ const Peer = require('../../logic/peer');
 const HANDSHAKE_DEFAULTS = {
   handshakeLimit: 60,
   handshakeLimitPerNonce: 30,
-  handshakeWindowMs: 60000
+  handshakeWindowMs: 60000,
+  maxPendingConnections: 16,
+  maxPendingConnectionsPerIp: 2,
+  pendingTimeoutMs: 10000
 };
 
 /**
@@ -28,8 +31,15 @@ class WebSocketServer {
     this.admittedSockets = new Set();
     this.socketsByNonce = new Map();
     this.transportAdmission = new SocketAdmission({
-      maxConnections: this.enabled ? this.max : 0,
+      maxConnections: null,
       maxConnectionsPerIp: null,
+      maxPendingConnections: this.handshake.maxPendingConnections > 0 ?
+        this.handshake.maxPendingConnections :
+        null,
+      maxPendingConnectionsPerIp: this.handshake.maxPendingConnectionsPerIp > 0 ?
+        this.handshake.maxPendingConnectionsPerIp :
+        null,
+      pendingTimeoutMs: this.handshake.pendingTimeoutMs,
       maxConnectionAttempts: this.handshake.handshakeLimit,
       connectionWindowMs: this.handshake.handshakeWindowMs,
       trustProxy: false,
@@ -115,6 +125,14 @@ class WebSocketServer {
         self.logger.trace('ws-node-server', `WebSocket peer ${peerIp} is not allowed to connect`, reason);
 
         socket.emit('disconnect_reason', reason);
+        socket.disconnect(true);
+        return;
+      }
+
+      if (!this.transportAdmission.promote(socket.conn)) {
+        const reason = 'Transport session is no longer admitted';
+
+        self.logger.trace('ws-node-server', `WebSocket peer ${peerIp} is not allowed to connect`, reason);
         socket.disconnect(true);
         return;
       }

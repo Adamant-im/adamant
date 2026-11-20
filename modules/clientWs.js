@@ -8,6 +8,9 @@ const TransactionSubscription = require('./clientWs/transactionSubscription');
 const LIMIT_DEFAULTS = {
   maxConnections: 1000,
   maxConnectionsPerIp: 30,
+  maxPendingConnections: 100,
+  maxPendingConnectionsPerIp: 4,
+  pendingTimeoutMs: 10000,
   maxConnectionAttempts: 120,
   connectionWindowMs: 60000,
   maxAddresses: 100,
@@ -62,6 +65,13 @@ class ClientWs {
       maxConnectionsPerIp: this.limits.maxConnectionsPerIp > 0 ?
         this.limits.maxConnectionsPerIp :
         null,
+      maxPendingConnections: this.limits.maxPendingConnections > 0 ?
+        this.limits.maxPendingConnections :
+        null,
+      maxPendingConnectionsPerIp: this.limits.maxPendingConnectionsPerIp > 0 ?
+        this.limits.maxPendingConnectionsPerIp :
+        null,
+      pendingTimeoutMs: this.limits.pendingTimeoutMs,
       maxConnectionAttempts: this.limits.maxConnectionAttempts,
       connectionWindowMs: this.limits.connectionWindowMs,
       trustProxy: this.trustProxy,
@@ -431,23 +441,25 @@ class ClientWs {
       if (!this.transportAdmission.isActive(socket.conn)) {
         return false;
       }
-    } else {
-      if (!this.connectionAttempts.allow(ip)) {
-        return false;
-      }
-
-      if (limits.maxConnections > 0 && this.connectionCount >= limits.maxConnections) {
-        return false;
-      }
-
-      const current = this.connectionsByIp.get(ip) || 0;
-
-      if (limits.maxConnectionsPerIp > 0 && current >= limits.maxConnectionsPerIp) {
-        return false;
-      }
+    } else if (!this.connectionAttempts.allow(ip)) {
+      // Unit-level callers do not have an Engine.IO transport to reserve.
+      return false;
     }
 
     const current = this.connectionsByIp.get(ip) || 0;
+
+    if (limits.maxConnections > 0 && this.connectionCount >= limits.maxConnections) {
+      return false;
+    }
+
+    if (limits.maxConnectionsPerIp > 0 && current >= limits.maxConnectionsPerIp) {
+      return false;
+    }
+
+    if (this.io && !this.transportAdmission.promote(socket.conn)) {
+      return false;
+    }
+
     this.admitted.add(socket);
     this.connectionCount += 1;
     this.connectionsByIp.set(ip, current + 1);

@@ -418,6 +418,19 @@ describe('configOverrides', () => {
       await request(app).get('/api/blocks').expect(429);
     });
 
+    it('should reject non-429 peer limit responses through the Config loader', () => {
+      const raw = JSON.parse(fs.readFileSync(testConfigPath, 'utf8'));
+
+      raw.peers.options.limits.statusCode = 503;
+      sinon.stub(console, 'error');
+      sinon.stub(process, 'exit').throws(new Error('process.exit'));
+
+      expect(() => Config(writeTempFile('peer-status-code.json', JSON.stringify(raw))))
+          .to.throw('process.exit');
+      expect(process.exit.calledWith(1)).to.equal(true);
+      expect(console.error.firstCall.args[1]).to.include('Failed to validate config data');
+    });
+
     it('should fail during schema validation for zero snapshot override', () => {
       sinon.stub(console, 'error');
       sinon.stub(process, 'exit').throws(new Error('process.exit'));
