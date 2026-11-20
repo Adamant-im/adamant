@@ -388,6 +388,60 @@ describe('configOverrides', () => {
       ]);
     });
 
+    it('should prevent legacy DApp password generation from activating snapshot mode', () => {
+      const raw = JSON.parse(fs.readFileSync(testConfigPath, 'utf8'));
+
+      raw.dapp = {
+        masterrequired: true,
+        masterpassword: '',
+        autoexec: []
+      };
+      raw.loading.snapshot = 20;
+
+      const config = Config(writeTempFile('legacy-snapshot.json', JSON.stringify(raw)));
+
+      expect(config.loading).not.to.have.property('snapshot');
+      expect(config.__configEvents).to.deep.include({
+        type: 'migration',
+        path: 'loading.snapshot',
+        source: 'legacy config'
+      });
+    });
+
+    it('should preserve explicitly overridden snapshot mode with legacy DApp config', () => {
+      const raw = JSON.parse(fs.readFileSync(testConfigPath, 'utf8'));
+
+      raw.dapp = {
+        masterrequired: true,
+        masterpassword: '',
+        autoexec: []
+      };
+      raw.loading.snapshot = 20;
+
+      const config = Config(writeTempFile('explicit-snapshot.json', JSON.stringify(raw)), {
+        sets: ['loading.snapshot=10']
+      });
+
+      expect(config.loading.snapshot).to.equal(10);
+      expect(config.__configEvents.some((event) => event.type === 'migration')).to.equal(false);
+    });
+
+    it('should apply the former DApp defaults to partial legacy configs', () => {
+      const raw = JSON.parse(fs.readFileSync(testConfigPath, 'utf8'));
+
+      delete raw.dapp;
+      raw.loading.snapshot = 20;
+
+      const config = Config(writeTempFile('inherited-legacy-snapshot.json', JSON.stringify(raw)));
+
+      expect(config.loading).not.to.have.property('snapshot');
+      expect(config.__configEvents).to.deep.include({
+        type: 'migration',
+        path: 'loading.snapshot',
+        source: 'legacy config'
+      });
+    });
+
     it('should apply multiple config override files in order', () => {
       const firstOverrideFile = writeTempFile('first.json', JSON.stringify({
         port: 36668,

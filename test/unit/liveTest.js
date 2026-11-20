@@ -124,6 +124,14 @@ describe('live scenario runner utilities', () => {
     expect(distinctPeer.apiUrl).not.to.equal(explicitThirdPeer.apiUrl);
   });
 
+  it('should not attribute test config forging to explicit localnet targets', () => {
+    const explicitTarget = target.resolveLocalnetTarget({
+      nodes: ['127.0.0.1:36670']
+    });
+
+    expect(explicitTarget.nodes[0].configuration.forging.configuredDelegateCount).to.equal(null);
+  });
+
   it('should build target inventory from every unique configured testnet node', () => {
     const recipient = target.normalizeEndpoint(
         testDefaultConfig.peers.list[0].ip + ':' + testDefaultConfig.peers.list[0].port,
@@ -153,6 +161,7 @@ describe('live scenario runner utilities', () => {
     );
     expect(inventory[0].roles).to.include('node-recipient');
     expect(inventory[2].roles).to.include('node-peer');
+    expect(inventory[1].configuration.forging.configuredDelegateCount).to.equal(null);
     expect(inventory[0].configuration).to.deep.include({
       api: {
         enabled: true,
@@ -1696,8 +1705,9 @@ describe('live scenario runner utilities', () => {
                           multisignature: 0
                         },
                         forging: {
-                          enabled: true,
-                          configuredDelegates: 34
+                          configuredDelegates: 34,
+                          observed: true,
+                          lastForgedAt: '2026-06-12T00:00:00.000Z'
                         }
                       });
                     }),
@@ -1717,8 +1727,9 @@ describe('live scenario runner utilities', () => {
                           multisignature: 0
                         },
                         forging: {
-                          enabled: true,
-                          configuredDelegates: 34
+                          configuredDelegates: 34,
+                          observed: true,
+                          lastForgedAt: '2026-06-12T00:00:00.000Z'
                         }
                       });
                     }),
@@ -1842,8 +1853,9 @@ describe('live scenario runner utilities', () => {
                 apiUrl: 'http://127.0.0.1:36670',
                 delegateSecretsCount: 34,
                 forging: {
-                  enabled: true,
-                  configuredDelegateCount: 2
+                  configuredDelegateCount: 2,
+                  observed: true,
+                  lastForgedAt: '2026-06-06T00:00:30.000Z'
                 },
                 delegates: {
                   returnedCount: 101,
@@ -1914,6 +1926,9 @@ describe('live scenario runner utilities', () => {
     expect(markdown).to.include('Consensus: live 100% (2/2 connected peers match); cached 100%');
     expect(markdown).to.include('Reward stage: pre-reward; active false; protocol milestone 0');
     expect(markdown).to.include('Next reward stage: height 2000000; reward 0.5 ADM');
+    expect(markdown).to.include(
+        'Forging status: configured delegates 2; observed forging true; last forged 2026-06-06T00:00:30.000Z'
+    );
     expect(markdown).to.include(
         'Latest block: height 4444; id block-id; generator generator-public-key (U123); confirmations 1'
     );

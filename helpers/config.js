@@ -33,6 +33,8 @@ function Config (configPath, overrideOptions) {
     const defaultConfigData = JSON.parse(defaultConfigJson);
     const legacyLoggingConfig = getLegacyLoggingConfig(configData);
     const legacyRateLimits = getLegacyRateLimitAliases(configData);
+    const overrideEntries = configOverrides.resolveOverrides(overrideOptions);
+    const suppressLegacySnapshot = suppressSnapshotForLegacyDapp(configData, overrideEntries);
     const configEvents = [];
 
     configOverrides.removeDeprecatedConfig(configData, configEvents, 'config file');
@@ -41,9 +43,14 @@ function Config (configPath, overrideOptions) {
     preserveLegacyRateLimitAliases(configData, legacyRateLimits);
     configOverrides.applyOverrides(
         configData,
-        configOverrides.resolveOverrides(overrideOptions),
+        overrideEntries,
         configSchema.config,
         configEvents
+    );
+    applyLegacySnapshotCompatibility(
+        configData,
+        configEvents,
+        suppressLegacySnapshot
     );
 
     Object.defineProperty(configData, '__configEvents', {
@@ -67,6 +74,91 @@ function Config (configPath, overrideOptions) {
     console.error('Error occurred while processing config file:', error);
     process.exit(1);
   }
+}
+
+/**
+ * Detects a legacy config state that made the old startup path clear snapshot mode.
+ * An explicit snapshot override remains authoritative.
+ * @param {object} configData - Raw config before deprecated values are removed.
+ * @param {Array<object>} entries - Parsed config override entries.
+ * @return {boolean} Whether an inherited snapshot must be ignored.
+ */
+function suppressSnapshotForLegacyDapp (configData, entries) {
+  var legacyDapp = {
+    masterrequired: true,
+    masterpassword: ''
+  };
+
+  if (configData.dapp) {
+    if (Object.prototype.hasOwnProperty.call(configData.dapp, 'masterrequired')) {
+      legacyDapp.masterrequired = configData.dapp.masterrequired;
+    }
+    if (Object.prototype.hasOwnProperty.call(configData.dapp, 'masterpassword')) {
+      legacyDapp.masterpassword = configData.dapp.masterpassword;
+    }
+  }
+
+  entries.forEach(function (entry) {
+    var path = entry.path;
+
+    if (path[0] !== 'dapp') {
+      return;
+    }
+
+    var value = typeof entry.value === 'function' ?
+      entry.value(configData) :
+      entry.value;
+
+    if (path.length === 1 && value && typeof value === 'object') {
+      if (Object.prototype.hasOwnProperty.call(value, 'masterrequired')) {
+        legacyDapp.masterrequired = value.masterrequired;
+      }
+      if (Object.prototype.hasOwnProperty.call(value, 'masterpassword')) {
+        legacyDapp.masterpassword = value.masterpassword;
+      }
+    } else if (path.length === 2) {
+      legacyDapp[path[1]] = value;
+    }
+  });
+
+  var explicitSnapshot = entries.some(function (entry) {
+    if (entry.path[0] === 'loading' && entry.path[1] === 'snapshot') {
+      return true;
+    }
+
+    return entry.path.length === 1 &&
+      entry.path[0] === 'loading' &&
+      entry.value &&
+      typeof entry.value === 'object' &&
+      Object.prototype.hasOwnProperty.call(entry.value, 'snapshot');
+  });
+
+  return !!legacyDapp.masterrequired &&
+    !legacyDapp.masterpassword &&
+    !explicitSnapshot;
+}
+
+/**
+ * Preserves the old implicit snapshot behavior without blocking explicit recovery snapshots.
+ * @param {object} configData - Effective config object.
+ * @param {Array<object>} events - Config event sink.
+ * @param {boolean} suppressLegacySnapshot - Whether compatibility cleanup is required.
+ */
+function applyLegacySnapshotCompatibility (configData, events, suppressLegacySnapshot) {
+  if (
+    !suppressLegacySnapshot ||
+    !configData.loading ||
+    !Object.prototype.hasOwnProperty.call(configData.loading, 'snapshot')
+  ) {
+    return;
+  }
+
+  delete configData.loading.snapshot;
+  events.push({
+    type: 'migration',
+    path: 'loading.snapshot',
+    source: 'legacy config'
+  });
 }
 
 /**

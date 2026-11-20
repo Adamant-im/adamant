@@ -357,6 +357,26 @@ d.run(function () {
       scope.network.app.set('view engine', 'ejs');
       scope.network.app.set('views', path.join(__dirname, 'public'));
       scope.network.app.set('query parser', 'extended');
+      scope.network.app.use(function (req, res, next) {
+        var decodedPath;
+
+        try {
+          decodedPath = decodeURIComponent(req.path);
+        } catch (error) {
+          return res.sendStatus(400);
+        }
+
+        decodedPath = path.posix.normalize(decodedPath.replace(/\\/g, '/'));
+
+        if (
+          decodedPath.toLowerCase() === '/dapps' ||
+          decodedPath.toLowerCase().indexOf('/dapps/') === 0
+        ) {
+          return res.sendStatus(404);
+        }
+
+        return next();
+      });
       scope.network.app.use(scope.network.express.static(path.join(__dirname, 'public')));
       scope.network.app.use(bodyParser.raw({
         limit: '2mb'
@@ -897,6 +917,18 @@ function parsePeersOption (peers, port) {
  */
 function logConfigEvents (logger, events) {
   (events || []).forEach(function (event) {
+    if (event.type === 'migration') {
+      logger.warn(
+          'config',
+          'Ignored ' +
+          event.path +
+          ' from ' +
+          event.source +
+          ' during legacy DApp config migration; set it with --snapshot or a config override to request snapshot mode explicitly'
+      );
+      return;
+    }
+
     if (event.type === 'deprecated') {
       var advice = event.path === 'forging.access' ?
         '; use forging.secret and restart the node after changing it' :

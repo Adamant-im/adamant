@@ -63,11 +63,24 @@ function DApps (cb, scope) {
     scope.public :
     path.join(__dirname, '..', 'public');
 
-  fs.rm(path.join(publicPath, 'dapps'), {
+  var retiredPublicPath = path.join(publicPath, 'dapps');
+
+  fs.rm(retiredPublicPath, {
     recursive: true,
     force: true
   }, function (err) {
-    return setImmediate(cb, err, self);
+    if (err) {
+      library.logger.warn(
+          'dapps',
+          'Failed to remove retired public DApp content; remove it manually',
+          {
+            path: retiredPublicPath,
+            error: err.code || err.message
+          }
+      );
+    }
+
+    return setImmediate(cb, null, self);
   });
 }
 
@@ -217,6 +230,17 @@ DApps.prototype.internal = {
   },
 
   search: function (query, cb) {
+    if (Object.prototype.hasOwnProperty.call(query, 'installed')) {
+      return setImmediate(
+          cb,
+          null,
+          {
+            success: false,
+            error: 'The installed filter is no longer supported'
+          }
+      );
+    }
+
     var params = {
       q: '%' + query.q + '%',
       limit: 50

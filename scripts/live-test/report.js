@@ -695,10 +695,12 @@ function appendLiveConsensusNetworkState (lines, title, state) {
         ) +
         ' | ' +
         formatMarkdownTableValue(
-            'enabled=' +
-            formatReportValue(forging.enabled) +
-            ', delegates=' +
-            formatReportValue(forging.configuredDelegates)
+            'configured=' +
+            formatReportValue(forging.configuredDelegates) +
+            ', observed=' +
+            formatReportValue(forging.observed) +
+            ', last=' +
+            formatReportValue(forging.lastForgedAt)
         ) +
         ' | ' +
         formatMarkdownTableValue(activations) +
@@ -1815,10 +1817,12 @@ function appendForgingDetails (lines, nodes) {
     lines.push('### ' + node.id);
     lines.push('- API: ' + node.apiUrl);
     lines.push(
-        '- Forging status: ' +
-        (forging.enabled ? 'enabled' : 'disabled') +
-        '; configured delegates ' +
+        '- Forging status: configured delegates ' +
         formatReportValue(forging.configuredDelegateCount) +
+        '; observed forging ' +
+        formatReportValue(forging.observed) +
+        '; last forged ' +
+        formatReportValue(forging.lastForgedAt) +
         '.'
     );
     lines.push(

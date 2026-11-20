@@ -6,6 +6,7 @@ const { io } = require('socket.io-client');
 const constants = require('../../helpers/constants.js');
 const slots = require('../../helpers/slots.js');
 const transactionTypes = require('../../helpers/transactionTypes.js');
+const { findLastForgingEvent } = require('../localnet/status.js');
 const { summarizeNumbers } = require('./metrics.js');
 const tx = require('./transactions.js');
 
@@ -36,6 +37,7 @@ const TXQUEUE_CONFIRMATION_PAGE_SIZE = 1000;
 const TXQUEUE_BLOCK_QUERY_CONCURRENCY = 10;
 const LIVE_CONSENSUS_TRANSITION_TRANSACTION_COUNT = 20;
 const LIVE_CONSENSUS_HEIGHT_LOG_INTERVAL = 5;
+const RECENT_FORGING_WINDOW_MS = 5 * 60 * 1000;
 
 const SCENARIOS = [
   {
@@ -304,8 +306,12 @@ async function collectTargetNodeDetails (context, node) {
   if (Array.isArray(node.roles) && node.roles.length) {
     features.push('roles: ' + node.roles.join(', '));
   }
-  if (node.delegateSecretsCount !== undefined) {
-    features.push('configured forging delegates: ' + node.delegateSecretsCount);
+  const configuredDelegateCount = getConfiguredDelegateCount(node);
+  if (configuredDelegateCount !== undefined) {
+    features.push(
+        'configured forging delegates: ' +
+        (configuredDelegateCount === null ? 'unknown' : configuredDelegateCount)
+    );
   }
   if (node.pid) {
     features.push('pid: ' + node.pid);
@@ -2135,9 +2141,11 @@ async function collectLiveConsensusNetworkState (context, definitions, activatio
       multisignature: transactionPools.body.multisignature
     };
     const configuredDelegateCount = getConfiguredDelegateCount(observedNode);
+    const observedForging = getObservedForging(observedNode);
     observation.forging = {
-      enabled: configuredDelegateCount > 0,
-      configuredDelegates: configuredDelegateCount
+      configuredDelegates: configuredDelegateCount,
+      observed: observedForging.observed,
+      lastForgedAt: observedForging.lastForgedAt
     };
 
     return observation;
@@ -2953,6 +2961,12 @@ async function runTransactionHappyPathScenario (context) {
     waitForTransactionConfirmation(context, client, inTransfer.id, 'dapp-in-transfer'),
     waitForTransactionConfirmation(context, client, outTransfer.id, 'dapp-out-transfer')
   ]);
+  const dappConfirmation = await waitForTransactionConfirmation(
+      context,
+      client,
+      dapp.id,
+      'dapp-registration'
+  );
   const balanceAfterDappTransfers = {
     sender: await getConfirmedAccountBalance(context, client, fresh.address, 'DApp author'),
     recipient: await getConfirmedAccountBalance(context, client, recipient.address, 'DApp recipient')
@@ -2970,6 +2984,19 @@ async function runTransactionHappyPathScenario (context) {
         balanceBeforeDappTransfers.recipient + transferAmount,
       'DApp out-transfer did not credit the recipient balance.'
   );
+  const primaryConfirmations = [dappConfirmation].concat(dappTransferConfirmations);
+  const observation = await verifyDappTransactionsOnPeer(
+      context,
+      primaryConfirmations,
+      {
+        sender: balanceAfterDappTransfers.sender,
+        recipient: balanceAfterDappTransfers.recipient
+      },
+      {
+        sender: fresh.address,
+        recipient: recipient.address
+      }
+  );
 
   context.metrics.increment('transactions.accepted', transactions.length);
 
@@ -2983,7 +3010,8 @@ async function runTransactionHappyPathScenario (context) {
     rejections,
     expectedFailures,
     dappTransfers: {
-      confirmations: dappTransferConfirmations,
+      confirmations: primaryConfirmations,
+      peer: observation,
       balanceBefore: {
         sender: balanceBeforeDappTransfers.sender.toString(),
         recipient: balanceBeforeDappTransfers.recipient.toString()
@@ -3308,6 +3336,7 @@ async function runDelegatesScenario (context) {
     const loader = nodeStatus.body.loader || {};
     const latestBlock = blocks.body.blocks && blocks.body.blocks[0];
     const configuredDelegateCount = getConfiguredDelegateCount(node);
+    const observedForging = getObservedForging(node);
 
     context.assert(latestBlock, 'Latest block is missing for ' + node.id);
 
@@ -3325,10 +3354,10 @@ async function runDelegatesScenario (context) {
     results.push({
       id: node.id,
       apiUrl: node.apiUrl,
-      delegateSecretsCount: configuredDelegateCount,
       forging: {
-        enabled: configuredDelegateCount > 0,
-        configuredDelegateCount
+        configuredDelegateCount,
+        observed: observedForging.observed,
+        lastForgedAt: observedForging.lastForgedAt
       },
       delegates: {
         returnedCount: (delegates.body.delegates || []).length,
@@ -3387,9 +3416,45 @@ function getConfiguredDelegateCount (node) {
   const configuration = node.configuration || {};
   const forging = configuration.forging || {};
 
-  return Number.isInteger(forging.delegateSecretsCount) && forging.delegateSecretsCount >= 0 ?
-    forging.delegateSecretsCount :
-    0;
+  if (
+    Number.isInteger(forging.configuredDelegateCount) &&
+    forging.configuredDelegateCount >= 0
+  ) {
+    return forging.configuredDelegateCount;
+  }
+
+  if (
+    Number.isInteger(forging.delegateSecretsCount) &&
+    forging.delegateSecretsCount >= 0
+  ) {
+    return forging.delegateSecretsCount;
+  }
+
+  return null;
+}
+
+/**
+ * Reads local forging evidence without deriving or exposing configured keys.
+ * @param {object} node - Live-test node metadata.
+ * @return {object} Observed forging status and timestamp.
+ */
+function getObservedForging (node) {
+  if (!node.generalLogFile) {
+    return {
+      observed: null,
+      lastForgedAt: null
+    };
+  }
+
+  const lastForging = findLastForgingEvent(node.generalLogFile);
+  const configuredDelegateCount = getConfiguredDelegateCount(node);
+  const recent = lastForging &&
+    Date.now() - lastForging.timestampMs <= RECENT_FORGING_WINDOW_MS;
+
+  return {
+    observed: recent ? true : configuredDelegateCount === 0 ? false : null,
+    lastForgedAt: recent ? lastForging.timestamp : null
+  };
 }
 
 /**
@@ -5254,6 +5319,42 @@ async function getConfirmedAccountBalance (context, client, address, label) {
 }
 
 /**
+ * Waits for an exact confirmed account balance on one observation node.
+ * @param {object} context - Runner context.
+ * @param {HttpClient} client - Target REST client.
+ * @param {string} address - Account address.
+ * @param {bigint} expected - Expected internal balance.
+ * @param {string} label - Human-readable wait label.
+ * @return {bigint} Confirmed account balance.
+ */
+async function waitForExactAccountBalance (context, client, address, expected, label) {
+  const deadline = Date.now() + context.options.blockWaitTimeoutMs;
+  let actual;
+
+  while (Date.now() < deadline) {
+    actual = await getConfirmedAccountBalance(context, client, address, label);
+
+    if (actual === expected) {
+      return actual;
+    }
+
+    await sleep(context.options.pollIntervalMs);
+  }
+
+  throw Error(
+      'Timed out waiting for ' +
+      label +
+      ' balance ' +
+      expected.toString() +
+      ' on ' +
+      address +
+      '; observed ' +
+      (actual === undefined ? 'unknown' : actual.toString()) +
+      '.'
+  );
+}
+
+/**
  * Waits until an account delegate relationship reaches the expected state.
  * @param {object} context - Runner context.
  * @param {HttpClient} client - Target REST client.
@@ -5367,6 +5468,80 @@ async function waitForTransactionConfirmation (context, client, transactionId, l
       ' to confirm. Last state: ' +
       JSON.stringify(state)
   );
+}
+
+/**
+ * Verifies DApp transaction import and balance state on an independent node.
+ * @param {object} context - Runner context.
+ * @param {Array<object>} primaryConfirmations - Recipient-node confirmation states.
+ * @param {object} expectedBalances - Confirmed balances from the recipient node.
+ * @param {object} addresses - Sender and recipient account addresses.
+ * @return {object} Peer agreement details.
+ */
+async function verifyDappTransactionsOnPeer (
+    context,
+    primaryConfirmations,
+    expectedBalances,
+    addresses
+) {
+  const candidates = context.target.transactionObservationNodes || context.target.nodes || [];
+  const peer = candidates.find(function (candidate) {
+    return candidate.apiUrl !== context.primaryNode.apiUrl;
+  });
+
+  context.assert(
+      peer,
+      'DApp transaction peer verification requires at least two distinct target nodes.'
+  );
+
+  const peerClient = context.clientFor(peer);
+  const peerConfirmations = await Promise.all(primaryConfirmations.map(function (confirmation) {
+    return waitForTransactionConfirmation(
+        context,
+        peerClient,
+        confirmation.id,
+        peer.id + ' ' + tx.getTransactionTypeName(
+            primaryConfirmations.indexOf(confirmation) + transactionTypes.DAPP
+        )
+    );
+  }));
+
+  primaryConfirmations.forEach(function (confirmation, index) {
+    context.assert(
+        confirmation.blockId === peerConfirmations[index].blockId,
+        'DApp transaction ' +
+        confirmation.id +
+        ' has different containing blocks on the recipient and ' +
+        peer.id +
+        '.'
+    );
+  });
+
+  const peerBalances = {
+    sender: await waitForExactAccountBalance(
+        context,
+        peerClient,
+        addresses.sender,
+        expectedBalances.sender,
+        peer.id + ' DApp author'
+    ),
+    recipient: await waitForExactAccountBalance(
+        context,
+        peerClient,
+        addresses.recipient,
+        expectedBalances.recipient,
+        peer.id + ' DApp recipient'
+    )
+  };
+
+  return {
+    nodeId: peer.id,
+    confirmations: peerConfirmations,
+    balances: {
+      sender: peerBalances.sender.toString(),
+      recipient: peerBalances.recipient.toString()
+    }
+  };
 }
 
 /**

@@ -1,6 +1,8 @@
 'use strict';
 
+var fs = require('fs');
 var node = require('./../node.js');
+var path = require('path');
 
 var removedRoutes = [
   { method: 'put', path: '/api/dapps' },
@@ -53,6 +55,47 @@ describe('DApp HTTP API', function () {
     node.expect(response.status).to.equal(200);
     node.expect(response.body).to.have.property('success').to.be.true;
     node.expect(response.body).to.have.property('dapps').that.is.an('array');
+  });
+
+  it('should reject the retired installed search filter explicitly', async function () {
+    var response = await request('get', '/api/dapps/search?q=live&installed=1');
+
+    node.expect(response.status).to.equal(200);
+    node.expect(response.body).to.have.property('success').to.be.false;
+    node.expect(response.body).to.have.property('error').to.equal('The installed filter is no longer supported');
+  });
+
+  it('should retain normal database-backed DApp searches', async function () {
+    var response = await request('get', '/api/dapps/search?q=live');
+
+    node.expect(response.status).to.equal(200);
+    node.expect(response.body).to.have.property('success').to.be.true;
+    node.expect(response.body).to.have.property('dapps').that.is.an('array');
+  });
+
+  it('should never serve retired public DApp content', async function () {
+    var publicDappsPath = path.join(__dirname, '..', '..', 'public', 'dapps');
+    var testFile = path.join(publicDappsPath, 'retired-content-test.txt');
+    var paths = [
+      '/dapps/retired-content-test.txt',
+      '/%64apps/retired-content-test.txt',
+      '/dapps%2Fretired-content-test.txt'
+    ];
+
+    fs.mkdirSync(publicDappsPath, { recursive: true });
+    fs.writeFileSync(testFile, 'must not be served');
+
+    try {
+      var responses = await Promise.all(paths.map(function (retiredPath) {
+        return request('get', retiredPath);
+      }));
+
+      responses.forEach(function (response) {
+        node.expect(response.status).to.equal(404);
+      });
+    } finally {
+      fs.rmSync(publicDappsPath, { recursive: true, force: true });
+    }
   });
 });
 
