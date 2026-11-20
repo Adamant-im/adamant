@@ -213,6 +213,15 @@ describe('memCheckpoint', function () {
       expect(logic.shouldCheckpointRound(100, true)).to.equal(true);
       expect(logic.shouldCheckpointRound(200, true)).to.equal(true);
     });
+
+    it('should bound the slot-accounts height guard by block height', function () {
+      var query = sql.getSlotAccountsBlockAboveHeight(0);
+
+      expect(query).to.include('(${height})::bigint');
+      expect(query).to.include('WHERE b."height" >');
+      expect(query).to.include('b."id" IN (SELECT a."blockId" FROM "mem_ckpt_0_accounts" a)');
+      expect(query).to.not.match(/JOIN\s+blocks/i);
+    });
   });
 
   describe('checkpoint lifecycle', function () {
@@ -437,6 +446,72 @@ describe('memCheckpoint', function () {
       expect(function () {
         sql.slotTableNames(99);
       }).to.throw(/Invalid checkpoint slot/);
+    });
+
+    it('should reject an undefined checkpoint height before opening a transaction', function () {
+      var transactionOpened = false;
+      var failureLogged = false;
+      var invalidLogic = new MemCheckpoint({
+        db: {
+          $config: db.$config,
+          tx: function () {
+            transactionOpened = true;
+            return Promise.resolve();
+          }
+        },
+        logger: {
+          error: function () {
+            failureLogged = true;
+          },
+          info: function () {}
+        },
+        config: {
+          memCheckpoints: {
+            enabled: true
+          }
+        }
+      });
+
+      return invalidLogic.createCheckpoint({
+        id: block.id,
+        height: undefined
+      }, round, nethash).then(function () {
+        expect(transactionOpened).to.equal(false);
+        expect(failureLogged).to.equal(true);
+      });
+    });
+
+    it('should return NULL when nothing is ahead and the genesis height when bounded below it', function () {
+      var slot = parseInt(createdMeta.slot, 10);
+      var query = sql.getSlotAccountsBlockAboveHeight(slot);
+
+      expect(query).to.include('(${height})::bigint');
+      expect(query).to.include('b."height" >');
+      expect(query).to.include('"mem_ckpt_' + slot + '_accounts"');
+      expect(query).to.not.match(/JOIN\s+blocks/i);
+
+      return db.oneOrNone(query, { height: block.height }).then(function (atCheckpoint) {
+        expect(atCheckpoint).to.be.an('object');
+        expect(atCheckpoint.height).to.equal(null);
+
+        return db.oneOrNone(query, { height: 0 });
+      }).then(function (belowGenesis) {
+        expect(belowGenesis).to.be.an('object');
+        expect(parseInt(belowGenesis.height, 10)).to.equal(parseInt(block.height, 10));
+      });
+    });
+
+    it('should return NULL when the copied checkpoint slot is empty', function () {
+      var slot = parseInt(createdMeta.slot, 10);
+      var tables = sql.slotTableNames(slot);
+      var query = sql.getSlotAccountsBlockAboveHeight(slot);
+
+      return db.none('DELETE FROM "' + tables.accounts + '"').then(function () {
+        return db.oneOrNone(query, { height: 0 });
+      }).then(function (row) {
+        expect(row).to.be.an('object');
+        expect(row.height).to.equal(null);
+      });
     });
   });
 });

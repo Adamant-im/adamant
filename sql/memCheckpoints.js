@@ -123,14 +123,17 @@ MemCheckpointsSql.copyLiveToSlotStatements = function (slot) {
 };
 
 /**
- * Highest block height referenced by accounts copied into one checkpoint slot.
- * Used to detect a copy that captured state ahead of the checkpoint block.
+ * Highest block height referenced by accounts copied into one checkpoint slot
+ * that is strictly above the checkpoint height. NULL means nothing is ahead.
+ * The height predicate lets the planner use blocks_height instead of one
+ * blocks_pkey lookup per copied account. Parentheses around ${height} are
+ * required so pg-promise does not treat the ::bigint cast as a modifier.
  * @param {number} slot Slot index.
- * @return {string}
+ * @return {string} SQL with a ${height} parameter.
  */
-MemCheckpointsSql.getSlotAccountsMaxBlockHeight = function (slot) {
+MemCheckpointsSql.getSlotAccountsBlockAboveHeight = function (slot) {
   var tables = MemCheckpointsSql.slotTableNames(slot);
-  return 'SELECT MAX(b."height")::bigint AS height FROM "' + tables.accounts + '" a JOIN blocks b ON b."id" = a."blockId"';
+  return 'SELECT MAX(b."height")::bigint AS height FROM blocks b WHERE b."height" > (${height})::bigint AND b."id" IN (SELECT a."blockId" FROM "' + tables.accounts + '" a)';
 };
 
 /**
