@@ -77,7 +77,9 @@ describe('DApp HTTP API', function () {
   it('should never serve retired public DApp content', async function () {
     var publicPath = path.join(__dirname, '..', '..', 'public');
     var publicDappsPath = path.join(publicPath, 'dapps');
+    var createdPublicPath = false;
     var createdDappsPath = false;
+    var createdFixture = false;
     var fixtureName = [
       'retired-content-test-',
       crypto.randomBytes(8).toString('hex'),
@@ -90,19 +92,26 @@ describe('DApp HTTP API', function () {
       '/dapps%2F' + fixtureName
     ];
 
-    node.expect(fs.lstatSync(publicPath).isDirectory()).to.equal(true);
-
-    if (!fs.existsSync(publicDappsPath)) {
-      fs.mkdirSync(publicDappsPath);
-      createdDappsPath = true;
-    } else {
-      node.expect(fs.lstatSync(publicDappsPath).isDirectory()).to.equal(true);
-      node.expect(fs.lstatSync(publicDappsPath).isSymbolicLink()).to.equal(false);
-    }
-
-    fs.writeFileSync(testFile, 'must not be served', { flag: 'wx' });
-
     try {
+      if (!fs.existsSync(publicPath)) {
+        fs.mkdirSync(publicPath);
+        createdPublicPath = true;
+      } else {
+        node.expect(fs.lstatSync(publicPath).isDirectory()).to.equal(true);
+        node.expect(fs.lstatSync(publicPath).isSymbolicLink()).to.equal(false);
+      }
+
+      if (!fs.existsSync(publicDappsPath)) {
+        fs.mkdirSync(publicDappsPath);
+        createdDappsPath = true;
+      } else {
+        node.expect(fs.lstatSync(publicDappsPath).isDirectory()).to.equal(true);
+        node.expect(fs.lstatSync(publicDappsPath).isSymbolicLink()).to.equal(false);
+      }
+
+      fs.writeFileSync(testFile, 'must not be served', { flag: 'wx' });
+      createdFixture = true;
+
       var responses = await Promise.all(paths.map(function (retiredPath) {
         return request('get', retiredPath);
       }));
@@ -111,19 +120,28 @@ describe('DApp HTTP API', function () {
         node.expect(response.status).to.equal(404);
       });
     } finally {
-      fs.rmSync(testFile, { force: true });
+      if (createdFixture) {
+        fs.rmSync(testFile, { force: true });
+      }
       if (createdDappsPath) {
-        try {
-          fs.rmdirSync(publicDappsPath);
-        } catch (error) {
-          if (error.code !== 'ENOTEMPTY' && error.code !== 'ENOENT') {
-            throw error;
-          }
-        }
+        removeDirectoryIfEmpty(publicDappsPath);
+      }
+      if (createdPublicPath) {
+        removeDirectoryIfEmpty(publicPath);
       }
     }
   });
 });
+
+function removeDirectoryIfEmpty (directoryPath) {
+  try {
+    fs.rmdirSync(directoryPath);
+  } catch (error) {
+    if (error.code !== 'ENOTEMPTY' && error.code !== 'ENOENT') {
+      throw error;
+    }
+  }
+}
 
 function request (method, path, body) {
   var pending = node.api[method](path)

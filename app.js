@@ -924,7 +924,7 @@ function logConfigEvents (logger, events) {
           event.path +
           ' from ' +
           event.source +
-          ' during legacy DApp config migration; set it with --snapshot or a config override to request snapshot mode explicitly'
+          ' during legacy DApp config migration; use the dedicated --snapshot option to request snapshot mode explicitly'
       );
       return;
     }

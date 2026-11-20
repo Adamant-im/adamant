@@ -581,15 +581,40 @@ describe('configOverrides', () => {
       expect(console.error.firstCall.args[1]).to.include('Failed to validate config data');
     });
 
-    it('should fail during schema validation for zero snapshot override', () => {
+    it('should fail during schema validation for an explicit zero snapshot', () => {
       sinon.stub(console, 'error');
       sinon.stub(process, 'exit').throws(new Error('process.exit'));
 
       expect(() => Config(testConfigPath, {
-        sets: ['loading.snapshot=0']
+        overrides: [{
+          path: 'loading.snapshot',
+          value: 0,
+          source: '--snapshot'
+        }]
       })).to.throw('process.exit');
       expect(process.exit.calledWith(1)).to.be.true;
       expect(console.error.firstCall.args[1]).to.include('Failed to validate config data');
+    });
+
+    it('should suppress persisted config-set snapshots with legacy DApp config', () => {
+      const raw = JSON.parse(fs.readFileSync(testConfigPath, 'utf8'));
+
+      raw.dapp = {
+        masterrequired: true,
+        masterpassword: '',
+        autoexec: []
+      };
+
+      const config = Config(writeTempFile('service-argv-snapshot.json', JSON.stringify(raw)), {
+        sets: ['loading.snapshot=10']
+      });
+
+      expect(config.loading).not.to.have.property('snapshot');
+      expect(config.__configEvents).to.deep.include({
+        type: 'migration',
+        path: 'loading.snapshot',
+        source: 'legacy config'
+      });
     });
   });
 });

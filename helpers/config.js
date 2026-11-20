@@ -78,7 +78,7 @@ function Config (configPath, overrideOptions) {
 
 /**
  * Detects a legacy config state that made the old startup path clear snapshot mode.
- * Explicit --snapshot and --config-set CLI overrides remain authoritative.
+ * Only the dedicated --snapshot CLI override remains authoritative.
  * @param {object} configData - Raw config before deprecated values are removed.
  * @param {Array<object>} entries - Parsed config override entries.
  * @return {boolean} Whether an inherited snapshot must be ignored.
@@ -133,10 +133,7 @@ function suppressSnapshotForLegacyDapp (configData, entries) {
       Object.prototype.hasOwnProperty.call(entry.value, 'snapshot')
     );
 
-    var explicitCliSource = entry.source === '--snapshot' ||
-      entry.source === '--config-set';
-
-    return explicitCliSource && isSnapshotPath;
+    return entry.source === '--snapshot' && isSnapshotPath;
   });
 
   return !!legacyDapp.masterrequired &&
