@@ -38,6 +38,7 @@ const API_PUBLISH_PATHS = new Set([
   '/api/signatures',
   '/api/multisignatures',
   '/api/multisignatures/sign',
+  '/api/dapps',
   '/api/dapps/launch',
   '/api/dapps/install',
   '/api/dapps/uninstall',
@@ -533,7 +534,7 @@ function requestLimiter (app, config, logger) {
   config = config || {};
 
   if (config.trustProxy) {
-    app.enable('trust proxy');
+    app.set('trust proxy', 1);
   }
 
   config.api = config.api || {};

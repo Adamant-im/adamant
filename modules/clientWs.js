@@ -1,11 +1,14 @@
 const { Server } = require('socket.io');
 const AbuseWindow = require('../helpers/abuse-window');
+const ipLimitKey = AbuseWindow.ipLimitKey;
 const normalizeIp = AbuseWindow.normalizeIp;
 const TransactionSubscription = require('./clientWs/transactionSubscription');
 
 const LIMIT_DEFAULTS = {
   maxConnections: 1000,
   maxConnectionsPerIp: 30,
+  maxConnectionAttempts: 120,
+  connectionWindowMs: 60000,
   maxAddresses: 100,
   maxTypes: 16,
   maxAssetChatTypes: 8,
@@ -16,7 +19,8 @@ const LIMIT_DEFAULTS = {
 const CAP_FIELDS = {
   address: { set: 'addresses', limit: 'maxAddresses' },
   types: { set: 'types', limit: 'maxTypes' },
-  assetChatTypes: { set: 'assetChatTypes', limit: 'maxAssetChatTypes' }
+  assetChatTypes: { set: 'assetChatTypes', limit: 'maxAssetChatTypes' },
+  balances: { set: 'balanceFields', max: 2 }
 };
 
 class ClientWs {
@@ -32,6 +36,10 @@ class ClientWs {
     this.limits = normalizeClientLimits(config && config.limits);
     this.connectionCount = 0;
     this.connectionsByIp = new Map();
+    this.connectionAttempts = new AbuseWindow(
+        this.limits.maxConnectionAttempts,
+        this.limits.connectionWindowMs
+    );
     this.admitted = new Set();
     this.subscriptionWindows = new Map();
     this.describes = {};
@@ -256,7 +264,7 @@ class ClientWs {
       );
       socket.on(
           'balances',
-          this.subscribe.bind(this, socket, describe, null, describe.subscribeToBalances.bind(describe))
+          this.subscribe.bind(this, socket, describe, 'balances', describe.subscribeToBalances.bind(describe))
       );
       socket.on(
           'blocks',
@@ -292,7 +300,15 @@ class ClientWs {
       return;
     }
 
-    if (subscribe(...allowed)) {
+    let subscribed = false;
+
+    for (const allowedValue of allowed) {
+      if (subscribe(allowedValue)) {
+        subscribed = true;
+      }
+    }
+
+    if (subscribed) {
       this.registerSubscription(socket, describe);
     }
   }
@@ -394,7 +410,11 @@ class ClientWs {
    */
   admitConnection (socket) {
     const limits = this.limits;
-    const ip = resolveClientIp(socket, this.trustProxy);
+    const ip = ipLimitKey(resolveClientIp(socket, this.trustProxy));
+
+    if (!this.connectionAttempts.allow(ip)) {
+      return false;
+    }
 
     if (limits.maxConnections > 0 && this.connectionCount >= limits.maxConnections) {
       return false;
@@ -422,7 +442,7 @@ class ClientWs {
       return;
     }
 
-    const ip = resolveClientIp(socket, this.trustProxy);
+    const ip = ipLimitKey(resolveClientIp(socket, this.trustProxy));
     const current = this.connectionsByIp.get(ip) || 0;
 
     this.admitted.delete(socket);
@@ -466,7 +486,7 @@ class ClientWs {
       return values;
     }
 
-    const max = this.limits[spec.limit];
+    const max = spec.max === undefined ? this.limits[spec.limit] : spec.max;
 
     if (!(max > 0)) {
       return values;
@@ -678,11 +698,15 @@ function normalizeClientLimits (limits) {
     normalized.windowMs = LIMIT_DEFAULTS.windowMs;
   }
 
+  if (normalized.connectionWindowMs === 0) {
+    normalized.connectionWindowMs = LIMIT_DEFAULTS.connectionWindowMs;
+  }
+
   return normalized;
 }
 
 /**
- * Resolves the client address, honoring X-Forwarded-For only when trustProxy is enabled.
+ * Resolves the client address, trusting only the forwarding value added by the immediate proxy.
  * @param {object} socket - Socket.IO client.
  * @param {boolean} trustProxy - Whether the node sits behind a trusted reverse proxy.
  * @return {string} Client IP.
@@ -695,7 +719,8 @@ function resolveClientIp (socket, trustProxy) {
     const forwarded = headers['x-forwarded-for'];
 
     if (typeof forwarded === 'string' && forwarded.trim()) {
-      return normalizeIp(forwarded.split(',')[0]);
+      const values = forwarded.split(',');
+      return normalizeIp(values[values.length - 1].trim());
     }
   }
 

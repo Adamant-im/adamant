@@ -481,6 +481,14 @@ module.exports = {
                 type: 'integer',
                 minimum: 0
               },
+              maxConnectionAttempts: {
+                type: 'integer',
+                minimum: 0
+              },
+              connectionWindowMs: {
+                type: 'integer',
+                minimum: 1
+              },
               maxAddresses: {
                 type: 'integer',
                 minimum: 0
@@ -529,6 +537,14 @@ module.exports = {
             minimum: 0
           },
           handshakeWindowMs: {
+            type: 'integer',
+            minimum: 1
+          },
+          eventLimit: {
+            type: 'integer',
+            minimum: 0
+          },
+          eventWindowMs: {
             type: 'integer',
             minimum: 1
           }

@@ -1,5 +1,8 @@
 'use strict';
 
+const net = require('net');
+const { ipKeyGenerator } = require('express-rate-limit');
+
 /**
  * Fixed-window counter for non-consensus abuse control.
  * A non-positive limit disables the counter and allows every hit.
@@ -66,8 +69,25 @@ class AbuseWindow {
  * @return {string} Normalized address.
  */
 function normalizeIp (ip) {
-  return String(ip || 'unknown').replace(/^::ffff:/, '');
+  return String(ip || 'unknown').trim().replace(/^::ffff:/i, '');
+}
+
+/**
+ * Converts a client address into an abuse-control key.
+ * IPv6 clients are grouped by the same /56 allocation boundary used by HTTP rate limits.
+ * @param {*} ip - Remote address.
+ * @return {string} Stable abuse-control key.
+ */
+function ipLimitKey (ip) {
+  const normalized = normalizeIp(ip);
+
+  if (!net.isIP(normalized)) {
+    return 'unknown';
+  }
+
+  return ipKeyGenerator(normalized);
 }
 
 module.exports = AbuseWindow;
 module.exports.normalizeIp = normalizeIp;
+module.exports.ipLimitKey = ipLimitKey;

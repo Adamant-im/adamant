@@ -37,6 +37,7 @@ describe('RequestLimiter', () => {
     it('should enable trust proxy', () => {
       RequestLimiter(app, { trustProxy: true });
       expect(app.enabled('trust proxy')).to.be.true;
+      expect(app.get('trust proxy')).to.equal(1);
     });
   });
 
@@ -358,6 +359,32 @@ describe('RequestLimiter', () => {
     expect(Date.now() - started).to.be.at.least(30);
   });
 
+  it('should trust one proxy hop and group forwarded IPv6 addresses by allocation', async () => {
+    RequestLimiter(app, {
+      trustProxy: true,
+      api: {
+        options: {
+          limits: {
+            limit: 1,
+            delayAfter: 0,
+            delayMs: 0,
+            windowMs: 60000
+          }
+        }
+      }
+    });
+    app.get('/api/blocks', (req, res) => res.sendStatus(200));
+
+    await request(app)
+        .get('/api/blocks')
+        .set('X-Forwarded-For', '192.0.2.1, 2001:db8:abcd:1200::1')
+        .expect(200);
+    await request(app)
+        .get('/api/blocks')
+        .set('X-Forwarded-For', '192.0.2.2, 2001:db8:abcd:1200::2')
+        .expect(429);
+  });
+
   it('should allow an honest burst under the production defaults', async function () {
     this.timeout(20000);
     const nodeConfig = require('../../../config.default.json');
@@ -449,6 +476,17 @@ describe('RequestLimiter', () => {
       expect(result.valid).to.equal(false);
       expect(JSON.stringify(result.errors)).to.match(/anyOf|limit|max/i);
     });
+
+    it('should reject malformed WebSocket limits', () => {
+      const invalidClient = JSON.parse(JSON.stringify(require('../../../config.default.json')));
+      const invalidNode = JSON.parse(JSON.stringify(invalidClient));
+
+      invalidClient.wsClient.limits.maxConnectionAttempts = -1;
+      invalidNode.wsNode.eventLimit = -1;
+
+      expect(validate(invalidClient).valid).to.equal(false);
+      expect(validate(invalidNode).valid).to.equal(false);
+    });
   });
 
   describe('request classes', () => {
@@ -458,6 +496,7 @@ describe('RequestLimiter', () => {
       ['GET', '/api/transactions?limit=1', 'read'],
       ['POST', '/api/transactions', 'publish'],
       ['POST', '/api/states/get', 'read'],
+      ['PUT', '/api/dapps', 'publish'],
       ['PUT', '/api/signatures', 'publish'],
       ['OPTIONS', '/api/transactions', null],
       ['GET', '/peer/ping', 'status'],

@@ -1,5 +1,6 @@
 const { Server } = require('socket.io');
 const AbuseWindow = require('../../helpers/abuse-window');
+const ipLimitKey = AbuseWindow.ipLimitKey;
 const normalizeIp = AbuseWindow.normalizeIp;
 const Peer = require('../../logic/peer');
 
@@ -56,7 +57,7 @@ class WebSocketServer {
 
       self.logger.debug('ws-node-server', `WebSocket peer ${peerIp} is connecting…`, { direction: 'inbound' });
 
-      if (!this.ipHandshakes.allow(normalizedIp)) {
+      if (!this.ipHandshakes.allow(ipLimitKey(peerIp))) {
         self.logger.trace('ws-node-server', `WebSocket peer ${peerIp} is not allowed to connect`, 'Too many connection attempts');
         socket.emit('disconnect_reason', 'Too many connection attempts');
         socket.disconnect(true);
@@ -92,6 +93,15 @@ class WebSocketServer {
         return;
       }
 
+      if (existingPeer.isBroadcastingViaSocket) {
+        const reason = 'Peer is already connected';
+
+        self.logger.trace('ws-node-server', `WebSocket peer ${peerIp} is not allowed to connect`, reason);
+        socket.emit('disconnect_reason', reason);
+        socket.disconnect(true);
+        return;
+      }
+
       if (logic.peers.getSocketCount() >= this.max) {
         const reason = 'Server connection limit exceeded';
 
@@ -107,13 +117,8 @@ class WebSocketServer {
       self.logger.info('ws-node-server', `WebSocket peer ${peerIp} is connected to the node`, { direction: 'inbound' });
 
       socket.on('disconnect', () => {
-        const disconnectedPeer = logic.peers.getByNonce(nonce);
-
-        self.logger.debug('ws-node-server', `WebSocket peer ${disconnectedPeer.ip} is disconnecting…`);
-
-        if (disconnectedPeer) {
-          disconnectedPeer.isBroadcastingViaSocket = false;
-        }
+        self.logger.debug('ws-node-server', `WebSocket peer ${existingPeer.ip} is disconnecting…`);
+        existingPeer.isBroadcastingViaSocket = false;
       });
     });
   }

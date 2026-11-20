@@ -250,6 +250,8 @@
     "limits": {
       "maxConnections": 1000,
       "maxConnectionsPerIp": 30,
+      "maxConnectionAttempts": 120,
+      "connectionWindowMs": 60000,
       "maxAddresses": 100,
       "maxTypes": 16,
       "maxAssetChatTypes": 8,
@@ -263,7 +265,9 @@
     "maxReceiveConnections": 25,
     "handshakeLimit": 60,
     "handshakeLimitPerNonce": 30,
-    "handshakeWindowMs": 60000
+    "handshakeWindowMs": 60000,
+    "eventLimit": 12000,
+    "eventWindowMs": 60000
   },
   "nethash": "38f153a81332dea86751451fd992df26a9249f0834f72f58f84ac31cceb70f43"
 }

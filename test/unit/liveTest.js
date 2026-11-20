@@ -161,7 +161,8 @@ describe('live scenario runner utilities', () => {
       },
       wsClient: {
         enabled: true,
-        port: 36665
+        port: 36665,
+        limits: testDefaultConfig.wsClient.limits
       },
       wsServer: testDefaultConfig.wsNode
     });

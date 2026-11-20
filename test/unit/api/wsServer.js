@@ -83,7 +83,9 @@ describe('node WebSocket handshake limits', function () {
           return peers[nonce] || null;
         },
         getSocketCount: function () {
-          return 0;
+          return Object.values(peers).filter(function (peer) {
+            return peer.isBroadcastingViaSocket;
+          }).length;
         }
       }
     });
@@ -211,12 +213,49 @@ describe('node WebSocket handshake limits', function () {
       good: peer
     });
     const first = connect(port, { nonce: 'good' });
-    const second = connect(port, { nonce: 'good' });
-    const third = connect(port, { nonce: 'good' });
-    sockets.push(first, second, third);
+    sockets.push(first);
 
     expect(await first.outcome).to.equal('open');
+
+    first.close();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const second = connect(port, { nonce: 'good' });
+    sockets.push(second);
     expect(await second.outcome).to.equal('open');
+
+    second.close();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const third = connect(port, { nonce: 'good' });
+    sockets.push(third);
     expect(await third.outcome).to.not.equal('open');
+  });
+
+  it('should reject a duplicate socket for an already connected nonce', async function () {
+    const peer = {
+      ip: '127.0.0.1',
+      state: Peer.STATE.CONNECTED,
+      isBroadcastingViaSocket: false
+    };
+    const port = await listen({
+      handshakeLimit: 100,
+      handshakeLimitPerNonce: 100,
+      handshakeWindowMs: 60000
+    }, {
+      good: peer
+    });
+    const first = connect(port, { nonce: 'good' });
+    const second = connect(port, { nonce: 'good' });
+    sockets.push(first, second);
+
+    expect(await first.outcome).to.equal('open');
+    expect(await second.outcome).to.not.equal('open');
+    expect(peer.isBroadcastingViaSocket).to.equal(true);
+    expect(logger.trace.calledWith(
+        'ws-node-server',
+        sinon.match.string,
+        'Peer is already connected'
+    )).to.equal(true);
   });
 });

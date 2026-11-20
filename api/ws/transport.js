@@ -1,9 +1,15 @@
 'use strict';
 
 const { io } = require('socket.io-client');
+const AbuseWindow = require('../../helpers/abuse-window.js');
 const Peer = require('../../logic/peer.js');
 
 const { wsNodeClient: wsConstants } = require('../../helpers/constants.js');
+
+const EVENT_DEFAULTS = {
+  eventLimit: 12000,
+  eventWindowMs: 60000
+};
 
 /**
  * Connects to random peers via WebSocket to receive transactions/blocks/signature changes
@@ -15,6 +21,8 @@ class TransportWsApi {
    * @param {object} library - Bound logic/library scope with logger and system helpers.
    * @param {object} options - WebSocket node configuration.
    * @param {number} options.maxReceiveConnections - Maximum inbound peer sockets to maintain.
+   * @param {number} [options.eventLimit] - Maximum events accepted per peer socket window.
+   * @param {number} [options.eventWindowMs] - Peer event window in milliseconds.
    */
   constructor (modules, library, options) {
     this.modules = modules;
@@ -25,6 +33,13 @@ class TransportWsApi {
     this.logger = library.logger;
 
     this.maxConnections = options.maxReceiveConnections;
+    this.eventLimit = normalizeEventOption(options.eventLimit, EVENT_DEFAULTS.eventLimit);
+    this.eventWindowMs = normalizeEventOption(options.eventWindowMs, EVENT_DEFAULTS.eventWindowMs);
+
+    if (this.eventWindowMs === 0) {
+      this.eventWindowMs = EVENT_DEFAULTS.eventWindowMs;
+    }
+
     this.reconnectionDelay = wsConstants.defaultReconnectionDelay;
 
     this.connections = new Map();
@@ -216,8 +231,32 @@ class TransportWsApi {
    */
   setupEventHandlers (socket, peer) {
     const self = this;
+    const eventWindow = new AbuseWindow(this.eventLimit, this.eventWindowMs);
+    let limited = false;
+
+    function allowEvent () {
+      if (limited) {
+        return false;
+      }
+
+      if (eventWindow.allow('event')) {
+        return true;
+      }
+
+      limited = true;
+      self.logger.warn(
+          'ws-node-client',
+          `WebSocket peer ${peer.ip}:${peer.port} exceeded the event limit`
+      );
+      socket.disconnect();
+      return false;
+    }
 
     socket.on('transactions/change', (data) => {
+      if (!allowEvent()) {
+        return;
+      }
+
       self.transportModule.internal.postTransactions({
         transaction: data
       }, peer, 'websocket /transactions', (err) => {
@@ -228,6 +267,10 @@ class TransportWsApi {
     });
 
     socket.on('blocks/change', (data) => {
+      if (!allowEvent()) {
+        return;
+      }
+
       self.transportModule.internal.postBlock(data, peer, 'websocket /blocks', (err) => {
         if (err) {
           self.peers.recordRequest(peer.ip, peer.port, err);
@@ -236,6 +279,10 @@ class TransportWsApi {
     });
 
     socket.on('signature/change', (data) => {
+      if (!allowEvent()) {
+        return;
+      }
+
       self.transportModule.internal.postSignatures({
         signature: data
       }, (err) => {
@@ -385,3 +432,18 @@ class TransportWsApi {
 }
 
 module.exports = TransportWsApi;
+
+/**
+ * Normalizes one peer event limit while preserving an explicit zero (disabled).
+ * @param {*} value - Operator value.
+ * @param {number} fallback - Production default.
+ * @return {number} Non-negative integer.
+ */
+function normalizeEventOption (value, fallback) {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  const normalized = Math.floor(Number(value));
+  return Number.isFinite(normalized) && normalized >= 0 ? normalized : fallback;
+}
