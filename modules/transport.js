@@ -4,6 +4,7 @@ var _ = require('lodash');
 var async = require('async');
 var Broadcaster = require('../logic/broadcaster.js');
 var Peer = require('../logic/peer.js');
+var requestLimiter = require('../helpers/request-limiter.js');
 var bignum = require('../helpers/bignum.js');
 var constants = require('../helpers/constants.js');
 var crypto = require('crypto');
@@ -17,6 +18,9 @@ var zlib = require('zlib');
 
 // Private fields
 var modules, library, self, __private = {}, shared = {};
+
+const DEFAULT_RATE_LIMIT_RETRY_MS = 1000;
+const MAX_RATE_LIMIT_RETRY_MS = 60000;
 
 __private.headers = {};
 __private.loaded = false;
@@ -397,7 +401,12 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
     return setImmediate(cb, 'Peer is banned: ' + peer.string);
   }
 
-  if (modules.peers.isBackedOff(peer)) {
+  var requestScope = requestLimiter.classifyPeerRequest({
+    method: options.method,
+    originalUrl: url
+  }) || 'all';
+
+  if (modules.peers.isBackedOff(peer, requestScope)) {
     return setImmediate(cb, 'Peer outbound request is still in backoff: ' + peer.string);
   }
 
@@ -410,7 +419,9 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
   var req = {
     url: 'http://' + host + ':' + peer.port + url,
     method: options.method,
-    headers: __private.headers,
+    headers: Object.assign({}, __private.headers, {
+      [requestLimiter.peerRateLimitHeader]: requestLimiter.peerRateLimitVersion
+    }),
     timeout: requestTimeout,
     proxy: false,
     maxRedirects: 0,
@@ -443,6 +454,26 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
   axios(req)
       .then((res) => {
         clearTimeout(absoluteTimeoutId);
+        if (res.status === 429) {
+          var retryAfterMs = __private.retryAfterMs(res.headers['retry-after']);
+          var limitedScope = String(
+              res.headers['ratelimit-scope'] ||
+              requestScope
+          ).trim().toLowerCase();
+
+          modules.peers.deferRequest(
+              peer.ip,
+              peer.port,
+              limitedScope,
+              retryAfterMs
+          );
+          return setImmediate(
+              cb,
+              'ERATELIMIT 429 ' + limitedScope + ' ' + req.method + ' ' + req.url +
+                ' retry in ' + retryAfterMs + 'ms'
+          );
+        }
+
         if (res.status !== 200) {
           maybeRecordRequest('ERESPONSE');
           // Remove peer
@@ -510,6 +541,28 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
 
         return setImmediate(cb, [errorCode || err.code, 'Request failed', req.method, req.url].join(' '));
       });
+};
+
+/**
+ * Parses Retry-After as either delay seconds or an HTTP date.
+ * Invalid values use a short default and remote values are capped.
+ * @param {string|string[]} value - Retry-After response header.
+ * @return {number} Bounded delay in milliseconds.
+ */
+__private.retryAfterMs = function (value) {
+  var header = Array.isArray(value) ? value[0] : value;
+  var delay;
+
+  if (typeof header === 'string' && /^\d+$/.test(header.trim())) {
+    delay = parseInt(header, 10) * 1000;
+  } else if (typeof header === 'string') {
+    var retryAt = Date.parse(header);
+    delay = Number.isFinite(retryAt) ? Math.max(0, retryAt - Date.now()) : DEFAULT_RATE_LIMIT_RETRY_MS;
+  } else {
+    delay = DEFAULT_RATE_LIMIT_RETRY_MS;
+  }
+
+  return Math.min(MAX_RATE_LIMIT_RETRY_MS, Math.max(0, delay));
 };
 
 /**

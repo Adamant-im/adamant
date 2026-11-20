@@ -278,12 +278,21 @@ function buildNodeConfiguration (config, source) {
     },
     wsClient: {
       enabled: wsClient.enabled,
-      port: wsClient.portWS
+      port: wsClient.portWS,
+      limits: wsClient.limits
     },
     wsServer: {
       enabled: wsServer.enabled,
       maxBroadcastConnections: wsServer.maxBroadcastConnections,
-      maxReceiveConnections: wsServer.maxReceiveConnections
+      maxReceiveConnections: wsServer.maxReceiveConnections,
+      handshakeLimit: wsServer.handshakeLimit,
+      handshakeLimitPerNonce: wsServer.handshakeLimitPerNonce,
+      handshakeWindowMs: wsServer.handshakeWindowMs,
+      maxPendingConnections: wsServer.maxPendingConnections,
+      maxPendingConnectionsPerIp: wsServer.maxPendingConnectionsPerIp,
+      pendingTimeoutMs: wsServer.pendingTimeoutMs,
+      eventLimit: wsServer.eventLimit,
+      eventWindowMs: wsServer.eventWindowMs
     }
   };
 }

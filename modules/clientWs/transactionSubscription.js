@@ -166,6 +166,73 @@ class TransactionSubscription {
   }
 
   /**
+   * Selects validated additions without consuming capacity on duplicates or invalid values.
+   * @param {string} kind - Subscription group.
+   * @param {Array} values - Requested values.
+   * @param {number} max - Maximum retained values, or zero when uncapped.
+   * @return {Array} Normalized additions.
+   */
+  selectSubscriptionValues (kind, values, max) {
+    const config = {
+      address: {
+        existing: this.addresses,
+        normalize: (value) => validator.validate(value, { format: 'address' }) ?
+          value.toUpperCase() :
+          null
+      },
+      types: {
+        existing: this.types,
+        normalize: (value) => (
+          typeof value === 'number' &&
+          value >= MIN_TRANSACTION_TYPE &&
+          value <= MAX_TRANSACTION_TYPE
+        ) ? value : null
+      },
+      assetChatTypes: {
+        existing: this.assetChatTypes,
+        normalize: (value) => (
+          typeof value === 'number' &&
+          value >= MIN_CHAT_MESSAGE_TRANSACTION_TYPE &&
+          value <= MAX_CHAT_MESSAGE_TRANSACTION_TYPE
+        ) ? value : null
+      },
+      balances: {
+        existing: this.balanceFields,
+        normalize: (value) => BALANCE_FIELDS.has(value) ? value : null
+      }
+    }[kind];
+
+    if (!config) {
+      return values;
+    }
+
+    const additions = [];
+    const seen = new Set(config.existing);
+    const remaining = max > 0 ? Math.max(0, max - config.existing.size) : Infinity;
+
+    if (remaining === 0) {
+      return additions;
+    }
+
+    for (const value of values) {
+      const normalized = config.normalize(value);
+
+      if (normalized === null || seen.has(normalized)) {
+        continue;
+      }
+
+      seen.add(normalized);
+      additions.push(normalized);
+
+      if (additions.length >= remaining) {
+        break;
+      }
+    }
+
+    return additions;
+  }
+
+  /**
    * Enables or disables new block events for this socket.
    * @param {boolean} enabled - Desired block subscription state
    * @return {boolean} Whether the supplied state was valid

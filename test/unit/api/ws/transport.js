@@ -103,6 +103,34 @@ describe('TransportWsApi peer syncProtocol lifecycle', function () {
     expect(transport.connectToPeer.calledOnceWith(replacement)).to.equal(true);
   });
 
+  it('should disconnect a peer after the shared WebSocket event budget', function () {
+    const handlers = {};
+    const socket = {
+      on: function (event, handler) {
+        handlers[event] = handler;
+      },
+      disconnect: sinon.spy()
+    };
+    const peer = { ip: '1.2.3.4', port: 36666 };
+    const internal = transport.transportModule.internal;
+
+    internal.postTransactions = sinon.spy();
+    internal.postBlock = sinon.spy();
+    internal.postSignatures = sinon.spy();
+    transport.eventLimit = 2;
+    transport.setupEventHandlers(socket, peer);
+
+    handlers['transactions/change']({ id: 'first' });
+    handlers['blocks/change']({ id: 'second' });
+    handlers['signature/change']({ id: 'third' });
+
+    expect(internal.postTransactions.calledOnce).to.equal(true);
+    expect(internal.postBlock.calledOnce).to.equal(true);
+    expect(internal.postSignatures.called).to.equal(false);
+    expect(socket.disconnect.calledOnce).to.equal(true);
+    expect(transport.logger.warn.calledOnce).to.equal(true);
+  });
+
   it('should apply network backoff after a WebSocket connect failure', function () {
     const peer = { ip: '1.2.3.4', port: 36666 };
     sinon.stub(transport, 'replacePeer');

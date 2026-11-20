@@ -1,6 +1,7 @@
 'use strict';
 
 const { expect } = require('chai');
+const { Socket: EngineSocket } = require('engine.io-client');
 const { io } = require('socket.io-client');
 const sinon = require('sinon');
 
@@ -28,9 +29,19 @@ describe('ClientWs Socket.IO integration', function () {
   this.timeout(5000);
 
   let client;
+  let extraClient;
+  let engineClient;
   let clientWs;
 
   afterEach(async function () {
+    if (extraClient) {
+      extraClient.close();
+      extraClient = null;
+    }
+    if (engineClient) {
+      engineClient.close();
+      engineClient = null;
+    }
     if (client) {
       client.close();
       client = null;
@@ -93,5 +104,147 @@ describe('ClientWs Socket.IO integration', function () {
       balance: '100',
       unconfirmedBalance: '90'
     });
+  });
+
+  it('should disconnect a second socket from the same address when the per-IP cap is 1', async function () {
+    clientWs = new ClientWs({
+      enabled: true,
+      portWS: 0,
+      cors: { origin: '*' },
+      limits: {
+        maxConnections: 10,
+        maxConnectionsPerIp: 1,
+        maxSubscriptionEvents: 10,
+        windowMs: 10000
+      }
+    }, { debug: sinon.spy() });
+
+    await waitFor(() => clientWs.io.httpServer.address());
+    const admittedTransports = sinon.spy();
+    clientWs.io.engine.on('connection', admittedTransports);
+    const port = clientWs.io.httpServer.address().port;
+    const url = `http://127.0.0.1:${port}`;
+    const options = {
+      forceNew: true,
+      reconnection: false,
+      transports: ['websocket']
+    };
+
+    client = io(url, options);
+    await new Promise((resolve, reject) => {
+      client.once('connect', resolve);
+      client.once('connect_error', reject);
+    });
+
+    extraClient = io(url, options);
+    const outcome = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Timed out waiting for the extra socket to close')), 2000);
+      extraClient.once('disconnect', () => {
+        clearTimeout(timer);
+        resolve('closed');
+      });
+      extraClient.once('connect_error', () => {
+        clearTimeout(timer);
+        resolve('error');
+      });
+    });
+
+    expect(['closed', 'error']).to.include(outcome);
+    expect(clientWs.connectionCount).to.equal(1);
+    expect(client.connected).to.equal(true);
+    expect(admittedTransports.calledOnce).to.equal(true);
+  });
+
+  ['polling', 'upgrade'].forEach(function (mode) {
+    it('should reject a second ' + mode + ' transport before Engine.IO allocates it', async function () {
+      clientWs = new ClientWs({
+        enabled: true,
+        portWS: 0,
+        cors: { origin: '*' },
+        limits: {
+          maxConnections: 10,
+          maxConnectionsPerIp: 1,
+          maxSubscriptionEvents: 10,
+          windowMs: 10000
+        }
+      }, { debug: sinon.spy() });
+
+      await waitFor(() => clientWs.io.httpServer.address());
+      const admittedTransports = sinon.spy();
+      clientWs.io.engine.on('connection', admittedTransports);
+      const url = `http://127.0.0.1:${clientWs.io.httpServer.address().port}`;
+      const options = {
+        forceNew: true,
+        reconnection: false,
+        transports: mode === 'polling' ? ['polling'] : ['polling', 'websocket'],
+        upgrade: mode === 'upgrade'
+      };
+
+      client = io(url, options);
+      await new Promise((resolve, reject) => {
+        client.once('connect', resolve);
+        client.once('connect_error', reject);
+      });
+
+      if (mode === 'upgrade') {
+        await waitFor(() => client.io.engine.transport.name === 'websocket');
+      }
+
+      extraClient = io(url, options);
+      const outcome = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Timed out waiting for rejected transport')), 2000);
+        extraClient.once('connect_error', () => {
+          clearTimeout(timer);
+          resolve('error');
+        });
+      });
+
+      expect(outcome).to.equal('error');
+      expect(admittedTransports.calledOnce).to.equal(true);
+      expect(clientWs.transportAdmission.connectionCount).to.equal(1);
+      expect(clientWs.transportAdmission.pendingConnectionCount).to.equal(0);
+    });
+  });
+
+  it('should reserve the budget for an Engine.IO session without a namespace connection', async function () {
+    clientWs = new ClientWs({
+      enabled: true,
+      portWS: 0,
+      cors: { origin: '*' },
+      limits: {
+        maxConnections: 1,
+        maxConnectionsPerIp: 1,
+        maxSubscriptionEvents: 10,
+        windowMs: 10000
+      }
+    }, { debug: sinon.spy() });
+
+    await waitFor(() => clientWs.io.httpServer.address());
+    const url = `http://127.0.0.1:${clientWs.io.httpServer.address().port}`;
+
+    engineClient = new EngineSocket(url, {
+      path: '/socket.io/',
+      transports: ['polling']
+    });
+    await new Promise((resolve, reject) => {
+      engineClient.once('open', resolve);
+      engineClient.once('error', reject);
+    });
+
+    expect(clientWs.connectionCount).to.equal(0);
+    expect(clientWs.transportAdmission.pendingConnectionCount).to.equal(1);
+
+    extraClient = io(url, {
+      forceNew: true,
+      reconnection: false,
+      transports: ['websocket']
+    });
+    const error = await new Promise((resolve, reject) => {
+      extraClient.once('connect_error', resolve);
+      extraClient.once('connect', () => reject(new Error('Socket.IO client bypassed transport admission')));
+    });
+
+    expect(error).to.exist;
+    expect(clientWs.io.engine.clientsCount).to.equal(1);
   });
 });

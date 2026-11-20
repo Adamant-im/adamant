@@ -320,4 +320,205 @@ describe('ClientWs server', function () {
     expect(healthy.socket.emit.calledOnce).to.equal(true);
     expect(logger.debug.calledOnce).to.equal(true);
   });
+
+  function limitedClient (limits, options) {
+    return new ClientWs(Object.assign({
+      enabled: false,
+      limits: Object.assign({
+        maxConnections: 0,
+        maxConnectionsPerIp: 0,
+        maxPendingConnections: 0,
+        maxPendingConnectionsPerIp: 0,
+        pendingTimeoutMs: 10000,
+        maxConnectionAttempts: 0,
+        connectionWindowMs: 60000,
+        maxAddresses: 0,
+        maxTypes: 0,
+        maxAssetChatTypes: 0,
+        maxSubscriptionEvents: 0,
+        windowMs: 60000
+      }, limits)
+    }, options), { debug: sinon.spy() });
+  }
+
+  it('should keep only the addresses that fit the per-socket cap', function () {
+    const { handlers, socket } = createSocket('socket-address-cap');
+    const clientWs = limitedClient({ maxAddresses: 1, maxSubscriptionEvents: 10 });
+
+    clientWs.handleConnection(socket);
+    handlers.address(['U123456', 'U4697606961271319613']);
+
+    expect(Array.from(clientWs.describes[socket.id].addresses)).to.deep.equal(['U123456']);
+  });
+
+  it('should count only valid distinct additions against subscription caps', function () {
+    const { handlers, socket } = createSocket('socket-distinct-cap');
+    const clientWs = limitedClient({ maxAddresses: 2, maxSubscriptionEvents: 10 });
+
+    clientWs.handleConnection(socket);
+    handlers.address('not-an-address');
+    handlers.address('U123456');
+    handlers.address(['U123456', 'U4697606961271319613']);
+
+    expect(Array.from(clientWs.describes[socket.id].addresses)).to.deep.equal([
+      'U123456',
+      'U4697606961271319613'
+    ]);
+  });
+
+  it('should ignore subscription changes after the event budget', function () {
+    const { handlers, socket } = createSocket('socket-event-budget');
+    const clientWs = limitedClient({
+      maxSubscriptionEvents: 2,
+      maxAddresses: 10,
+      maxTypes: 10
+    });
+
+    clientWs.handleConnection(socket);
+    handlers.types(0);
+    handlers.address('U123456');
+    handlers.blocks(true);
+
+    const subscription = clientWs.describes[socket.id];
+    expect(subscription.types).to.deep.equal(new Set([0]));
+    expect(subscription.addresses).to.deep.equal(new Set(['U123456']));
+    expect(subscription.blocks).to.equal(false);
+  });
+
+  it('should bound balance arguments without spreading an untrusted array', function () {
+    const { handlers, socket } = createSocket('socket-balance-arguments');
+    const clientWs = limitedClient({ maxSubscriptionEvents: 10 });
+
+    clientWs.handleConnection(socket);
+
+    expect(function () {
+      handlers.balances(new Array(200000).fill('votes'));
+    }).to.not.throw();
+    expect(clientWs.describes).not.to.have.property(socket.id);
+  });
+
+  it('should retain a new balance field after resending an existing field', function () {
+    const { handlers, socket } = createSocket('socket-cumulative-balance');
+    const clientWs = limitedClient({ maxSubscriptionEvents: 10 });
+
+    clientWs.handleConnection(socket);
+    handlers.balances('balance');
+    handlers.balances(['balance', 'unconfirmedBalance']);
+
+    expect(clientWs.describes[socket.id].balanceFields).to.deep.equal(
+        new Set(['balance', 'unconfirmedBalance'])
+    );
+  });
+
+  it('should reject sockets above the per-IP cap and release the slot on disconnect', function () {
+    const first = createSocket('socket-ip-a');
+    const second = createSocket('socket-ip-b');
+    const third = createSocket('socket-ip-c');
+    const clientWs = limitedClient({ maxConnectionsPerIp: 1, maxSubscriptionEvents: 10 });
+
+    clientWs.handleConnection(first.socket);
+    clientWs.handleConnection(second.socket);
+
+    expect(typeof first.handlers.address).to.equal('function');
+    expect(second.handlers.address).to.equal(undefined);
+    expect(clientWs.connectionCount).to.equal(1);
+
+    first.handlers.disconnect();
+    clientWs.handleConnection(third.socket);
+
+    expect(typeof third.handlers.address).to.equal('function');
+    expect(clientWs.connectionCount).to.equal(1);
+  });
+
+  it('should apply the global connection cap across addresses', function () {
+    const first = createSocket('socket-global-a');
+    const second = createSocket('socket-global-b');
+
+    first.socket.handshake = { address: '10.0.0.1' };
+    second.socket.handshake = { address: '10.0.0.2' };
+
+    const clientWs = limitedClient({
+      maxConnections: 1,
+      maxConnectionsPerIp: 0
+    });
+
+    clientWs.handleConnection(first.socket);
+    clientWs.handleConnection(second.socket);
+
+    expect(clientWs.connectionCount).to.equal(1);
+    expect(second.handlers.types).to.equal(undefined);
+  });
+
+  it('should group client connection limits by IPv6 allocation', function () {
+    const first = createSocket('socket-ipv6-a');
+    const second = createSocket('socket-ipv6-b');
+
+    first.socket.handshake = { address: '2001:db8:abcd:1200::1' };
+    second.socket.handshake = { address: '2001:db8:abcd:1200::2' };
+
+    const clientWs = limitedClient({ maxConnectionsPerIp: 1 });
+
+    clientWs.handleConnection(first.socket);
+    clientWs.handleConnection(second.socket);
+
+    expect(clientWs.connectionCount).to.equal(1);
+    expect(second.handlers.address).to.equal(undefined);
+  });
+
+  it('should reject reconnect churn from one address after its attempt budget', function () {
+    const first = createSocket('socket-churn-a');
+    const second = createSocket('socket-churn-b');
+    const clientWs = limitedClient({
+      maxConnectionAttempts: 1,
+      connectionWindowMs: 60000
+    });
+
+    clientWs.handleConnection(first.socket);
+    first.handlers.disconnect();
+    clientWs.handleConnection(second.socket);
+
+    expect(clientWs.connectionCount).to.equal(0);
+    expect(second.handlers.address).to.equal(undefined);
+  });
+
+  it('should ignore forwarded addresses unless the proxy is trusted', function () {
+    const directFirst = createSocket('socket-direct-a');
+    const directSecond = createSocket('socket-direct-b');
+    const proxiedFirst = createSocket('socket-proxy-a');
+    const proxiedSecond = createSocket('socket-proxy-b');
+    const forwardedA = {
+      address: '10.0.0.1',
+      headers: { 'x-forwarded-for': '198.51.100.10' }
+    };
+    const forwardedB = {
+      address: '10.0.0.1',
+      headers: { 'x-forwarded-for': '198.51.100.11' }
+    };
+    const trustedForwardedA = {
+      address: '10.0.0.1',
+      headers: { 'x-forwarded-for': '192.0.2.1, 198.51.100.12' }
+    };
+    const trustedForwardedB = {
+      address: '10.0.0.2',
+      headers: { 'x-forwarded-for': '192.0.2.2, 198.51.100.12' }
+    };
+    const directClient = limitedClient({ maxConnectionsPerIp: 1 });
+    const proxiedClient = limitedClient(
+        { maxConnectionsPerIp: 1 },
+        { trustProxy: true }
+    );
+
+    directFirst.socket.handshake = forwardedA;
+    directSecond.socket.handshake = forwardedB;
+    proxiedFirst.socket.handshake = trustedForwardedA;
+    proxiedSecond.socket.handshake = trustedForwardedB;
+
+    directClient.handleConnection(directFirst.socket);
+    directClient.handleConnection(directSecond.socket);
+    proxiedClient.handleConnection(proxiedFirst.socket);
+    proxiedClient.handleConnection(proxiedSecond.socket);
+
+    expect(directSecond.handlers.address).to.equal(undefined);
+    expect(proxiedSecond.handlers.address).to.equal(undefined);
+  });
 });

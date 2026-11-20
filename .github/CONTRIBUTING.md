@@ -16,6 +16,8 @@ Most local validation uses the config file located at `test/config.json`.
 
 Copy or prepare `test/config.json` from `test/config.default.json` before running local node or API tests. The testnet configuration is safe for experimentation and does not affect `mainnet`. For more background, see [ADAMANT Node Testnet](https://docs.adamant.im/own-node/testnet.html).
 
+`test/config.default.json` sets public REST and peer HTTP `limit` and `max` to `0` so the API suite can issue many requests from one address. Production defaults live in `config.default.json`. Client WebSocket limits in the test config match those production defaults.
+
 #### API tests
 
 If you are running **API tests** (in the `test/api/` directory), you need to enable the following features in the config:

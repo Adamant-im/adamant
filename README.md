@@ -82,6 +82,23 @@ The node stores derived consensus state in memory mirror tables such as `mem_acc
 
 If this happens, do not try to repair `mem_*` tables with manual SQL edits. The reliable recovery options are restoring a trusted database snapshot or letting the node rebuild/replay derived state from the blockchain.
 
+## Anti-abuse Limits
+
+`config.default.json` enables separate limits for public REST, peer HTTP, client WebSocket subscriptions, and node-to-node WebSocket handshakes. The numbers are in that file. `limit` is the preferred hard cap. Existing configs that still set legacy `max` keep that value: `limit` overrides `max` only when `limit` is present. Set the resolved cap to `0` to disable one HTTP surface, including its route policies. Delete an existing `api.options.limits` or `peers.options.limits` block to inherit the current defaults.
+
+The top-level `limit` is an aggregate per-IP cap for the complete HTTP surface. Each configured route class has its own stricter cap, so overriding the parent limit through a config file or `--config-set` still applies when route policies are inherited.
+
+HTTP classes use separate per-IP budgets over `windowMs`:
+
+- Public REST: `status` (cheap node and fee reads), `read` (lists and lookups), and `publish` (transaction submission).
+- Peer HTTP: `status` (`/peer/ping`, `/peer/height`, `/peer/list`), `sync` (block and transaction reads), and `broadcast` (block, transaction, and signature posts).
+
+Peer caps are high so normal sync and relay stay on the fast path. A hard limit responds with `429`, a JSON `success: false` body, standard `RateLimit-*` headers, `RateLimit-Scope`, and `Retry-After`. Current outbound peers advertise rate-limit support with `X-Adamant-Rate-Limit: 1`; peer requests without that signal are not hard-limited, so mixed-version rollout does not evict older callers. CORS is applied before the limiter and exposes the response headers to browsers. Outbound peer requests treat `429` as scoped, bounded temporary backpressure: the peer remains in the table and its health score is unchanged, while `Retry-After` defers only the reported status, sync, broadcast, or aggregate scope for at most one minute. Slow-down starts after `delayAfter` and is capped by `maxDelayMs`. Client WebSocket limits cap total transport sessions plus a smaller pending pool before Engine.IO session promotion, and subscriptions per socket and subscription changes per window. Node WebSocket limits use a separate short-lived pending pool with per-IP bounds, then promote validated nonce/IP peers into the independent live broadcast pool. Raw Engine.IO sessions that never reach the namespace expire after `pendingTimeoutMs`. The event cap applies to accepted peer sockets. IPv6 abuse keys use a /56 allocation boundary, while peer authorization still compares the exact normalized IP. Nonce, address, and banned-peer checks still run for attempts under the IP cap.
+
+Set `trustProxy` to `true` only when the node is reachable exclusively through one immediate reverse proxy. The node trusts the rightmost `X-Forwarded-For` value and the single closest hop, so a proxy that appends the real client address is safe from a caller-controlled prefix. Do not expose the node directly when this setting is enabled. With `trustProxy: false`, every client behind one proxy shares that proxy's address.
+
+These counters are process-local. A deployment with multiple node processes or externally load-balanced replicas applies the configured limits independently in each process and must enforce a shared outer limit when required.
+
 ## Development and Tests
 
 Refer to [CONTRIBUTING.md](./.github/CONTRIBUTING.md).
