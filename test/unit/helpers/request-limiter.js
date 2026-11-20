@@ -1,10 +1,14 @@
 'use strict';
 
 const { expect } = require('chai');
+const cors = require('cors');
 const express = require('express');
+const http = require('http');
+const net = require('net');
 const request = require('supertest');
 const sinon = require('sinon');
 
+const corsOptions = require('../../../helpers/cors-options.js');
 const RequestLimiter = require('../../../helpers/request-limiter.js');
 const ZSchema = require('../../../helpers/z_schema.js');
 const configSchema = require('../../../schema/config.js');
@@ -55,8 +59,8 @@ describe('RequestLimiter', () => {
           .that.is.an('object');
       expect(limiter.client).to.have.property('delayAfter').to.equal(1000);
       expect(limiter.client).to.have.property('delayMs').that.is.a('function');
-      expect(limiter.client).to.have.property('max').to.equal(3000);
-      expect(limiter.client).to.have.property('limit').to.equal(3000);
+      expect(limiter.client).to.have.property('max').to.equal(12000);
+      expect(limiter.client).to.have.property('limit').to.equal(12000);
       expect(limiter.client).to.have.property('windowMs').to.equal(60000);
       expect(limiter.client.delayMs(100)).to.equal(0);
       expect(limiter.client.delayMs(1001)).to.equal(25);
@@ -71,8 +75,8 @@ describe('RequestLimiter', () => {
           .that.is.an('object');
       expect(limiter.peer).to.have.property('delayAfter').to.equal(6000);
       expect(limiter.peer).to.have.property('delayMs').that.is.a('function');
-      expect(limiter.peer).to.have.property('max').to.equal(12000);
-      expect(limiter.peer).to.have.property('limit').to.equal(12000);
+      expect(limiter.peer).to.have.property('max').to.equal(20000);
+      expect(limiter.peer).to.have.property('limit').to.equal(20000);
       expect(limiter.peer).to.have.property('windowMs').to.equal(60000);
       expect(limiter.peer.delayMs(100)).to.equal(0);
       expect(limiter.peer.routes.sync.limit).to.equal(12000);
@@ -357,6 +361,124 @@ describe('RequestLimiter', () => {
     await request(app).get('/api/blocks').expect(200);
 
     expect(Date.now() - started).to.be.at.least(30);
+  });
+
+  it('should preserve CORS headers and expose rate-limit headers on 429 responses', async () => {
+    const origin = 'https://client.example';
+
+    app.use(cors(corsOptions({
+      origin,
+      exposedHeaders: ['X-Request-Id']
+    })));
+    RequestLimiter(app, {
+      api: {
+        options: {
+          limits: {
+            limit: 1,
+            delayAfter: 0,
+            delayMs: 0,
+            windowMs: 60000
+          }
+        }
+      }
+    });
+    app.get('/api/blocks', (req, res) => res.sendStatus(200));
+
+    const accepted = await request(app)
+        .get('/api/blocks')
+        .set('Origin', origin)
+        .expect(200);
+    const limited = await request(app)
+        .get('/api/blocks')
+        .set('Origin', origin)
+        .expect(429);
+
+    expect(accepted.headers['access-control-allow-origin']).to.equal(origin);
+    expect(limited.headers['access-control-allow-origin']).to.equal(origin);
+    expect(limited.headers['access-control-expose-headers']).to.include('Retry-After');
+    expect(limited.headers['access-control-expose-headers']).to.include('RateLimit-Limit');
+  });
+
+  it('should enforce the parent limit across inherited route policies', async () => {
+    RequestLimiter(app, {
+      api: {
+        options: {
+          limits: {
+            limit: 2,
+            delayAfter: 0,
+            delayMs: 0,
+            windowMs: 60000,
+            routes: {
+              status: { limit: 100, delayAfter: 0, delayMs: 0 },
+              read: { limit: 100, delayAfter: 0, delayMs: 0 },
+              publish: { limit: 100, delayAfter: 0, delayMs: 0 }
+            }
+          }
+        }
+      }
+    });
+    app.use('/api/', (req, res) => res.sendStatus(200));
+
+    await request(app).get('/api/loader/status').expect(200);
+    await request(app).get('/api/blocks').expect(200);
+    await request(app).post('/api/transactions').expect(429);
+  });
+
+  it('should classify an absolute-form publish target before dispatch', async () => {
+    RequestLimiter(app, {
+      api: {
+        options: {
+          limits: {
+            limit: 10,
+            delayAfter: 0,
+            delayMs: 0,
+            windowMs: 60000,
+            routes: {
+              status: { limit: 10, delayAfter: 0, delayMs: 0 },
+              read: { limit: 10, delayAfter: 0, delayMs: 0 },
+              publish: { limit: 1, delayAfter: 0, delayMs: 0 }
+            }
+          }
+        }
+      }
+    });
+    app.post('/api/transactions', (req, res) => res.sendStatus(200));
+    const server = http.createServer(app);
+
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+
+    async function sendAbsolute () {
+      return new Promise((resolve, reject) => {
+        const socket = net.connect(server.address().port, '127.0.0.1');
+        let response = '';
+
+        socket.on('connect', () => {
+          socket.write([
+            'POST http://example.test/api/transactions HTTP/1.1',
+            'Host: example.test',
+            'Content-Length: 0',
+            'Connection: close',
+            '',
+            ''
+          ].join('\r\n'));
+        });
+        socket.on('data', (chunk) => {
+          response += chunk.toString();
+        });
+        socket.on('error', reject);
+        socket.on('end', () => {
+          const status = Number((response.match(/^HTTP\/1\.1 (\d{3})/) || [])[1]);
+          resolve(status);
+        });
+      });
+    }
+
+    try {
+      expect(await sendAbsolute()).to.equal(200);
+      expect(await sendAbsolute()).to.equal(429);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
   });
 
   it('should trust one proxy hop and group forwarded IPv6 addresses by allocation', async () => {

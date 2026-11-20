@@ -62,7 +62,7 @@ const HEADER_DEFAULTS = {
  */
 const defaults = {
   api: Object.assign({}, HEADER_DEFAULTS, {
-    limit: 3000,
+    limit: 12000,
     delayMs: 25,
     delayAfter: 1000,
     maxDelayMs: 1000,
@@ -88,7 +88,7 @@ const defaults = {
     }
   }),
   peer: Object.assign({}, HEADER_DEFAULTS, {
-    limit: 12000,
+    limit: 20000,
     delayMs: 5,
     delayAfter: 6000,
     maxDelayMs: 200,
@@ -167,8 +167,19 @@ function resolveLimit (source, fallback) {
  * @return {string} Request path.
  */
 function requestPath (req) {
-  const raw = (req && (req.originalUrl || req.url)) || '';
-  const path = String(raw).split('?')[0];
+  let path = '';
+
+  if (req && typeof req.baseUrl === 'string' && typeof req.path === 'string') {
+    path = req.baseUrl + req.path;
+  } else {
+    const raw = String((req && (req.originalUrl || req.url)) || '');
+
+    try {
+      path = new URL(raw, 'http://localhost').pathname;
+    } catch (error) {
+      path = raw.split('?')[0];
+    }
+  }
 
   if (path.length > 1 && path.endsWith('/')) {
     return path.slice(0, -1);
@@ -505,6 +516,10 @@ function mountSurface (app, prefix, surface, classNames, classify, logger, disab
       next();
     });
     return;
+  }
+
+  if (surface.hasRoutes) {
+    app.use(prefix, rateLimit(rateOptions(surface, surface, null, classify, logger)));
   }
 
   const mounted = surface.hasRoutes ? classNames : [null];

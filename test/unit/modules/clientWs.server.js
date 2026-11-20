@@ -348,6 +348,21 @@ describe('ClientWs server', function () {
     expect(Array.from(clientWs.describes[socket.id].addresses)).to.deep.equal(['U123456']);
   });
 
+  it('should count only valid distinct additions against subscription caps', function () {
+    const { handlers, socket } = createSocket('socket-distinct-cap');
+    const clientWs = limitedClient({ maxAddresses: 2, maxSubscriptionEvents: 10 });
+
+    clientWs.handleConnection(socket);
+    handlers.address('not-an-address');
+    handlers.address('U123456');
+    handlers.address(['U123456', 'U4697606961271319613']);
+
+    expect(Array.from(clientWs.describes[socket.id].addresses)).to.deep.equal([
+      'U123456',
+      'U4697606961271319613'
+    ]);
+  });
+
   it('should ignore subscription changes after the event budget', function () {
     const { handlers, socket } = createSocket('socket-event-budget');
     const clientWs = limitedClient({
@@ -377,6 +392,19 @@ describe('ClientWs server', function () {
       handlers.balances(new Array(200000).fill('votes'));
     }).to.not.throw();
     expect(clientWs.describes).not.to.have.property(socket.id);
+  });
+
+  it('should retain a new balance field after resending an existing field', function () {
+    const { handlers, socket } = createSocket('socket-cumulative-balance');
+    const clientWs = limitedClient({ maxSubscriptionEvents: 10 });
+
+    clientWs.handleConnection(socket);
+    handlers.balances('balance');
+    handlers.balances(['balance', 'unconfirmedBalance']);
+
+    expect(clientWs.describes[socket.id].balanceFields).to.deep.equal(
+        new Set(['balance', 'unconfirmedBalance'])
+    );
   });
 
   it('should reject sockets above the per-IP cap and release the slot on disconnect', function () {

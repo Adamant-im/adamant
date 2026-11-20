@@ -1,14 +1,17 @@
 'use strict';
 
 const { expect } = require('chai');
+const express = require('express');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const sinon = require('sinon');
+const request = require('supertest');
 
 const Config = require('../../../helpers/config.js');
 const configOverrides = require('../../../helpers/configOverrides.js');
 const configSchema = require('../../../schema/config.js');
+const RequestLimiter = require('../../../helpers/request-limiter.js');
 
 describe('configOverrides', () => {
   let tempDir;
@@ -396,6 +399,23 @@ describe('configOverrides', () => {
       expect(config.peers.options.limits.routes.sync.limit).to.equal(
           defaults.peers.options.limits.routes.sync.limit
       );
+    });
+
+    it('should enforce a parent cap over inherited route policies', async () => {
+      const raw = JSON.parse(fs.readFileSync(testConfigPath, 'utf8'));
+
+      delete raw.api.options.limits;
+
+      const config = Config(writeTempFile('surface-cap.json', JSON.stringify(raw)), {
+        sets: ['api.options.limits.limit=1']
+      });
+      const app = express();
+
+      RequestLimiter(app, config);
+      app.get('/api/blocks', (req, res) => res.sendStatus(200));
+
+      await request(app).get('/api/blocks').expect(200);
+      await request(app).get('/api/blocks').expect(429);
     });
 
     it('should fail during schema validation for zero snapshot override', () => {

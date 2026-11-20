@@ -38,4 +38,31 @@ describe('AbuseWindow', function () {
         AbuseWindow.ipLimitKey('2001:db8:abce:1200::1')
     );
   });
+
+  it('should bound tracked keys and expire them without a full-map scan', function () {
+    const window = new AbuseWindow(1, 100, 3);
+
+    expect(window.allow('one')).to.equal(true);
+    expect(window.allow('two')).to.equal(true);
+    expect(window.allow('three')).to.equal(true);
+    expect(window.allow('four')).to.equal(false);
+    expect(window.hits.size).to.equal(3);
+
+    clock.tick(100);
+
+    expect(window.allow('four')).to.equal(true);
+    expect(window.hits.size).to.equal(1);
+  });
+
+  it('should use the closest forwarded address only for trusted requests', function () {
+    const source = {
+      socket: { remoteAddress: '10.0.0.1' },
+      headers: {
+        'x-forwarded-for': '192.0.2.1, 198.51.100.10'
+      }
+    };
+
+    expect(AbuseWindow.resolveClientIp(source, false)).to.equal('10.0.0.1');
+    expect(AbuseWindow.resolveClientIp(source, true)).to.equal('198.51.100.10');
+  });
 });

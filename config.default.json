@@ -58,8 +58,8 @@
     },
     "options": {
       "limits": {
-        "limit": 3000,
-        "max": 3000,
+        "limit": 12000,
+        "max": 12000,
         "delayMs": 25,
         "delayAfter": 1000,
         "maxDelayMs": 1000,
@@ -129,8 +129,8 @@
     },
     "options": {
       "limits": {
-        "limit": 12000,
-        "max": 12000,
+        "limit": 20000,
+        "max": 20000,
         "delayMs": 5,
         "delayAfter": 6000,
         "maxDelayMs": 200,

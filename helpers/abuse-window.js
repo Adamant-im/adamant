@@ -3,6 +3,9 @@
 const net = require('net');
 const { ipKeyGenerator } = require('express-rate-limit');
 
+const DEFAULT_MAX_KEYS = 10000;
+const PRUNE_BATCH_SIZE = 128;
+
 /**
  * Fixed-window counter for non-consensus abuse control.
  * A non-positive limit disables the counter and allows every hit.
@@ -11,11 +14,15 @@ class AbuseWindow {
   /**
    * @param {number} limit - Maximum hits per window.
    * @param {number} windowMs - Window length in milliseconds.
+   * @param {number} [maxKeys] - Maximum number of active keys retained.
    */
-  constructor (limit, windowMs) {
+  constructor (limit, windowMs, maxKeys) {
     this.limit = limit;
     this.windowMs = windowMs > 0 ? windowMs : 60000;
+    this.maxKeys = Number.isInteger(maxKeys) && maxKeys > 0 ? maxKeys : DEFAULT_MAX_KEYS;
     this.hits = new Map();
+    this.expirations = [];
+    this.expirationHead = 0;
   }
 
   /**
@@ -30,15 +37,32 @@ class AbuseWindow {
 
     const now = Date.now();
     const bucketKey = String(key);
+
+    this.prune(now);
+
     let bucket = this.hits.get(bucketKey);
 
-    if (!bucket || now >= bucket.resetAt) {
+    if (!bucket) {
+      if (this.hits.size >= this.maxKeys) {
+        return false;
+      }
+
       bucket = {
         count: 0,
         resetAt: now + this.windowMs
       };
       this.hits.set(bucketKey, bucket);
-      this.prune(now);
+      this.expirations.push({
+        key: bucketKey,
+        resetAt: bucket.resetAt
+      });
+    } else if (now >= bucket.resetAt) {
+      bucket.count = 0;
+      bucket.resetAt = now + this.windowMs;
+      this.expirations.push({
+        key: bucketKey,
+        resetAt: bucket.resetAt
+      });
     }
 
     bucket.count += 1;
@@ -51,14 +75,33 @@ class AbuseWindow {
    * @return {void}
    */
   prune (now) {
-    if (this.hits.size < 1000) {
-      return;
+    let processed = 0;
+
+    while (
+      processed < PRUNE_BATCH_SIZE &&
+      this.expirationHead < this.expirations.length
+    ) {
+      const expiration = this.expirations[this.expirationHead];
+
+      if (expiration.resetAt > now) {
+        break;
+      }
+
+      this.expirationHead += 1;
+      processed += 1;
+
+      const bucket = this.hits.get(expiration.key);
+      if (bucket && bucket.resetAt === expiration.resetAt) {
+        this.hits.delete(expiration.key);
+      }
     }
 
-    for (const [key, bucket] of this.hits) {
-      if (now >= bucket.resetAt) {
-        this.hits.delete(key);
-      }
+    if (
+      this.expirationHead >= 1024 &&
+      this.expirationHead * 2 >= this.expirations.length
+    ) {
+      this.expirations = this.expirations.slice(this.expirationHead);
+      this.expirationHead = 0;
     }
   }
 }
@@ -88,6 +131,40 @@ function ipLimitKey (ip) {
   return ipKeyGenerator(normalized);
 }
 
+/**
+ * Resolves an HTTP or Socket.IO client address, trusting only the nearest proxy hop.
+ * @param {object} source - IncomingMessage or Socket.IO socket.
+ * @param {boolean} trustProxy - Whether the direct peer is a trusted reverse proxy.
+ * @return {string} Normalized client address.
+ */
+function resolveClientIp (source, trustProxy) {
+  const handshake = (source && source.handshake) || {};
+  const headers = handshake.headers || (source && source.headers) || {};
+
+  if (trustProxy) {
+    const forwardedValue = headers['x-forwarded-for'];
+    const forwarded = Array.isArray(forwardedValue) ?
+      forwardedValue[0] :
+      forwardedValue;
+
+    if (typeof forwarded === 'string' && forwarded.trim()) {
+      const values = forwarded.split(',');
+      return normalizeIp(values[values.length - 1].trim());
+    }
+  }
+
+  const address = handshake.address ||
+    (source && source.remoteAddress) ||
+    (source && source.socket && source.socket.remoteAddress) ||
+    (source && source.connection && source.connection.remoteAddress) ||
+    (source && source.conn && source.conn.remoteAddress) ||
+    (source && source.request && source.request.socket && source.request.socket.remoteAddress) ||
+    'unknown';
+
+  return normalizeIp(address);
+}
+
 module.exports = AbuseWindow;
 module.exports.normalizeIp = normalizeIp;
 module.exports.ipLimitKey = ipLimitKey;
+module.exports.resolveClientIp = resolveClientIp;

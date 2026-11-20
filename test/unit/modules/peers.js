@@ -727,6 +727,48 @@ describe('peers', function () {
       });
     });
 
+    it('should preserve peer health and defer after a 429 response', function (done) {
+      var peer = { ip: '127.0.0.1', port: 0 };
+      var requests = 0;
+      var server = http.createServer(function (req, res) {
+        requests++;
+        res.statusCode = 429;
+        res.setHeader('Retry-After', '86400');
+        res.end();
+      });
+
+      listen(server, function (port) {
+        peer.port = port;
+        peers.recordInboundPeer(peer);
+        var live = modulesLoader.scope.logic.peers.get(peer);
+        var previousSuccessRate = live.successRequestCount;
+        var started = Date.now();
+
+        modules.transport.getFromPeer(peer, {
+          api: '/blocks',
+          method: 'GET',
+          timeout: 500
+        }, function (err) {
+          expect(err).to.contain('ERATELIMIT 429');
+          expect(modulesLoader.scope.logic.peers.get(peer)).to.equal(live);
+          expect(live.successRequestCount).to.equal(previousSuccessRate);
+          expect(live.nextAttemptAt).to.be.above(started);
+          expect(live.nextAttemptAt - started).to.be.at.most(61000);
+
+          modules.transport.getFromPeer(peer, {
+            api: '/blocks',
+            method: 'GET',
+            timeout: 500
+          }, function (backoffErr) {
+            expect(backoffErr).to.contain('still in backoff');
+            expect(requests).to.equal(1);
+            forceRemove(peer);
+            closeServer(server, done);
+          });
+        });
+      });
+    });
+
     it('should reject outbound requests to a tracked banned peer', function (done) {
       var peer = { ip: '40.41.40.64', port: 50001 };
       peers.recordInboundPeer(peer);

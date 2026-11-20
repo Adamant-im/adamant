@@ -1,7 +1,7 @@
 const { Server } = require('socket.io');
 const AbuseWindow = require('../../helpers/abuse-window');
-const ipLimitKey = AbuseWindow.ipLimitKey;
 const normalizeIp = AbuseWindow.normalizeIp;
+const SocketAdmission = require('../../helpers/socket-admission.js');
 const Peer = require('../../logic/peer');
 
 const HANDSHAKE_DEFAULTS = {
@@ -15,18 +15,38 @@ const HANDSHAKE_DEFAULTS = {
  */
 class WebSocketServer {
   constructor (server, appConfig, logger) {
-    this.io = new Server(server, {
-      allowEIO3: true,
-      cors: appConfig.cors
-    });
-
     this.enabled = appConfig.wsNode.enabled;
     this.max = appConfig.wsNode.maxBroadcastConnections;
     this.address = appConfig.address;
     this.port = appConfig.port;
     this.handshake = normalizeHandshakeLimits(appConfig.wsNode);
-
     this.logger = logger;
+    this.nonceHandshakes = new AbuseWindow(
+        this.handshake.handshakeLimitPerNonce,
+        this.handshake.handshakeWindowMs
+    );
+    this.admittedSockets = new Set();
+    this.socketsByNonce = new Map();
+    this.transportAdmission = new SocketAdmission({
+      maxConnections: this.enabled ? this.max : 0,
+      maxConnectionsPerIp: null,
+      maxConnectionAttempts: this.handshake.handshakeLimit,
+      connectionWindowMs: this.handshake.handshakeWindowMs,
+      trustProxy: false,
+      onReject: (reason, address) => {
+        this.logger.trace(
+            'ws-node-server',
+            `WebSocket peer ${address} is not allowed to connect`,
+            reason
+        );
+      }
+    });
+    this.io = new Server(server, {
+      allowEIO3: true,
+      cors: appConfig.cors,
+      allowRequest: this.transportAdmission.allowRequest.bind(this.transportAdmission)
+    });
+    this.transportAdmission.bind(this.io.engine);
 
     const self = this;
     self.logger.info('ws-node-server', 'Created WebSocketServer');
@@ -45,24 +65,11 @@ class WebSocketServer {
 
     self.logger.info('ws-node-server', `WebSocketServer enabled; awaiting inbound peers on ${this.address}:${this.port}…`);
 
-    this.ipHandshakes = new AbuseWindow(this.handshake.handshakeLimit, this.handshake.handshakeWindowMs);
-    this.nonceHandshakes = new AbuseWindow(
-        this.handshake.handshakeLimitPerNonce,
-        this.handshake.handshakeWindowMs
-    );
-
     this.io.on('connection', (socket) => {
       const peerIp = socket.handshake.address || socket.request.socket.remoteAddress;
       const normalizedIp = normalizeIp(peerIp);
 
       self.logger.debug('ws-node-server', `WebSocket peer ${peerIp} is connecting…`, { direction: 'inbound' });
-
-      if (!this.ipHandshakes.allow(ipLimitKey(peerIp))) {
-        self.logger.trace('ws-node-server', `WebSocket peer ${peerIp} is not allowed to connect`, 'Too many connection attempts');
-        socket.emit('disconnect_reason', 'Too many connection attempts');
-        socket.disconnect(true);
-        return;
-      }
 
       const { nonce } = socket.handshake.auth;
 
@@ -93,7 +100,7 @@ class WebSocketServer {
         return;
       }
 
-      if (existingPeer.isBroadcastingViaSocket) {
+      if (this.socketsByNonce.has(String(nonce))) {
         const reason = 'Peer is already connected';
 
         self.logger.trace('ws-node-server', `WebSocket peer ${peerIp} is not allowed to connect`, reason);
@@ -102,7 +109,7 @@ class WebSocketServer {
         return;
       }
 
-      if (logic.peers.getSocketCount() >= this.max) {
+      if (this.admittedSockets.size >= this.max) {
         const reason = 'Server connection limit exceeded';
 
         self.logger.trace('ws-node-server', `WebSocket peer ${peerIp} is not allowed to connect`, reason);
@@ -113,12 +120,18 @@ class WebSocketServer {
       }
 
       existingPeer.isBroadcastingViaSocket = true;
+      this.admittedSockets.add(socket);
+      this.socketsByNonce.set(String(nonce), socket);
 
       self.logger.info('ws-node-server', `WebSocket peer ${peerIp} is connected to the node`, { direction: 'inbound' });
 
       socket.on('disconnect', () => {
         self.logger.debug('ws-node-server', `WebSocket peer ${existingPeer.ip} is disconnecting…`);
-        existingPeer.isBroadcastingViaSocket = false;
+        this.admittedSockets.delete(socket);
+        if (this.socketsByNonce.get(String(nonce)) === socket) {
+          this.socketsByNonce.delete(String(nonce));
+          existingPeer.isBroadcastingViaSocket = false;
+        }
       });
     });
   }

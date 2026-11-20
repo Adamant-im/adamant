@@ -292,6 +292,23 @@ describe('peer', () => {
       expect(Peer.isNetworkError()).to.equal(false);
     });
 
+    it('should distinguish temporary peer throttling from request failures', () => {
+      expect(Peer.isRateLimitError(
+          'ERATELIMIT 429 GET http://203.0.113.10/peer/blocks'
+      )).to.equal(true);
+      expect(Peer.isRateLimitError({ code: 'ERATELIMIT' })).to.equal(true);
+      expect(Peer.isRateLimitError('ERESPONSE 500')).to.equal(false);
+      expect(Peer.isRateLimitError()).to.equal(false);
+    });
+
+    it('should preserve peer health for temporary throttling', () => {
+      const previousSuccessRate = peer.successRequestCount;
+
+      peer.recordRequest('ERATELIMIT 429 retry in 1000ms');
+
+      expect(peer.successRequestCount).to.equal(previousSuccessRate);
+    });
+
     it('should not record backoff from the success-rate path', () => {
       peer.state = Peer.STATE.BANNED;
       peer.recordRequest('ECONNREFUSED');

@@ -1,7 +1,8 @@
 const { Server } = require('socket.io');
 const AbuseWindow = require('../helpers/abuse-window');
 const ipLimitKey = AbuseWindow.ipLimitKey;
-const normalizeIp = AbuseWindow.normalizeIp;
+const resolveClientIp = AbuseWindow.resolveClientIp;
+const SocketAdmission = require('../helpers/socket-admission.js');
 const TransactionSubscription = require('./clientWs/transactionSubscription');
 
 const LIMIT_DEFAULTS = {
@@ -17,10 +18,10 @@ const LIMIT_DEFAULTS = {
 };
 
 const CAP_FIELDS = {
-  address: { set: 'addresses', limit: 'maxAddresses' },
-  types: { set: 'types', limit: 'maxTypes' },
-  assetChatTypes: { set: 'assetChatTypes', limit: 'maxAssetChatTypes' },
-  balances: { set: 'balanceFields', max: 2 }
+  address: { limit: 'maxAddresses' },
+  types: { limit: 'maxTypes' },
+  assetChatTypes: { limit: 'maxAssetChatTypes' },
+  balances: { max: 2 }
 };
 
 class ClientWs {
@@ -56,11 +57,25 @@ class ClientWs {
     }
 
     const port = config.portWS;
+    this.transportAdmission = new SocketAdmission({
+      maxConnections: this.limits.maxConnections > 0 ? this.limits.maxConnections : null,
+      maxConnectionsPerIp: this.limits.maxConnectionsPerIp > 0 ?
+        this.limits.maxConnectionsPerIp :
+        null,
+      maxConnectionAttempts: this.limits.maxConnectionAttempts,
+      connectionWindowMs: this.limits.connectionWindowMs,
+      trustProxy: this.trustProxy,
+      onReject: (reason, address) => {
+        this.logTransportLimit(reason, address);
+      }
+    });
     const io = new Server(port, {
       allowEIO3: true,
-      cors: config.cors
+      cors: config.cors,
+      allowRequest: this.transportAdmission.allowRequest.bind(this.transportAdmission)
     });
     this.io = io;
+    this.transportAdmission.bind(io.engine);
 
     io.sockets.on('connection', this.handleConnection.bind(this));
 
@@ -412,20 +427,27 @@ class ClientWs {
     const limits = this.limits;
     const ip = ipLimitKey(resolveClientIp(socket, this.trustProxy));
 
-    if (!this.connectionAttempts.allow(ip)) {
-      return false;
-    }
+    if (this.io) {
+      if (!this.transportAdmission.isActive(socket.conn)) {
+        return false;
+      }
+    } else {
+      if (!this.connectionAttempts.allow(ip)) {
+        return false;
+      }
 
-    if (limits.maxConnections > 0 && this.connectionCount >= limits.maxConnections) {
-      return false;
+      if (limits.maxConnections > 0 && this.connectionCount >= limits.maxConnections) {
+        return false;
+      }
+
+      const current = this.connectionsByIp.get(ip) || 0;
+
+      if (limits.maxConnectionsPerIp > 0 && current >= limits.maxConnectionsPerIp) {
+        return false;
+      }
     }
 
     const current = this.connectionsByIp.get(ip) || 0;
-
-    if (limits.maxConnectionsPerIp > 0 && current >= limits.maxConnectionsPerIp) {
-      return false;
-    }
-
     this.admitted.add(socket);
     this.connectionCount += 1;
     this.connectionsByIp.set(ip, current + 1);
@@ -473,7 +495,7 @@ class ClientWs {
   }
 
   /**
-   * Trims one subscription request to the remaining per-socket cap.
+   * Selects valid, distinct additions that still fit the per-socket cap.
    * @param {TransactionSubscription} describe - Subscription state.
    * @param {string|null} kind - Cap group.
    * @param {Array} values - Requested values.
@@ -488,17 +510,22 @@ class ClientWs {
 
     const max = spec.max === undefined ? this.limits[spec.limit] : spec.max;
 
-    if (!(max > 0)) {
-      return values;
+    return describe.selectSubscriptionValues(kind, values, max);
+  }
+
+  /**
+   * Logs an Engine.IO handshake rejected before session allocation.
+   * @param {string} reason - Admission rejection reason.
+   * @param {string} address - Normalized client address.
+   * @return {void}
+   */
+  logTransportLimit (reason, address) {
+    if (this.logger && typeof this.logger.debug === 'function') {
+      this.logger.debug(
+          'ws-client-server',
+          'Rejected client WebSocket transport from ' + address + ': ' + reason
+      );
     }
-
-    const remaining = max - describe[spec.set].size;
-
-    if (remaining <= 0) {
-      return [];
-    }
-
-    return values.slice(0, remaining);
   }
 
   /**
@@ -703,31 +730,4 @@ function normalizeClientLimits (limits) {
   }
 
   return normalized;
-}
-
-/**
- * Resolves the client address, trusting only the forwarding value added by the immediate proxy.
- * @param {object} socket - Socket.IO client.
- * @param {boolean} trustProxy - Whether the node sits behind a trusted reverse proxy.
- * @return {string} Client IP.
- */
-function resolveClientIp (socket, trustProxy) {
-  const handshake = (socket && socket.handshake) || {};
-  const headers = handshake.headers || {};
-
-  if (trustProxy) {
-    const forwarded = headers['x-forwarded-for'];
-
-    if (typeof forwarded === 'string' && forwarded.trim()) {
-      const values = forwarded.split(',');
-      return normalizeIp(values[values.length - 1].trim());
-    }
-  }
-
-  const address = handshake.address ||
-    (socket && socket.conn && socket.conn.remoteAddress) ||
-    (socket && socket.request && socket.request.socket && socket.request.socket.remoteAddress) ||
-    'unknown';
-
-  return normalizeIp(address);
 }

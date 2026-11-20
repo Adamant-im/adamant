@@ -285,15 +285,15 @@ d.run(function () {
       var express = require('express');
       var compression = require('compression');
       var cors = require('cors');
+      var corsOptions = require('./helpers/cors-options.js')(appConfig.cors);
       var app = express();
 
+      app.use(cors(corsOptions));
+      app.options(/(.*)/, cors(corsOptions));
       require('./helpers/request-limiter')(app, appConfig, scope.logger);
-
       app.use(compression({
         level: 9
       }));
-      app.use(cors(appConfig.cors));
-      app.options(/(.*)/, cors(appConfig.cors));
 
       var server = require('http').createServer(app);
 
@@ -313,7 +313,7 @@ d.run(function () {
 
         https_io = new Server(https, {
           allowEIO3: true,
-          cors: appConfig.cors
+          cors: corsOptions
         });
       }
 

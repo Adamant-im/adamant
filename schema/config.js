@@ -205,6 +205,9 @@ module.exports = {
           },
           methods: {
             type: ['string', 'array']
+          },
+          exposedHeaders: {
+            type: ['string', 'array']
           }
         }
       },

@@ -459,6 +459,10 @@ Peers.prototype.remove = function (pip, port) {
  * @return {boolean} Returns `true` if peer has been updated
  */
 Peers.prototype.recordRequest = function (ip, port, error) {
+  if (Peer.isRateLimitError(error)) {
+    return true;
+  }
+
   var peer = library.logic.peers.get({ ip: ip, port: port });
   var options = __private.probeOptions();
   var now = Date.now();
@@ -511,6 +515,37 @@ Peers.prototype.recordRequest = function (ip, port, error) {
 
   library.logger.info('peers', 'Removing unreachable peer', peer.string);
   self.remove(peer.ip, peer.port);
+  return true;
+};
+
+/**
+ * Defers one endpoint without changing peer health after temporary throttling.
+ * @param {string} ip
+ * @param {number} port
+ * @param {number} delayMs
+ * @return {boolean} Whether an endpoint was deferred.
+ */
+Peers.prototype.deferRequest = function (ip, port, delayMs) {
+  var delay = Math.max(0, Math.floor(Number(delayMs) || 0));
+  var nextAttemptAt = Date.now() + delay;
+  var peer = library.logic.peers.get({ ip: ip, port: port });
+  var endpoint = peer || library.logic.peers.create({ ip: ip, port: port });
+
+  if (endpoint && endpoint.ip && endpoint.port) {
+    endpoint.nextAttemptAt = Math.max(endpoint.nextAttemptAt || 0, nextAttemptAt);
+  }
+
+  var state = __private.outboundRequestState.get(endpoint.string) || endpoint;
+  state.nextAttemptAt = Math.max(state.nextAttemptAt || 0, nextAttemptAt);
+  __private.outboundRequestState.delete(endpoint.string);
+  __private.outboundRequestState.set(endpoint.string, state);
+
+  var maxEntries = Math.max(100, __private.probeOptions().maxPeers * 2);
+  while (__private.outboundRequestState.size > maxEntries) {
+    var oldest = __private.outboundRequestState.keys().next().value;
+    __private.outboundRequestState.delete(oldest);
+  }
+
   return true;
 };
 

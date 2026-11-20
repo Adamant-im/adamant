@@ -1,6 +1,7 @@
 'use strict';
 
 const http = require('http');
+const { Socket: EngineSocket } = require('engine.io-client');
 const { expect } = require('chai');
 const { io } = require('socket.io-client');
 const sinon = require('sinon');
@@ -17,12 +18,12 @@ function createLogger () {
   };
 }
 
-function connect (port, auth) {
+function connect (port, auth, transports) {
   const socket = io('http://127.0.0.1:' + port, {
     forceNew: true,
     reconnection: false,
     timeout: 2000,
-    transports: ['websocket'],
+    transports: transports || ['websocket'],
     auth: auth
   });
 
@@ -58,6 +59,7 @@ describe('node WebSocket handshake limits', function () {
   let server;
   let wsServer;
   let sockets;
+  let engineClient;
   let peers;
   let logger;
 
@@ -100,6 +102,10 @@ describe('node WebSocket handshake limits', function () {
   afterEach(async function () {
     sockets.forEach((socket) => socket.close());
     sockets = [];
+    if (engineClient) {
+      engineClient.close();
+      engineClient = null;
+    }
 
     if (wsServer) {
       await new Promise((resolve) => wsServer.io.close(resolve));
@@ -257,5 +263,122 @@ describe('node WebSocket handshake limits', function () {
         sinon.match.string,
         'Peer is already connected'
     )).to.equal(true);
+  });
+
+  ['polling', 'upgrade', 'websocket'].forEach(function (mode) {
+    it('should enforce the transport cap before a ' + mode + ' session is allocated', async function () {
+      const firstPeer = {
+        ip: '127.0.0.1',
+        state: Peer.STATE.CONNECTED,
+        isBroadcastingViaSocket: false
+      };
+      const secondPeer = {
+        ip: '127.0.0.1',
+        state: Peer.STATE.CONNECTED,
+        isBroadcastingViaSocket: false
+      };
+      const port = await listen({
+        maxBroadcastConnections: 1,
+        handshakeLimit: 100,
+        handshakeLimitPerNonce: 100,
+        handshakeWindowMs: 60000
+      }, {
+        first: firstPeer,
+        second: secondPeer
+      });
+      const admittedTransports = sinon.spy();
+      const transports = mode === 'polling' ?
+        ['polling'] :
+        mode === 'upgrade' ?
+          ['polling', 'websocket'] :
+          ['websocket'];
+
+      wsServer.io.engine.on('connection', admittedTransports);
+
+      const first = connect(port, { nonce: 'first' }, transports);
+      sockets.push(first);
+      expect(await first.outcome).to.equal('open');
+
+      const second = connect(port, { nonce: 'second' }, transports);
+      sockets.push(second);
+      expect(await second.outcome).to.not.equal('open');
+      expect(admittedTransports.calledOnce).to.equal(true);
+      expect(wsServer.transportAdmission.connectionCount).to.equal(1);
+      expect(wsServer.admittedSockets.size).to.equal(1);
+    });
+  });
+
+  it('should count admitted sockets after the peer record is removed', async function () {
+    const firstPeer = {
+      ip: '127.0.0.1',
+      state: Peer.STATE.CONNECTED,
+      isBroadcastingViaSocket: false
+    };
+    const secondPeer = {
+      ip: '127.0.0.1',
+      state: Peer.STATE.CONNECTED,
+      isBroadcastingViaSocket: false
+    };
+    const port = await listen({
+      maxBroadcastConnections: 1,
+      handshakeLimit: 100,
+      handshakeLimitPerNonce: 100,
+      handshakeWindowMs: 60000
+    }, {
+      first: firstPeer,
+      second: secondPeer
+    });
+    const first = connect(port, { nonce: 'first' });
+    sockets.push(first);
+
+    expect(await first.outcome).to.equal('open');
+    delete peers.first;
+
+    const blocked = connect(port, { nonce: 'second' });
+    sockets.push(blocked);
+    expect(await blocked.outcome).to.not.equal('open');
+    expect(wsServer.admittedSockets.size).to.equal(1);
+
+    first.close();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const accepted = connect(port, { nonce: 'second' });
+    sockets.push(accepted);
+    expect(await accepted.outcome).to.equal('open');
+    expect(wsServer.admittedSockets.size).to.equal(1);
+  });
+
+  it('should reserve the peer cap for an Engine.IO session without a nonce', async function () {
+    const peer = {
+      ip: '127.0.0.1',
+      state: Peer.STATE.CONNECTED,
+      isBroadcastingViaSocket: false
+    };
+    const port = await listen({
+      maxBroadcastConnections: 1,
+      handshakeLimit: 100,
+      handshakeLimitPerNonce: 100,
+      handshakeWindowMs: 60000
+    }, {
+      known: peer
+    });
+    const url = `http://127.0.0.1:${port}`;
+
+    engineClient = new EngineSocket(url, {
+      path: '/socket.io/',
+      transports: ['polling']
+    });
+    await new Promise((resolve, reject) => {
+      engineClient.once('open', resolve);
+      engineClient.once('error', reject);
+    });
+
+    expect(wsServer.admittedSockets.size).to.equal(0);
+    expect(wsServer.transportAdmission.connectionCount).to.equal(1);
+
+    const blocked = connect(port, { nonce: 'known' });
+    sockets.push(blocked);
+    expect(await blocked.outcome).to.not.equal('open');
+    expect(wsServer.io.engine.clientsCount).to.equal(1);
   });
 });

@@ -172,6 +172,20 @@ Peer.isNetworkError = function (error) {
 };
 
 /**
+ * True when a peer asks the caller to retry after a temporary rate limit.
+ * @param {string|Error|null|undefined} error
+ * @return {boolean}
+ */
+Peer.isRateLimitError = function (error) {
+  if (!error) {
+    return false;
+  }
+
+  var text = typeof error === 'string' ? error : (error.code || error.message || '');
+  return String(text).trim().split(/[\s:]/)[0] === 'ERATELIMIT';
+};
+
+/**
  * Exponential delay for consecutive network failures, capped by options.
  * @param {number} failures - Consecutive failure count, starting at 1
  * @param {{unreachableBackoffInitialMs: number, unreachableBackoffMaxMs: number}} options
@@ -303,6 +317,10 @@ Peer.prototype.calcSuccessRate = function () {
  * @param {string?} error Provide error if a request failed
  */
 Peer.prototype.recordRequest = function (error) {
+  if (Peer.isRateLimitError(error)) {
+    return;
+  }
+
   if (error) {
     this.successRequestCount = Math.max(
         this.successRequestCount - 1,
