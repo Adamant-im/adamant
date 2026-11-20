@@ -194,12 +194,7 @@
   },
   "forging": {
     "force": false,
-    "secret": [],
-    "access": {
-      "whiteList": [
-        "127.0.0.1"
-      ]
-    }
+    "secret": []
   },
   "loading": {
     "loadPerIteration": 5000,
@@ -215,11 +210,6 @@
       "key": "./ssl/adamant.key",
       "cert": "./ssl/adamant.crt"
     }
-  },
-  "dapp": {
-    "masterrequired": true,
-    "masterpassword": "",
-    "autoexec": []
   },
   "wsClient": {
     "portWS": 36668,

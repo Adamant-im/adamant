@@ -33,20 +33,11 @@ const API_PUBLISH_PATHS = new Set([
   '/api/accounts/new',
   '/api/accounts/delegates',
   '/api/delegates',
-  '/api/delegates/forging/enable',
-  '/api/delegates/forging/disable',
   '/api/chats/process',
   '/api/states/store',
   '/api/signatures',
   '/api/multisignatures',
-  '/api/multisignatures/sign',
-  '/api/dapps',
-  '/api/dapps/launch',
-  '/api/dapps/install',
-  '/api/dapps/uninstall',
-  '/api/dapps/stop',
-  '/api/dapps/transaction',
-  '/api/dapps/withdrawal'
+  '/api/multisignatures/sign'
 ]);
 
 const HEADER_DEFAULTS = {

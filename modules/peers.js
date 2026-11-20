@@ -132,11 +132,6 @@ __private.getByFilter = function (filter, cb) {
     // var peer = __private.peers[index];
     var passed = true;
     _.each(filter, function (value, key) {
-      // Special case for dapp peers
-      if (key === 'dappid' && (peer[key] === null || (Array.isArray(peer[key]) && !_.includes(peer[key], String(value))))) {
-        passed = false;
-        return false;
-      }
       // Every filter field need to be in allowed fields, exists and match value
       if (_.includes(allowedFields, key) && !(peer[key] !== undefined && peer[key] === value)) {
         passed = false;
@@ -261,8 +256,7 @@ __private.dbLoad = function (cb) {
 };
 
 /**
- * Inserts list of peers into `peers` table and inserts dapps peers
- * into `peers_dapp` table.
+ * Inserts the peer list into the `peers` table.
  * @param {Function} cb - Callback function.
  * @implements library.db
  * @private
@@ -293,23 +287,13 @@ __private.dbSave = function (cb) {
     var insert_peers = pgp.helpers.insert(peers, cs);
 
     var queries = [
+      // Remove obsolete legacy DApp peer associations before replacing peers.
+      t.none(sql.clearDapps),
       // Clear peers table
       t.none(sql.clear),
       // Insert all peers
       t.none(insert_peers)
     ];
-
-    // Inserting dapps peers
-    _.each(peers, function (peer) {
-      if (peer.dappid) {
-        // If there are dapps on peer - push separately for every dapp
-        _.each(peer.dappid, function (dappid) {
-          var dapp_peer = peer;
-          dapp_peer.dappid = dappid;
-          queries.push(t.none(sql.addDapp, peer));
-        });
-      }
-    });
 
     return t.batch(queries);
   }).then(function (data) {

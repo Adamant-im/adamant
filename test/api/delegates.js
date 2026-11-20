@@ -2,7 +2,6 @@
 
 var node = require('./../node.js');
 var modulesLoader = require('./../common/initModule.js').modulesLoader;
-var genesisDelegates = require('../genesisPasses.json');
 const { sendADM, voteForDelegatesAndWaitUntilNextBlock } = require('../common/api.js');
 
 describe('GET /api/delegates (cache)', function () {
@@ -846,173 +845,46 @@ describe('GET /api/delegates/search', function () {
   });
 });
 
-describe('GET /api/delegates/forging/status', function () {
-  it('using no params should be ok', function (done) {
-    node.get('/api/delegates/forging/status', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('enabled').to.be.a('boolean');
-      node.expect(res.body).to.have.property('delegates').that.is.an('array');
-      done();
-    });
+describe('removed forging control endpoints', function () {
+  var unknownResponse;
+  var routes = [
+    { method: 'post', path: '/api/delegates/forging/enable' },
+    { method: 'post', path: '/api/delegates/forging/disable' },
+    { method: 'get', path: '/api/delegates/forging/status' },
+    { method: 'get', path: '/api/delegates/forging/enableAll' },
+    { method: 'get', path: '/api/delegates/forging/disableAll' }
+  ];
+
+  before(async function () {
+    unknownResponse = await delegateRequest('get', '/api/delegates/not-a-route');
   });
 
-  it('using invalid publicKey should fail', function (done) {
-    node.get('/api/delegates/forging/status?publicKey=' + 'invalidPublicKey', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.false;
-      node.expect(res.body).to.have.property('error').to.eql('Object didn\'t pass validation for format publicKey: invalidPublicKey');
-      done();
-    });
-  });
-
-  it('using empty publicKey should be ok', function (done) {
-    node.get('/api/delegates/forging/status?publicKey=', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('enabled').to.be.a('boolean');
-      node.expect(res.body).to.have.property('delegates').that.is.an('array');
-      done();
-    });
-  });
-
-  it('using disabled publicKey should be ok', function (done) {
-    node.get('/api/delegates/forging/status?publicKey=' + 'c094ebee7ec0c50ebee32918655e089f6e1a604b83bcaa760293c61e0f18ab6f', function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('enabled').to.be.false;
-      done();
-    });
-  });
-
-  it('using enabled publicKey should be ok', function (done) {
-    function expectEnabledStatus () {
-      node.get('/api/delegates/forging/status?publicKey=' + genesisDelegates.delegates[0].publicKey, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.true;
-        node.expect(res.body).to.have.property('enabled').to.be.true;
-        done();
+  routes.forEach(function (route) {
+    it('should treat ' + route.method.toUpperCase() + ' ' + route.path + ' as an unknown route', async function () {
+      var response = await delegateRequest(route.method, route.path, {
+        secret: 'must-not-be-used'
       });
-    }
 
-    node.get('/api/delegates/forging/status?publicKey=' + genesisDelegates.delegates[0].publicKey, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-
-      if (res.body.enabled) {
-        return expectEnabledStatus();
-      }
-
-      node.post('/api/delegates/forging/enable', {
-        publicKey: genesisDelegates.delegates[0].publicKey,
-        secret: genesisDelegates.delegates[0].secret
-      }, function (err, res) {
-        node.expect(res.body).to.have.property('success').to.be.true;
-        expectEnabledStatus();
-      });
+      node.expect(response.status).to.equal(unknownResponse.status);
+      node.expect(response.body).to.deep.equal(unknownResponse.body);
     });
   });
 });
 
-describe('POST /api/delegates/forging/disable', function () {
-  var testDelegate = genesisDelegates.delegates[0];
+function delegateRequest (method, path, body) {
+  var pending = node.api[method](path)
+      .set('Accept', 'application/json')
+      .set('version', node.version)
+      .set('nethash', node.config.nethash)
+      .set('ip', '0.0.0.0')
+      .set('port', node.config.port);
 
-  before(function (done) {
-    node.get('/api/delegates/forging/status?publicKey=' + testDelegate.publicKey, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('enabled').to.be.a('boolean');
-      if (!res.body.enabled) {
-        node.post('/api/delegates/forging/enable', {
-          publicKey: testDelegate.publicKey,
-          secret: testDelegate.secret
-        }, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.true;
-          node.expect(res.body).to.have.property('address').equal(testDelegate.address);
-          done();
-        });
-      } else {
-        done();
-      }
-    });
-  });
+  if (body) {
+    pending.send(body);
+  }
 
-  it('using no params should fail', function (done) {
-    node.post('/api/delegates/forging/disable', {}, function (err, res) {
-      node.expect(res.body).to.have.property('success').not.to.be.true;
-      node.expect(res.body).to.have.property('error').to.be.a('string').and.to.contain('Missing required property: secret');
-      done();
-    });
-  });
-
-  it('using invalid secret should fail', function (done) {
-    node.post('/api/delegates/forging/disable', {
-      publicKey: testDelegate.publicKey,
-      secret: 'invalid secret'
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').not.to.be.true;
-      node.expect(res.body).to.have.property('error').to.be.a('string').and.to.contain('invalid secret');
-      done();
-    });
-  });
-
-  it('using valid params should be ok', function (done) {
-    node.post('/api/delegates/forging/disable', {
-      publicKey: testDelegate.publicKey,
-      secret: testDelegate.secret
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('address').equal(testDelegate.address);
-      done();
-    });
-  });
-});
-
-describe('POST /api/delegates/forging/enable', function () {
-  var testDelegate = genesisDelegates.delegates[0];
-
-  before(function (done) {
-    node.get('/api/delegates/forging/status?publicKey=' + testDelegate.publicKey, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('enabled').to.be.a('boolean');
-      if (res.body.enabled) {
-        node.post('/api/delegates/forging/disable', {
-          publicKey: testDelegate.publicKey,
-          secret: testDelegate.secret
-        }, function (err, res) {
-          node.expect(res.body).to.have.property('success').to.be.true;
-          node.expect(res.body).to.have.property('address').equal(testDelegate.address);
-          done();
-        });
-      } else {
-        done();
-      }
-    });
-  });
-
-  it('using no params should fail', function (done) {
-    node.post('/api/delegates/forging/enable', {}, function (err, res) {
-      node.expect(res.body).to.have.property('success').not.to.be.true;
-      node.expect(res.body).to.have.property('error').to.be.a('string').and.to.contain('Missing required property: secret');
-      done();
-    });
-  });
-
-  it('using invalid secret should fail', function (done) {
-    node.post('/api/delegates/forging/enable', {
-      publicKey: testDelegate.publicKey,
-      secret: 'invalid secret'
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').not.to.be.true;
-      node.expect(res.body).to.have.property('error').to.be.a('string').and.to.contain('invalid secret');
-      done();
-    });
-  });
-
-  it('using valid params should be ok', function (done) {
-    node.post('/api/delegates/forging/enable', {
-      publicKey: testDelegate.publicKey,
-      secret: testDelegate.secret
-    }, function (err, res) {
-      node.expect(res.body).to.have.property('success').to.be.true;
-      node.expect(res.body).to.have.property('address').equal(testDelegate.address);
-      done();
-    });
-  });
-});
+  return pending;
+}
 
 describe('GET /api/delegates/forging/getForgedByAccount', function () {
   var validParams;

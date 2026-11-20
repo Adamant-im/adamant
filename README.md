@@ -27,6 +27,22 @@ See also:
 
 - [ADAMANT Improvement Proposals (AIPs)](https://aips.adamant.im)
 
+### Removed Legacy Control APIs
+
+Forging is configured only through `forging.secret`. Changing the configured
+forging set requires editing the configuration and gracefully restarting the
+node. The legacy `forging.access` setting is deprecated, accepted for backward
+compatibility, and ignored.
+
+The legacy forging enable, disable, and status routes, the DApp install,
+launch, stop, uninstall, and server-side signing routes, and the legacy DApp
+peer runtime routes are no longer available. DApp registration and in/out
+transfers remain consensus-supported transaction types; clients must sign those
+transactions locally and submit them through the standard transaction API.
+Existing `dapp` configuration is deprecated, accepted for backward
+compatibility, and ignored. This is a breaking HTTP API change and does not
+change DApp transaction validation, serialization, fees, or replay behavior.
+
 ## Installing, Configuring, and Running an ADAMANT Node
 
 ADAMANT Node requires Node.js 22.13.0 or newer. The installation scripts support Node.js 22, 24, and 26, with Node.js 24 selected by default.

@@ -29,6 +29,7 @@ async function resolveTestnetTarget (options) {
   const configPath = path.resolve(process.cwd(), options.testnetConfig || 'test/config.default.json');
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   let selected;
+  let selectedConfigurationKnown = false;
 
   if (options.node) {
     selected = normalizeEndpoint(options.node, { id: 'node-recipient' });
@@ -42,6 +43,7 @@ async function resolveTestnetTarget (options) {
 
     if (localReachable) {
       selected = local;
+      selectedConfigurationKnown = true;
     } else {
       const firstPeer = config.peers && config.peers.list && config.peers.list[0];
 
@@ -56,7 +58,12 @@ async function resolveTestnetTarget (options) {
   }
 
   const peer = resolveTestnetObservationPeer(config, selected, configPath);
-  const nodeConfiguration = buildNodeConfiguration(config, configPath);
+  const nodeConfiguration = buildNodeConfiguration(
+      config,
+      configPath,
+      selectedConfigurationKnown
+  );
+  const peerConfiguration = buildNodeConfiguration(config, configPath, false);
   const readinessNodes = buildTestnetReadinessNodes(
       config,
       selected,
@@ -68,7 +75,7 @@ async function resolveTestnetTarget (options) {
       configuration: nodeConfiguration
     }), options.timeoutMs),
     enrichNodeFromStatus(Object.assign({}, peer, {
-      configuration: nodeConfiguration
+      configuration: peerConfiguration
     }), options.timeoutMs)
   ]);
 
@@ -107,6 +114,9 @@ function buildTestnetReadinessNodes (config, selectedNode, observationPeer, conf
     return true;
   }).map(function (candidate) {
     const roles = [];
+    const candidateConfiguration = candidate.apiUrl === selectedNode.apiUrl ?
+      configuration :
+      withoutForgingConfiguration(configuration);
 
     if (candidate.apiUrl === selectedNode.apiUrl) {
       roles.push('node-recipient');
@@ -117,8 +127,21 @@ function buildTestnetReadinessNodes (config, selectedNode, observationPeer, conf
 
     return Object.assign({}, candidate, {
       roles,
-      configuration
+      configuration: candidateConfiguration
     });
+  });
+}
+
+/**
+ * Keeps report-safe target settings while marking remote forging config as unknown.
+ * @param {object} configuration - Known configuration for the selected node.
+ * @return {object} Configuration with no attributed forging count.
+ */
+function withoutForgingConfiguration (configuration) {
+  return Object.assign({}, configuration, {
+    forging: {
+      configuredDelegateCount: null
+    }
   });
 }
 
@@ -161,7 +184,8 @@ function resolveLocalnetTarget (options) {
   if (options.nodes && options.nodes.length) {
     const configuration = buildNodeConfiguration(
         readJsonFileIfExists(path.resolve(process.cwd(), 'test/config.default.json')),
-        'test/config.default.json'
+        'test/config.default.json',
+        false
     );
     const nodes = options.nodes.map(function (node, index) {
       return Object.assign(normalizeEndpoint(node, { id: 'node-' + (index + 1) }), {
@@ -260,14 +284,17 @@ function resolveLocalnetNodeConfiguration (manifest, node) {
  * Builds the non-sensitive API and WebSocket configuration included in target reports.
  * @param {object} config - Parsed effective node configuration.
  * @param {string} source - Configuration source description.
+ * @param {boolean} [forgingConfigKnown=true] - Whether forging secrets belong to this target.
  */
-function buildNodeConfiguration (config, source) {
+function buildNodeConfiguration (config, source, forgingConfigKnown) {
   config = config || {};
+  forgingConfigKnown = forgingConfigKnown !== false;
 
   const api = config.api || {};
   const apiAccess = api.access || {};
   const wsClient = config.wsClient || {};
   const wsServer = config.wsNode || {};
+  const forging = config.forging || {};
 
   return {
     source,
@@ -275,6 +302,13 @@ function buildNodeConfiguration (config, source) {
       enabled: api.enabled,
       public: apiAccess.public,
       limits: api.options && api.options.limits
+    },
+    forging: {
+      configuredDelegateCount: forgingConfigKnown ?
+        Array.isArray(forging.secret) ?
+          forging.secret.filter(Boolean).length :
+          forging.secret ? 1 : 0 :
+        null
     },
     wsClient: {
       enabled: wsClient.enabled,

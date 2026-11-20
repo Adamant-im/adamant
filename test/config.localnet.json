@@ -65,19 +65,9 @@
   },
   "forging": {
     "force": false,
-    "secret": [],
-    "access": {
-      "whiteList": [
-        "127.0.0.1"
-      ]
-    }
+    "secret": []
   },
   "ssl": {
     "enabled": false
-  },
-  "dapp": {
-    "masterrequired": false,
-    "masterpassword": "",
-    "autoexec": []
   }
 }

@@ -1,10 +1,8 @@
 'use strict';
 
-var _ = require('lodash');
 var async = require('async');
 var bignum = require('../helpers/bignum.js');
 var BlockReward = require('../logic/blockReward.js');
-var checkIpInList = require('../helpers/checkIpInList.js');
 var constants = require('../helpers/constants.js');
 var jobsQueue = require('../helpers/jobsQueue.js');
 var crypto = require('crypto');
@@ -24,7 +22,7 @@ __private.assetTypes = {};
 __private.loaded = false;
 __private.blockReward = new BlockReward();
 __private.keypairs = {};
-__private.tmpKeypairs = {};
+__private.forgingSummaryLogged = false;
 
 /**
  * Initializes library with scope content and generates a Delegate instance.
@@ -52,10 +50,7 @@ function Delegates (cb, scope) {
     },
     config: {
       forging: {
-        secret: scope.config.forging.secret,
-        access: {
-          whiteList: scope.config.forging.access.whiteList
-        }
+        secret: scope.config.forging.secret
       }
     }
   };
@@ -333,7 +328,8 @@ __private.checkDelegates = function (publicKey, votes, state, cb) {
  * @return {setImmediateCallback}
  */
 __private.loadDelegates = function (cb) {
-  var secrets;
+  var secrets = [];
+  var enabledAddresses = [];
 
   if (library.config.forging.secret) {
     if (Array.isArray(library.config.forging.secret)) {
@@ -343,13 +339,11 @@ __private.loadDelegates = function (cb) {
     }
   }
 
-  if (!secrets || !secrets.length) {
-    return setImmediate(cb);
-  } else {
+  if (secrets.length) {
     library.logger.info('delegates', ['Loading', secrets.length, 'delegates from config…'].join(' '));
   }
 
-  async.eachSeries(secrets, function (secret, cb) {
+  async.eachSeries(secrets, function (secret, eachSeriesCb) {
     var hash = library.ed.createPassPhraseHash(secret);
     var keypair = library.ed.makeKeypair(hash);
 
@@ -357,23 +351,39 @@ __private.loadDelegates = function (cb) {
       publicKey: keypair.publicKey.toString('hex')
     }, function (err, account) {
       if (err) {
-        return setImmediate(cb, err);
+        return setImmediate(eachSeriesCb, err);
       }
 
       if (!account) {
-        return setImmediate(cb, ['Account with public key:', keypair.publicKey.toString('hex'), 'not found'].join(' '));
+        return setImmediate(eachSeriesCb, 'Configured forging account not found');
       }
 
       if (account.isDelegate) {
         __private.keypairs[keypair.publicKey.toString('hex')] = keypair;
-        library.logger.info('delegates', ['Forging enabled on account:', account.address].join(' '));
+        if (enabledAddresses.indexOf(account.address) === -1) {
+          enabledAddresses.push(account.address);
+        }
       } else {
-        library.logger.warn('delegates', ['Account with public key:', keypair.publicKey.toString('hex'), 'is not a delegate'].join(' '));
+        library.logger.warn('delegates', ['Account', account.address, 'is not a delegate'].join(' '));
       }
 
-      return setImmediate(cb);
+      return setImmediate(eachSeriesCb);
     });
-  }, cb);
+  }, function (err) {
+    if (!__private.forgingSummaryLogged) {
+      var count = enabledAddresses.length;
+      var label = count === 1 ? 'delegate' : 'delegates';
+      var addresses = count ? ': ' + enabledAddresses.join(', ') : '';
+
+      library.logger.info(
+          'delegates',
+          'Forging enabled for ' + count + ' ' + label + addresses
+      );
+      __private.forgingSummaryLogged = true;
+    }
+
+    return setImmediate(cb, err);
+  });
 };
 
 // Public methods
@@ -655,128 +665,6 @@ Delegates.prototype.cleanup = function (cb) {
  */
 Delegates.prototype.isLoaded = function () {
   return !!modules;
-};
-
-// Internal API
-/**
- * @todo implement API comments with apidoc.
- * @see {@link http://apidocjs.com/}
- */
-Delegates.prototype.internal = {
-  forgingEnable: function (req, cb) {
-    if (!checkIpInList(library.config.forging.access.whiteList, req.ip)) {
-      return setImmediate(cb, 'Access denied');
-    }
-
-    library.schema.validate(req.body, schema.enableForging, function (err) {
-      if (err) {
-        return setImmediate(cb, err[0].message);
-      }
-
-      var hash = library.ed.createPassPhraseHash(req.body.secret);
-      var keypair = library.ed.makeKeypair(hash);
-
-      if (req.body.publicKey) {
-        if (keypair.publicKey.toString('hex') !== req.body.publicKey) {
-          return setImmediate(cb, 'Invalid passphrase');
-        }
-      }
-
-      if (__private.keypairs[keypair.publicKey.toString('hex')]) {
-        return setImmediate(cb, 'Forging is already enabled');
-      }
-
-      modules.accounts.getAccount({ publicKey: keypair.publicKey.toString('hex') }, function (err, account) {
-        if (err) {
-          return setImmediate(cb, err);
-        }
-        if (account && account.isDelegate) {
-          __private.keypairs[keypair.publicKey.toString('hex')] = keypair;
-          library.logger.info('delegates', 'Forging enabled on account: ' + account.address);
-          return setImmediate(cb, null, { address: account.address });
-        } else {
-          return setImmediate(cb, 'Delegate not found');
-        }
-      });
-    });
-  },
-
-  forgingDisable: function (req, cb) {
-    if (!checkIpInList(library.config.forging.access.whiteList, req.ip)) {
-      return setImmediate(cb, 'Access denied');
-    }
-
-    library.schema.validate(req.body, schema.disableForging, function (err) {
-      if (err) {
-        return setImmediate(cb, err[0].message);
-      }
-
-      var hash = library.ed.createPassPhraseHash(req.body.secret);
-      var keypair = library.ed.makeKeypair(hash);
-
-      if (req.body.publicKey) {
-        if (keypair.publicKey.toString('hex') !== req.body.publicKey) {
-          return setImmediate(cb, 'Invalid passphrase');
-        }
-      }
-
-      if (!__private.keypairs[keypair.publicKey.toString('hex')]) {
-        return setImmediate(cb, 'Delegate not found');
-      }
-
-      modules.accounts.getAccount({ publicKey: keypair.publicKey.toString('hex') }, function (err, account) {
-        if (err) {
-          return setImmediate(cb, err);
-        }
-        if (account && account.isDelegate) {
-          delete __private.keypairs[keypair.publicKey.toString('hex')];
-          library.logger.info('delegates', 'Forging disabled on account: ' + account.address);
-          return setImmediate(cb, null, { address: account.address });
-        } else {
-          return setImmediate(cb, 'Delegate not found');
-        }
-      });
-    });
-  },
-
-  forgingStatus: function (req, cb) {
-    if (!checkIpInList(library.config.forging.access.whiteList, req.ip)) {
-      return setImmediate(cb, 'Access denied');
-    }
-
-    library.schema.validate(req.body, schema.forgingStatus, function (err) {
-      if (err) {
-        return setImmediate(cb, err[0].message);
-      }
-
-      if (req.body.publicKey) {
-        return setImmediate(cb, null, { enabled: !!__private.keypairs[req.body.publicKey] });
-      } else {
-        var delegates_cnt = _.keys(__private.keypairs).length;
-        return setImmediate(cb, null, { enabled: delegates_cnt > 0, delegates: _.keys(__private.keypairs) });
-      }
-    });
-  },
-
-  forgingEnableAll: function (req, cb) {
-    if (Object.keys(__private.tmpKeypairs).length === 0) {
-      return setImmediate(cb, 'No delegate keypairs defined');
-    }
-
-    __private.keypairs = __private.tmpKeypairs;
-    __private.tmpKeypairs = {};
-    return setImmediate(cb);
-  },
-
-  forgingDisableAll: function (req, cb) {
-    if (Object.keys(__private.tmpKeypairs).length !== 0) {
-      return setImmediate(cb, 'Delegate keypairs are defined');
-    }
-
-    __private.tmpKeypairs = __private.keypairs;
-    __private.keypairs = {};
-    return setImmediate(cb);
-  }
 };
 
 // Shared API

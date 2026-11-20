@@ -70,7 +70,26 @@ function normalizeOverrideFiles (files) {
  */
 function applyOverrides (configData, entries, schema, events) {
   entries.forEach(function (entry) {
+    var deprecatedPath = getDeprecatedConfigPath(entry.path);
+
+    if (deprecatedPath) {
+      recordDeprecatedConfigEvent(events, deprecatedPath, entry.source);
+      return;
+    }
+
     var value = typeof entry.value === 'function' ? entry.value(configData) : entry.value;
+    var nestedDeprecatedPath = null;
+
+    if (
+      entry.path.length === 1 &&
+      entry.path[0] === 'forging' &&
+      isPlainObject(value) &&
+      Object.prototype.hasOwnProperty.call(value, 'access')
+    ) {
+      value = Object.assign({}, value);
+      delete value.access;
+      nestedDeprecatedPath = 'forging.access';
+    }
 
     setConfigValue(configData, entry.path, value, schema);
 
@@ -81,9 +100,81 @@ function applyOverrides (configData, entries, schema, events) {
         value: redactConfigValue(entry.path, value)
       });
     }
+
+    if (nestedDeprecatedPath) {
+      recordDeprecatedConfigEvent(events, nestedDeprecatedPath, entry.source);
+    }
   });
 
+  removeDeprecatedConfig(configData, events, 'config overrides');
+
   return configData;
+}
+
+/**
+ * Removes obsolete operator settings that no longer control node behavior.
+ * @param {object} configData - Config object to mutate.
+ * @param {Array<object>} [events] - Config event sink.
+ * @param {string} source - Human-readable source name.
+ * @return {object} Mutated config object.
+ */
+function removeDeprecatedConfig (configData, events, source) {
+  if (
+    configData &&
+    configData.forging &&
+    Object.prototype.hasOwnProperty.call(configData.forging, 'access')
+  ) {
+    delete configData.forging.access;
+    recordDeprecatedConfigEvent(events, 'forging.access', source);
+  }
+
+  if (configData && Object.prototype.hasOwnProperty.call(configData, 'dapp')) {
+    delete configData.dapp;
+    recordDeprecatedConfigEvent(events, 'dapp', source);
+  }
+
+  return configData;
+}
+
+/**
+ * Returns the obsolete config root represented by an override path.
+ * @param {Array<string>} overridePath - Parsed config override path.
+ * @return {string|null} Deprecated config path or null.
+ */
+function getDeprecatedConfigPath (overridePath) {
+  if (overridePath[0] === 'forging' && overridePath[1] === 'access') {
+    return 'forging.access';
+  }
+
+  if (overridePath[0] === 'dapp') {
+    return 'dapp';
+  }
+
+  return null;
+}
+
+/**
+ * Records one warning per deprecated config root without copying its value.
+ * @param {Array<object>} [events] - Config event sink.
+ * @param {string} configPath - Deprecated config root.
+ * @param {string} source - Human-readable source name.
+ */
+function recordDeprecatedConfigEvent (events, configPath, source) {
+  if (!events) {
+    return;
+  }
+
+  var alreadyRecorded = events.some(function (event) {
+    return event.type === 'deprecated' && event.path === configPath;
+  });
+
+  if (!alreadyRecorded) {
+    events.push({
+      type: 'deprecated',
+      path: configPath,
+      source: source
+    });
+  }
 }
 
 /**
@@ -444,6 +535,7 @@ module.exports = {
   parseOverridePath: parseOverridePath,
   parseOverrideValue: parseOverrideValue,
   redactConfigValue: redactConfigValue,
+  removeDeprecatedConfig: removeDeprecatedConfig,
   normalizeOverrideFiles: normalizeOverrideFiles,
   resolveOverrides: resolveOverrides
 };

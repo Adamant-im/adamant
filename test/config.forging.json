@@ -234,12 +234,7 @@
       "dash film guide team friend dune hotel resource shine fresh height column",
       "day indoor brush unusual timber noble agent pudding naive flock retire wife",
       "agent more picnic rapid name hurry parade imitate fall focus act agent"
-    ],
-    "access": {
-      "whiteList": [
-        "127.0.0.1"
-      ]
-    }
+    ]
   },
   "loading": {
     "loadPerIteration": 5000
@@ -252,11 +247,6 @@
       "key": "./ssl/adamant.key",
       "cert": "./ssl/adamant.crt"
     }
-  },
-  "dapp": {
-    "masterrequired": false,
-    "masterpassword": "",
-    "autoexec": []
   },
   "wsClient": {
     "portWS": 36665,
