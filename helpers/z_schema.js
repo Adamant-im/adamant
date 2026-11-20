@@ -16,6 +16,7 @@ var ip = require('neoip');
  * - ip
  * - os
  * - version
+ * - key
  * @see {@link https://github.com/zaggino/z-schema}
  *
  * @constructor
@@ -231,6 +232,11 @@ z_schema.registerFormat('version', function (str) {
   }
 
   return !!semver.valid(str);
+});
+
+// KVS keys are short strings such as "eth:address", not ADAMANT addresses.
+z_schema.registerFormat('key', function (str) {
+  return typeof str === 'string' && str.length <= 20;
 });
 
 // var registeredFormats = z_schema.getRegisteredFormats();
