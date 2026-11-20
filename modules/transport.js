@@ -378,25 +378,50 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
 
   if (options.api) {
     url = '/peer' + options.api;
-  } else {
+  } else if (typeof options.url === 'string' && options.url.charAt(0) === '/') {
     url = options.url;
+  } else {
+    return setImmediate(cb, 'Invalid peer request path');
   }
 
-  peer = library.logic.peers.create(peer);
+  var candidate = library.logic.peers.create(peer);
+  peer = new Peer(candidate.object());
+
+  if (_.isEmpty(modules.peers.acceptable([peer]))) {
+    return setImmediate(cb, 'Peer is not acceptable for outbound requests: ' + peer.string);
+  }
+
+  var trackedPeer = library.logic.peers.get(peer);
+
+  if (trackedPeer && trackedPeer.state === Peer.STATE.BANNED) {
+    return setImmediate(cb, 'Peer is banned: ' + peer.string);
+  }
+
+  if (modules.peers.isBackedOff(peer)) {
+    return setImmediate(cb, 'Peer outbound request is still in backoff: ' + peer.string);
+  }
+
+  var host = ip.isV6Format(peer.ip) ? '[' + peer.ip + ']' : peer.ip;
+  var configuredTimeout = library.config.peers.options.timeout;
+  var requestTimeout = Number.isFinite(options.timeout) && options.timeout > 0 ?
+    Math.min(options.timeout, configuredTimeout) :
+    configuredTimeout;
 
   var req = {
-    url: 'http://' + peer.ip + ':' + peer.port + url,
+    url: 'http://' + host + ':' + peer.port + url,
     method: options.method,
     headers: __private.headers,
-    timeout: library.config.peers.options.timeout,
+    timeout: requestTimeout,
+    proxy: false,
     maxRedirects: 0,
+    maxBodyLength: 2 * 1024 * 1024,
+    maxContentLength: 2 * 1024 * 1024,
     validateStatus: function () { return true; }
   };
-  var absoluteTimeout = library.config.peers.options.timeout;
   var controller = new AbortController();
   var absoluteTimeoutId = setTimeout(function () {
     controller.abort();
-  }, absoluteTimeout);
+  }, requestTimeout);
 
   req.signal = controller.signal;
 
@@ -452,7 +477,13 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
             return setImmediate(cb, ['Peer is using incompatible version', headers.version, req.method, req.url].join(' '));
           }
 
-          modules.peers.update(peer);
+          var live = library.logic.peers.get(peer);
+
+          if (live && live.state === Peer.STATE.BANNED) {
+            return setImmediate(cb, 'Peer is banned: ' + peer.string);
+          }
+
+          modules.peers.update(peer, true);
           maybeRecordRequest();
 
           return setImmediate(cb, null, { body: res.data, peer: peer });
@@ -465,10 +496,16 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
 
         if (controller.signal.aborted && (!errorCode || errorCode === 'ERR_CANCELED')) {
           errorCode = 'ETIMEDOUT';
+        } else if (errorCode === 'ERR_BAD_RESPONSE' && /stream has been aborted/i.test(err.message)) {
+          errorCode = 'ECONNRESET';
         }
 
         if (peer) {
           maybeRecordRequest(errorCode || 'EUNKNOWN');
+        }
+
+        if (errorCode === 'ERR_BAD_RESPONSE' && /maxContentLength.*exceeded/i.test(err.message)) {
+          __private.removePeer({ peer: peer, code: 'ERESPONSE' }, req.method + ' ' + req.url);
         }
 
         return setImmediate(cb, [errorCode || err.code, 'Request failed', req.method, req.url].join(' '));

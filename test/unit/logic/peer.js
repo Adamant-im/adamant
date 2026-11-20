@@ -85,6 +85,16 @@ describe('peer', () => {
       expect(__peer.ip).to.equal(validPeer.ip);
     });
 
+    it('should canonicalize IPv6 and IPv4-mapped peer identities', () => {
+      const ipv6 = new Peer({ ip: '2606:4700:0001:0001:0000:0000:0000:0001', port: 36666 });
+      const mapped = new Peer({ ip: '::ffff:40.40.40.40', port: 36666 });
+
+      expect(ipv6.ip).to.equal('2606:4700:1:1::1');
+      expect(ipv6.string).to.equal('2606:4700:1:1::1:36666');
+      expect(mapped.ip).to.equal('40.40.40.40');
+      expect(mapped.string).to.equal('40.40.40.40:36666');
+    });
+
     it('should convert dappid to array', () => {
       const __peer = peer.accept({ dappid: 'random-dapp-id' });
       expect(__peer.dappid).to.be.an('array');
@@ -141,6 +151,13 @@ describe('peer', () => {
 
       expect(appliedHeaders.port).to.equal(4000);
       expect(appliedHeaders.height).to.equal(1);
+    });
+
+    it('should not synthesize state while applying response headers', () => {
+      peer.state = Peer.STATE.BANNED;
+      peer.applyHeaders({ height: '2' });
+
+      expect(peer.state).to.equal(Peer.STATE.BANNED);
     });
   });
 

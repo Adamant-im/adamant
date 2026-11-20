@@ -257,7 +257,9 @@ module.exports = {
                 required: ['max', 'delayMs', 'delayAfter', 'windowMs']
               },
               timeout: {
-                type: 'integer'
+                type: 'integer',
+                minimum: 1,
+                maximum: 60000
               },
               allowPrivatePeers: {
                 type: 'boolean'

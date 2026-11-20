@@ -3,6 +3,7 @@
 var _ = require('lodash');
 var async = require('async');
 var net = require('node:net');
+var ip = require('neoip');
 var Peer = require('../logic/peer.js');
 var schema = require('../schema/peers.js');
 
@@ -39,7 +40,6 @@ function Peers (logger, cb) {
 
 /**
  * Caps how many peers may be kept in memory. Zero disables the cap.
- * Existing peers are left in place; only new inserts are refused.
  * @param {number} maxPeers
  */
 Peers.prototype.setMaxPeers = function (maxPeers) {
@@ -98,49 +98,41 @@ Peers.prototype.setAdmissionPolicy = function (policy) {
  * @return {string|null}
  */
 function subnetKey (ipAddress, mask) {
-  var family = net.isIP(ipAddress);
+  var normalized = Peer.canonicalIp(ipAddress);
+  var family = net.isIP(normalized);
 
-  if (family === 4) {
-    var octets = ipAddress.split('.');
-
-    if (octets.length !== 4) {
-      return null;
-    }
-
-    var value = ((parseInt(octets[0], 10) << 24) >>> 0) +
-      ((parseInt(octets[1], 10) << 16) >>> 0) +
-      ((parseInt(octets[2], 10) << 8) >>> 0) +
-      (parseInt(octets[3], 10) >>> 0);
-
-    var normalizedMask = mask;
-
-    if (normalizedMask < 0) {
-      normalizedMask = 0;
-    } else if (normalizedMask > 32) {
-      normalizedMask = 32;
-    }
-
-    var subnetMask = normalizedMask === 0 ? 0 : ((0xFFFFFFFF << (32 - normalizedMask)) >>> 0);
-    var network = (value & subnetMask) >>> 0;
-
-    return '4:' + network + '/' + normalizedMask;
+  if (!family || !normalized) {
+    return null;
   }
 
-  if (family === 6) {
-    var normalized = String(ipAddress || '').toLowerCase();
-    var normalizedMask = mask;
+  var fallbackMask = family === 4 ? 24 : 64;
+  var parsedMask = parseInt(mask, 10);
+  var normalizedMask = Math.max(
+      0,
+      Math.min(family === 4 ? 32 : 128, isFinite(parsedMask) ? parsedMask : fallbackMask)
+  );
 
-    if (normalizedMask < 0) {
-      normalizedMask = 0;
-    } else if (normalizedMask > 128) {
-      normalizedMask = 128;
-    }
+  try {
+    var bytes = ip.toUInt8Array(normalized);
+    var remaining = normalizedMask;
+    var network = new Uint8Array(bytes.length);
 
-    var keepChars = Math.ceil(normalizedMask / 4);
-    return '6:' + normalized.slice(0, keepChars) + '/' + normalizedMask;
+    bytes.forEach(function (value, index) {
+      var bits = Math.max(0, Math.min(8, remaining));
+
+      if (bits === 8) {
+        network[index] = value;
+      } else if (bits > 0) {
+        network[index] = value & (0xFF << (8 - bits));
+      }
+
+      remaining -= bits;
+    });
+
+    return family + ':' + ip.toString(network) + '/' + normalizedMask;
+  } catch (err) {
+    return null;
   }
-
-  return null;
 }
 
 function isFrozenPeer (peer) {
@@ -171,6 +163,7 @@ function chooseUnverifiedEvictionCandidate (predicate) {
     return __private.peers[key];
   }).filter(function (peer) {
     return !!peer &&
+      peer.state !== Peer.STATE.BANNED &&
       !peer.lastOutboundSuccessAt &&
       !isFrozenPeer(peer) &&
       predicate(peer);
@@ -182,7 +175,18 @@ function chooseUnverifiedEvictionCandidate (predicate) {
       return aUpdated - bUpdated;
     }
 
-    return (a.string || '').localeCompare(b.string || '');
+    var aString = a.string || '';
+    var bString = b.string || '';
+
+    if (aString < bString) {
+      return -1;
+    }
+
+    if (aString > bString) {
+      return 1;
+    }
+
+    return 0;
   })[0];
 }
 
@@ -243,7 +247,13 @@ Peers.prototype.exists = function (peer) {
  */
 Peers.prototype.get = function (peer) {
   if (typeof peer === 'string') {
-    return __private.peers[peer];
+    var separator = peer.lastIndexOf(':');
+    var address = peer.slice(0, separator);
+    var port = peer.slice(separator + 1);
+    var canonicalAddress = Peer.canonicalIp(address.replace(/^\[|\]$/g, ''));
+    var key = canonicalAddress ? canonicalAddress + ':' + parseInt(port, 10) : peer;
+
+    return __private.peers[key];
   } else {
     peer = self.create(peer);
     return __private.peers[peer.string];
@@ -254,19 +264,37 @@ Peers.prototype.get = function (peer) {
  * Inserts or updates a peer
  * @param {peer} peer
  * @param {boolean} insertOnly - true to only insert.
+ * @param {{touchUpdated?: boolean}} [options]
  * @return {boolean} True if operation is success.
  */
-Peers.prototype.upsert = function (peer, insertOnly) {
+Peers.prototype.upsert = function (peer, insertOnly, options) {
+  options = options || {};
+
   // Insert new peer
   var insert = function (peer) {
     var policy = __private.admissionPolicy || {};
+    var incomingIp = Peer.canonicalIp(peer.ip);
     var incomingSubnet = subnetKey(peer.ip, net.isIP(peer.ip) === 4 ? policy.subnetMaskIpv4 : policy.subnetMaskIpv6);
     var skipSourceCaps = isFrozenPeer(peer);
+    var verifiedAdmission = skipSourceCaps || !!peer.lastOutboundSuccessAt;
+
+    if (!incomingIp || _.isEmpty(modules.peers.acceptable([peer]))) {
+      library.logger.debug('peers', 'Rejecting unacceptable peer', peer.string);
+      return false;
+    }
 
     if (!skipSourceCaps && policy.maxPeersPerIp > 0) {
       var sameIp = countPeers(function (item) {
-        return !!item && item.ip === peer.ip;
+        return !!item && Peer.canonicalIp(item.ip) === incomingIp;
       });
+
+      if (sameIp >= policy.maxPeersPerIp) {
+        if (verifiedAdmission && tryEvictUnverifiedPeer(function (item) {
+          return Peer.canonicalIp(item.ip) === incomingIp;
+        }, 'per-ip-cap', peer)) {
+          sameIp--;
+        }
+      }
 
       if (sameIp >= policy.maxPeersPerIp) {
         library.logger.debug('peers', 'Rejecting peer because per-IP cap is reached', {
@@ -288,6 +316,15 @@ Peers.prototype.upsert = function (peer, insertOnly) {
       });
 
       if (sameSubnet >= policy.maxPeersPerSubnet) {
+        if (verifiedAdmission && tryEvictUnverifiedPeer(function (item) {
+          var itemSubnet = subnetKey(item.ip, net.isIP(item.ip) === 4 ? policy.subnetMaskIpv4 : policy.subnetMaskIpv6);
+          return itemSubnet && itemSubnet === incomingSubnet;
+        }, 'per-subnet-cap', peer)) {
+          sameSubnet--;
+        }
+      }
+
+      if (sameSubnet >= policy.maxPeersPerSubnet) {
         library.logger.debug('peers', 'Rejecting peer because per-subnet cap is reached', {
           peer: peer.string,
           maxPeersPerSubnet: policy.maxPeersPerSubnet,
@@ -298,8 +335,8 @@ Peers.prototype.upsert = function (peer, insertOnly) {
     }
 
     if (__private.maxPeers && Object.keys(__private.peers).length >= __private.maxPeers) {
-      var admitted = tryEvictUnverifiedPeer(function () {
-        return true;
+      var admitted = tryEvictUnverifiedPeer(function (item) {
+        return verifiedAdmission || !!item.consecutiveNetworkFailures;
       }, 'peer-table-full', peer);
 
       if (!admitted) {
@@ -308,20 +345,19 @@ Peers.prototype.upsert = function (peer, insertOnly) {
       }
     }
 
-    if (!_.isEmpty(modules.peers.acceptable([peer]))) {
-      peer.updated = Date.now();
-      __private.peers[peer.string] = peer;
-      library.logger.info('peers', 'Added new peer', peer.string);
-      return true;
-    }
-
-    library.logger.debug('peers', 'Rejecting unacceptable peer', peer.string);
-    return false;
+    peer.updated = Date.now();
+    __private.peers[peer.string] = peer;
+    library.logger.info('peers', 'Added new peer', peer.string);
+    return true;
   };
 
   // Update existing peer
   var update = function (peer) {
-    peer.updated = Date.now();
+    if (options.touchUpdated !== false) {
+      peer.updated = Date.now();
+    } else {
+      delete peer.updated;
+    }
 
     const existingPeer = __private.peers[peer.string];
 

@@ -50,6 +50,7 @@ function Peers (cb, scope) {
   self = this;
 
   self.events = new EventEmitter();
+  __private.outboundRequestState = new Map();
 
   var options = __private.probeOptions();
 
@@ -168,8 +169,7 @@ __private.getByFilter = function (filter, cb) {
 };
 
 /**
- * Inserts configured seed peers and probes them with the same outbound bound
- * as the periodic update. Seeds stay in memory when the dial fails.
+ * Inserts configured seed peers before importing the capped persisted peer table.
  * @param {Function} cb - Callback function.
  * @private
  * @return {setImmediateCallback} cb
@@ -194,7 +194,23 @@ __private.insertSeeds = function (cb) {
     }
   });
 
-  library.logger.trace('peers', 'Peers->insertSeeds - probing seeds', { total: seeds.length });
+  library.logger.trace('peers', 'Peers->insertSeeds - inserted seeds', { total: seeds.length });
+  return setImmediate(cb);
+};
+
+/**
+ * Probes configured seeds after persisted bans have been restored.
+ * @param {Function} cb
+ * @private
+ */
+__private.probeSeeds = function (cb) {
+  var seeds = (library.config.peers.list || []).map(function (seed) {
+    return library.logic.peers.get(seed);
+  }).filter(function (peer) {
+    return peer && peer.state !== Peer.STATE.BANNED;
+  });
+
+  library.logger.trace('peers', 'Peers->probeSeeds', { total: seeds.length });
   __private.probePeers(seeds, __private.probeOptions(), function () {
     return setImmediate(cb);
   });
@@ -217,12 +233,18 @@ __private.dbLoad = function (cb) {
 
     rows.forEach(function (row) {
       var peer = library.logic.peers.create(row);
+      var existing = library.logic.peers.get(peer);
 
-      if (library.logic.peers.exists(peer)) {
+      if (existing) {
+        if (peer.state === Peer.STATE.BANNED) {
+          existing.state = Peer.STATE.BANNED;
+        }
         return;
       }
 
-      peer.state = Peer.STATE.DISCONNECTED;
+      if (peer.state !== Peer.STATE.BANNED) {
+        peer.state = Peer.STATE.DISCONNECTED;
+      }
 
       if (library.logic.peers.upsert(peer, true)) {
         imported++;
@@ -314,12 +336,25 @@ Peers.prototype.sandboxApi = function (call, args, cb) {
 /**
  * Sets peer state to active (2).
  * @param {peer} peer
+ * @param {boolean} [outboundVerified] - Whether an outbound request verified the peer.
  * @todo rename this function to activePeer or similar
  *
  * @return {Function} Calls peers.upsert
  */
-Peers.prototype.update = function (peer) {
+Peers.prototype.update = function (peer, outboundVerified) {
+  var existing = library.logic.peers.get(peer);
+
+  if (existing && existing.state === Peer.STATE.BANNED) {
+    library.logger.debug('peers', 'Keeping banned peer state', peer.string || (peer.ip + ':' + peer.port));
+    return false;
+  }
+
   peer.state = Peer.STATE.CONNECTED;
+
+  if (outboundVerified) {
+    peer.lastOutboundSuccessAt = Date.now();
+  }
+
   return library.logic.peers.upsert(peer);
 };
 
@@ -329,8 +364,13 @@ Peers.prototype.update = function (peer) {
  * @return {boolean}
  */
 Peers.prototype.recordInboundPeer = function (peer) {
-  peer.state = Peer.STATE.DISCONNECTED;
-  return library.logic.peers.upsert(peer);
+  var existing = library.logic.peers.get(peer);
+
+  peer.state = existing ? existing.state : Peer.STATE.DISCONNECTED;
+
+  return library.logic.peers.upsert(peer, false, {
+    touchUpdated: !existing
+  });
 };
 
 /**
@@ -363,9 +403,10 @@ Peers.prototype.switchToHttp = function (peer) {
  */
 Peers.prototype.isFrozen = function (ip, port) {
   const peers = library.config.peers.list;
+  const canonicalIp = Peer.canonicalIp(ip);
 
   const isFrozen = peers.some(function (peer) {
-    return peer.ip === ip && peer.port === port;
+    return Peer.canonicalIp(peer.ip) === canonicalIp && parseInt(peer.port, 10) === parseInt(port, 10);
   });
 
   return isFrozen;
@@ -380,6 +421,13 @@ Peers.prototype.isFrozen = function (ip, port) {
  * @return {function} Calls peers.remove
  */
 Peers.prototype.remove = function (pip, port) {
+  var live = library.logic.peers.get({ ip: pip, port: port });
+
+  if (live && live.state === Peer.STATE.BANNED) {
+    library.logger.debug('peers', 'Cannot remove banned peer', pip + ':' + port);
+    return false;
+  }
+
   if (self.isFrozen(pip, port)) {
     // FIXME: Keeping peer frozen is bad idea at all
     library.logger.debug('peers', 'Cannot remove frozen peer', pip + ':' + port);
@@ -411,20 +459,28 @@ Peers.prototype.remove = function (pip, port) {
  * @return {boolean} Returns `true` if peer has been updated
  */
 Peers.prototype.recordRequest = function (ip, port, error) {
-  if (!library.logic.peers.recordRequest({ ip, port }, error)) {
-    return false;
-  }
-
   var peer = library.logic.peers.get({ ip: ip, port: port });
+  var options = __private.probeOptions();
+  var now = Date.now();
+
+  if (peer && peer.state === Peer.STATE.BANNED) {
+    return true;
+  }
 
   if (!peer) {
+    if (error && Peer.isNetworkError(error)) {
+      __private.recordUntrackedNetworkFailure({ ip: ip, port: port }, options, now);
+    } else if (!error) {
+      __private.outboundRequestState.delete(library.logic.peers.create({ ip: ip, port: port }).string);
+    }
+
     return false;
   }
 
-  var now = Date.now();
-  var options = __private.probeOptions();
+  library.logic.peers.recordRequest({ ip: ip, port: port }, error);
 
   if (!error) {
+    __private.outboundRequestState.delete(peer.string);
     peer.clearNetworkFailures(now);
     return true;
   }
@@ -434,6 +490,7 @@ Peers.prototype.recordRequest = function (ip, port, error) {
   }
 
   var failures = peer.recordNetworkFailure(now, options);
+  __private.copyTrackedNetworkFailure(peer, options, now);
   var neverReachable = !peer.lastOutboundSuccessAt;
   var unreachableLongEnough = neverReachable ||
     (now - peer.lastOutboundSuccessAt) >= options.unreachableEvictAfterMs;
@@ -455,6 +512,25 @@ Peers.prototype.recordRequest = function (ip, port, error) {
   library.logger.info('peers', 'Removing unreachable peer', peer.string);
   self.remove(peer.ip, peer.port);
   return true;
+};
+
+/**
+ * Returns true while a tracked or untracked endpoint is in outbound backoff.
+ * @param {peer} peer
+ * @return {boolean}
+ */
+Peers.prototype.isBackedOff = function (peer) {
+  var live = library.logic.peers.get(peer);
+  var now = Date.now();
+
+  if (live && live.nextAttemptAt && now < live.nextAttemptAt) {
+    return true;
+  }
+
+  var endpoint = library.logic.peers.create(peer);
+  var state = __private.outboundRequestState.get(endpoint.string);
+
+  return !!(state && state.nextAttemptAt && now < state.nextAttemptAt);
 };
 
 /**
@@ -555,6 +631,13 @@ Peers.prototype.acceptable = function (peers) {
         return (a.ip + a.port) === (b.ip + b.port);
       })
       .filter(function (peer) {
+        const isValidIp = ip.isV4Format(peer.ip) || ip.isV6Format(peer.ip);
+        const isValidPort = Number.isInteger(peer.port) && peer.port >= 1 && peer.port <= 65535;
+
+        if (!isValidIp || !isValidPort) {
+          return false;
+        }
+
         // Removing peers with private address or nonce equal to self
         const isJsAPI = peer.os === 'adm-js-api' || peer.os === 'lisk-js-api';
         const isPrivatePeerAllowed = allowPrivatePeers || !ip.isPrivate(peer.ip);
@@ -572,7 +655,8 @@ Peers.prototype.acceptable = function (peers) {
  * @param {Peer} peer
  */
 Peers.prototype.isBanned = function (peer) {
-  return library.logic.peers.get(peer).state === Peer.STATE.BANNED;
+  var live = library.logic.peers.get(peer);
+  return !live || live.state === Peer.STATE.BANNED;
 };
 
 /**
@@ -666,7 +750,11 @@ Peers.prototype.list = function (options, cb) {
     consensus = isNaN(consensus) ? 0 : consensus;
 
     library.logger.debug('peers', ['Listing', peers.length, 'total peers'].join(' '));
-    return setImmediate(cb, err, peers, consensus);
+    var normalizedPeers = peers.map(function (peer) {
+      return peer instanceof Peer ? peer.object() : peer;
+    });
+
+    return setImmediate(cb, err, normalizedPeers, consensus);
   });
 };
 
@@ -685,6 +773,59 @@ __private.nonNegativeInt = function (value, fallback) {
   }
 
   return parsed;
+};
+
+/**
+ * Keeps per-endpoint backoff for direct requests that are not in the peer table.
+ * @param {peer} peer
+ * @param {object} options
+ * @param {number} now
+ * @private
+ */
+__private.recordUntrackedNetworkFailure = function (peer, options, now) {
+  var endpoint = library.logic.peers.create(peer);
+  var state = __private.outboundRequestState.get(endpoint.string) || endpoint;
+
+  state.recordNetworkFailure(now, options);
+  state.lastOutboundFailureAt = now;
+  __private.outboundRequestState.delete(endpoint.string);
+  __private.outboundRequestState.set(endpoint.string, state);
+
+  var maxEntries = Math.max(100, options.maxPeers * 2);
+
+  while (__private.outboundRequestState.size > maxEntries) {
+    var oldest = __private.outboundRequestState.keys().next().value;
+    __private.outboundRequestState.delete(oldest);
+  }
+};
+
+/**
+ * Copies tracked failure backoff into the bounded cache so eviction cannot
+ * make an endpoint immediately retryable through a direct request.
+ * @param {Peer} peer
+ * @param {object} options
+ * @param {number} now
+ * @private
+ */
+__private.copyTrackedNetworkFailure = function (peer, options, now) {
+  var state = library.logic.peers.create({
+    ip: peer.ip,
+    port: peer.port
+  });
+
+  state.consecutiveNetworkFailures = peer.consecutiveNetworkFailures;
+  state.nextAttemptAt = peer.nextAttemptAt;
+  state.lastOutboundFailureAt = now;
+
+  __private.outboundRequestState.delete(state.string);
+  __private.outboundRequestState.set(state.string, state);
+
+  var maxEntries = Math.max(100, options.maxPeers * 2);
+
+  while (__private.outboundRequestState.size > maxEntries) {
+    var oldest = __private.outboundRequestState.keys().next().value;
+    __private.outboundRequestState.delete(oldest);
+  }
 };
 
 /**
@@ -827,6 +968,11 @@ Peers.prototype.onBlockchainReady = function () {
     },
     importFromDatabase: function (seriesCb) {
       __private.dbLoad(function (err) {
+        return setImmediate(seriesCb);
+      });
+    },
+    probeSeeds: function (seriesCb) {
+      __private.probeSeeds(function () {
         return setImmediate(seriesCb);
       });
     },

@@ -95,6 +95,41 @@ Peer.STATE = {
 };
 
 /**
+ * Returns a canonical IPv4 or IPv6 address.
+ * IPv4-mapped IPv6 addresses are normalized to IPv4 so peer identity,
+ * admission, bans, and request backoff cannot be bypassed with an alias.
+ * @param {string|number} address
+ * @return {string|null}
+ */
+Peer.canonicalIp = function (address) {
+  if (address === null || address === undefined) {
+    return null;
+  }
+
+  address = String(address);
+
+  if (!ip.isV4Format(address) && !ip.isV6Format(address)) {
+    return null;
+  }
+
+  var normalized = ip.normalize(address);
+
+  if (ip.isV6Format(normalized)) {
+    var bytes = ip.toUInt8Array(normalized);
+    var isMappedIpv4 = bytes.length === 16 &&
+      bytes.slice(0, 10).every(function (value) { return value === 0; }) &&
+      bytes[10] === 255 &&
+      bytes[11] === 255;
+
+    if (isMappedIpv4) {
+      return bytes.slice(12).join('.');
+    }
+  }
+
+  return normalized;
+};
+
+/**
  * Socket and DNS failures. HTTP and protocol failures stay on the existing
  * remove path so a bad nethash or version does not look like an unreachable host.
  */
@@ -128,8 +163,12 @@ Peer.isNetworkError = function (error) {
 
   var text = typeof error === 'string' ? error : (error.code || error.message || '');
   var code = String(text).trim().split(/[\s:]/)[0];
+  var normalized = String(text).trim().toLowerCase();
 
-  return !!Peer.NETWORK_ERROR_CODES[code];
+  return !!Peer.NETWORK_ERROR_CODES[code] ||
+    normalized === 'timeout' ||
+    /^timeout of \d+ms exceeded$/.test(normalized) ||
+    /^(websocket error|xhr poll error|transport error)/.test(normalized);
 };
 
 /**
@@ -331,6 +370,12 @@ Peer.prototype.accept = function (peer) {
     this.ip = ip.fromLong(this.ip);
   }
 
+  var canonicalIp = Peer.canonicalIp(this.ip);
+
+  if (canonicalIp) {
+    this.ip = canonicalIp;
+  }
+
   if (this.ip && this.port) {
     this.string = this.ip + ':' + this.port;
   }
@@ -341,9 +386,10 @@ Peer.prototype.accept = function (peer) {
 /**
  * Normalizes peer data.
  * @param {peer} peer
+ * @param {boolean} [withDefaults=true] - Whether to synthesize missing port and state.
  * @return {peer}
  */
-Peer.prototype.normalize = function (peer) {
+Peer.prototype.normalize = function (peer, withDefaults) {
   if (peer.dappid && !Array.isArray(peer.dappid)) {
     var dappid = peer.dappid;
     peer.dappid = [];
@@ -354,8 +400,13 @@ Peer.prototype.normalize = function (peer) {
     peer.height = this.parseInt(peer.height, 1);
   }
 
-  peer.port = this.parseInt(peer.port, 0);
-  peer.state = this.parseInt(peer.state, Peer.STATE.DISCONNECTED);
+  if (withDefaults !== false || Object.prototype.hasOwnProperty.call(peer, 'port')) {
+    peer.port = this.parseInt(peer.port, 0);
+  }
+
+  if (withDefaults !== false || Object.prototype.hasOwnProperty.call(peer, 'state')) {
+    peer.state = this.parseInt(peer.state, Peer.STATE.DISCONNECTED);
+  }
 
   return peer;
 };
@@ -380,7 +431,7 @@ Peer.prototype.parseInt = function (integer, fallback) {
  */
 Peer.prototype.applyHeaders = function (headers) {
   headers = headers || {};
-  headers = this.normalize(headers);
+  headers = this.normalize(headers, false);
   this.update(headers);
   return headers;
 };
@@ -391,7 +442,7 @@ Peer.prototype.applyHeaders = function (headers) {
  * @return {object} this
  */
 Peer.prototype.update = function (peer) {
-  peer = this.normalize(peer);
+  peer = this.normalize(peer, false);
 
   // Accept only supported properties
   _.each(this.properties, function (key) {
