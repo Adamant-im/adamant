@@ -102,4 +102,32 @@ describe('TransportWsApi peer syncProtocol lifecycle', function () {
     expect(transport.connections.has('ws://1.2.3.4:36666')).to.equal(false);
     expect(transport.connectToPeer.calledOnceWith(replacement)).to.equal(true);
   });
+
+  it('should apply network backoff after a WebSocket connect failure', function () {
+    const peer = { ip: '1.2.3.4', port: 36666 };
+    sinon.stub(transport, 'replacePeer');
+
+    transport.handleConnectError(peer, new Error('timeout'));
+
+    expect(peers.recordRequest.calledOnceWith(
+        peer.ip,
+        peer.port,
+        sinon.match.instanceOf(Error)
+    )).to.equal(true);
+    expect(transport.replacePeer.calledOnceWith(peer)).to.equal(true);
+  });
+
+  it('should apply network backoff after a WebSocket disconnect', function () {
+    const peer = { ip: '1.2.3.4', port: 36666 };
+    sinon.stub(transport, 'replacePeer');
+
+    transport.handleDisconnect(peer, 'transport close');
+
+    expect(peers.recordRequest.calledOnceWith(
+        peer.ip,
+        peer.port,
+        'ECONNRESET'
+    )).to.equal(true);
+    expect(transport.replacePeer.calledOnceWith(peer)).to.equal(true);
+  });
 });

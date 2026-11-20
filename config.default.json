@@ -107,7 +107,21 @@
         "delayAfter": 0,
         "windowMs": 60000
       },
-      "timeout": 5000
+      "timeout": 5000,
+      "updateConcurrency": 8,
+      "probeSpacingMs": 50,
+      "maxProbeTargets": 20,
+      "unverifiedProbeLimit": 5,
+      "unreachableBackoffInitialMs": 30000,
+      "unreachableBackoffMaxMs": 3600000,
+      "unreachableEvictAfter": 6,
+      "unreachableEvictAfterMs": 86400000,
+      "minConnectedPeers": 10,
+      "maxPeers": 500,
+      "maxPeersPerIp": 6,
+      "maxPeersPerSubnet": 64,
+      "subnetMaskIpv4": 24,
+      "subnetMaskIpv6": 64
     }
   },
   "broadcasts": {
