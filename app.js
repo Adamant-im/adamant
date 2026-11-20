@@ -389,7 +389,19 @@ d.run(function () {
       }));
       scope.network.app.use(methodOverride());
 
-      var ignore = ['id', 'name', 'lastBlockId', 'blockId', 'transactionId', 'address', 'recipientId', 'senderId', 'previousBlock'];
+      var ignore = [
+        'id',
+        'name',
+        'lastBlockId',
+        'blockId',
+        'transactionId',
+        'address',
+        'recipientId',
+        'senderId',
+        'previousBlock',
+        'key',
+        'keyIds'
+      ];
 
       scope.network.app.use(queryParser({
         parser: function (value, radix, name) {
@@ -398,7 +410,7 @@ d.run(function () {
           }
 
           // Ignore conditional fields for transactions list
-          if (/^.+?:(blockId|recipientId|senderId)$/.test(name)) {
+          if (/^.+?:(blockId|recipientId|senderId|key|keyIds)$/.test(name)) {
             return value;
           }
 
@@ -779,7 +791,8 @@ d.run(function () {
        * @listens SIGTERM
        */
       process.on('SIGTERM', function () {
-        requestShutdown('SIGTERM', 0);
+        // Keep PM2 clean exits distinct from fatal paths that still exit with 0.
+        requestShutdown('SIGTERM', 143);
       });
 
       /**
@@ -791,7 +804,7 @@ d.run(function () {
        * @listens SIGINT
        */
       process.on('SIGINT', function () {
-        requestShutdown('SIGINT', 0);
+        requestShutdown('SIGINT', 130);
       });
     }
   });

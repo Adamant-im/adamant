@@ -142,4 +142,36 @@ describe('Schema formats', () => {
       });
     });
   });
+
+  describe('key', () => {
+    it('should be registered', () =>
+      expectFormatToBeRegistered('key')
+    );
+
+    const schema = {
+      id: 'test.key',
+      type: 'object',
+      properties: {
+        key: {
+          type: 'string',
+          format: 'key',
+          maxLength: 20
+        }
+      },
+      required: ['key']
+    };
+
+    it('should accept KVS keys that are not addresses', () => {
+      expect(validator.validate({ key: 'eth:address' }, schema)).to.be.true;
+      expect(validator.validate({ key: '' }, schema)).to.be.true;
+    });
+
+    it('should reject keys longer than 20 characters', () => {
+      expect(validator.validate({ key: 'this-key-is-way-too-long' }, schema)).to.be.false;
+    });
+
+    it('should reject non-strings', () => {
+      expect(validator.validate({ key: 123 }, schema)).to.be.false;
+    });
+  });
 });

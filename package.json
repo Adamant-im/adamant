@@ -3,6 +3,10 @@
   "version": "0.10.3",
   "description": "ADAMANT Blockchain Node",
   "private": true,
+  "allowScripts": {
+    "libpq@1.8.15": true,
+    "javascript-obfuscator": false
+  },
   "engines": {
     "node": ">=22.13.0"
   },

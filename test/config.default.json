@@ -74,7 +74,7 @@
     "enabled": true,
     "list": [
       {
-        "ip": "162.55.32.80",
+        "ip": "167.86.99.198",
         "port": 36667
       },
       {
@@ -82,7 +82,7 @@
         "port": 36667
       },
       {
-        "ip": "95.217.19.144",
+        "ip": "167.86.113.240",
         "port": 36667
       }
     ],
@@ -103,7 +103,21 @@
         "message": "Too many requests, please try again later.",
         "requestPropertyName": "rateLimit"
       },
-      "timeout": 5000
+      "timeout": 5000,
+      "updateConcurrency": 8,
+      "probeSpacingMs": 50,
+      "maxProbeTargets": 20,
+      "unverifiedProbeLimit": 5,
+      "unreachableBackoffInitialMs": 30000,
+      "unreachableBackoffMaxMs": 3600000,
+      "unreachableEvictAfter": 6,
+      "unreachableEvictAfterMs": 86400000,
+      "minConnectedPeers": 10,
+      "maxPeers": 500,
+      "maxPeersPerIp": 6,
+      "maxPeersPerSubnet": 64,
+      "subnetMaskIpv4": 24,
+      "subnetMaskIpv6": 64
     }
   },
   "broadcasts": {

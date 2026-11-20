@@ -305,10 +305,74 @@ module.exports = {
             properties: {
               limits: httpLimitsSchema(['status', 'sync', 'broadcast']),
               timeout: {
-                type: 'integer'
+                type: 'integer',
+                minimum: 1,
+                maximum: 60000
               },
               allowPrivatePeers: {
                 type: 'boolean'
+              },
+              updateConcurrency: {
+                type: 'integer',
+                minimum: 1,
+                maximum: 100
+              },
+              probeSpacingMs: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 60000
+              },
+              maxProbeTargets: {
+                type: 'integer',
+                minimum: 1,
+                maximum: 1000
+              },
+              unverifiedProbeLimit: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 1000
+              },
+              unreachableBackoffInitialMs: {
+                type: 'integer',
+                minimum: 0
+              },
+              unreachableBackoffMaxMs: {
+                type: 'integer',
+                minimum: 0
+              },
+              unreachableEvictAfter: {
+                type: 'integer',
+                minimum: 1
+              },
+              unreachableEvictAfterMs: {
+                type: 'integer',
+                minimum: 0
+              },
+              minConnectedPeers: {
+                type: 'integer',
+                minimum: 0
+              },
+              maxPeers: {
+                type: 'integer',
+                minimum: 1
+              },
+              maxPeersPerIp: {
+                type: 'integer',
+                minimum: 0
+              },
+              maxPeersPerSubnet: {
+                type: 'integer',
+                minimum: 0
+              },
+              subnetMaskIpv4: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 32
+              },
+              subnetMaskIpv6: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 128
               }
             },
             required: ['limits', 'timeout']

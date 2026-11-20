@@ -53,6 +53,7 @@ module.exports = {
   maxTransactionFutureMs: 500,
   maxTransactionAgeSec: 5,
   wsNodeClient: {
+    connectionTimeout: 20000,
     rotationPercentage: 0.2, // Rotate 20%
     rotationInterval: 1000 * 60 * 30, // every 30 minutes
     maxReconnectDelay: 60000,

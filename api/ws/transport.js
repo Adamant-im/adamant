@@ -89,7 +89,8 @@ class TransportWsApi {
    */
   connectToPeer (peer) {
     const self = this;
-    const peerUrl = `ws://${peer.ip}:${peer.port}`;
+    const host = peer.ip.includes(':') ? `[${peer.ip}]` : peer.ip;
+    const peerUrl = `ws://${host}:${peer.port}`;
 
     if (this.connections.has(peerUrl)) {
       return;
@@ -99,6 +100,7 @@ class TransportWsApi {
 
     const socket = io(peerUrl, {
       reconnection: false,
+      timeout: wsConstants.connectionTimeout,
       transports: ['websocket'],
       auth: {
         nonce: this.system.getNonce()
@@ -140,7 +142,11 @@ class TransportWsApi {
     this.logger.debug('ws-node-client', `Connection error with ${peer.ip}:${peer.port}`, err.message);
 
     this.peers.switchToHttp(peer);
-    this.peers.recordRequest(peer.ip, peer.port, err);
+    this.peers.recordRequest(
+        peer.ip,
+        peer.port,
+        err && Peer.isNetworkError(err) ? err : 'ECONNABORTED'
+    );
 
     this.replacePeer(peer);
   }
@@ -153,6 +159,7 @@ class TransportWsApi {
   handleDisconnect (peer, reason) {
     this.logger.info('ws-node-client', `Disconnected from ${peer.ip}:${peer.port}`, reason);
     this.peers.switchToHttp(peer);
+    this.peers.recordRequest(peer.ip, peer.port, 'ECONNRESET');
     this.replacePeer(peer);
   }
 
@@ -164,7 +171,8 @@ class TransportWsApi {
     const self = this;
 
     // Remove the disconnected peer
-    const disconnectedPeer = `ws://${peer.ip}:${peer.port}`;
+    const host = peer.ip.includes(':') ? `[${peer.ip}]` : peer.ip;
+    const disconnectedPeer = `ws://${host}:${peer.port}`;
     self.connections.delete(disconnectedPeer);
 
     // Find a new peer to replace it
@@ -352,7 +360,8 @@ class TransportWsApi {
    * @param {Peer} peer target peer
    */
   cleanupConnection (peer) {
-    const peerUrl = `ws://${peer.ip}:${peer.port}`;
+    const host = peer.ip.includes(':') ? `[${peer.ip}]` : peer.ip;
+    const peerUrl = `ws://${host}:${peer.port}`;
     const connection = this.connections.get(peerUrl);
 
     if (connection) {

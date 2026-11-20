@@ -100,7 +100,7 @@
         "port": 36666
       },
       {
-        "ip": "149.102.157.15",
+        "ip": "169.58.72.175",
         "port": 36666
       },
       {
@@ -109,7 +109,7 @@
       },
       {
         "ip": "138.201.152.191",
-        "port": 36666
+        "port": 43998
       },
       {
         "ip": "184.94.215.92",
@@ -120,7 +120,7 @@
         "port": 36666
       },
       {
-        "ip": "200.69.21.176",
+        "ip": "167.86.113.240",
         "port": 36666
       }
     ],
@@ -161,7 +161,21 @@
           }
         }
       },
-      "timeout": 5000
+      "timeout": 5000,
+      "updateConcurrency": 8,
+      "probeSpacingMs": 50,
+      "maxProbeTargets": 20,
+      "unverifiedProbeLimit": 5,
+      "unreachableBackoffInitialMs": 30000,
+      "unreachableBackoffMaxMs": 3600000,
+      "unreachableEvictAfter": 6,
+      "unreachableEvictAfterMs": 86400000,
+      "minConnectedPeers": 10,
+      "maxPeers": 500,
+      "maxPeersPerIp": 6,
+      "maxPeersPerSubnet": 64,
+      "subnetMaskIpv4": 24,
+      "subnetMaskIpv6": 64
     }
   },
   "broadcasts": {
