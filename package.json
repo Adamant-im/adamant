@@ -12,6 +12,7 @@
   },
   "scripts": {
     "start": "node app.js",
+    "adm-node": "node tools/adm-node.js",
     "start:testnet": "node app.js --config test/config.json --genesis test/genesisBlock.json",
     "start:localnet": "node scripts/localnet/start.js",
     "stop:localnet": "node scripts/localnet/stop.js",
