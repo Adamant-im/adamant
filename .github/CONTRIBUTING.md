@@ -71,7 +71,15 @@ You need to specify at least some peers in `peers.list`, e.g.:
 
 #### Dependency updates
 
-The project `.npmrc` sets `min-release-age=7`. Dependency refreshes must still verify publication dates explicitly because npm clients that do not support the option may ignore it.
+The project `.npmrc` sets `min-release-age=7`. This filters fresh dependency resolution, but `npm ci` consumes the reviewed lockfile and does not enforce the publication age of versions already recorded there. Pull requests therefore run `scripts/checkDependencyQuarantine.js`, which checks each newly locked package version against npm registry publication timestamps.
+
+Run the same check locally with a base revision:
+
+```sh
+npm run check:dependency-age -- --base-ref dev
+```
+
+An approved exception must be an exact package/version pair in `.github/dependency-quarantine-exceptions.json`, with a reason and linked tracking issue. Exceptions must never be wildcarded.
 
 #### Native PostgreSQL driver
 

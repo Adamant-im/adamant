@@ -8,6 +8,21 @@ on:
       - master
 
 jobs:
+  dependency-quarantine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Check newly locked dependency release ages
+        env:
+          PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BASE_SHA: ${{ github.event.before }}
+        run: npm run check:dependency-age -- --base-ref "${PULL_REQUEST_BASE_SHA:-$PUSH_BASE_SHA}"
+
   shellcheck:
     runs-on: ubuntu-latest
     steps:

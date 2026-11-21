@@ -339,11 +339,17 @@ fi
 python3 - <<'PY'
 import json
 package = json.load(open("package.json", encoding="utf-8"))
+lock = json.load(open("package-lock.json", encoding="utf-8"))
 allow = package["allowScripts"]
-assert allow["libpq@1.8.15"] is True
+libpq_version = lock["packages"]["node_modules/libpq"]["version"]
+assert allow[f"libpq@{libpq_version}"] is True
+assert [
+    key for key in allow
+    if key.startswith("libpq@")
+] == [f"libpq@{libpq_version}"]
 assert allow["javascript-obfuscator"] is False
 PY
-pass "package.json reviews libpq and denies javascript-obfuscator"
+pass "package.json reviews the locked libpq and denies javascript-obfuscator"
 
 rm -rf -- "$tmp"
 
