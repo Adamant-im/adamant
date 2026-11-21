@@ -12,18 +12,21 @@ var ed = require('./ed.js');
  */
 var ENCRYPTED_PREFIX = 'admnode-enc-v1.';
 
+var MIN_OPERATOR_PASSWORD_LENGTH = 12;
+
 /**
- * scrypt parameters. N is 2^15. The key is 32 bytes for AES-256.
- * maxmem is raised so Node accepts this cost. Decrypt accepts only these values,
- * so a config file cannot downgrade the KDF or request a huge cost.
+ * scrypt parameters. N is 2^17. The key is 32 bytes for AES-256.
+ * maxmem is raised above the 128 MiB working-set requirement. Decrypt accepts
+ * only these values, so a config file cannot downgrade the KDF or request a
+ * huge cost. Any future parameter change requires a new encrypted prefix.
  */
 var KDF = {
   name: 'scrypt',
-  N: 1 << 15,
+  N: 1 << 17,
   r: 8,
   p: 1,
   keylen: 32,
-  maxmem: 96 * 1024 * 1024
+  maxmem: 192 * 1024 * 1024
 };
 
 var CIPHER = 'aes-256-gcm';
@@ -115,18 +118,33 @@ function wipePrivateKey (keypair) {
 }
 
 /**
- * Derives the AES-256 key from the operator password.
+ * Derives the AES-256 key for the offline CLI encryption command.
  * @param {string} password - Operator password.
  * @param {Buffer} salt - scrypt salt.
  * @return {Buffer} 32-byte key. The caller must wipe it.
  */
-function deriveKey (password, salt) {
+function deriveKeySync (password, salt) {
   return crypto.scryptSync(password, salt, KDF.keylen, {
     N: KDF.N,
     r: KDF.r,
     p: KDF.p,
     maxmem: KDF.maxmem
   });
+}
+
+/**
+ * Derives the AES-256 key without blocking a running node's event loop.
+ * @param {string} password - Operator password.
+ * @param {Buffer} salt - scrypt salt.
+ * @param {function} cb - Callback `(err, key)`. The caller must wipe the key.
+ */
+function deriveKeyAsync (password, salt, cb) {
+  crypto.scrypt(password, salt, KDF.keylen, {
+    N: KDF.N,
+    r: KDF.r,
+    p: KDF.p,
+    maxmem: KDF.maxmem
+  }, cb);
 }
 
 /**
@@ -146,6 +164,18 @@ function encrypt (passphrase, password) {
     throw new Error('Operator password is required.');
   }
 
+  if (Array.from(password).length < MIN_OPERATOR_PASSWORD_LENGTH) {
+    throw new Error(
+        'Operator password must be at least ' +
+        MIN_OPERATOR_PASSWORD_LENGTH +
+        ' characters.'
+    );
+  }
+
+  if (password === passphrase) {
+    throw new Error('Operator password must differ from the delegate passphrase.');
+  }
+
   if (!ed.isValidPassphrase(passphrase)) {
     throw new Error('Delegate passphrase must be a valid BIP39 mnemonic.');
   }
@@ -153,7 +183,7 @@ function encrypt (passphrase, password) {
   var identity = deriveIdentity(passphrase);
   var salt = crypto.randomBytes(SALT_LENGTH);
   var iv = crypto.randomBytes(IV_LENGTH);
-  var key = deriveKey(password, salt);
+  var key = deriveKeySync(password, salt);
   var tag;
   var ciphertext;
 
@@ -309,62 +339,87 @@ function parseHeader (blob) {
  * Decrypts an encrypted delegate passphrase and checks the embedded identity.
  * @param {string} blob - Encrypted config value.
  * @param {string} password - Operator password.
- * @return {{passphrase: string, publicKey: string, address: string}} Decrypted passphrase and identity.
+ * @param {function} cb - Callback `(err, result)`.
  */
-function decrypt (blob, password) {
+function decrypt (blob, password, cb) {
+  if (typeof cb !== 'function') {
+    throw new Error('Decrypt callback is required.');
+  }
+
   if (typeof password !== 'string' || password.length === 0) {
-    throw new Error('Operator password is required.');
+    return setImmediate(cb, new Error('Operator password is required.'));
   }
 
-  var header = parseHeader(blob);
-  var salt = decodeExact(header.salt, SALT_LENGTH);
-  var iv = decodeExact(header.iv, IV_LENGTH);
-  var tag = decodeExact(header.tag, TAG_LENGTH);
-  var ciphertext = decodeCiphertext(header.ct);
-  var key = deriveKey(password, salt);
-  var passphrase;
+  var header;
+  var salt;
+  var iv;
+  var tag;
+  var ciphertext;
 
   try {
-    var decipher = crypto.createDecipheriv(CIPHER, key, iv);
-    decipher.setAuthTag(tag);
-    passphrase = Buffer.concat([
-      decipher.update(ciphertext),
-      decipher.final()
-    ]).toString('utf8');
+    header = parseHeader(blob);
+    salt = decodeExact(header.salt, SALT_LENGTH);
+    iv = decodeExact(header.iv, IV_LENGTH);
+    tag = decodeExact(header.tag, TAG_LENGTH);
+    ciphertext = decodeCiphertext(header.ct);
   } catch (err) {
-    throw new Error('Wrong operator password or corrupted encrypted passphrase.');
-  } finally {
-    key.fill(0);
+    return setImmediate(cb, err);
   }
 
-  var derived;
+  deriveKeyAsync(password, salt, function (keyErr, key) {
+    if (keyErr) {
+      return cb(new Error('Failed to derive the operator password key.'));
+    }
 
-  try {
-    derived = deriveIdentity(passphrase);
-  } catch (err) {
-    throw new Error('Decrypted passphrase does not match the embedded public key.');
-  }
+    var plaintext;
+    var passphrase;
+    var derived;
 
-  var expected = Buffer.from(header.publicKey, 'hex');
-  var actual = Buffer.from(derived.publicKey, 'hex');
+    try {
+      var decipher = crypto.createDecipheriv(CIPHER, key, iv);
+      decipher.setAuthTag(tag);
+      plaintext = Buffer.concat([
+        decipher.update(ciphertext),
+        decipher.final()
+      ]);
+      passphrase = plaintext.toString('utf8');
+    } catch (err) {
+      return cb(new Error('Wrong operator password or corrupted encrypted passphrase.'));
+    } finally {
+      key.fill(0);
+      if (plaintext) {
+        plaintext.fill(0);
+      }
+    }
 
-  if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
-    throw new Error('Decrypted passphrase does not match the embedded public key.');
-  }
+    try {
+      derived = deriveIdentity(passphrase);
+    } catch (err) {
+      return cb(new Error('Decrypted passphrase does not match the embedded public key.'));
+    }
 
-  if (derived.address !== header.address) {
-    throw new Error('Decrypted passphrase does not match the embedded address.');
-  }
+    var expected = Buffer.from(header.publicKey, 'hex');
+    var actual = Buffer.from(derived.publicKey, 'hex');
 
-  return {
-    passphrase: passphrase,
-    publicKey: derived.publicKey,
-    address: derived.address
-  };
+    if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
+      return cb(new Error('Decrypted passphrase does not match the embedded public key.'));
+    }
+
+    if (derived.address !== header.address) {
+      return cb(new Error('Decrypted passphrase does not match the embedded address.'));
+    }
+
+    return cb(null, {
+      passphrase: passphrase,
+      publicKey: derived.publicKey,
+      address: derived.address
+    });
+  });
 }
 
 module.exports = {
   ENCRYPTED_PREFIX: ENCRYPTED_PREFIX,
+  MIN_OPERATOR_PASSWORD_LENGTH: MIN_OPERATOR_PASSWORD_LENGTH,
   KDF: {
     name: KDF.name,
     N: KDF.N,

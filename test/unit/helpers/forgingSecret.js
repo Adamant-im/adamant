@@ -16,6 +16,27 @@ const PASSPHRASE = 'abandon abandon abandon abandon abandon abandon abandon aban
 const PASSWORD = 'correct horse battery staple';
 const EXPECTED_PUBLIC_KEY = '58032e75cd5ee0bbcacbed1e38c3da4bf0f162aba2d7513d2d2fba2184327bd3';
 
+function decrypt (blob, password) {
+  return new Promise((resolve, reject) => {
+    forgingSecret.decrypt(blob, password, (err, result) => {
+      if (err) {
+        return reject(err);
+      }
+
+      return resolve(result);
+    });
+  });
+}
+
+async function expectDecryptError (blob, password, pattern) {
+  try {
+    await decrypt(blob, password);
+    throw new Error('decrypt should have failed');
+  } catch (err) {
+    expect(err.message).to.match(pattern);
+  }
+}
+
 describe('forgingSecret', () => {
   describe('isEncrypted()', () => {
     it('detects an encrypted blob only by its prefix', () => {
@@ -40,9 +61,9 @@ describe('forgingSecret', () => {
   });
 
   describe('encrypt() and decrypt()', () => {
-    it('round-trips a passphrase and embeds the public identity', () => {
+    it('round-trips a passphrase and embeds the public identity', async () => {
       const blob = forgingSecret.encrypt(PASSPHRASE, PASSWORD);
-      const decrypted = forgingSecret.decrypt(blob, PASSWORD);
+      const decrypted = await decrypt(blob, PASSWORD);
       const header = forgingSecret.parseHeader(blob);
 
       expect(decrypted.passphrase).to.equal(PASSPHRASE);
@@ -51,6 +72,7 @@ describe('forgingSecret', () => {
       expect(header.address).to.equal(accounts.getAddressByPublicKey(EXPECTED_PUBLIC_KEY));
       expect(header.address.charAt(0)).to.equal('U');
       expect(header.N).to.equal(forgingSecret.KDF.N);
+      expect(header.N).to.equal(1 << 17);
     });
 
     it('uses a fresh salt and IV for each encryption', () => {
@@ -59,16 +81,18 @@ describe('forgingSecret', () => {
       );
     });
 
-    it('rejects a wrong password without echoing it', () => {
+    it('rejects a wrong password without echoing it', async () => {
       const blob = forgingSecret.encrypt(PASSPHRASE, PASSWORD);
       const wrongPassword = 'wrong-password';
 
-      expect(() => forgingSecret.decrypt(blob, wrongPassword)).to.throw(
+      await expectDecryptError(
+          blob,
+          wrongPassword,
           /Wrong operator password or corrupted encrypted passphrase/
       );
     });
 
-    it('rejects a tampered ciphertext', () => {
+    it('rejects a tampered ciphertext', async () => {
       const blob = forgingSecret.encrypt(PASSPHRASE, PASSWORD);
       const header = forgingSecret.parseHeader(blob);
       const tamperedCt = Buffer.from(header.ct, 'base64');
@@ -79,12 +103,14 @@ describe('forgingSecret', () => {
       const tampered = forgingSecret.ENCRYPTED_PREFIX +
         Buffer.from(JSON.stringify(header), 'utf8').toString('base64url');
 
-      expect(() => forgingSecret.decrypt(tampered, PASSWORD)).to.throw(
+      await expectDecryptError(
+          tampered,
+          PASSWORD,
           /Wrong operator password or corrupted encrypted passphrase/
       );
     });
 
-    it('rejects a tampered embedded public key', () => {
+    it('rejects a tampered embedded public key', async () => {
       const blob = forgingSecret.encrypt(PASSPHRASE, PASSWORD);
       const header = forgingSecret.parseHeader(blob);
 
@@ -94,9 +120,7 @@ describe('forgingSecret', () => {
       const tampered = forgingSecret.ENCRYPTED_PREFIX +
         Buffer.from(JSON.stringify(header), 'utf8').toString('base64url');
 
-      expect(() => forgingSecret.decrypt(tampered, PASSWORD)).to.throw(
-          /does not match the embedded public key/
-      );
+      await expectDecryptError(tampered, PASSWORD, /does not match the embedded public key/);
     });
 
     it('rejects an address that does not belong to the embedded public key', () => {
@@ -117,7 +141,7 @@ describe('forgingSecret', () => {
       );
     });
 
-    it('rejects unsupported KDF parameters before deriving a key', () => {
+    it('rejects unsupported KDF parameters before deriving a key', async () => {
       const blob = forgingSecret.encrypt(PASSPHRASE, PASSWORD);
       const header = forgingSecret.parseHeader(blob);
 
@@ -126,7 +150,7 @@ describe('forgingSecret', () => {
       const weakened = forgingSecret.ENCRYPTED_PREFIX +
         Buffer.from(JSON.stringify(header), 'utf8').toString('base64url');
 
-      expect(() => forgingSecret.decrypt(weakened, PASSWORD)).to.throw(/unsupported parameters/);
+      await expectDecryptError(weakened, PASSWORD, /unsupported parameters/);
     });
 
     it('does not include the rejected passphrase in the error', () => {
@@ -144,6 +168,13 @@ describe('forgingSecret', () => {
     it('requires a passphrase and an operator password', () => {
       expect(() => forgingSecret.encrypt('', PASSWORD)).to.throw(/Passphrase is required/);
       expect(() => forgingSecret.encrypt(PASSPHRASE, '')).to.throw(/Operator password is required/);
+    });
+
+    it('requires a strong operator password distinct from the passphrase', () => {
+      expect(() => forgingSecret.encrypt(PASSPHRASE, 'short')).to.throw(/at least 12 characters/);
+      expect(() => forgingSecret.encrypt(PASSPHRASE, PASSPHRASE)).to.throw(
+          /differ from the delegate passphrase/
+      );
     });
   });
 
@@ -220,7 +251,7 @@ describe('adm-node forging encrypt', () => {
 
     expect(result.code).to.equal(0);
     expect(forgingSecret.isEncrypted(blob)).to.equal(true);
-    expect(forgingSecret.decrypt(blob, PASSWORD).passphrase).to.equal(PASSPHRASE);
+    expect((await decrypt(blob, PASSWORD)).passphrase).to.equal(PASSPHRASE);
     expect(result.stdout).to.not.include(PASSPHRASE);
     expect(result.stderr).to.not.include(PASSPHRASE);
     expect(result.stderr).to.not.include(PASSWORD);
@@ -233,6 +264,15 @@ describe('adm-node forging encrypt', () => {
     expect(result.code).to.equal(1);
     expect(result.stdout).to.equal('');
     expect(result.stderr).to.match(/do not match/);
+    expect(result.stderr).to.not.include(PASSPHRASE);
+  });
+
+  it('rejects an operator password shorter than 12 characters', async () => {
+    const result = await runEncrypt(PASSPHRASE + '\nshort\nshort\n');
+
+    expect(result.code).to.equal(1);
+    expect(result.stdout).to.equal('');
+    expect(result.stderr).to.match(/at least 12 characters/);
     expect(result.stderr).to.not.include(PASSPHRASE);
   });
 });

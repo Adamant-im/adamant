@@ -1,0 +1,27 @@
+#!/bin/sh
+
+set -eu
+
+if [ "$#" -ne 1 ]; then
+    echo 'Usage: adm-forging-status <instance>' >&2
+    exit 2
+fi
+
+case "$1" in
+    mainnet)
+        exec /usr/bin/sudo -n -u adamant -- \
+            /usr/bin/node /home/adamant/adamant/tools/adm-node.js \
+            forging status --json --socket \
+            /home/adamant/adamant/.run/control-36666.sock --timeout 2000
+        ;;
+    testnet)
+        exec /usr/bin/sudo -n -u adamanttest -- \
+            /usr/bin/node /home/adamanttest/adamant/tools/adm-node.js \
+            forging status --json --socket \
+            /home/adamanttest/adamant/.run/control-36667.sock --timeout 2000
+        ;;
+    *)
+        echo 'Unknown ADAMANT instance.' >&2
+        exit 2
+        ;;
+esac

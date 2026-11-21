@@ -2,21 +2,25 @@
 
 var fs = require('fs');
 var net = require('net');
-var os = require('os');
 var path = require('path');
 
 var MAX_LINE_BYTES = 64 * 1024;
 var SOCKET_TIMEOUT_MS = 2000;
 
 /**
- * Returns the per-user directory that holds the default control socket.
- * Keeping it out of a shared sticky temp root stops another local user from
- * planting a socket path before this process binds it.
+ * Returns the directory that holds the default control socket.
+ * XDG keeps the path under the operator's private runtime area when available.
+ * The repository-local fallback is stable across TMPDIR, PrivateTmp, and sudo.
  * @return {string} Directory path.
  */
 function controlSocketDir () {
-  var userId = typeof process.getuid === 'function' ? String(process.getuid()) : os.userInfo().username;
-  return path.join(os.tmpdir(), 'adamant-node-' + userId);
+  var runtimeDir = process.env.XDG_RUNTIME_DIR;
+
+  if (runtimeDir && runtimeDir.trim()) {
+    return path.join(path.resolve(runtimeDir), 'adamant-node');
+  }
+
+  return path.resolve(__dirname, '..', '.run');
 }
 
 /**
@@ -67,14 +71,11 @@ function isOwnedByCurrentUser (stats) {
 }
 
 /**
- * Validates the directory that contains a forging control socket.
- * The default directory is private. A custom directory may be readable, but it
- * must not be writable by another user and must never be a symlink.
+ * Validates the identity and type of a control socket directory.
  * @param {string} dir - Directory path.
  * @param {fs.Stats} stats - lstat result.
- * @param {boolean} requirePrivate - Whether mode must be exactly 0700.
  */
-function assertSecureDirectory (dir, stats, requirePrivate) {
+function assertSecureDirectoryIdentity (dir, stats) {
   if (!stats.isDirectory() || stats.isSymbolicLink()) {
     throw new Error('Forging control socket directory is not a real directory: ' + dir);
   }
@@ -82,11 +83,17 @@ function assertSecureDirectory (dir, stats, requirePrivate) {
   if (!isOwnedByCurrentUser(stats)) {
     throw new Error('Forging control socket directory is not owned by the current user: ' + dir);
   }
+}
 
-  var mode = stats.mode & 0o777;
-  var insecureMode = requirePrivate ? (mode !== 0o700) : !!(mode & 0o022);
+/**
+ * Validates the type, owner and mode of a control socket directory.
+ * @param {string} dir - Directory path.
+ * @param {fs.Stats} stats - lstat result.
+ */
+function assertSecureDirectory (dir, stats) {
+  assertSecureDirectoryIdentity(dir, stats);
 
-  if (insecureMode) {
+  if ((stats.mode & 0o777) !== 0o700) {
     throw new Error('Forging control socket directory is not securely permissioned: ' + dir);
   }
 }
@@ -94,10 +101,11 @@ function assertSecureDirectory (dir, stats, requirePrivate) {
 /**
  * Creates and validates the directory used for a control socket.
  * @param {string} dir - Directory path.
- * @param {boolean} requirePrivate - Whether the directory must be mode 0700.
+ * @param {boolean} chmodExisting - Whether an existing default directory can be repaired.
  */
-function prepareRuntimeDir (dir, requirePrivate) {
+function prepareRuntimeDir (dir, chmodExisting) {
   var stats;
+  var created = false;
 
   try {
     stats = fs.lstatSync(dir);
@@ -108,15 +116,16 @@ function prepareRuntimeDir (dir, requirePrivate) {
 
     fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     stats = fs.lstatSync(dir);
+    created = true;
   }
 
-  assertSecureDirectory(dir, stats, false);
+  assertSecureDirectoryIdentity(dir, stats);
 
-  if (requirePrivate) {
+  if (created || chmodExisting) {
     fs.chmodSync(dir, 0o700);
   }
 
-  assertSecureDirectory(dir, fs.lstatSync(dir), requirePrivate);
+  assertSecureDirectory(dir, fs.lstatSync(dir));
 }
 
 /**
@@ -299,10 +308,12 @@ function handleCommand (message, handler, cb) {
  */
 function start (options, handler, logger, cb) {
   var socketPath;
+  var customPath = options && typeof options.controlSocket === 'string' &&
+    options.controlSocket.trim();
 
   try {
     socketPath = resolveControlSocketPath(options);
-    prepareRuntimeDir(path.dirname(socketPath), true);
+    prepareRuntimeDir(path.dirname(socketPath), !customPath);
     socketPath = canonicalizeControlSocketPath(socketPath);
 
     if (Buffer.byteLength(socketPath) >= 104) {
@@ -459,9 +470,17 @@ function start (options, handler, logger, cb) {
  * Sends one newline-delimited JSON command to a forging control socket.
  * @param {string} socketPath - Socket path.
  * @param {object} payload - Command payload. May contain a password; it is not logged.
+ * @param {object|function} [options] - Timeout options or callback.
+ * @param {number} [options.timeoutMs] - Client timeout in milliseconds.
  * @param {function} cb - Callback `(err, response)`.
  */
-function sendCommand (socketPath, payload, cb) {
+function sendCommand (socketPath, payload, options, cb) {
+  if (typeof options === 'function') {
+    cb = options;
+    options = {};
+  }
+
+  options = options || {};
   var buffer = '';
   var settled = false;
   var request;
@@ -492,7 +511,7 @@ function sendCommand (socketPath, payload, cb) {
     cb(err, response);
   }
 
-  socket.setTimeout(10000, function () {
+  socket.setTimeout(options.timeoutMs || 10000, function () {
     finish(new Error('Control socket timed out.'));
   });
 
@@ -531,9 +550,17 @@ function sendCommand (socketPath, payload, cb) {
 /**
  * Checks that a control socket accepts a connection before prompting.
  * @param {string} socketPath - Socket path.
+ * @param {object|function} [options] - Timeout options or callback.
+ * @param {number} [options.timeoutMs] - Client timeout in milliseconds.
  * @param {function} cb - Callback `(err)`.
  */
-function ensureReachable (socketPath, cb) {
+function ensureReachable (socketPath, options, cb) {
+  if (typeof options === 'function') {
+    cb = options;
+    options = {};
+  }
+
+  options = options || {};
   var settled = false;
   var socket;
 
@@ -560,7 +587,7 @@ function ensureReachable (socketPath, cb) {
     finish(null);
   });
 
-  socket.setTimeout(SOCKET_TIMEOUT_MS, function () {
+  socket.setTimeout(options.timeoutMs || SOCKET_TIMEOUT_MS, function () {
     finish(new Error('Control socket timed out while connecting.'));
   });
 

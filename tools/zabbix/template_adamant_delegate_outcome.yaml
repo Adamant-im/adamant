@@ -1,0 +1,86 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 8b81f6a5b7e94bff915b5f4f7b510011
+      name: Templates/Applications
+  templates:
+    - uuid: 9c3f3bca3ab14c0e8ccce1a14b520011
+      template: ADAMANT Delegate forging outcome by HTTP
+      name: ADAMANT Delegate forging outcome by HTTP
+      description: Link this template to a separate logical host, not to the forging node host.
+      groups:
+        - name: Templates/Applications
+      items:
+        - uuid: 218d5f72b4ac4c04a3d6b5df8c8a0011
+          name: 'ADAMANT delegate: Public status payload'
+          type: HTTP_AGENT
+          key: 'adm.delegate.public-status[{$ADM.DELEGATE.PUBLIC_KEY}]'
+          delay: 5m
+          history: 7d
+          trends: '0'
+          value_type: TEXT
+          url: '{$ADM.PUBLIC.API}/api/delegates/get?publicKey={$ADM.DELEGATE.PUBLIC_KEY}'
+          timeout: 10s
+          description: 'Public chain outcome for one delegate on a separate logical host.'
+          tags:
+            - tag: component
+              value: forging-outcome
+        - uuid: b1ef64cfb8c442a5b5a5c4d88b650011
+          name: 'ADAMANT delegate: Missed blocks'
+          type: DEPENDENT
+          key: 'adm.delegate.missedblocks[{$ADM.DELEGATE.PUBLIC_KEY}]'
+          delay: '0'
+          history: 30d
+          trends: '0'
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.delegate.missedblocks
+          master_item:
+            key: 'adm.delegate.public-status[{$ADM.DELEGATE.PUBLIC_KEY}]'
+          tags:
+            - tag: component
+              value: forging-outcome
+          triggers:
+            - uuid: 3a8e1f6c0f8a4bc6ab6d4b4ea7d20011
+              expression: 'max(/ADAMANT Delegate forging outcome by HTTP/adm.delegate.missedblocks[{$ADM.DELEGATE.PUBLIC_KEY}],{$ADM.DELEGATE.MISSED.WINDOW})>min(/ADAMANT Delegate forging outcome by HTTP/adm.delegate.missedblocks[{$ADM.DELEGATE.PUBLIC_KEY}],{$ADM.DELEGATE.MISSED.WINDOW})'
+              name: 'ADAMANT: Delegate missed a block'
+              priority: HIGH
+              tags:
+                - tag: scope
+                  value: availability
+        - uuid: d7d5a0f5f08b48e4a8c3e1b7b2bc0011
+          name: 'ADAMANT delegate: Productivity'
+          type: DEPENDENT
+          key: 'adm.delegate.productivity[{$ADM.DELEGATE.PUBLIC_KEY}]'
+          delay: '0'
+          history: 30d
+          trends: '0'
+          value_type: FLOAT
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.delegate.productivity
+          master_item:
+            key: 'adm.delegate.public-status[{$ADM.DELEGATE.PUBLIC_KEY}]'
+          tags:
+            - tag: component
+              value: forging-outcome
+          triggers:
+            - uuid: 2d4a0cb8f2be42cfb89e6f8d4d790011
+              expression: 'min(/ADAMANT Delegate forging outcome by HTTP/adm.delegate.productivity[{$ADM.DELEGATE.PUBLIC_KEY}],{$ADM.DELEGATE.MISSED.WINDOW})<{$ADM.DELEGATE.PRODUCTIVITY.MIN}'
+              name: 'ADAMANT: Delegate productivity is below the threshold'
+              priority: WARNING
+              tags:
+                - tag: scope
+                  value: performance
+      macros:
+        - macro: '{$ADM.PUBLIC.API}'
+          value: ''
+        - macro: '{$ADM.DELEGATE.PUBLIC_KEY}'
+          value: ''
+        - macro: '{$ADM.DELEGATE.MISSED.WINDOW}'
+          value: 30m
+        - macro: '{$ADM.DELEGATE.PRODUCTIVITY.MIN}'
+          value: '99'

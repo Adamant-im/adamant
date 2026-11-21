@@ -67,7 +67,7 @@ function Config (configPath, overrideOptions) {
       throw `Failed to validate config data ${JSON.stringify(validator.getLastErrors(), null, 2)}`;
     }
 
-    validateForce(configData);
+    validateForce(configData, overrideOptions && overrideOptions.quiet);
 
     // Forging secrets stay in the form stored on disk. Encrypted blobs are
     // decrypted later in memory and are never written back into this object.
@@ -262,14 +262,17 @@ function assertRateLimitAliases (configData) {
 /**
  * Validates nethash value from constants and sets forging force to false if any.
  * @param {object} configData
+ * @param {boolean} [quiet] - Suppress the informational force override.
  * @private
  */
-function validateForce (configData) {
+function validateForce (configData, quiet) {
   if (configData.forging.force) {
     var index = constants.nethashes.indexOf(configData.nethash);
 
     if (index !== -1) {
-      console.log('Forced forging disabled for nethash', configData.nethash);
+      if (!quiet) {
+        console.log('Forced forging disabled for nethash', configData.nethash);
+      }
       configData.forging.force = false;
     }
   }

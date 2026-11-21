@@ -21,6 +21,7 @@ describe('encrypted delegate forging lifecycle', function () {
   let runtimeDir;
   let socketPath;
   let delegates;
+  let delegateFound;
   let delegateEligible;
   let forgingSequence;
   let generateBlockStub;
@@ -33,7 +34,8 @@ describe('encrypted delegate forging lifecycle', function () {
   let registeredPromise;
   let resolveRegistered;
 
-  function startDelegates (secrets, cb) {
+  function startDelegates (secrets, cb, options) {
+    options = options || {};
     const blob = forgingSecret.encrypt(PASSPHRASE, PASSWORD);
     const identity = forgingSecret.parseHeader(blob);
     const logger = {
@@ -47,7 +49,7 @@ describe('encrypted delegate forging lifecycle', function () {
       balancesSequence: new Sequence(),
       config: {
         forging: {
-          controlSocket: socketPath,
+          controlSocket: options.controlSocket === undefined ? socketPath : options.controlSocket,
           secret: secrets(blob)
         },
         port: 36666
@@ -84,6 +86,10 @@ describe('encrypted delegate forging lifecycle', function () {
         accounts: {
           getAccount: function (query, done) {
             if (query.publicKey !== identity.publicKey) {
+              return setImmediate(done, null, null);
+            }
+
+            if (!delegateFound) {
               return setImmediate(done, null, null);
             }
 
@@ -158,7 +164,9 @@ describe('encrypted delegate forging lifecycle', function () {
         }
       });
 
-      delegates.onBlockchainReady();
+      if (options.blockchainReady !== false) {
+        delegates.onBlockchainReady();
+      }
       return cb();
     }, scope);
   }
@@ -192,6 +200,7 @@ describe('encrypted delegate forging lifecycle', function () {
       resolveRegistered = resolve;
     });
     delegateEligible = true;
+    delegateFound = true;
     registerStub = sinon.stub(jobsQueue, 'register').callsFake(function (name, job) {
       registeredJob = job;
       resolveRegistered();
@@ -251,6 +260,90 @@ describe('encrypted delegate forging lifecycle', function () {
     expect(lockedAgain.status.loadedKeypairs).to.equal(0);
   });
 
+  it('answers loading before blockchain readiness and rejects unlock until ready', async function () {
+    await new Promise(function (resolve, reject) {
+      startDelegates(function (blob) {
+        return [blob];
+      }, function (err) {
+        if (err) {
+          return reject(err);
+        }
+        return resolve();
+      }, {
+        blockchainReady: false
+      });
+    });
+
+    const loading = await send('status');
+    expect(loading.ok).to.equal(true);
+    expect(loading.status.forging).to.equal('loading');
+
+    const earlyUnlock = await send('unlock', { password: PASSWORD });
+    expect(earlyUnlock.ok).to.equal(false);
+    expect(earlyUnlock.error).to.match(/still loading/);
+
+    delegates.onBlockchainReady();
+    await registeredPromise;
+
+    const locked = await send('status');
+    expect(locked.status.forging).to.equal('locked');
+  });
+
+  it('keeps a decrypted key when its delegate account is not on the local chain yet', async function () {
+    delegateFound = false;
+
+    await new Promise(function (resolve, reject) {
+      startDelegates(function (blob) {
+        return [blob];
+      }, function (err) {
+        if (err) {
+          return reject(err);
+        }
+        return resolve();
+      });
+    });
+
+    await registeredPromise;
+
+    const unlocked = await send('unlock', { password: PASSWORD });
+    expect(unlocked.ok).to.equal(true);
+    expect(unlocked.status.loadedKeypairs).to.equal(1);
+    expect(unlocked.status.forging).to.equal('unlocked');
+  });
+
+  it('locks without waiting for unrelated sequence work', async function () {
+    await new Promise(function (resolve, reject) {
+      startDelegates(function (blob) {
+        return [blob];
+      }, function (err) {
+        if (err) {
+          return reject(err);
+        }
+        return resolve();
+      });
+    });
+
+    await registeredPromise;
+    await send('unlock', { password: PASSWORD });
+
+    let finishSequenceWork;
+    const sequenceStarted = new Promise(function (resolve) {
+      forgingSequence.add(function (done) {
+        finishSequenceWork = done;
+        resolve();
+      });
+    });
+
+    await sequenceStarted;
+
+    const locked = await send('lock');
+    expect(locked.ok).to.equal(true);
+    expect(locked.status.forging).to.equal('locked');
+    expect(locked.status.loadedKeypairs).to.equal(0);
+
+    finishSequenceWork();
+  });
+
   it('does not remove a plaintext keypair when locking the same encrypted delegate', async function () {
     await new Promise(function (resolve, reject) {
       startDelegates(function (blob) {
@@ -298,6 +391,56 @@ describe('encrypted delegate forging lifecycle', function () {
     const status = await send('status');
     expect(status.status.forging).to.equal('locked');
     expect(status.status.loadedKeypairs).to.equal(0);
+  });
+
+  it('does not open a control socket for nodes with only plaintext secrets', async function () {
+    const startSpy = sinon.spy(forgingControl, 'start');
+
+    try {
+      await new Promise(function (resolve, reject) {
+        startDelegates(function () {
+          return [PASSPHRASE];
+        }, function (err) {
+          if (err) {
+            return reject(err);
+          }
+          return resolve();
+        }, {
+          controlSocket: ''
+        });
+      });
+
+      await registeredPromise;
+      expect(startSpy.called).to.equal(false);
+    } finally {
+      startSpy.restore();
+    }
+  });
+
+  it('opens the control socket for malformed encrypted entries', async function () {
+    const startStub = sinon.stub(forgingControl, 'start').callsFake(function (options, handler, logger, cb) {
+      setImmediate(cb, null, null);
+    });
+
+    try {
+      await new Promise(function (resolve, reject) {
+        startDelegates(function () {
+          return [forgingSecret.ENCRYPTED_PREFIX + 'invalid'];
+        }, function (err) {
+          if (err) {
+            return reject(err);
+          }
+          return resolve();
+        }, {
+          controlSocket: ''
+        });
+      });
+
+      await registeredPromise;
+      expect(startStub.calledOnce).to.equal(true);
+    } finally {
+      startStub.restore();
+    }
   });
 
   it('starts the forging and mempool job while an interactive unlock prompt is pending', async function () {
@@ -418,12 +561,9 @@ describe('encrypted delegate forging lifecycle', function () {
       await peerLookupStarted;
 
       const lockRequest = send('lock');
-
-      while (forgingSequence.count() === 0) {
-        await new Promise(function (resolve) {
-          setImmediate(resolve);
-        });
-      }
+      await new Promise(function (resolve) {
+        setTimeout(resolve, 20);
+      });
 
       peerLookupCallback(null, []);
 
@@ -432,6 +572,118 @@ describe('encrypted delegate forging lifecycle', function () {
 
       expect(locked.status.forging).to.equal('locked');
       expect(generateBlockStub.called).to.equal(false);
+    } finally {
+      getSlotNumberStub.restore();
+      getLastSlotStub.restore();
+      getSlotTimeStub.restore();
+    }
+  });
+
+  it('keeps plaintext forging responsive while encrypted unlock is pending', async function () {
+    const realDecrypt = forgingSecret.decrypt;
+    let finishDecrypt;
+    let markDecryptStarted;
+    const decryptStarted = new Promise(function (resolve) {
+      markDecryptStarted = resolve;
+    });
+    const decryptStub = sinon.stub(forgingSecret, 'decrypt').callsFake(function (blob, password, cb) {
+      finishDecrypt = function () {
+        realDecrypt(blob, password, cb);
+      };
+      markDecryptStarted();
+    });
+
+    try {
+      await new Promise(function (resolve, reject) {
+        startDelegates(function (blob) {
+          return [PASSPHRASE, blob];
+        }, function (err) {
+          if (err) {
+            return reject(err);
+          }
+          return resolve();
+        });
+      });
+
+      await registeredPromise;
+      const unlockRequest = send('unlock', { password: PASSWORD });
+      await decryptStarted;
+
+      const duringUnlock = await send('status');
+      expect(duringUnlock.status.forging).to.equal('partial');
+      expect(duringUnlock.status.loadedKeypairs).to.equal(1);
+
+      const getSlotNumberStub = sinon.stub(slots, 'getSlotNumber').callsFake(function (timestamp) {
+        return timestamp === undefined || timestamp === 0 ? 0 : -1;
+      });
+      const getLastSlotStub = sinon.stub(slots, 'getLastSlot').returns(1);
+      const getSlotTimeStub = sinon.stub(slots, 'getSlotTime').returns(0);
+
+      try {
+        await new Promise(function (resolve) {
+          registeredJob(resolve);
+        });
+
+        expect(generateBlockStub.calledOnce).to.equal(true);
+      } finally {
+        getSlotNumberStub.restore();
+        getLastSlotStub.restore();
+        getSlotTimeStub.restore();
+      }
+
+      finishDecrypt();
+      finishDecrypt = null;
+      const unlocked = await unlockRequest;
+      expect(unlocked.ok).to.equal(true);
+      expect(unlocked.status.loadedKeypairs).to.equal(1);
+    } finally {
+      if (finishDecrypt) {
+        finishDecrypt();
+      }
+      decryptStub.restore();
+    }
+  });
+
+  it('preserves production when a planned slot passes while queued', async function () {
+    var currentSlot = 0;
+
+    await new Promise(function (resolve, reject) {
+      startDelegates(function () {
+        return [PASSPHRASE];
+      }, function (err) {
+        if (err) {
+          return reject(err);
+        }
+        return resolve();
+      });
+    });
+
+    await registeredPromise;
+    peerLookupDeferred = true;
+
+    const getSlotNumberStub = sinon.stub(slots, 'getSlotNumber').callsFake(function (timestamp) {
+      if (timestamp === undefined) {
+        return currentSlot;
+      }
+      if (timestamp === -1) {
+        return -1;
+      }
+      return 0;
+    });
+    const getLastSlotStub = sinon.stub(slots, 'getLastSlot').returns(1);
+    const getSlotTimeStub = sinon.stub(slots, 'getSlotTime').returns(0);
+
+    try {
+      const forgeFinished = new Promise(function (resolve) {
+        registeredJob(resolve);
+      });
+
+      await peerLookupStarted;
+      currentSlot = 1;
+      peerLookupCallback(null, []);
+      await forgeFinished;
+
+      expect(generateBlockStub.calledOnce).to.equal(true);
     } finally {
       getSlotNumberStub.restore();
       getLastSlotStub.restore();
