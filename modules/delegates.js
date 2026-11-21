@@ -27,12 +27,15 @@ __private.loaded = false;
 __private.blockReward = new BlockReward();
 __private.keypairs = {};
 __private.forgingSummaryLogged = false;
-__private.tmpKeypairs = {};
 __private.encryptedEntries = [];
 __private.encryptedKeypairsLoaded = {};
+__private.encryptedOwnedKeypairs = {};
+__private.plaintextKeypairsLoaded = {};
 __private.plaintextDelegateCount = 0;
-__private.forgingNoticesEmitted = false;
+__private.invalidEncryptedDelegateCount = 0;
+__private.forgingInitialized = false;
 __private.forgingMutation = false;
+__private.shuttingDown = false;
 __private.controlServer = null;
 
 /**
@@ -65,15 +68,20 @@ function Delegates (cb, scope) {
         secret: scope.config.forging.secret,
         controlSocket: scope.config.forging.controlSocket || ''
       }
-    },
-    forgingOperatorPassword: scope.forgingOperatorPassword || null
+    }
   };
-  scope.forgingOperatorPassword = null;
+  __private.loaded = false;
+  __private.keypairs = {};
+  __private.forgingSummaryLogged = false;
   __private.encryptedEntries = [];
   __private.encryptedKeypairsLoaded = {};
+  __private.encryptedOwnedKeypairs = {};
+  __private.plaintextKeypairsLoaded = {};
   __private.plaintextDelegateCount = 0;
-  __private.forgingNoticesEmitted = false;
+  __private.invalidEncryptedDelegateCount = 0;
+  __private.forgingInitialized = false;
   __private.forgingMutation = false;
+  __private.shuttingDown = false;
   __private.controlServer = null;
   self = this;
 
@@ -173,6 +181,10 @@ __private.getBlockSlotData = function (slot, height, cb) {
  * @return {setImmediateCallback}
  */
 __private.forge = function (cb) {
+  if (__private.forgingMutation || __private.shuttingDown) {
+    return setImmediate(cb);
+  }
+
   if (!Object.keys(__private.keypairs).length) {
     library.logger.debug('delegates', 'No delegates enabled');
     return __private.loadDelegates(cb);
@@ -215,7 +227,22 @@ __private.forge = function (cb) {
       return setImmediate(cb);
     }
 
-    library.sequence.add(function (cb) {
+    var keypair = currentBlockData.keypair;
+    var publicKey = keypair.publicKey.toString('hex');
+
+    if (__private.forgingMutation || __private.shuttingDown) {
+      return setImmediate(cb);
+    }
+
+    library.sequence.add(function (sequenceCb) {
+      if (
+        __private.forgingMutation ||
+        __private.shuttingDown ||
+        __private.keypairs[publicKey] !== keypair
+      ) {
+        return setImmediate(sequenceCb, null, { forged: false });
+      }
+
       async.series({
         getPeers: function (seriesCb) {
           return modules.transport.getPeers({ limit: constants.maxPeers }, seriesCb);
@@ -230,15 +257,26 @@ __private.forge = function (cb) {
       }, function (err) {
         if (err) {
           library.logger.warn('delegates', err);
-          return setImmediate(cb, err);
-        } else {
-          return modules.blocks.process.generateBlock(currentBlockData.keypair, currentBlockData.time, cb);
+          return setImmediate(sequenceCb, err);
         }
+
+        if (
+          __private.forgingMutation ||
+          __private.shuttingDown ||
+          __private.keypairs[publicKey] !== keypair ||
+          slots.getSlotNumber(currentBlockData.time) !== slots.getSlotNumber()
+        ) {
+          return setImmediate(sequenceCb, null, { forged: false });
+        }
+
+        return modules.blocks.process.generateBlock(keypair, currentBlockData.time, function (generateErr) {
+          return setImmediate(sequenceCb, generateErr, { forged: !generateErr });
+        });
       });
-    }, function (err) {
+    }, function (err, result) {
       if (err) {
         library.logger.error('delegates', 'Failed to generate block within delegate slot', err);
-      } else {
+      } else if (result && result.forged) {
         var forgedBlock = modules.blocks.lastBlock.get();
         modules.blocks.lastReceipt.update();
 
@@ -420,6 +458,7 @@ __private.forgingStatusSnapshot = function () {
   return {
     forging: __private.forgingLockState(encryptedLoaded),
     encryptedDelegates: __private.encryptedEntries.length,
+    invalidEncryptedDelegates: __private.invalidEncryptedDelegateCount,
     plaintextDelegates: __private.plaintextDelegateCount,
     loadedKeypairs: loadedKeys.length,
     delegates: delegates
@@ -468,7 +507,10 @@ __private.startForgingControl = function (cb) {
     }
   }, library.logger, function (err, server) {
     if (err) {
-      library.logger.error('delegates', 'Forging control socket is unavailable');
+      library.logger.error(
+          'delegates',
+          'Forging control socket is unavailable: ' + err.message
+      );
     } else {
       __private.controlServer = server;
     }
@@ -485,6 +527,10 @@ __private.startForgingControl = function (cb) {
  * @param {function} cb - Callback `(err, result)`.
  */
 __private.unlockWithPassword = function (password, cb) {
+  if (__private.shuttingDown) {
+    return setImmediate(cb, new Error('Node is shutting down.'));
+  }
+
   if (!__private.encryptedEntries.length) {
     return setImmediate(cb, new Error('No encrypted delegate passphrases are configured.'));
   }
@@ -538,6 +584,11 @@ __private.unlockWithPassword = function (password, cb) {
     modules.accounts.getAccount({
       publicKey: entry.publicKey
     }, function (err, account) {
+      if (__private.shuttingDown) {
+        wipeKeypair(keypair);
+        return setImmediate(next, new Error('Node is shutting down.'));
+      }
+
       if (err) {
         wipeKeypair(keypair);
         return setImmediate(next, publicUnlockError(err));
@@ -554,18 +605,31 @@ __private.unlockWithPassword = function (password, cb) {
         return setImmediate(next);
       }
 
-      __private.keypairs[entry.publicKey] = keypair;
-      __private.encryptedKeypairsLoaded[entry.publicKey] = true;
-      unlocked.push(entry.publicKey);
-      library.logger.info('delegates', 'Forging unlocked on account: ' + account.address);
+      unlocked.push({
+        publicKey: entry.publicKey,
+        keypair: keypair,
+        address: account.address
+      });
       return setImmediate(next);
     });
   }, function (err) {
     if (err) {
-      unlocked.forEach(function (publicKey) {
-        wipeKeypair(__private.keypairs[publicKey]);
-        delete __private.keypairs[publicKey];
-        delete __private.encryptedKeypairsLoaded[publicKey];
+      unlocked.forEach(function (change) {
+        wipeKeypair(change.keypair);
+      });
+    } else {
+      unlocked.forEach(function (change) {
+        var owned = !__private.keypairs[change.publicKey];
+
+        if (owned) {
+          __private.keypairs[change.publicKey] = change.keypair;
+        } else {
+          wipeKeypair(change.keypair);
+        }
+
+        __private.encryptedKeypairsLoaded[change.publicKey] = true;
+        __private.encryptedOwnedKeypairs[change.publicKey] = owned;
+        library.logger.info('delegates', 'Forging unlocked on account: ' + change.address);
       });
     }
 
@@ -581,11 +645,38 @@ __private.unlockWithPassword = function (password, cb) {
 };
 
 /**
+ * Clears keypair ownership acquired through encrypted config entries.
+ * A keypair is retained when plaintext config independently loaded the same delegate.
+ * @return {number} Number of encrypted keypair entries cleared.
+ */
+__private.clearEncryptedKeypairs = function () {
+  var publicKeys = Object.keys(__private.encryptedKeypairsLoaded);
+
+  publicKeys.forEach(function (publicKey) {
+    var owned = __private.encryptedOwnedKeypairs[publicKey];
+
+    delete __private.encryptedKeypairsLoaded[publicKey];
+    delete __private.encryptedOwnedKeypairs[publicKey];
+
+    if (owned && !__private.plaintextKeypairsLoaded[publicKey]) {
+      wipeKeypair(__private.keypairs[publicKey]);
+      delete __private.keypairs[publicKey];
+    }
+  });
+
+  return publicKeys.length;
+};
+
+/**
  * Clears keypairs that were unlocked from encrypted config entries.
  * Plaintext and API-enabled keypairs stay loaded.
  * @param {function} cb - Callback `(err)`.
  */
 __private.lockEncryptedDelegates = function (cb) {
+  if (__private.shuttingDown) {
+    return setImmediate(cb, new Error('Node is shutting down.'));
+  }
+
   if (!__private.encryptedEntries.length) {
     return setImmediate(cb, new Error('No encrypted delegate passphrases are configured.'));
   }
@@ -594,27 +685,24 @@ __private.lockEncryptedDelegates = function (cb) {
     return setImmediate(cb, new Error('An unlock is already in progress.'));
   }
 
-  Object.keys(__private.encryptedKeypairsLoaded).forEach(function (publicKey) {
-    wipeKeypair(__private.keypairs[publicKey]);
-    wipeKeypair(__private.tmpKeypairs[publicKey]);
-    delete __private.keypairs[publicKey];
-    delete __private.tmpKeypairs[publicKey];
-    delete __private.encryptedKeypairsLoaded[publicKey];
-  });
+  __private.forgingMutation = true;
 
-  library.logger.info('delegates', 'Forging locked. Encrypted delegate keypairs cleared from memory.');
-  return setImmediate(cb);
+  library.sequence.add(function (sequenceCb) {
+    __private.clearEncryptedKeypairs();
+    return setImmediate(sequenceCb);
+  }, function () {
+    __private.forgingMutation = false;
+    library.logger.info('delegates', 'Forging locked. Encrypted delegate keypairs cleared from memory.');
+    return setImmediate(cb);
+  });
 };
 
 /**
- * Unlocks encrypted delegates from a startup password, a terminal prompt, or neither.
- * The node keeps running when the password is missing or wrong.
+ * Optionally prompts for an operator password after the node is otherwise ready.
+ * Service processes without a TTY stay locked and remain fully operational.
  * @param {function} cb - Callback after the attempt.
  */
 __private.maybeUnlockAtStartup = function (cb) {
-  var password = library.forgingOperatorPassword;
-  library.forgingOperatorPassword = null;
-
   if (!__private.encryptedEntries.length) {
     return setImmediate(cb);
   }
@@ -632,10 +720,6 @@ __private.maybeUnlockAtStartup = function (cb) {
 
       return setImmediate(cb);
     });
-  }
-
-  if (password) {
-    return unlockAndContinue(password);
   }
 
   if (process.stdin.isTTY) {
@@ -661,6 +745,7 @@ __private.maybeUnlockAtStartup = function (cb) {
 __private.prepareForging = function (cb) {
   var partitioned = forgingSecret.partitionForgingSecrets(library.config.forging.secret);
   var ignored = 0;
+  var seenPublicKeys = {};
 
   __private.plaintextDelegateCount = countPlaintextSecrets(partitioned.plaintext);
   __private.encryptedEntries = [];
@@ -668,6 +753,13 @@ __private.prepareForging = function (cb) {
   partitioned.encrypted.forEach(function (blob) {
     try {
       var header = forgingSecret.parseHeader(blob);
+
+      if (seenPublicKeys[header.publicKey]) {
+        ignored += 1;
+        return;
+      }
+
+      seenPublicKeys[header.publicKey] = true;
       __private.encryptedEntries.push({
         blob: blob,
         publicKey: header.publicKey,
@@ -678,6 +770,8 @@ __private.prepareForging = function (cb) {
     }
   });
 
+  __private.invalidEncryptedDelegateCount = ignored;
+
   if (__private.plaintextDelegateCount > 0) {
     library.logger.warn(
         'delegates',
@@ -687,7 +781,10 @@ __private.prepareForging = function (cb) {
   }
 
   if (ignored > 0) {
-    library.logger.error('delegates', 'Ignoring ' + ignored + ' malformed encrypted delegate passphrase entry(s).');
+    library.logger.error(
+        'delegates',
+        'Ignoring ' + ignored + ' malformed or duplicate encrypted delegate passphrase entry(s).'
+    );
   }
 
   if (__private.encryptedEntries.length > 0) {
@@ -698,9 +795,7 @@ __private.prepareForging = function (cb) {
     );
   }
 
-  __private.startForgingControl(function () {
-    __private.maybeUnlockAtStartup(cb);
-  });
+  __private.startForgingControl(cb);
 };
 
 /**
@@ -724,10 +819,24 @@ __private.loadPlaintextDelegates = function (cb) {
   library.logger.info('delegates', ['Loading', secrets.length, 'delegates from config…'].join(' '));
 
   async.eachSeries(secrets, function (secret, next) {
-    var hash = library.ed.createPassPhraseHash(secret);
-    var keypair = library.ed.makeKeypair(hash);
+    var hash;
+    var keypair;
 
-    hash.fill(0);
+    try {
+      hash = library.ed.createPassPhraseHash(secret);
+      keypair = library.ed.makeKeypair(hash);
+    } catch (err) {
+      if (hash && Buffer.isBuffer(hash)) {
+        hash.fill(0);
+      }
+      wipeKeypair(keypair);
+      library.logger.warn('delegates', 'Ignoring invalid plaintext delegate passphrase in config.');
+      return setImmediate(next);
+    } finally {
+      if (hash && Buffer.isBuffer(hash)) {
+        hash.fill(0);
+      }
+    }
 
     modules.accounts.getAccount({
       publicKey: keypair.publicKey.toString('hex')
@@ -739,11 +848,23 @@ __private.loadPlaintextDelegates = function (cb) {
 
       if (!account) {
         wipeKeypair(keypair);
-        return setImmediate(next, ['Account with public key:', keypair.publicKey.toString('hex'), 'not found'].join(' '));
+        library.logger.warn(
+            'delegates',
+            ['Account with public key:', keypair.publicKey.toString('hex'), 'not found'].join(' ')
+        );
+        return setImmediate(next);
       }
 
       if (account.isDelegate) {
-        __private.keypairs[keypair.publicKey.toString('hex')] = keypair;
+        var publicKey = keypair.publicKey.toString('hex');
+
+        if (__private.keypairs[publicKey]) {
+          wipeKeypair(keypair);
+        } else {
+          __private.keypairs[publicKey] = keypair;
+        }
+
+        __private.plaintextKeypairsLoaded[publicKey] = true;
         if (enabledAddresses.indexOf(account.address) === -1) {
           enabledAddresses.push(account.address);
         }
@@ -779,14 +900,25 @@ __private.loadPlaintextDelegates = function (cb) {
  * @return {setImmediateCallback}
  */
 __private.loadDelegates = function (cb) {
-  if (!__private.forgingNoticesEmitted) {
-    __private.forgingNoticesEmitted = true;
+  if (!__private.forgingInitialized) {
+    __private.forgingInitialized = true;
     return __private.prepareForging(function () {
-      __private.loadPlaintextDelegates(cb);
+      __private.loadPlaintextDelegates(function (err) {
+        __private.maybeUnlockAtStartup(function () {
+          // The prompt result must not gate node jobs. Failure or cancellation
+          // only leaves encrypted delegates locked.
+        });
+
+        return setImmediate(cb, err);
+      });
     });
   }
 
-  return __private.loadPlaintextDelegates(cb);
+  if (__private.plaintextDelegateCount > 0) {
+    return __private.loadPlaintextDelegates(cb);
+  }
+
+  return setImmediate(cb);
 };
 
 // Public methods
@@ -1035,13 +1167,21 @@ Delegates.prototype.onBlockchainReady = function () {
   __private.loaded = true;
 
   __private.loadDelegates(function (err) {
-    function nextForge (cb) {
-      if (err) {
-        library.logger.error('delegates', 'Failed to load delegates', err);
-      }
+    if (err) {
+      library.logger.error('delegates', 'Failed to load delegates', err);
+    }
 
+    function nextForge (cb) {
       async.series([
-        __private.forge,
+        function (seriesCb) {
+          __private.forge(function (forgeErr) {
+            if (forgeErr) {
+              library.logger.error('delegates', 'Failed to prepare forging delegates', forgeErr);
+            }
+
+            return setImmediate(seriesCb);
+          });
+        },
         modules.transactions.fillPool
       ], function () {
         return setImmediate(cb);
@@ -1059,14 +1199,25 @@ Delegates.prototype.onBlockchainReady = function () {
  */
 Delegates.prototype.cleanup = function (cb) {
   __private.loaded = false;
+  __private.shuttingDown = true;
+
+  function clearAndFinish () {
+    library.sequence.add(function (sequenceCb) {
+      __private.clearEncryptedKeypairs();
+      return setImmediate(sequenceCb);
+    }, function () {
+      __private.forgingMutation = false;
+      return setImmediate(cb);
+    });
+  }
 
   if (!__private.controlServer) {
-    return setImmediate(cb);
+    return clearAndFinish();
   }
 
   __private.controlServer.close(function () {
     __private.controlServer = null;
-    return setImmediate(cb);
+    return clearAndFinish();
   });
 };
 

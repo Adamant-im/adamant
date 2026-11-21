@@ -6,6 +6,7 @@ var os = require('os');
 var path = require('path');
 
 var MAX_LINE_BYTES = 64 * 1024;
+var SOCKET_TIMEOUT_MS = 2000;
 
 /**
  * Returns the per-user directory that holds the default control socket.
@@ -44,19 +45,122 @@ function resolveControlSocketPath (options) {
 }
 
 /**
- * Creates the default socket directory and requires it to be owned by this user.
- * @param {string} dir - Directory path.
+ * Resolves symlinked path components only after the parent has been protected.
+ * Clients then connect to the stable canonical path instead of re-resolving a
+ * potentially changed symlink between lstat and connect.
+ * @param {string} socketPath - Absolute socket path.
+ * @return {string} Socket path rooted at the canonical parent directory.
  */
-function prepareRuntimeDir (dir) {
-  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+function canonicalizeControlSocketPath (socketPath) {
+  var parent = fs.realpathSync(path.dirname(socketPath));
+  return path.join(parent, path.basename(socketPath));
+}
 
-  var stats = fs.statSync(dir);
+/**
+ * Returns true when a filesystem entry belongs to this process user.
+ * UID checks are unavailable on Windows, where Unix socket mode is also unavailable.
+ * @param {fs.Stats} stats - Filesystem entry metadata.
+ * @return {boolean} True when ownership is acceptable.
+ */
+function isOwnedByCurrentUser (stats) {
+  return typeof process.getuid !== 'function' || stats.uid === process.getuid();
+}
 
-  if (typeof process.getuid === 'function' && stats.uid !== process.getuid()) {
-    throw new Error('Forging control socket directory is not owned by the current user.');
+/**
+ * Validates the directory that contains a forging control socket.
+ * The default directory is private. A custom directory may be readable, but it
+ * must not be writable by another user and must never be a symlink.
+ * @param {string} dir - Directory path.
+ * @param {fs.Stats} stats - lstat result.
+ * @param {boolean} requirePrivate - Whether mode must be exactly 0700.
+ */
+function assertSecureDirectory (dir, stats, requirePrivate) {
+  if (!stats.isDirectory() || stats.isSymbolicLink()) {
+    throw new Error('Forging control socket directory is not a real directory: ' + dir);
   }
 
-  fs.chmodSync(dir, 0o700);
+  if (!isOwnedByCurrentUser(stats)) {
+    throw new Error('Forging control socket directory is not owned by the current user: ' + dir);
+  }
+
+  var mode = stats.mode & 0o777;
+  var insecureMode = requirePrivate ? (mode !== 0o700) : !!(mode & 0o022);
+
+  if (insecureMode) {
+    throw new Error('Forging control socket directory is not securely permissioned: ' + dir);
+  }
+}
+
+/**
+ * Creates and validates the directory used for a control socket.
+ * @param {string} dir - Directory path.
+ * @param {boolean} requirePrivate - Whether the directory must be mode 0700.
+ */
+function prepareRuntimeDir (dir, requirePrivate) {
+  var stats;
+
+  try {
+    stats = fs.lstatSync(dir);
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      throw err;
+    }
+
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    stats = fs.lstatSync(dir);
+  }
+
+  assertSecureDirectory(dir, stats, false);
+
+  if (requirePrivate) {
+    fs.chmodSync(dir, 0o700);
+  }
+
+  assertSecureDirectory(dir, fs.lstatSync(dir), requirePrivate);
+}
+
+/**
+ * Validates an existing Unix socket before a client connects or a stale path is removed.
+ * @param {string} socketPath - Socket path.
+ * @param {fs.Stats} [stats] - Previously read lstat result.
+ * @return {fs.Stats} Validated lstat result.
+ */
+function assertControlSocket (socketPath, stats) {
+  stats = stats || fs.lstatSync(socketPath);
+
+  if (!stats.isSocket() || stats.isSymbolicLink()) {
+    throw new Error('Forging control path is not a Unix socket: ' + socketPath);
+  }
+
+  if (!isOwnedByCurrentUser(stats)) {
+    throw new Error('Forging control socket is not owned by the current user: ' + socketPath);
+  }
+
+  if ((stats.mode & 0o777) !== 0o600) {
+    throw new Error('Forging control socket permissions must be 0600: ' + socketPath);
+  }
+
+  return stats;
+}
+
+/**
+ * Removes a socket only if it is still the same filesystem entry checked earlier.
+ * @param {string} socketPath - Socket path.
+ * @param {fs.Stats} expected - Previously validated socket metadata.
+ */
+function unlinkExpectedSocket (socketPath, expected) {
+  var current = fs.lstatSync(socketPath);
+
+  if (
+    !current.isSocket() ||
+    current.dev !== expected.dev ||
+    current.ino !== expected.ino ||
+    current.uid !== expected.uid
+  ) {
+    throw new Error('Forging control socket changed before it could be removed.');
+  }
+
+  fs.unlinkSync(socketPath);
 }
 
 /**
@@ -65,8 +169,16 @@ function prepareRuntimeDir (dir) {
  * @param {function} cb - Callback `(err)`.
  */
 function replaceStaleSocket (socketPath, cb) {
-  if (!fs.existsSync(socketPath)) {
-    return setImmediate(cb);
+  var stats;
+
+  try {
+    stats = assertControlSocket(socketPath);
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return setImmediate(cb);
+    }
+
+    return setImmediate(cb, err);
   }
 
   var client = net.connect(socketPath);
@@ -79,18 +191,26 @@ function replaceStaleSocket (socketPath, cb) {
 
     settled = true;
     client.destroy();
-    cb(err);
+    setImmediate(cb, err);
   }
 
   client.once('connect', function () {
     finish(new Error('Forging control socket is already in use.'));
   });
 
-  client.once('error', function () {
-    try {
-      fs.unlinkSync(socketPath);
-    } catch (err) {
+  client.setTimeout(SOCKET_TIMEOUT_MS, function () {
+    finish(new Error('Forging control socket did not respond while checking for a stale path.'));
+  });
+
+  client.once('error', function (err) {
+    if (err.code !== 'ECONNREFUSED') {
       return finish(err);
+    }
+
+    try {
+      unlinkExpectedSocket(socketPath, stats);
+    } catch (unlinkErr) {
+      return finish(unlinkErr);
     }
 
     finish(null);
@@ -179,19 +299,14 @@ function handleCommand (message, handler, cb) {
  */
 function start (options, handler, logger, cb) {
   var socketPath;
-  var customPath = options && typeof options.controlSocket === 'string' && options.controlSocket.trim();
 
   try {
     socketPath = resolveControlSocketPath(options);
+    prepareRuntimeDir(path.dirname(socketPath), true);
+    socketPath = canonicalizeControlSocketPath(socketPath);
 
     if (Buffer.byteLength(socketPath) >= 104) {
       throw new Error('Forging control socket path is too long.');
-    }
-
-    if (!customPath) {
-      prepareRuntimeDir(path.dirname(socketPath));
-    } else {
-      fs.mkdirSync(path.dirname(socketPath), { recursive: true });
     }
   } catch (err) {
     return setImmediate(cb, err);
@@ -203,6 +318,8 @@ function start (options, handler, logger, cb) {
     }
 
     var started = false;
+    var socketStats = null;
+    var connections = new Set();
 
     function finishStart (startErr, control) {
       if (started) {
@@ -215,11 +332,12 @@ function start (options, handler, logger, cb) {
 
     var server = net.createServer(function (socket) {
       var buffer = '';
+      connections.add(socket);
 
       socket.on('data', function (chunk) {
         buffer += chunk.toString('utf8');
 
-        if (Buffer.byteLength(buffer) > MAX_LINE_BYTES) {
+        if (Buffer.byteLength(buffer, 'utf8') > MAX_LINE_BYTES) {
           buffer = '';
           socket.end(JSON.stringify({ ok: false, error: 'Control request is too large.' }) + '\n');
           return;
@@ -246,25 +364,42 @@ function start (options, handler, logger, cb) {
           }
 
           handleCommand(message, handler, function (response) {
-            socket.write(JSON.stringify(response) + '\n');
+            if (socket.writable) {
+              socket.write(JSON.stringify(response) + '\n');
+            }
           });
         }
       });
 
-      socket.on('error', function () {});
+      socket.once('close', function () {
+        connections.delete(socket);
+      });
+
+      socket.on('error', function (socketErr) {
+        if (logger && socketErr.code !== 'ECONNRESET' && socketErr.code !== 'EPIPE') {
+          logger.warn('delegates', 'Forging control socket client error: ' + socketErr.message);
+        }
+      });
     });
 
-    server.once('error', function (listenErr) {
-      finishStart(listenErr);
+    server.on('error', function (serverErr) {
+      if (!started) {
+        return finishStart(serverErr);
+      }
+
+      if (logger) {
+        logger.error('delegates', 'Forging control socket error: ' + serverErr.message);
+      }
     });
 
     server.listen(socketPath, function () {
       try {
         fs.chmodSync(socketPath, 0o600);
+        socketStats = assertControlSocket(socketPath);
       } catch (chmodErr) {
         server.close(function () {
           try {
-            fs.unlinkSync(socketPath);
+            unlinkExpectedSocket(socketPath, assertControlSocket(socketPath));
           } catch (unlinkErr) {
             // The socket is already gone.
           }
@@ -275,27 +410,41 @@ function start (options, handler, logger, cb) {
       var control = {
         path: socketPath,
         close: function (done) {
-          server.close(function () {
+          server.close(function (closeErr) {
             try {
-              fs.unlinkSync(socketPath);
+              if (socketStats) {
+                unlinkExpectedSocket(socketPath, socketStats);
+              }
             } catch (unlinkErr) {
-              // The socket is already gone.
+              if (unlinkErr.code !== 'ENOENT' && logger) {
+                logger.warn('delegates', 'Failed to remove forging control socket: ' + unlinkErr.message);
+              }
             }
 
+            process.removeListener('exit', cleanup);
+
             if (done) {
-              done();
+              done(closeErr);
             }
+          });
+
+          connections.forEach(function (connection) {
+            connection.destroy();
           });
         }
       };
 
-      process.once('exit', function () {
+      function cleanup () {
         try {
-          fs.unlinkSync(socketPath);
+          if (socketStats) {
+            unlinkExpectedSocket(socketPath, socketStats);
+          }
         } catch (unlinkErr) {
-          // The socket is already gone.
+          // Exit cleanup cannot safely wait for or report filesystem failures.
         }
-      });
+      }
+
+      process.once('exit', cleanup);
 
       if (logger) {
         logger.info('delegates', 'Forging control socket listening at ' + socketPath);
@@ -313,9 +462,24 @@ function start (options, handler, logger, cb) {
  * @param {function} cb - Callback `(err, response)`.
  */
 function sendCommand (socketPath, payload, cb) {
-  var socket = net.connect(socketPath);
   var buffer = '';
   var settled = false;
+  var request;
+  var socket;
+
+  try {
+    socketPath = canonicalizeControlSocketPath(socketPath);
+    assertControlSocket(socketPath);
+    request = JSON.stringify(payload) + '\n';
+  } catch (err) {
+    return setImmediate(cb, err);
+  }
+
+  if (payload && Object.prototype.hasOwnProperty.call(payload, 'password')) {
+    payload.password = null;
+  }
+
+  socket = net.connect(socketPath);
 
   function finish (err, response) {
     if (settled) {
@@ -323,6 +487,7 @@ function sendCommand (socketPath, payload, cb) {
     }
 
     settled = true;
+    request = null;
     socket.destroy();
     cb(err, response);
   }
@@ -332,13 +497,14 @@ function sendCommand (socketPath, payload, cb) {
   });
 
   socket.once('connect', function () {
-    socket.write(JSON.stringify(payload) + '\n');
+    socket.write(request);
+    request = null;
   });
 
   socket.on('data', function (chunk) {
     buffer += chunk.toString('utf8');
 
-    if (buffer.length > MAX_LINE_BYTES) {
+    if (Buffer.byteLength(buffer, 'utf8') > MAX_LINE_BYTES) {
       return finish(new Error('Control response is too large.'));
     }
 
@@ -368,8 +534,17 @@ function sendCommand (socketPath, payload, cb) {
  * @param {function} cb - Callback `(err)`.
  */
 function ensureReachable (socketPath, cb) {
-  var socket = net.connect(socketPath);
   var settled = false;
+  var socket;
+
+  try {
+    socketPath = canonicalizeControlSocketPath(socketPath);
+    assertControlSocket(socketPath);
+  } catch (err) {
+    return setImmediate(cb, err);
+  }
+
+  socket = net.connect(socketPath);
 
   function finish (err) {
     if (settled) {
@@ -383,6 +558,10 @@ function ensureReachable (socketPath, cb) {
 
   socket.once('connect', function () {
     finish(null);
+  });
+
+  socket.setTimeout(SOCKET_TIMEOUT_MS, function () {
+    finish(new Error('Control socket timed out while connecting.'));
   });
 
   socket.once('error', function (err) {

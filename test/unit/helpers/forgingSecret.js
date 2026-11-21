@@ -89,12 +89,31 @@ describe('forgingSecret', () => {
       const header = forgingSecret.parseHeader(blob);
 
       header.publicKey = 'aa'.repeat(32);
+      header.address = accounts.getAddressByPublicKey(header.publicKey);
 
       const tampered = forgingSecret.ENCRYPTED_PREFIX +
         Buffer.from(JSON.stringify(header), 'utf8').toString('base64url');
 
       expect(() => forgingSecret.decrypt(tampered, PASSWORD)).to.throw(
           /does not match the embedded public key/
+      );
+    });
+
+    it('rejects an address that does not belong to the embedded public key', () => {
+      const blob = forgingSecret.encrypt(PASSPHRASE, PASSWORD);
+      const header = forgingSecret.parseHeader(blob);
+
+      header.address = accounts.getAddressByPublicKey('bb'.repeat(32));
+
+      const tampered = forgingSecret.ENCRYPTED_PREFIX +
+        Buffer.from(JSON.stringify(header), 'utf8').toString('base64url');
+
+      expect(() => forgingSecret.parseHeader(tampered)).to.throw(/malformed/);
+    });
+
+    it('rejects non-base64url blob payloads', () => {
+      expect(() => forgingSecret.parseHeader(forgingSecret.ENCRYPTED_PREFIX + '%%%')).to.throw(
+          /malformed/
       );
     });
 

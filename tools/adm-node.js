@@ -70,7 +70,7 @@ function printUsage () {
     'adm-node — ADAMANT node forging control',
     '',
     'Usage:',
-    '  adm-node forging encrypt [--config <path>]',
+    '  adm-node forging encrypt',
     '  adm-node forging unlock [--config <path>] [--socket <path>]',
     '  adm-node forging lock [--config <path>] [--socket <path>]',
     '  adm-node forging status [--config <path>] [--socket <path>]',
@@ -163,6 +163,7 @@ function printStatus (status) {
   var lines = [
     'Forging: ' + (status.forging || 'unknown'),
     'Encrypted delegates in config: ' + (status.encryptedDelegates || 0),
+    'Invalid encrypted delegates in config: ' + (status.invalidEncryptedDelegates || 0),
     'Plaintext delegates in config: ' + (status.plaintextDelegates || 0),
     'Loaded keypairs: ' + (status.loadedKeypairs || 0)
   ];

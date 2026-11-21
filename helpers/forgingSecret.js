@@ -87,23 +87,31 @@ function deriveIdentity (passphrase) {
 
   try {
     keypair = ed.makeKeypair(hash);
+    var publicKey = keypair.publicKey.toString('hex');
+    var address = accounts.getAddressByPublicKey(publicKey);
+
+    if (!address) {
+      throw new Error('Failed to derive a delegate address.');
+    }
+
+    return {
+      publicKey: publicKey,
+      address: address
+    };
   } finally {
     hash.fill(0);
+    wipePrivateKey(keypair);
   }
+}
 
-  var publicKey = keypair.publicKey.toString('hex');
-  var address = accounts.getAddressByPublicKey(publicKey);
-
-  keypair.privateKey.fill(0);
-
-  if (!address) {
-    throw new Error('Failed to derive a delegate address.');
+/**
+ * Wipes a temporary private key returned by the ED helper.
+ * @param {object} keypair - Derived keypair.
+ */
+function wipePrivateKey (keypair) {
+  if (keypair && Buffer.isBuffer(keypair.privateKey)) {
+    keypair.privateKey.fill(0);
   }
-
-  return {
-    publicKey: publicKey,
-    address: address
-  };
 }
 
 /**
@@ -228,6 +236,8 @@ function decodeCiphertext (value) {
 function assertSupportedHeader (header) {
   if (
     !header ||
+    Array.isArray(header) ||
+    typeof header !== 'object' ||
     header.kdf !== KDF.name ||
     header.N !== KDF.N ||
     header.r !== KDF.r ||
@@ -242,6 +252,18 @@ function assertSupportedHeader (header) {
   }
 
   if (typeof header.address !== 'string' || header.address.length < 2) {
+    throw new Error('Encrypted passphrase blob is malformed.');
+  }
+
+  var derivedAddress;
+
+  try {
+    derivedAddress = accounts.getAddressByPublicKey(header.publicKey);
+  } catch (err) {
+    throw new Error('Encrypted passphrase blob is malformed.');
+  }
+
+  if (derivedAddress !== header.address) {
     throw new Error('Encrypted passphrase blob is malformed.');
   }
 }
@@ -262,9 +284,14 @@ function parseHeader (blob) {
   }
 
   var header;
+  var encoded = blob.slice(ENCRYPTED_PREFIX.length);
+
+  if (!encoded || !/^[A-Za-z0-9_-]+$/.test(encoded)) {
+    throw new Error('Encrypted passphrase blob is malformed.');
+  }
 
   try {
-    header = JSON.parse(Buffer.from(blob.slice(ENCRYPTED_PREFIX.length), 'base64url').toString('utf8'));
+    header = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
   } catch (err) {
     throw new Error('Encrypted passphrase blob is malformed.');
   }

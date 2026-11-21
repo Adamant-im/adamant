@@ -25,12 +25,136 @@ describe('forgingControl', () => {
     });
   });
 
+  describe('path hardening', () => {
+    let runtimeRoot;
+    let runtimeDir;
+    let socketPath;
+
+    const handler = {
+      status: function () {
+        return { forging: 'locked' };
+      },
+      unlock: function (password, cb) {
+        setImmediate(cb, null, { unlocked: 1 });
+      },
+      lock: function (cb) {
+        setImmediate(cb);
+      }
+    };
+
+    beforeEach(() => {
+      runtimeRoot = fs.mkdtempSync(path.join('/tmp', 'afc-'));
+      runtimeDir = path.join(runtimeRoot, 'runtime');
+      socketPath = path.join(runtimeDir, 'control.sock');
+      fs.mkdirSync(runtimeDir, { mode: 0o700 });
+    });
+
+    afterEach(() => {
+      fs.rmSync(runtimeRoot, { recursive: true, force: true });
+    });
+
+    it('rejects a symlinked control directory', (done) => {
+      const linkedDir = path.join(runtimeRoot, 'linked-runtime');
+
+      fs.symlinkSync(runtimeDir, linkedDir, 'dir');
+
+      forgingControl.start({
+        controlSocket: path.join(linkedDir, 'control.sock')
+      }, handler, null, (err, control) => {
+        expect(err).to.exist;
+        expect(err.message).to.match(/not a real directory/);
+        expect(control).to.not.exist;
+        expect(fs.existsSync(socketPath)).to.equal(false);
+        done();
+      });
+    });
+
+    it('does not replace a regular file at the configured socket path', (done) => {
+      fs.writeFileSync(socketPath, 'operator-owned file');
+
+      forgingControl.start({
+        controlSocket: socketPath
+      }, handler, null, (err, control) => {
+        expect(err).to.exist;
+        expect(err.message).to.match(/not a Unix socket/);
+        expect(control).to.not.exist;
+        expect(fs.readFileSync(socketPath, 'utf8')).to.equal('operator-owned file');
+        done();
+      });
+    });
+
+    it('rejects a custom directory writable by another user', (done) => {
+      fs.chmodSync(runtimeDir, 0o770);
+
+      forgingControl.start({
+        controlSocket: socketPath
+      }, handler, null, (err, control) => {
+        expect(err).to.exist;
+        expect(err.message).to.match(/not securely permissioned/);
+        expect(control).to.not.exist;
+        done();
+      });
+    });
+
+    it('changes an existing custom directory to owner-only mode', (done) => {
+      fs.chmodSync(runtimeDir, 0o755);
+
+      forgingControl.start({
+        controlSocket: socketPath
+      }, handler, null, (err, control) => {
+        expect(err).to.equal(null);
+        expect(fs.statSync(runtimeDir).mode & 0o777).to.equal(0o700);
+
+        control.close(done);
+      });
+    });
+
+    it('uses a canonical parent before connecting through symlinked ancestors', (done) => {
+      const alias = path.join(runtimeRoot, 'alias');
+      const fakeRoot = path.join(runtimeRoot, 'fake-root');
+      const configuredPath = path.join(alias, 'runtime', 'control.sock');
+
+      fs.mkdirSync(path.join(fakeRoot, 'runtime'), {
+        recursive: true,
+        mode: 0o700
+      });
+      fs.symlinkSync(runtimeRoot, alias, 'dir');
+
+      forgingControl.start({
+        controlSocket: configuredPath
+      }, handler, null, (err, control) => {
+        expect(err).to.equal(null);
+        expect(control.path).to.equal(path.join(fs.realpathSync(runtimeDir), 'control.sock'));
+
+        fs.unlinkSync(alias);
+        fs.symlinkSync(fakeRoot, alias, 'dir');
+
+        forgingControl.sendCommand(configuredPath, { cmd: 'status' }, (redirectedErr) => {
+          expect(redirectedErr).to.exist;
+
+          fs.unlinkSync(alias);
+          fs.symlinkSync(runtimeRoot, alias, 'dir');
+
+          forgingControl.sendCommand(configuredPath, { cmd: 'status' }, (statusErr, response) => {
+            expect(statusErr).to.equal(null);
+            expect(response.ok).to.equal(true);
+            control.close(done);
+          });
+        });
+      });
+    });
+  });
+
   describe('socket commands', () => {
-    const socketPath = path.join(os.tmpdir(), 'adamant-forging-control-' + process.pid + '.sock');
+    let runtimeDir;
+    let socketPath;
     let control;
     let unlockedWith;
 
     beforeEach((done) => {
+      runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'adamant-forging-control-'));
+      fs.chmodSync(runtimeDir, 0o700);
+      socketPath = path.join(runtimeDir, 'control.sock');
       unlockedWith = null;
       forgingControl.start({
         controlSocket: socketPath
@@ -63,11 +187,13 @@ describe('forgingControl', () => {
 
     afterEach((done) => {
       if (!control) {
+        fs.rmSync(runtimeDir, { recursive: true, force: true });
         return done();
       }
 
       control.close(() => {
         control = null;
+        fs.rmSync(runtimeDir, { recursive: true, force: true });
         done();
       });
     });
@@ -86,11 +212,14 @@ describe('forgingControl', () => {
     });
 
     it('unlocks with the operator password and does not echo it', (done) => {
-      forgingControl.sendCommand(socketPath, {
+      const payload = {
         cmd: 'unlock',
         password: 'right-password'
-      }, (err, response) => {
+      };
+
+      forgingControl.sendCommand(socketPath, payload, (err, response) => {
         expect(err).to.equal(null);
+        expect(payload.password).to.equal(null);
         expect(response.ok).to.equal(true);
         expect(response.message).to.match(/unlocked for 1 delegate/);
         expect(response.status.forging).to.equal('unlocked');

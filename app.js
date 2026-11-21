@@ -72,11 +72,9 @@ program
     .option('-x, --peers [peers...]', 'peers list')
     .option('-l, --log <level>', 'log level')
     .option('-s, --snapshot <round>', 'verify snapshot')
-    .option('--operator-password <password>', 'unlock encrypted delegate passphrases at startup')
     .parse(process.argv);
 
 var programOpts = program.opts();
-var startupForgingPassword = takeForgingOperatorPassword(programOpts);
 
 /**
  * @property {object} - The default list of configuration options. Can be updated by CLI.
@@ -580,18 +578,7 @@ d.run(function () {
      * at least will contain the required elements.
      * @param {nodeStyleCallback} cb - Callback function with resulted load.
      */
-    /**
-     * Hands the startup operator password to delegates, then drops this copy.
-     * The password is not part of appConfig, so it cannot be written back to config.json.
-     * @param {nodeStyleCallback} cb - Callback with the password or null.
-     */
-    forgingOperatorPassword: function (cb) {
-      var password = startupForgingPassword;
-      startupForgingPassword = null;
-      cb(null, password);
-    },
-
-    modules: ['network', 'connect', 'config', 'logger', 'bus', 'sequence', 'dbSequence', 'balancesSequence', 'db', 'logic', 'cache', 'forgingOperatorPassword', function (scope, cb) {
+    modules: ['network', 'connect', 'config', 'logger', 'bus', 'sequence', 'dbSequence', 'balancesSequence', 'db', 'logic', 'cache', function (scope, cb) {
       var tasks = {};
 
       Object.keys(config.modules).forEach(function (name) {
@@ -830,61 +817,6 @@ d.run(function () {
  * @param {string} value - Option value.
  * @param {Array<string>} previous - Previously collected values.
  */
-/**
- * Reads the startup operator password from the CLI or environment, then scrubs
- * both copies. This does not remove a password from the original process
- * environment block, so the control socket is the better service-mode path.
- * @param {object} options - Commander options.
- * @return {string|null} Operator password, when one was supplied.
- */
-function takeForgingOperatorPassword (options) {
-  var fromCli = options && typeof options.operatorPassword === 'string' ? options.operatorPassword : '';
-  var fromEnv = typeof process.env.ADAMANT_OPERATOR_PASSWORD === 'string' ? process.env.ADAMANT_OPERATOR_PASSWORD : '';
-
-  scrubOperatorPassword(options);
-
-  if (fromCli) {
-    return fromCli;
-  }
-
-  if (fromEnv) {
-    return fromEnv;
-  }
-
-  return null;
-}
-
-/**
- * Removes the operator password from Commander options, the environment object,
- * and argv so later logs of those structures do not include it.
- * @param {object} options - Commander options.
- */
-function scrubOperatorPassword (options) {
-  if (options) {
-    options.operatorPassword = undefined;
-  }
-
-  if (Object.prototype.hasOwnProperty.call(process.env, 'ADAMANT_OPERATOR_PASSWORD')) {
-    delete process.env.ADAMANT_OPERATOR_PASSWORD;
-  }
-
-  scrubArgvPassword('--operator-password');
-}
-
-/**
- * Replaces an argv password that follows a flag or is attached with `=`.
- * @param {string} flag - Flag name without a value.
- */
-function scrubArgvPassword (flag) {
-  for (var i = 0; i < process.argv.length; i++) {
-    if (process.argv[i] === flag && i + 1 < process.argv.length) {
-      process.argv[i + 1] = '********';
-    } else if (process.argv[i].indexOf(flag + '=') === 0) {
-      process.argv[i] = flag + '=********';
-    }
-  }
-}
-
 function collectOption (value, previous) {
   previous.push(value);
   return previous;
