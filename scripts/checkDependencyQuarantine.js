@@ -116,6 +116,103 @@ function collectLockedVersions (lockfile) {
   return versions;
 }
 
+function collectLockedRecords (lockfile) {
+  const records = new Map();
+
+  for (const [lockPath, entry] of Object.entries(lockfile.packages || {})) {
+    if (!lockPath || entry.link || typeof entry.version !== 'string') {
+      continue;
+    }
+
+    const name = packageNameFromLockPath(lockPath);
+    if (!name) {
+      continue;
+    }
+
+    records.set(lockPath, {
+      path: lockPath,
+      name,
+      version: entry.version,
+      resolved: entry.resolved || null,
+      integrity: entry.integrity || null,
+      hasInstallScript: entry.hasInstallScript === true
+    });
+  }
+
+  return records;
+}
+
+function lockMetadataKey (record) {
+  return JSON.stringify([
+    record.resolved,
+    record.integrity,
+    record.hasInstallScript
+  ]);
+}
+
+function findLockfileSecurityChanges (baseLockfile, currentLockfile) {
+  const baseRecords = collectLockedRecords(baseLockfile);
+  const currentRecords = collectLockedRecords(currentLockfile);
+  const baseMetadataByPackage = new Map();
+  const failures = [];
+
+  for (const record of baseRecords.values()) {
+    const key = `${record.name}\0${record.version}`;
+    const metadata = baseMetadataByPackage.get(key) || new Set();
+    metadata.add(lockMetadataKey(record));
+    baseMetadataByPackage.set(key, metadata);
+  }
+
+  for (const record of currentRecords.values()) {
+    const packageKey = `${record.name}\0${record.version}`;
+    const metadataForPackage = baseMetadataByPackage.get(packageKey);
+    const baseRecord = baseRecords.get(record.path);
+
+    if (
+      baseRecord &&
+      baseRecord.name === record.name &&
+      baseRecord.version === record.version &&
+      lockMetadataKey(baseRecord) !== lockMetadataKey(record)
+    ) {
+      failures.push(
+          `${record.name}@${record.version} at ${record.path}: resolved, integrity, or hasInstallScript changed for an existing lock entry`
+      );
+      continue;
+    }
+
+    if (metadataForPackage && !metadataForPackage.has(lockMetadataKey(record))) {
+      failures.push(
+          `${record.name}@${record.version} at ${record.path}: existing package/version has changed lock metadata`
+      );
+    }
+  }
+
+  return failures;
+}
+
+function findNewLockedRecords (baseLockfile, currentLockfile) {
+  const baseRecords = collectLockedRecords(baseLockfile);
+
+  return Array.from(collectLockedRecords(currentLockfile).values())
+      .filter((record) => {
+        const baseRecord = baseRecords.get(record.path);
+        return !baseRecord ||
+          baseRecord.name !== record.name ||
+          baseRecord.version !== record.version;
+      });
+}
+
+function findUnreviewedInstallScripts (records, allowScripts) {
+  const reviewed = allowScripts || {};
+
+  return records
+      .filter((record) => record.hasInstallScript)
+      .filter((record) => reviewed[`${record.name}@${record.version}`] !== true)
+      .map((record) =>
+        `${record.name}@${record.version} at ${record.path}: install script is not explicitly allowed`
+      );
+}
+
 function findNewLockedVersions (baseLockfile, currentLockfile) {
   const baseVersions = collectLockedVersions(baseLockfile);
 
@@ -264,7 +361,18 @@ async function run () {
   const exceptions = parseExceptions(
       fs.readFileSync(path.resolve(options.exceptions), 'utf8')
   );
+  const packageJson = readJson(
+      path.join(path.dirname(path.resolve(options.lockfile)), 'package.json')
+  );
   const versions = findNewLockedVersions(baseLockfile, currentLockfile);
+  const securityFailures = findLockfileSecurityChanges(
+      baseLockfile,
+      currentLockfile
+  );
+  const installScriptFailures = findUnreviewedInstallScripts(
+      findNewLockedRecords(baseLockfile, currentLockfile),
+      packageJson.allowScripts
+  );
   const result = await verifyReleaseAges({
     versions,
     minimumAgeDays,
@@ -279,8 +387,13 @@ async function run () {
     );
   }
 
-  if (result.failures.length > 0) {
-    for (const failure of result.failures) {
+  const failures = securityFailures.concat(
+      installScriptFailures,
+      result.failures
+  );
+
+  if (failures.length > 0) {
+    for (const failure of failures) {
       console.error(`ERROR: ${failure}`);
     }
     process.exitCode = 1;
@@ -300,8 +413,12 @@ if (require.main === module) {
 }
 
 module.exports = {
+  collectLockedRecords,
   collectLockedVersions,
+  findLockfileSecurityChanges,
+  findNewLockedRecords,
   findNewLockedVersions,
+  findUnreviewedInstallScripts,
   parseArguments,
   parseExceptions,
   parseMinimumReleaseAge,

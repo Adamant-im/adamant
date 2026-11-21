@@ -3,8 +3,11 @@
 const { expect } = require('chai');
 
 const {
+  collectLockedRecords,
   collectLockedVersions,
+  findLockfileSecurityChanges,
   findNewLockedVersions,
+  findUnreviewedInstallScripts,
   parseExceptions,
   parseMinimumReleaseAge,
   verifyReleaseAges
@@ -47,6 +50,70 @@ describe('dependency quarantine', () => {
     expect(findNewLockedVersions(base, current)).to.deep.equal([
       { name: 'axios', version: '1.21.1' }
     ]);
+  });
+
+  it('records the security metadata for each locked package path', () => {
+    const records = collectLockedRecords({
+      packages: {
+        'node_modules/example': {
+          version: '1.0.0',
+          resolved: 'https://registry.npmjs.org/example/-/example-1.0.0.tgz',
+          integrity: 'sha512-original',
+          hasInstallScript: true
+        }
+      }
+    });
+
+    expect(records.get('node_modules/example')).to.deep.equal({
+      path: 'node_modules/example',
+      name: 'example',
+      version: '1.0.0',
+      resolved: 'https://registry.npmjs.org/example/-/example-1.0.0.tgz',
+      integrity: 'sha512-original',
+      hasInstallScript: true
+    });
+  });
+
+  for (const field of ['resolved', 'integrity', 'hasInstallScript']) {
+    it(`rejects a same-version ${field} replacement`, () => {
+      const baseEntry = {
+        version: '1.0.0',
+        resolved: 'https://registry.npmjs.org/example/-/example-1.0.0.tgz',
+        integrity: 'sha512-original',
+        hasInstallScript: false
+      };
+      const currentEntry = {
+        ...baseEntry
+      };
+      currentEntry[field] = field === 'resolved' ?
+        'https://mirror.example/example-1.0.0.tgz' :
+        field === 'integrity' ? 'sha512-replaced' : true;
+
+      const failures = findLockfileSecurityChanges(
+          { packages: { 'node_modules/example': baseEntry } },
+          { packages: { 'node_modules/example': currentEntry } }
+      );
+
+      expect(failures).to.have.length(1);
+      expect(failures[0]).to.include('example@1.0.0');
+    });
+  }
+
+  it('requires an exact allowScripts entry for newly locked install scripts', () => {
+    const records = [{
+      path: 'node_modules/native-addon',
+      name: 'native-addon',
+      version: '2.0.0',
+      hasInstallScript: true
+    }];
+
+    expect(findUnreviewedInstallScripts(records, {})).to.have.length(1);
+    expect(findUnreviewedInstallScripts(records, {
+      'native-addon@2.0.0': true
+    })).to.be.empty;
+    expect(findUnreviewedInstallScripts(records, {
+      'native-addon': true
+    })).to.have.length(1);
   });
 
   it('accepts releases exactly at the configured age boundary', async () => {

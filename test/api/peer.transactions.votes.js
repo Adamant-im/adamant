@@ -28,6 +28,29 @@ function getVotes (address, done) {
   });
 }
 
+function waitForVoteCount (expected, retries, done) {
+  getVotes(account.address, function (err, res) {
+    if (err) {
+      return done(err);
+    }
+
+    if (res.body.delegates.length === expected) {
+      return done();
+    }
+
+    if (retries === 0) {
+      return done(
+          new Error(
+              'Vote count ' + res.body.delegates.length +
+              ' did not reach ' + expected + ' within the retry window'
+          )
+      );
+    }
+
+    return setTimeout(waitForVoteCount, 1000, expected, retries - 1, done);
+  });
+}
+
 function postVotes (params, done) {
   var blocksToWait = Math.ceil(params.delegates.length / node.constants.maxTxsPerBlock) * 20;
 
@@ -92,11 +115,15 @@ describe('POST /peer/transactions', function () {
 
   beforeEach(function (done) {
     getVotes(account.address, function (err, res) {
+      if (err) {
+        return done(err);
+      }
+
       votedDelegates = res.body.delegates.map(function (delegate) {
         return delegate.publicKey;
       });
 
-      done();
+      return done();
     });
   });
 
@@ -225,10 +252,7 @@ describe('POST /peer/transactions', function () {
         });
       },
       function (seriesCb) {
-        getVotes(account.address, function (err, res) {
-          node.expect(res.body).to.have.property('delegates').that.has.lengthOf(1);
-          return seriesCb(err);
-        });
+        waitForVoteCount(1, 120, seriesCb);
       }
     ], function (err) {
       return done(err);
@@ -244,10 +268,11 @@ describe('POST /peer/transactions', function () {
       node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('transactionId').to.equal(transaction.id);
       node.onNewBlock(function (err) {
-        getVotes(account.address, function (err, res) {
-          node.expect(res.body).to.have.property('delegates').that.has.lengthOf(0);
-        });
-        return done(err);
+        if (err) {
+          return done(err);
+        }
+
+        waitForVoteCount(0, 120, done);
       });
     });
   });
@@ -262,10 +287,11 @@ describe('POST /peer/transactions', function () {
       node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('transactionId').to.equal(transaction.id);
       node.onNewBlock(function (err) {
-        getVotes(account.address, function (err, res) {
-          node.expect(res.body).to.have.property('delegates').that.has.lengthOf(constants.maxVotesPerTransaction);
-        });
-        return done(err);
+        if (err) {
+          return done(err);
+        }
+
+        waitForVoteCount(constants.maxVotesPerTransaction, 120, done);
       });
     });
   });
@@ -280,10 +306,11 @@ describe('POST /peer/transactions', function () {
       node.expect(res.body).to.have.property('success').to.be.true;
       node.expect(res.body).to.have.property('transactionId').to.equal(transaction.id);
       node.onNewBlock(function (err) {
-        getVotes(account.address, function (err, res) {
-          node.expect(res.body).to.have.property('delegates').that.has.lengthOf(0);
-        });
-        return done(err);
+        if (err) {
+          return done(err);
+        }
+
+        waitForVoteCount(0, 120, done);
       });
     });
   });
@@ -316,10 +343,7 @@ describe('POST /peer/transactions', function () {
   });
 
   it('votes count must be 101 now', function (done) {
-    getVotes(account.address, function (err, res) {
-      node.expect(res.body).to.have.property('delegates').that.has.lengthOf(101);
-      done();
-    });
+    waitForVoteCount(101, 120, done);
   });
 
   it(['removing votes from', constants.maxVotesPerTransaction + 1, 'delegates at once should fail'].join(' '), function (done) {
@@ -350,10 +374,7 @@ describe('POST /peer/transactions', function () {
   });
 
   it('votes count must be 0 now', function (done) {
-    getVotes(account.address, function (err, res) {
-      node.expect(res.body).to.have.property('delegates').that.has.lengthOf(0);
-      done();
-    });
+    waitForVoteCount(0, 120, done);
   });
 });
 
@@ -398,10 +419,7 @@ describe('POST /peer/transactions after registering a new delegate', function ()
   it('exceeding maximum of 101 votes should fail', function (done) {
     node.async.series([
       function (seriesCb) {
-        getVotes(account.address, function (err, res) {
-          node.expect(res.body).to.have.property('delegates').that.has.lengthOf(1);
-          seriesCb(err);
-        });
+        waitForVoteCount(1, 120, seriesCb);
       },
       function (seriesCb) {
         var slicedDelegates = delegates.slice(0, 76);
@@ -420,10 +438,7 @@ describe('POST /peer/transactions after registering a new delegate', function ()
         return node.onNewBlock(seriesCb);
       },
       function (seriesCb) {
-        getVotes(account.address, function (err, res) {
-          node.expect(res.body).to.have.property('delegates').that.has.lengthOf(77);
-          seriesCb(err);
-        });
+        waitForVoteCount(77, 120, seriesCb);
       },
       function (seriesCb) {
         var slicedDelegates = delegates.slice(-25);
@@ -441,10 +456,7 @@ describe('POST /peer/transactions after registering a new delegate', function ()
         });
       },
       function (seriesCb) {
-        getVotes(account.address, function (err, res) {
-          node.expect(res.body).to.have.property('delegates').that.has.lengthOf(77);
-          seriesCb(err);
-        });
+        waitForVoteCount(77, 120, seriesCb);
       }
     ], function (err) {
       return done(err);
