@@ -69,11 +69,15 @@ You need to specify at least some peers in `peers.list`, e.g.:
 }
 ```
 
+#### Dependency updates
+
+The project `.npmrc` sets `min-release-age=7`. Dependency refreshes must still verify publication dates explicitly because npm clients that do not support the option may ignore it.
+
 #### Native PostgreSQL driver
 
 The database layer enables `pg-native` by default through `pg-promise`. It uses the native `libpq` client library and the npm `libpq` addon. This is the closest path to the PostgreSQL C client used by production deployments, but the addon is compiled for one Node.js ABI at a time.
 
-npm 11.19 and newer does not run a dependency install script unless `package.json` `allowScripts` allows it. This repository allows `libpq@1.8.15` (the locked addon that builds `pg-native`) and denies `javascript-obfuscator`. `npm ci` must leave that field unchanged. A checkout is wrong if `npm install-scripts ls` still reports an unreviewed package.
+npm 11.19 and newer does not run a dependency install script unless `package.json` `allowScripts` allows it. This repository allows `libpq@1.11.0` (the locked addon that builds `pg-native`) and denies `javascript-obfuscator`. `npm ci` must leave that field unchanged. A checkout is wrong if `npm install-scripts ls` still reports an unreviewed package.
 
 On macOS/Homebrew, install the client library and rebuild the addon after changing Node.js versions. `libpq` is enough for the native addon; the PostgreSQL server formula is only needed for the local test database, not for `pg-native` itself. If you already run a compatible PostgreSQL server locally, keep using it and install only `libpq`.
 
@@ -94,7 +98,7 @@ Install a PostgreSQL server only when you do not already have one available for 
 brew install postgresql@18
 ```
 
-Use the active Node.js major version in the `PATH` above. Native addons are ABI-specific, so a successful build for one Node.js major may fail to load after switching to another. Node.js 22 is known to build `libpq@1.8.x`; Node.js 26 requires a newer semver-compatible `libpq` addon such as `1.11.x`.
+Use the active Node.js major version in the `PATH` above. Native addons are ABI-specific, so a successful build for one Node.js major may fail to load after switching to another. `libpq@1.11.0` is the reviewed version locked by this repository.
 
 If native bindings are unavailable during local validation, set `PG_NATIVE=false` to use the pure JavaScript `pg` driver:
 

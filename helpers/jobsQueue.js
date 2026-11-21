@@ -5,19 +5,50 @@ var jobsQueue = {
   jobs: {},
 
   register: function (name, job, time) {
-    if (this.jobs[name]) {
-      // return this.jobs[name];
+    if (Object.prototype.hasOwnProperty.call(this.jobs, name)) {
       throw new Error('Synchronous job ' + name + ' already registered');
     }
 
+    var registration = {
+      timeout: null
+    };
+
+    this.jobs[name] = registration;
+
     var nextJob = function () {
+      if (jobsQueue.jobs[name] !== registration) {
+        return;
+      }
+
       return job(function () {
-        jobsQueue.jobs[name] = setTimeout(nextJob, time);
+        if (jobsQueue.jobs[name] !== registration) {
+          return;
+        }
+
+        registration.timeout = setTimeout(nextJob, time);
       });
     };
 
     nextJob();
-    return this.jobs[name];
+    return registration.timeout;
+  },
+
+  unregister: function (name) {
+    var registration = this.jobs[name];
+
+    if (!registration) {
+      return;
+    }
+
+    if (registration.timeout) {
+      clearTimeout(registration.timeout);
+    }
+
+    delete this.jobs[name];
+  },
+
+  clear: function () {
+    Object.keys(this.jobs).forEach(this.unregister.bind(this));
   }
 
 };

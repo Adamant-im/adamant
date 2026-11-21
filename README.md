@@ -45,7 +45,7 @@ change DApp transaction validation, serialization, fees, or replay behavior.
 
 ## Installing, Configuring, and Running an ADAMANT Node
 
-ADAMANT Node requires Node.js 22.13.0 or newer. The installation scripts support Node.js 22, 24, and 26, with Node.js 24 selected by default.
+ADAMANT Node requires Node.js 22.22.2 or newer. The installation scripts support Node.js 22, 24, and 26, with Node.js 24 selected by default.
 
 Refer to the [ADAMANT Node installation documentation](https://docs.adamant.im/own-node/installation.html) for hardware requirements and complete setup instructions for Linux, macOS, and Windows.
 

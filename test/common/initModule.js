@@ -146,6 +146,8 @@ var modulesLoader = new function () {
    * @param {Function} cb
    */
   this.initModules = function (modules, logic, scope, cb) {
+    removeQueuedJobs();
+
     async.waterfall([
       function (waterCb) {
         this.getDbConnection(waterCb);
@@ -285,10 +287,6 @@ var modulesLoader = new function () {
     }.bind(this));
   };
 };
-
-afterEach(() =>
-  removeQueuedJobs()
-);
 
 module.exports = {
   modulesLoader: modulesLoader
