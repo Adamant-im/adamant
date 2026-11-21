@@ -150,6 +150,13 @@ Example:
 
 An empty `controlSocket` uses `<node checkout>/.run/control-<port>.sock`. This path is stable across `TMPDIR`, `XDG_RUNTIME_DIR`, systemd `PrivateTmp`, `sudo`, and shell changes. The socket is mode `0600`, and the private parent is mode `0700`. The default directory is created and repaired by the node. A custom `controlSocket` must point to an owner-only `0700` parent; if it is absent, the node creates it as `0700`, but it never changes an existing operator-owned directory. The client and server both reject group/world-writable ancestors below a shared sticky root and recheck socket ownership, mode, and inode before sending credentials. For `/run/adamant`, configure systemd `RuntimeDirectory=adamant` or tmpfiles.d first. If the listen port is overridden on the command line, pass the matching `--socket` or the same config overrides to the CLI.
 
+Before you switch an existing node to encrypted secrets, check that the checkout and its parent directories are not group- or world-writable. Older installers cloned the repository from a login shell, where a `002` umask can leave the checkout at mode `0775`. The node then cannot open the default control socket and stays locked after every restart. `forging encrypt` warns about this before it asks for any secret. To check and fix manually:
+
+```sh
+stat -c '%a %U:%G %n' /home/adamant/adamant /home/adamant
+chmod g-w,o-w /home/adamant/adamant
+```
+
 ### Start and unlock
 
 When every configured secret is plaintext, forging behavior is unchanged.

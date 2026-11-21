@@ -103,7 +103,7 @@ function printUsage () {
     'adm-node — ADAMANT node forging control',
     '',
     'Usage:',
-    '  adm-node forging encrypt',
+    '  adm-node forging encrypt [--socket <path>]',
     '  adm-node forging unlock [config options] [--socket <path>] [--timeout <ms>]',
     '  adm-node forging lock [config options] [--socket <path>] [--timeout <ms>]',
     '  adm-node forging status [config options] [--socket <path>] [--timeout <ms>] [--json]',
@@ -112,16 +112,49 @@ function printUsage () {
     '',
     'encrypt reads the delegate passphrase and operator password from a hidden prompt.',
     'Put the printed admnode-enc-v1 value into forging.secret. Plaintext secrets keep working.',
+    'encrypt also warns when the default control socket directory (or --socket) is writable by another user.',
     'unlock, lock, and status talk to the running node over its local control socket.',
     ''
   ].join('\n'));
 }
 
 /**
+ * Warns before encryption when a node could not open its forging control socket.
+ * Encryption still works, so preparing a value on another machine is unaffected.
+ * @param {object} args - Parsed CLI arguments.
+ */
+function warnAboutControlSocketLocation (args) {
+  var socketPath = path.join(forgingControl.controlSocketDir(), 'control.sock');
+
+  if (args.socket) {
+    socketPath = path.resolve(args.socket);
+  }
+
+  try {
+    forgingControl.checkControlSocketLocation(socketPath);
+  } catch (err) {
+    var lines = [
+      'Warning: a node using ' + (args.socket ? 'this --socket path' : 'the default control socket in this checkout') +
+        ' cannot open its forging control socket, so encrypted delegates could not be unlocked after a restart.',
+      err && err.message ? err.message : 'The control socket directory cannot be checked.'
+    ];
+
+    if (!args.socket) {
+      lines.push('If forging.controlSocket points elsewhere, check that path with --socket <path>.');
+    }
+
+    process.stderr.write(lines.join('\n') + '\n');
+  }
+}
+
+/**
  * Encrypts one passphrase and writes only the blob to stdout.
+ * @param {object} args - Parsed CLI arguments.
  * @return {Promise<void>}
  */
-async function cmdEncrypt () {
+async function cmdEncrypt (args) {
+  warnAboutControlSocketLocation(args);
+
   var prompter = promptSecret.createHiddenPrompter();
   var ask = util.promisify(function (query, cb) {
     prompter.ask(query, cb);
@@ -351,7 +384,7 @@ async function main () {
   }
 
   if (args.action === 'encrypt') {
-    await cmdEncrypt();
+    await cmdEncrypt(args);
     return;
   }
 

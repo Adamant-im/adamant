@@ -26,6 +26,9 @@ describe('encrypted delegate forging lifecycle', function () {
   let delegateFound;
   let delegateEligible;
   let accountResponses;
+  let accountLookups;
+  let lastBlockHeight;
+  let logger;
   let forgingSequence;
   let generateBlockStub;
   let peerLookupCallback;
@@ -41,7 +44,7 @@ describe('encrypted delegate forging lifecycle', function () {
     options = options || {};
     const blob = forgingSecret.encrypt(PASSPHRASE, PASSWORD);
     const identity = forgingSecret.parseHeader(blob);
-    const logger = {
+    logger = {
       debug: sinon.stub(),
       error: sinon.stub(),
       info: sinon.stub(),
@@ -88,6 +91,8 @@ describe('encrypted delegate forging lifecycle', function () {
       delegates.onBind({
         accounts: {
           getAccount: function (query, done) {
+            accountLookups[query.publicKey] = (accountLookups[query.publicKey] || 0) + 1;
+
             if (Object.prototype.hasOwnProperty.call(accountResponses, query.publicKey)) {
               return setImmediate(done, null, accountResponses[query.publicKey]);
             }
@@ -116,7 +121,7 @@ describe('encrypted delegate forging lifecycle', function () {
           lastBlock: {
             get: function () {
               return {
-                height: 1,
+                height: lastBlockHeight,
                 timestamp: -1
               };
             }
@@ -209,6 +214,8 @@ describe('encrypted delegate forging lifecycle', function () {
     delegateEligible = true;
     delegateFound = true;
     accountResponses = {};
+    accountLookups = {};
+    lastBlockHeight = 1;
     registerStub = sinon.stub(jobsQueue, 'register').callsFake(function (name, job) {
       registeredJob = job;
       resolveRegistered();
@@ -596,6 +603,87 @@ describe('encrypted delegate forging lifecycle', function () {
 
     expect(status.status.loadedKeypairs).to.equal(2);
     expect(status.status.plaintextDelegates).to.equal(1);
+  });
+
+  it('retries a pending plaintext delegate once per block and warns once per state', async function () {
+    const hash = ed.createPassPhraseHash(PENDING_PLAINTEXT_PASSPHRASE);
+    const keypair = ed.makeKeypair(hash);
+    const publicKey = keypair.publicKey.toString('hex');
+    const address = accounts.getAddressByPublicKey(publicKey);
+
+    hash.fill(0);
+    keypair.privateKey.fill(0);
+    accountResponses[publicKey] = null;
+
+    function settle () {
+      return new Promise(function (resolve) {
+        setTimeout(resolve, 20);
+      });
+    }
+
+    async function runTicks (count) {
+      for (let tick = 0; tick < count; tick += 1) {
+        await new Promise(function (resolve) {
+          registeredJob(resolve);
+        });
+        await settle();
+      }
+    }
+
+    function warnings (pattern) {
+      return logger.warn.getCalls().filter(function (call) {
+        return pattern.test(call.args.join(' '));
+      }).length;
+    }
+
+    await new Promise(function (resolve, reject) {
+      startDelegates(function (blob) {
+        return [PENDING_PLAINTEXT_PASSPHRASE, blob];
+      }, function (err) {
+        if (err) {
+          return reject(err);
+        }
+        return resolve();
+      });
+    });
+
+    await registeredPromise;
+    await send('unlock', { password: PASSWORD });
+    expect(accountLookups[publicKey]).to.equal(1);
+
+    await runTicks(5);
+    expect(accountLookups[publicKey]).to.equal(2);
+
+    lastBlockHeight = 2;
+    await runTicks(3);
+    expect(accountLookups[publicKey]).to.equal(3);
+    expect(warnings(new RegExp(publicKey + ' not found'))).to.equal(1);
+
+    accountResponses[publicKey] = {
+      address,
+      isDelegate: 0,
+      publicKey
+    };
+    lastBlockHeight = 3;
+    await runTicks(2);
+    lastBlockHeight = 4;
+    await runTicks(2);
+    expect(accountLookups[publicKey]).to.equal(5);
+    expect(warnings(new RegExp(publicKey + ' is not a delegate'))).to.equal(1);
+
+    accountResponses[publicKey].isDelegate = 1;
+    lastBlockHeight = 5;
+    await runTicks(1);
+
+    const status = await send('status');
+    expect(status.status.loadedKeypairs).to.equal(2);
+
+    lastBlockHeight = 6;
+    await runTicks(2);
+    expect(accountLookups[publicKey]).to.equal(6);
+    expect(logger.info.getCalls().filter(function (call) {
+      return /delegates from config/.test(call.args.join(' '));
+    }).length).to.equal(1);
   });
 
   it('does not forge with a key while a lock request is already queued', async function () {

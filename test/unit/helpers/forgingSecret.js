@@ -269,11 +269,12 @@ describe('adm-node forging encrypt', () => {
   /**
    * Runs the encrypt command with piped answers.
    * @param {string} input - Stdin lines.
+   * @param {Array<string>} [extraArgs] - Extra CLI arguments.
    * @return {Promise<{code: number, stdout: string, stderr: string}>}
    */
-  function runEncrypt (input) {
+  function runEncrypt (input, extraArgs) {
     return new Promise((resolve, reject) => {
-      const child = spawn(process.execPath, [cli, 'forging', 'encrypt'], {
+      const child = spawn(process.execPath, [cli, 'forging', 'encrypt'].concat(extraArgs || []), {
         stdio: ['pipe', 'pipe', 'pipe']
       });
       let stdout = '';
@@ -305,6 +306,32 @@ describe('adm-node forging encrypt', () => {
     expect(result.stderr).to.not.include(PASSPHRASE);
     expect(result.stderr).to.not.include(PASSWORD);
     expect(result.stdout).to.not.include(PASSWORD);
+  });
+
+  it('warns before prompting when the control socket location is group-writable', async () => {
+    const root = fs.mkdtempSync(path.join('/tmp', 'adm-encrypt-'));
+    const checkout = path.join(root, 'checkout');
+
+    fs.mkdirSync(checkout, { mode: 0o700 });
+    fs.chmodSync(checkout, 0o775);
+
+    try {
+      const result = await runEncrypt(
+          PASSPHRASE + '\n' + PASSWORD + '\n' + PASSWORD + '\n',
+          ['--socket', path.join(checkout, '.run', 'control-36666.sock')]
+      );
+      const warningAt = result.stderr.indexOf('Warning: a node using this --socket path cannot open its forging control socket');
+
+      expect(result.code).to.equal(0);
+      expect(forgingSecret.isEncrypted(result.stdout.trim())).to.equal(true);
+      expect(warningAt).to.equal(0);
+      expect(warningAt).to.be.below(result.stderr.indexOf('Enter the delegate passphrase'));
+      expect(result.stderr).to.match(/chmod g-w,o-w /);
+      expect(result.stderr).to.not.include(PASSPHRASE);
+      expect(fs.existsSync(path.join(checkout, '.run'))).to.equal(false);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('rejects a mismatched operator password before writing a blob', async () => {

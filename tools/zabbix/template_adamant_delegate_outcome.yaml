@@ -66,6 +66,14 @@ zabbix_export:
               tags:
                 - tag: scope
                   value: availability
+            - uuid: 70268bc352ba4fc19a61d831eabdb4c3
+              expression: 'nodata(/ADAMANT Delegate forging outcome by HTTP/adm.delegate.missedblocks[{$ADM.DELEGATE.PUBLIC_KEY}],{$ADM.DELEGATE.MISSED.WINDOW})=1'
+              name: 'ADAMANT: Delegate outcome is unavailable'
+              priority: AVERAGE
+              description: 'The public API failed, returned an invalid payload, or the delegate is not in the active delegate list.'
+              tags:
+                - tag: scope
+                  value: availability
         - uuid: 6ada8b5190c24e26b6bdbe2964a2529d
           name: 'ADAMANT delegate: Productivity'
           type: DEPENDENT

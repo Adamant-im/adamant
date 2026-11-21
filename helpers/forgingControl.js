@@ -80,16 +80,92 @@ function assertSecureDirectoryIdentity (dir, stats) {
 }
 
 /**
+ * Reports whether another user can rename entries in a directory.
+ * Sticky shared roots such as /tmp are acceptable because entries there can be
+ * renamed only by their owners.
+ * @param {fs.Stats} stats - lstat result.
+ * @return {boolean} True for a group/world-writable directory without the sticky bit.
+ */
+function isSharedWritable (stats) {
+  var mode = stats.mode & 0o7777;
+
+  return !!(mode & 0o022) && !(mode & 0o1000);
+}
+
+/**
+ * Builds the error for a directory that another user can modify, with the fix.
+ * @param {string} directory - Offending directory.
+ * @return {Error} Error naming the directory and the operator action.
+ */
+function sharedWritableError (directory) {
+  return new Error(
+      'Forging control socket directory chain is writable by another user: ' + directory +
+      '. Remove group and other write access (chmod g-w,o-w ' + directory +
+      ') or set forging.controlSocket to a private directory.'
+  );
+}
+
+/**
+ * Lists a canonical directory and all of its ancestors, root first.
+ * @param {string} dir - Canonical directory path.
+ * @return {Array<string>} Directory chain.
+ */
+function directoryChain (dir) {
+  var parsed = path.parse(dir);
+  var current = parsed.root;
+  var chain = [current];
+
+  dir.slice(parsed.root.length).split(path.sep).filter(Boolean).forEach(function (segment) {
+    current = path.join(current, segment);
+    chain.push(current);
+  });
+
+  return chain;
+}
+
+/**
+ * Checks the existing directories a control socket path depends on, without
+ * creating anything and independently of the user that runs the check.
+ * Directories that do not exist yet are skipped because the node creates them.
+ * Operator tools use it before a restart, for example to catch a checkout that
+ * a `002` umask made group-writable.
+ * @param {string} socketPath - Socket path the node will use.
+ * @throws {Error} When an existing ancestor is writable by another user.
+ */
+function checkControlSocketLocation (socketPath) {
+  var existing = path.dirname(path.resolve(socketPath));
+
+  for (;;) {
+    try {
+      fs.lstatSync(existing);
+      break;
+    } catch (err) {
+      var parent = path.dirname(existing);
+
+      if (err.code !== 'ENOENT' || parent === existing) {
+        throw err;
+      }
+
+      existing = parent;
+    }
+  }
+
+  directoryChain(fs.realpathSync(existing)).forEach(function (directory) {
+    var stats = fs.lstatSync(directory);
+
+    if (stats.isDirectory() && isSharedWritable(stats)) {
+      throw sharedWritableError(directory);
+    }
+  });
+}
+
+/**
  * Validates every canonical directory component before using a socket path.
  * Sticky shared roots such as /tmp are allowed, but non-sticky group/world
  * writable ancestors are rejected. The leaf must be owned by this user and 0700.
  * @param {string} dir - Canonical directory path.
  */
 function assertTrustedDirectoryChain (dir) {
-  var parsed = path.parse(dir);
-  var current = parsed.root;
-  var segments = dir.slice(parsed.root.length).split(path.sep).filter(Boolean);
-
   function checkDirectory (directory) {
     var stats = fs.lstatSync(directory);
 
@@ -105,22 +181,12 @@ function assertTrustedDirectoryChain (dir) {
       throw new Error('Forging control socket directory chain is owned by another user: ' + directory);
     }
 
-    var mode = stats.mode & 0o7777;
-    var groupWritable = !!(mode & 0o020);
-    var worldWritable = !!(mode & 0o002);
-    var sticky = !!(mode & 0o1000);
-
-    if ((groupWritable || worldWritable) && !sticky) {
-      throw new Error('Forging control socket directory chain is writable by another user: ' + directory);
+    if (isSharedWritable(stats)) {
+      throw sharedWritableError(directory);
     }
   }
 
-  checkDirectory(current);
-
-  segments.forEach(function (segment) {
-    current = path.join(current, segment);
-    checkDirectory(current);
-  });
+  directoryChain(dir).forEach(checkDirectory);
 
   var leafStats = fs.lstatSync(dir);
 
@@ -675,6 +741,7 @@ function ensureReachable (socketPath, options, cb) {
 module.exports = {
   controlSocketDir: controlSocketDir,
   resolveControlSocketPath: resolveControlSocketPath,
+  checkControlSocketLocation: checkControlSocketLocation,
   start: start,
   sendCommand: sendCommand,
   ensureReachable: ensureReachable

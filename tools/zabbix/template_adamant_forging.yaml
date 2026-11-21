@@ -66,21 +66,21 @@ zabbix_export:
               value: forging
           triggers:
             - uuid: 50a12e46a8ba4c169e1125d6b799ba4a
-              expression: 'min(/ADAMANT Node forging by Zabbix agent/adm.forging.state[{$ADM.FORGING.INSTANCE}],{$ADM.FORGING.LOCKED.MAX})>=3 and min(/ADAMANT Node forging by Zabbix agent/adm.forging.state[{$ADM.FORGING.INSTANCE}],{$ADM.FORGING.LOCKED.MAX})<5 and now()-firstclock(/ADAMANT Node forging by Zabbix agent/adm.forging.state[{$ADM.FORGING.INSTANCE}],{$ADM.FORGING.LOCKED.MAX})>={$ADM.FORGING.LOCKED.MAX} and last(/ADAMANT Node forging by Zabbix agent/adm.forging.encrypted[{$ADM.FORGING.INSTANCE}])>0'
+              expression: 'min(/ADAMANT Node forging by Zabbix agent/adm.forging.state[{$ADM.FORGING.INSTANCE}],{$ADM.FORGING.LOCKED.MAX})>=3 and min(/ADAMANT Node forging by Zabbix agent/adm.forging.state[{$ADM.FORGING.INSTANCE}],{$ADM.FORGING.LOCKED.MAX})<5 and last(/ADAMANT Node forging by Zabbix agent/adm.forging.encrypted[{$ADM.FORGING.INSTANCE}])>0'
               name: 'ADAMANT: Forging is locked, operator unlock required'
               priority: HIGH
               tags:
                 - tag: scope
                   value: availability
             - uuid: 9ba998f1b58f49feaafc917be63476e7
-              expression: 'max(/ADAMANT Node forging by Zabbix agent/adm.forging.state[{$ADM.FORGING.INSTANCE}],{$ADM.FORGING.LOADING.MAX})=0 and now()-firstclock(/ADAMANT Node forging by Zabbix agent/adm.forging.state[{$ADM.FORGING.INSTANCE}],{$ADM.FORGING.LOADING.MAX})>={$ADM.FORGING.LOADING.MAX}'
+              expression: 'max(/ADAMANT Node forging by Zabbix agent/adm.forging.state[{$ADM.FORGING.INSTANCE}],{$ADM.FORGING.LOADING.MAX})=0'
               name: 'ADAMANT: Node has remained loading or rebuilding for too long'
               priority: WARNING
               tags:
                 - tag: scope
                   value: availability
             - uuid: 0aa2ef7216d84bb39ceb603fc450cd28
-              expression: 'min(/ADAMANT Node forging by Zabbix agent/adm.forging.state[{$ADM.FORGING.INSTANCE}],{$ADM.FORGING.NODATA})=5 and now()-firstclock(/ADAMANT Node forging by Zabbix agent/adm.forging.state[{$ADM.FORGING.INSTANCE}],{$ADM.FORGING.NODATA})>={$ADM.FORGING.NODATA}'
+              expression: 'min(/ADAMANT Node forging by Zabbix agent/adm.forging.state[{$ADM.FORGING.INSTANCE}],{$ADM.FORGING.NODATA})=5'
               name: 'ADAMANT: Forging command reports unavailable'
               priority: AVERAGE
               description: 'The wrapper could not obtain local forging status.'

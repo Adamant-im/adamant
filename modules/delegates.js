@@ -34,6 +34,9 @@ __private.plaintextKeypairsLoaded = {};
 __private.plaintextDelegateCount = 0;
 __private.plaintextRetryNeeded = false;
 __private.plaintextLoadInProgress = false;
+__private.plaintextRetryHeight = null;
+__private.plaintextLoadAnnounced = false;
+__private.plaintextAccountWarnings = {};
 __private.invalidEncryptedDelegateCount = 0;
 __private.forgingReady = false;
 __private.unlockInProgress = false;
@@ -85,6 +88,9 @@ function Delegates (cb, scope) {
   __private.plaintextDelegateCount = 0;
   __private.plaintextRetryNeeded = false;
   __private.plaintextLoadInProgress = false;
+  __private.plaintextRetryHeight = null;
+  __private.plaintextLoadAnnounced = false;
+  __private.plaintextAccountWarnings = {};
   __private.invalidEncryptedDelegateCount = 0;
   __private.forgingReady = false;
   __private.unlockInProgress = false;
@@ -202,17 +208,6 @@ __private.forge = function (cb) {
     return __private.loadDelegates(cb);
   }
 
-  if (
-    __private.plaintextRetryNeeded &&
-    !__private.plaintextLoadInProgress
-  ) {
-    __private.loadPlaintextDelegates(function (err) {
-      if (err) {
-        library.logger.error('delegates', 'Failed to retry plaintext delegates', err);
-      }
-    });
-  }
-
   // When client is not loaded, is syncing or round is ticking
   // Do not try to forge new blocks as client is not ready
   const syncPending = !modules.loader.isReadyToSync() || modules.loader.syncing();
@@ -228,6 +223,8 @@ __private.forge = function (cb) {
 
   var currentSlot = slots.getSlotNumber();
   var lastBlock = modules.blocks.lastBlock.get();
+
+  __private.retryPendingPlaintextDelegates(lastBlock.height);
 
   if (currentSlot === slots.getSlotNumber(lastBlock.timestamp)) {
     library.logger.debug('delegates', 'Waiting for next delegate slot', {
@@ -911,6 +908,47 @@ __private.prepareForging = function (cb) {
 };
 
 /**
+ * Retries plaintext secrets whose accounts were missing or not delegates yet.
+ * Runs at most once per block height and only from a ready, non-syncing forge
+ * tick: registration and votes change only with a new block, so retrying more
+ * often would only repeat database lookups.
+ * @param {number} height - Height of the current last block.
+ */
+__private.retryPendingPlaintextDelegates = function (height) {
+  if (
+    !__private.plaintextRetryNeeded ||
+    __private.plaintextLoadInProgress ||
+    __private.plaintextRetryHeight === height
+  ) {
+    return;
+  }
+
+  __private.plaintextRetryHeight = height;
+  __private.loadPlaintextDelegates(function (err) {
+    if (err) {
+      library.logger.error('delegates', 'Failed to retry plaintext delegates', err);
+    }
+  });
+};
+
+/**
+ * Warns once per plaintext public key and state. Repeats go to debug level so
+ * a stale secret does not flood logs while it is retried.
+ * @param {string} publicKey - Delegate public key.
+ * @param {string} state - `not-found` or `not-delegate`.
+ * @param {string} message - Log message.
+ */
+__private.warnPlaintextAccountState = function (publicKey, state, message) {
+  if (__private.plaintextAccountWarnings[publicKey] === state) {
+    library.logger.debug('delegates', message);
+    return;
+  }
+
+  __private.plaintextAccountWarnings[publicKey] = state;
+  library.logger.warn('delegates', message);
+};
+
+/**
  * Loads plaintext delegates from config and stores their keypairs.
  * Encrypted entries are skipped here so a locked node can sync without a password.
  * @private
@@ -935,7 +973,11 @@ __private.loadPlaintextDelegates = function (cb) {
   }
 
   __private.plaintextLoadInProgress = true;
-  library.logger.info('delegates', ['Loading', secrets.length, 'delegates from config…'].join(' '));
+
+  if (!__private.plaintextLoadAnnounced) {
+    __private.plaintextLoadAnnounced = true;
+    library.logger.info('delegates', ['Loading', secrets.length, 'delegates from config…'].join(' '));
+  }
 
   async.eachSeries(secrets, function (secret, next) {
     var hash;
@@ -976,9 +1018,10 @@ __private.loadPlaintextDelegates = function (cb) {
       if (!account) {
         wipeKeypair(keypair);
         retryNeeded = true;
-        library.logger.warn(
-            'delegates',
-            ['Account with public key:', keypair.publicKey.toString('hex'), 'not found'].join(' ')
+        __private.warnPlaintextAccountState(
+            publicKey,
+            'not-found',
+            ['Account with public key:', publicKey, 'not found'].join(' ')
         );
         return setImmediate(next);
       }
@@ -991,13 +1034,18 @@ __private.loadPlaintextDelegates = function (cb) {
         }
 
         __private.plaintextKeypairsLoaded[publicKey] = true;
+        delete __private.plaintextAccountWarnings[publicKey];
         if (enabledAddresses.indexOf(account.address) === -1) {
           enabledAddresses.push(account.address);
         }
       } else {
         wipeKeypair(keypair);
         retryNeeded = true;
-        library.logger.warn('delegates', ['Account with public key:', keypair.publicKey.toString('hex'), 'is not a delegate'].join(' '));
+        __private.warnPlaintextAccountState(
+            publicKey,
+            'not-delegate',
+            ['Account with public key:', publicKey, 'is not a delegate'].join(' ')
+        );
       }
 
       return setImmediate(next);

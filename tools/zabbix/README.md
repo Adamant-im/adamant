@@ -78,6 +78,18 @@ deterministic `unavailable` JSON state when the socket is absent, the command
 times out, or the wrapper fails. `nodata()` is retained only for the case where
 the agent itself sends no value at all.
 
+The per-item timeout reaches only Zabbix agents 7.0 and newer. Older agents
+answer the 7.0 JSON passive-check protocol as unsupported, the server falls back
+to sending only the item key, and the agent applies its own `Timeout` setting
+(3 seconds by default). On pre-7.0 agents, set `Timeout=5` or higher in the
+agent configuration, or the item can flap to unsupported on a loaded host.
+
+The state triggers use `min()`/`max()` over their windows, so every value in a
+window must match. They use only functions available in Zabbix 7.0. After
+import, verify each trigger once, for example by pushing `locked`, `loading`, and
+`unavailable` payloads to a trapper copy of the master item with
+`zabbix_sender`.
+
 The unavailable trigger has no hard-coded dependency on a host availability
 trigger because that trigger is deployment-specific. After import, add a
 dependency on the existing ADAMANT node availability trigger to avoid duplicate
@@ -96,8 +108,10 @@ That template requests the generic active-delegate list, selects the configured
 delegate only in Zabbix preprocessing, and alerts after `missedblocks`
 increases inside the configured window or `productivity` falls below the
 configured minimum. The public node therefore does not receive a query naming
-the watched delegate. This catches missed slots caused by lock state as well as
-sync, fork, or clock problems. Keeping it on a separate logical host avoids
+the watched delegate. It also alerts when no outcome value arrives during that
+window: the public API failed, returned an invalid payload, or the delegate is
+no longer in the active delegate list. This catches missed slots caused by lock
+state as well as sync, fork, or clock problems. Keeping it on a separate logical host avoids
 linking a delegate identity to the forging node's host/address in Zabbix
 inventory and events.
 

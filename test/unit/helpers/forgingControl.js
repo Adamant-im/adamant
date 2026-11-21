@@ -131,9 +131,29 @@ describe('forgingControl', () => {
       }, handler, null, (err, control) => {
         expect(err).to.exist;
         expect(err.message).to.match(/writable by another user/);
+        expect(err.message).to.match(/chmod g-w,o-w /);
         expect(control).to.not.exist;
         done();
       });
+    });
+
+    it('reports a group-writable checkout before the socket directory exists', () => {
+      const checkout = path.join(runtimeRoot, 'checkout');
+
+      fs.mkdirSync(checkout, { mode: 0o700 });
+      fs.chmodSync(checkout, 0o775);
+
+      expect(() => forgingControl.checkControlSocketLocation(
+          path.join(checkout, '.run', 'control-36666.sock')
+      )).to.throw(/writable by another user: .*checkout\. Remove group and other write access \(chmod g-w,o-w /);
+      expect(fs.existsSync(path.join(checkout, '.run'))).to.equal(false);
+    });
+
+    it('accepts a private location whose socket directory does not exist yet', () => {
+      expect(() => forgingControl.checkControlSocketLocation(
+          path.join(runtimeDir, 'missing', 'control.sock')
+      )).to.not.throw();
+      expect(fs.existsSync(path.join(runtimeDir, 'missing'))).to.equal(false);
     });
 
     it('rejects a foreign-owned sticky ancestor', (done) => {
