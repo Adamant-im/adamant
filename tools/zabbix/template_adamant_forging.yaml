@@ -1,0 +1,200 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 64aa0f37f20d4f5a9809df635dece3b0
+      name: Templates/Applications
+  templates:
+    - uuid: f768ee4c6bf74562a81bcdd8a144b4df
+      template: ADAMANT Node forging by Zabbix agent
+      name: ADAMANT Node forging by Zabbix agent
+      groups:
+        - name: Templates/Applications
+      items:
+        - uuid: bf06e226ea8648ef88c39a30348ce891
+          name: 'ADAMANT forging: Status payload'
+          type: ZABBIX_PASSIVE
+          key: 'adm.forging.status[{$ADM.FORGING.INSTANCE}]'
+          delay: 1m
+          timeout: 5s
+          history: 7d
+          trends: '0'
+          value_type: TEXT
+          description: 'Machine-readable local forging state. Delegate identities are not included.'
+          tags:
+            - tag: component
+              value: forging
+          triggers:
+            - uuid: 90d49492985b4a02bf7202972141b9ae
+              expression: 'nodata(/ADAMANT Node forging by Zabbix agent/adm.forging.status[{$ADM.FORGING.INSTANCE}],{$ADM.FORGING.NODATA})=1'
+              name: 'ADAMANT: Forging status is unavailable'
+              priority: AVERAGE
+              description: 'Attach a dependency on the existing node-availability trigger.'
+              tags:
+                - tag: scope
+                  value: availability
+        - uuid: bcc487bec6a3438ca335f89e7a565859
+          name: 'ADAMANT forging: State'
+          type: DEPENDENT
+          key: 'adm.forging.state[{$ADM.FORGING.INSTANCE}]'
+          delay: '0'
+          history: 7d
+          trends: '0'
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.state
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var states = {
+                    loading: 0,
+                    disabled: 1,
+                    unlocked: 2,
+                    partial: 3,
+                    locked: 4,
+                    unavailable: 5
+                  };
+                  if (!Object.prototype.hasOwnProperty.call(states, value)) {
+                    throw new Error('Unknown forging state: ' + value);
+                  }
+                  return states[value];
+          master_item:
+            key: 'adm.forging.status[{$ADM.FORGING.INSTANCE}]'
+          tags:
+            - tag: component
+              value: forging
+          triggers:
+            - uuid: 50a12e46a8ba4c169e1125d6b799ba4a
+              expression: 'min(/ADAMANT Node forging by Zabbix agent/adm.forging.state[{$ADM.FORGING.INSTANCE}],{$ADM.FORGING.LOCKED.MAX})>=3 and min(/ADAMANT Node forging by Zabbix agent/adm.forging.state[{$ADM.FORGING.INSTANCE}],{$ADM.FORGING.LOCKED.MAX})<5 and last(/ADAMANT Node forging by Zabbix agent/adm.forging.encrypted[{$ADM.FORGING.INSTANCE}])>0'
+              name: 'ADAMANT: Forging is locked, operator unlock required'
+              priority: HIGH
+              tags:
+                - tag: scope
+                  value: availability
+            - uuid: 9ba998f1b58f49feaafc917be63476e7
+              expression: 'max(/ADAMANT Node forging by Zabbix agent/adm.forging.state[{$ADM.FORGING.INSTANCE}],{$ADM.FORGING.LOADING.MAX})=0'
+              name: 'ADAMANT: Node has remained loading or rebuilding for too long'
+              priority: WARNING
+              tags:
+                - tag: scope
+                  value: availability
+            - uuid: 0aa2ef7216d84bb39ceb603fc450cd28
+              expression: 'min(/ADAMANT Node forging by Zabbix agent/adm.forging.state[{$ADM.FORGING.INSTANCE}],{$ADM.FORGING.NODATA})=5'
+              name: 'ADAMANT: Forging command reports unavailable'
+              priority: AVERAGE
+              description: 'The wrapper could not obtain local forging status.'
+              tags:
+                - tag: scope
+                  value: availability
+        - uuid: 922468f6a0e249788bdc82dbe8d40f9c
+          name: 'ADAMANT forging: Encrypted delegates'
+          type: DEPENDENT
+          key: 'adm.forging.encrypted[{$ADM.FORGING.INSTANCE}]'
+          delay: '0'
+          history: 7d
+          trends: '0'
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.encrypted
+          master_item:
+            key: 'adm.forging.status[{$ADM.FORGING.INSTANCE}]'
+          tags:
+            - tag: component
+              value: forging
+        - uuid: 3e40d7e1a235479fb6c248a505143d5b
+          name: 'ADAMANT forging: Loaded encrypted delegates'
+          type: DEPENDENT
+          key: 'adm.forging.encrypted-loaded[{$ADM.FORGING.INSTANCE}]'
+          delay: '0'
+          history: 7d
+          trends: '0'
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.encryptedLoaded
+          master_item:
+            key: 'adm.forging.status[{$ADM.FORGING.INSTANCE}]'
+          tags:
+            - tag: component
+              value: forging
+        - uuid: 93509597db4743dfa296e3e41fe1d10b
+          name: 'ADAMANT forging: Plaintext delegates'
+          type: DEPENDENT
+          key: 'adm.forging.plaintext[{$ADM.FORGING.INSTANCE}]'
+          delay: '0'
+          history: 7d
+          trends: '0'
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.plaintext
+          master_item:
+            key: 'adm.forging.status[{$ADM.FORGING.INSTANCE}]'
+          tags:
+            - tag: component
+              value: forging
+          triggers:
+            - uuid: 4a9b025a622a41b1b398b537179d1cc7
+              expression: 'last(/ADAMANT Node forging by Zabbix agent/adm.forging.plaintext[{$ADM.FORGING.INSTANCE}])>0'
+              name: 'ADAMANT: Plaintext delegate passphrases are configured'
+              priority: INFO
+              status: DISABLED
+              tags:
+                - tag: scope
+                  value: security
+        - uuid: df9877a2b8c84f98987b3c7b0f782346
+          name: 'ADAMANT forging: Invalid encrypted delegates'
+          type: DEPENDENT
+          key: 'adm.forging.invalid-encrypted[{$ADM.FORGING.INSTANCE}]'
+          delay: '0'
+          history: 7d
+          trends: '0'
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.invalidEncrypted
+          master_item:
+            key: 'adm.forging.status[{$ADM.FORGING.INSTANCE}]'
+          tags:
+            - tag: component
+              value: forging
+          triggers:
+            - uuid: 37f1befbd0404f279b96813d1c6e0d7a
+              expression: 'last(/ADAMANT Node forging by Zabbix agent/adm.forging.invalid-encrypted[{$ADM.FORGING.INSTANCE}])>0'
+              name: 'ADAMANT: Invalid encrypted delegate entries are configured'
+              priority: WARNING
+              tags:
+                - tag: scope
+                  value: security
+        - uuid: 29f4b2d317ca4113bde0d18220ceb3e4
+          name: 'ADAMANT forging: Loaded keypairs'
+          type: DEPENDENT
+          key: 'adm.forging.loaded-keypairs[{$ADM.FORGING.INSTANCE}]'
+          delay: '0'
+          history: 7d
+          trends: '0'
+          value_type: UNSIGNED
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.loadedKeypairs
+          master_item:
+            key: 'adm.forging.status[{$ADM.FORGING.INSTANCE}]'
+          tags:
+            - tag: component
+              value: forging
+      macros:
+        - macro: '{$ADM.FORGING.INSTANCE}'
+          value: mainnet
+        - macro: '{$ADM.FORGING.LOCKED.MAX}'
+          value: 10m
+        - macro: '{$ADM.FORGING.LOADING.MAX}'
+          value: 6h
+        - macro: '{$ADM.FORGING.NODATA}'
+          value: 5m

@@ -36,6 +36,7 @@ test/.nyc_output
 # Temporary data
 tmp
 .localnet/
+.run/
 *.swp
 *.swo
 

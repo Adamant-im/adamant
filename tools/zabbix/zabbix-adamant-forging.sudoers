@@ -1,0 +1,3 @@
+Defaults:zabbix !requiretty
+zabbix ALL=(adamant) NOPASSWD: /usr/bin/node /home/adamant/adamant/tools/adm-node.js forging status --json --socket /home/adamant/adamant/.run/control-36666.sock --timeout 2000
+zabbix ALL=(adamanttest) NOPASSWD: /usr/bin/node /home/adamanttest/adamant/tools/adm-node.js forging status --json --socket /home/adamanttest/adamant/.run/control-36667.sock --timeout 2000

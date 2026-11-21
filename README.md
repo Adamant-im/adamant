@@ -115,6 +115,82 @@ Set `trustProxy` to `true` only when the node is reachable exclusively through o
 
 These counters are process-local. A deployment with multiple node processes or externally load-balanced replicas applies the configured limits independently in each process and must enforce a shared outer limit when required.
 
+## Encrypting delegate passphrases
+
+`forging.secret` still accepts plaintext delegate passphrases. Encryption is optional until a separate deprecation notice. A leaked config then no longer contains the forging keys.
+
+Encrypted values use the prefix `admnode-enc-v1.`. The node treats a secret as encrypted only when it starts with that prefix. The blob is AES-256-GCM with a key derived from one operator password by scrypt (N=131072, r=8, p=1). It also stores the delegate public key and address, which are already public on chain, so a locked node can name the delegate without decrypting. The version freezes these KDF parameters; a later cost or format change requires a new prefix version and explicit migration.
+
+All encrypted delegates on one node share that single operator password. The CLI requires at least 12 characters and rejects an operator password equal to the delegate passphrase. The password and the decrypted passphrases stay in process memory only long enough to derive keypairs. Restarting the node requires the password again. The node never writes the password or the decrypted passphrases back to `config.json`, and it does not log them. Temporary key/hash buffers are overwritten after use; JavaScript strings are immutable, so their backing memory can remain until garbage collection and should not be treated as instantly erased. Decryption uses async scrypt so live unlock does not block peer, API, or block processing.
+
+### Migrate a plaintext config
+
+1. Encrypt each delegate passphrase:
+
+   ```sh
+   npm run adm-node -- forging encrypt
+   ```
+
+   The command prompts for the passphrase and the operator password. Copy the single `admnode-enc-v1.` line it prints.
+
+2. Replace the plaintext entry in `forging.secret` with that line. Repeat for every delegate, using the same operator password. Leave `forging.secret` as an array.
+3. Restart the node.
+
+Example:
+
+```json
+"forging": {
+  "force": false,
+  "secret": [
+    "admnode-enc-v1...."
+  ],
+  "controlSocket": ""
+}
+```
+
+An empty `controlSocket` uses `<node checkout>/.run/control-<port>.sock`. This path is stable across `TMPDIR`, `XDG_RUNTIME_DIR`, systemd `PrivateTmp`, `sudo`, and shell changes. The socket is mode `0600`, and the private parent is mode `0700`. The default directory is created and repaired by the node. A custom `controlSocket` must point to an owner-only `0700` parent; if it is absent, the node creates it as `0700`, but it never changes an existing operator-owned directory. The client and server both reject group/world-writable ancestors below a shared sticky root and recheck socket ownership, mode, and inode before sending credentials. For `/run/adamant`, configure systemd `RuntimeDirectory=adamant` or tmpfiles.d first. If the listen port is overridden on the command line, pass the matching `--socket` or the same config overrides to the CLI.
+
+Before you switch an existing node to encrypted secrets, check that the checkout and its parent directories are not group- or world-writable. Older installers cloned the repository from a login shell, where a `002` umask can leave the checkout at mode `0775`. The node then cannot open the default control socket and stays locked after every restart. `forging encrypt` warns about this before it asks for any secret. To check and fix manually:
+
+```sh
+stat -c '%a %U:%G %n' /home/adamant/adamant /home/adamant
+chmod g-w,o-w /home/adamant/adamant
+```
+
+### Start and unlock
+
+When every configured secret is plaintext, forging behavior is unchanged.
+
+When an encrypted secret is present, the node still syncs, serves the API, and keeps peers and the mempool working. Forging for those delegates stays locked until the password is supplied:
+
+- While the blockchain loads or rebuilds, the control socket reports `loading`; unlock and lock remain available and only key availability changes. Forging cannot start before blockchain readiness.
+- In a terminal, after blockchain readiness, the node prompts once. Press Enter to stay locked.
+- For service managers, start locked and unlock after the node is up:
+
+  ```sh
+  npm run adm-node -- forging status
+  npm run adm-node -- forging unlock
+  npm run adm-node -- forging lock
+  ```
+
+The operator password is deliberately not accepted through a command-line option or environment variable because those values can be exposed by process inspection. Use the hidden terminal prompt or the local control socket instead.
+
+`forging lock` clears only keypairs that were unlocked from encrypted config entries. A delegate that is also configured in plaintext stays loaded after lock, because the plaintext config independently enables it. `forging unlock` asks for the operator password and atomically loads valid encrypted delegates. A transient account lookup failure or a delegate registration not yet present in the local chain does not abort the unlocked batch; the key remains loaded for that public key and the active delegate schedule controls whether it can forge. Plaintext delegates keep forging while encrypted key derivation is in progress.
+
+Run `adm-node` as the node service user. Use `--config` when the node was not started from `./config.json`. The CLI accepts the node's `--config-overrides`, repeatable `--config-set`, and `--port` options, so socket resolution matches node startup. `--socket` bypasses config loading and is required for a Zabbix command with an operator-selected path.
+
+Forging lock state is intentionally not exposed by the public HTTP or peer APIs. The control socket opens at module initialization when at least one encrypted entry or an explicit `controlSocket` is configured, so local monitoring can distinguish `loading`, `disabled`, `locked`, `partial`, and `unlocked`. Nodes with no encrypted secrets and no explicit socket do not create an extra local control surface.
+
+For automation, `forging status --json --timeout 2000` prints one line:
+
+```json
+{"state":"locked","encrypted":3,"encryptedLoaded":0,"plaintext":0,"invalidEncrypted":0,"loadedKeypairs":0}
+```
+
+The JSON form never contains delegate addresses or public keys. A valid node response exits with `0`; the standalone CLI exits non-zero for a missing socket, timeout, malformed response, or other local failure. The Zabbix wrapper converts those failures to a deterministic `state: unavailable` JSON value while suppressing stderr.
+
+Ready-to-copy Zabbix examples are in [`tools/zabbix/`](./tools/zabbix/README.md): a fixed-allowlist wrapper, exact sudoers rules, a `UserParameter`, a Zabbix 7.0 forging-state template, and a separate public missed-block/productivity outcome template. Use agent-to-server PSK or certificate transport. Every planned or unattended restart must be followed by `forging unlock`; lock-state monitoring is therefore required for operators that run encrypted delegates.
+
 ## Development and Tests
 
 Refer to [CONTRIBUTING.md](./.github/CONTRIBUTING.md).
