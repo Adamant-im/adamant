@@ -4,6 +4,7 @@ const { expect } = require('chai');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const sinon = require('sinon');
 const { spawn } = require('child_process');
 
 const forgingControl = require('../../../helpers/forgingControl.js');
@@ -25,40 +26,10 @@ describe('forgingControl', () => {
       })).to.equal(configured);
     });
 
-    it('uses XDG_RUNTIME_DIR for the default path when configured', () => {
-      const runtimeRoot = fs.mkdtempSync(path.join('/tmp', 'afc-xdg-'));
-      const previous = process.env.XDG_RUNTIME_DIR;
-
-      process.env.XDG_RUNTIME_DIR = runtimeRoot;
-
-      try {
-        expect(forgingControl.controlSocketDir()).to.equal(
-            path.join(runtimeRoot, 'adamant-node')
-        );
-      } finally {
-        if (previous === undefined) {
-          delete process.env.XDG_RUNTIME_DIR;
-        } else {
-          process.env.XDG_RUNTIME_DIR = previous;
-        }
-        fs.rmSync(runtimeRoot, { recursive: true, force: true });
-      }
-    });
-
-    it('falls back to the repository runtime directory without XDG_RUNTIME_DIR', () => {
-      const previous = process.env.XDG_RUNTIME_DIR;
-
-      delete process.env.XDG_RUNTIME_DIR;
-
-      try {
-        expect(forgingControl.controlSocketDir()).to.equal(
-            path.resolve(__dirname, '../../..', '.run')
-        );
-      } finally {
-        if (previous !== undefined) {
-          process.env.XDG_RUNTIME_DIR = previous;
-        }
-      }
+    it('always uses the repository runtime directory', () => {
+      expect(forgingControl.controlSocketDir()).to.equal(
+          path.resolve(__dirname, '../../..', '.run')
+      );
     });
   });
 
@@ -106,35 +77,6 @@ describe('forgingControl', () => {
       });
     });
 
-    it('does not chmod a symlinked default runtime directory', (done) => {
-      const xdgRoot = path.join(runtimeRoot, 'xdg');
-      const target = path.join(runtimeRoot, 'target');
-      const symlinkPath = path.join(xdgRoot, 'adamant-node');
-      const previous = process.env.XDG_RUNTIME_DIR;
-
-      fs.mkdirSync(xdgRoot, { mode: 0o700 });
-      fs.mkdirSync(target, { mode: 0o755 });
-      fs.symlinkSync(target, symlinkPath, 'dir');
-      process.env.XDG_RUNTIME_DIR = xdgRoot;
-
-      forgingControl.start({
-        port: 36666,
-        controlSocket: ''
-      }, handler, null, (err, control) => {
-        if (previous === undefined) {
-          delete process.env.XDG_RUNTIME_DIR;
-        } else {
-          process.env.XDG_RUNTIME_DIR = previous;
-        }
-
-        expect(err).to.exist;
-        expect(err.message).to.match(/not a real directory/);
-        expect(control).to.not.exist;
-        expect(fs.statSync(target).mode & 0o777).to.equal(0o755);
-        done();
-      });
-    });
-
     it('does not replace a regular file at the configured socket path', (done) => {
       fs.writeFileSync(socketPath, 'operator-owned file');
 
@@ -173,6 +115,86 @@ describe('forgingControl', () => {
         expect(control).to.not.exist;
         expect(fs.statSync(runtimeDir).mode & 0o777).to.equal(0o755);
         done();
+      });
+    });
+
+    it('rejects a socket below a writable ancestor', (done) => {
+      const untrustedParent = path.join(runtimeRoot, 'untrusted');
+      const privateChild = path.join(untrustedParent, 'private');
+
+      fs.mkdirSync(untrustedParent, { mode: 0o777 });
+      fs.chmodSync(untrustedParent, 0o777);
+      fs.mkdirSync(privateChild, { mode: 0o700 });
+
+      forgingControl.start({
+        controlSocket: path.join(privateChild, 'control.sock')
+      }, handler, null, (err, control) => {
+        expect(err).to.exist;
+        expect(err.message).to.match(/writable by another user/);
+        expect(control).to.not.exist;
+        done();
+      });
+    });
+
+    it('rejects a foreign-owned sticky ancestor', (done) => {
+      const lstatSync = fs.lstatSync;
+      const canonicalRuntimeRoot = fs.realpathSync(runtimeRoot);
+
+      fs.chmodSync(runtimeRoot, 0o1777);
+      const lstatStub = sinon.stub(fs, 'lstatSync').callsFake(function (target) {
+        const stats = lstatSync(target);
+
+        if (
+          path.resolve(target) === canonicalRuntimeRoot &&
+          typeof process.getuid === 'function'
+        ) {
+          stats.uid = process.getuid() + 1;
+        }
+
+        return stats;
+      });
+
+      forgingControl.start({
+        controlSocket: socketPath
+      }, handler, null, (err, control) => {
+        lstatStub.restore();
+
+        if (control) {
+          return control.close(function () {
+            done(new Error('Expected foreign-owned ancestor to be rejected.'));
+          });
+        }
+
+        try {
+          expect(err).to.exist;
+          expect(err.message).to.match(/owned by another user/);
+          done();
+        } catch (assertionErr) {
+          done(assertionErr);
+        }
+      });
+    });
+
+    it('revalidates writable ancestors on the client before sending', (done) => {
+      const childDir = path.join(runtimeDir, 'private-child');
+      const nestedSocket = path.join(childDir, 'control.sock');
+
+      fs.mkdirSync(childDir, { mode: 0o700 });
+
+      forgingControl.start({
+        controlSocket: nestedSocket
+      }, handler, null, (err, control) => {
+        expect(err).to.equal(null);
+        fs.chmodSync(runtimeDir, 0o777);
+
+        forgingControl.sendCommand(nestedSocket, {
+          cmd: 'unlock',
+          password: 'must-not-be-sent'
+        }, (sendErr) => {
+          expect(sendErr).to.exist;
+          expect(sendErr.message).to.match(/writable by another user/);
+          control.close(done);
+        });
       });
     });
 
@@ -332,6 +354,7 @@ describe('forgingControl', () => {
 
       describe('adm-node monitoring status', () => {
         const cli = path.join(__dirname, '../../../tools/adm-node.js');
+        const wrapper = path.join(__dirname, '../../../tools/zabbix/adm-forging-status');
         let runtimeDir;
         let socketPath;
         let control;
@@ -339,6 +362,27 @@ describe('forgingControl', () => {
         function runCli (args) {
           return new Promise((resolve, reject) => {
             const child = spawn(process.execPath, [cli].concat(args), {
+              stdio: ['ignore', 'pipe', 'pipe']
+            });
+            let stdout = '';
+            let stderr = '';
+
+            child.stdout.on('data', (chunk) => {
+              stdout += chunk.toString('utf8');
+            });
+            child.stderr.on('data', (chunk) => {
+              stderr += chunk.toString('utf8');
+            });
+            child.on('error', reject);
+            child.on('close', (code) => {
+              resolve({ code, stdout, stderr });
+            });
+          });
+        }
+
+        function runWrapper (args) {
+          return new Promise((resolve, reject) => {
+            const child = spawn('/bin/sh', [wrapper].concat(args), {
               stdio: ['ignore', 'pipe', 'pipe']
             });
             let stdout = '';
@@ -445,6 +489,21 @@ describe('forgingControl', () => {
           expect(result.stdout).to.equal('');
           expect(result.stderr).to.match(/not a Unix socket/);
           expect(result.stderr).to.match(/node service user/);
+        });
+
+        it('makes an invalid Zabbix wrapper instance a deterministic unavailable state', async () => {
+          const result = await runWrapper(['not-an-instance']);
+
+          expect(result.code).to.equal(0);
+          expect(result.stderr).to.equal('');
+          expect(JSON.parse(result.stdout)).to.deep.equal({
+            state: 'unavailable',
+            encrypted: 0,
+            encryptedLoaded: 0,
+            plaintext: 0,
+            invalidEncrypted: 0,
+            loadedKeypairs: 0
+          });
         });
 
         it('applies config override files and config-set values like the node', async () => {

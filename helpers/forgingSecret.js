@@ -372,16 +372,17 @@ function decrypt (blob, password, cb) {
     }
 
     var plaintext;
+    var update;
+    var final;
     var passphrase;
     var derived;
 
     try {
       var decipher = crypto.createDecipheriv(CIPHER, key, iv);
       decipher.setAuthTag(tag);
-      plaintext = Buffer.concat([
-        decipher.update(ciphertext),
-        decipher.final()
-      ]);
+      update = decipher.update(ciphertext);
+      final = decipher.final();
+      plaintext = Buffer.concat([update, final]);
       passphrase = plaintext.toString('utf8');
     } catch (err) {
       return cb(new Error('Wrong operator password or corrupted encrypted passphrase.'));
@@ -389,6 +390,12 @@ function decrypt (blob, password, cb) {
       key.fill(0);
       if (plaintext) {
         plaintext.fill(0);
+      }
+      if (update) {
+        update.fill(0);
+      }
+      if (final) {
+        final.fill(0);
       }
     }
 

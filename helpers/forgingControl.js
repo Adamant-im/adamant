@@ -9,17 +9,11 @@ var SOCKET_TIMEOUT_MS = 2000;
 
 /**
  * Returns the directory that holds the default control socket.
- * XDG keeps the path under the operator's private runtime area when available.
- * The repository-local fallback is stable across TMPDIR, PrivateTmp, and sudo.
+ * The repository-local path is stable across TMPDIR, XDG_RUNTIME_DIR,
+ * PrivateTmp, sudo, and shell differences.
  * @return {string} Directory path.
  */
 function controlSocketDir () {
-  var runtimeDir = process.env.XDG_RUNTIME_DIR;
-
-  if (runtimeDir && runtimeDir.trim()) {
-    return path.join(path.resolve(runtimeDir), 'adamant-node');
-  }
-
   return path.resolve(__dirname, '..', '.run');
 }
 
@@ -86,6 +80,56 @@ function assertSecureDirectoryIdentity (dir, stats) {
 }
 
 /**
+ * Validates every canonical directory component before using a socket path.
+ * Sticky shared roots such as /tmp are allowed, but non-sticky group/world
+ * writable ancestors are rejected. The leaf must be owned by this user and 0700.
+ * @param {string} dir - Canonical directory path.
+ */
+function assertTrustedDirectoryChain (dir) {
+  var parsed = path.parse(dir);
+  var current = parsed.root;
+  var segments = dir.slice(parsed.root.length).split(path.sep).filter(Boolean);
+
+  function checkDirectory (directory) {
+    var stats = fs.lstatSync(directory);
+
+    if (!stats.isDirectory() || stats.isSymbolicLink()) {
+      throw new Error('Forging control socket directory chain is not trusted: ' + directory);
+    }
+
+    if (
+      typeof process.getuid === 'function' &&
+      stats.uid !== 0 &&
+      stats.uid !== process.getuid()
+    ) {
+      throw new Error('Forging control socket directory chain is owned by another user: ' + directory);
+    }
+
+    var mode = stats.mode & 0o7777;
+    var groupWritable = !!(mode & 0o020);
+    var worldWritable = !!(mode & 0o002);
+    var sticky = !!(mode & 0o1000);
+
+    if ((groupWritable || worldWritable) && !sticky) {
+      throw new Error('Forging control socket directory chain is writable by another user: ' + directory);
+    }
+  }
+
+  checkDirectory(current);
+
+  segments.forEach(function (segment) {
+    current = path.join(current, segment);
+    checkDirectory(current);
+  });
+
+  var leafStats = fs.lstatSync(dir);
+
+  if (!isOwnedByCurrentUser(leafStats) || (leafStats.mode & 0o777) !== 0o700) {
+    throw new Error('Forging control socket parent must be owned by the current user and use mode 0700: ' + dir);
+  }
+}
+
+/**
  * Validates the type, owner and mode of a control socket directory.
  * @param {string} dir - Directory path.
  * @param {fs.Stats} stats - lstat result.
@@ -135,6 +179,7 @@ function prepareRuntimeDir (dir, chmodExisting) {
  * @return {fs.Stats} Validated lstat result.
  */
 function assertControlSocket (socketPath, stats) {
+  assertTrustedDirectoryChain(path.dirname(socketPath));
   stats = stats || fs.lstatSync(socketPath);
 
   if (!stats.isSocket() || stats.isSymbolicLink()) {
@@ -150,6 +195,24 @@ function assertControlSocket (socketPath, stats) {
   }
 
   return stats;
+}
+
+/**
+ * Checks that a socket path did not change after it was validated.
+ * @param {string} socketPath - Canonical socket path.
+ * @param {fs.Stats} expected - Previously validated inode metadata.
+ */
+function assertSameControlSocket (socketPath, expected) {
+  assertControlSocket(socketPath);
+  var current = fs.lstatSync(socketPath);
+
+  if (
+    current.dev !== expected.dev ||
+    current.ino !== expected.ino ||
+    current.uid !== expected.uid
+  ) {
+    throw new Error('Forging control socket changed while connecting.');
+  }
 }
 
 /**
@@ -315,6 +378,7 @@ function start (options, handler, logger, cb) {
     socketPath = resolveControlSocketPath(options);
     prepareRuntimeDir(path.dirname(socketPath), !customPath);
     socketPath = canonicalizeControlSocketPath(socketPath);
+    assertTrustedDirectoryChain(path.dirname(socketPath));
 
     if (Buffer.byteLength(socketPath) >= 104) {
       throw new Error('Forging control socket path is too long.');
@@ -485,10 +549,11 @@ function sendCommand (socketPath, payload, options, cb) {
   var settled = false;
   var request;
   var socket;
+  var socketStats;
 
   try {
     socketPath = canonicalizeControlSocketPath(socketPath);
-    assertControlSocket(socketPath);
+    socketStats = assertControlSocket(socketPath);
     request = JSON.stringify(payload) + '\n';
   } catch (err) {
     return setImmediate(cb, err);
@@ -516,8 +581,13 @@ function sendCommand (socketPath, payload, options, cb) {
   });
 
   socket.once('connect', function () {
-    socket.write(request);
-    request = null;
+    try {
+      assertSameControlSocket(socketPath, socketStats);
+      socket.write(request);
+      request = null;
+    } catch (err) {
+      finish(err);
+    }
   });
 
   socket.on('data', function (chunk) {
@@ -563,10 +633,11 @@ function ensureReachable (socketPath, options, cb) {
   options = options || {};
   var settled = false;
   var socket;
+  var socketStats;
 
   try {
     socketPath = canonicalizeControlSocketPath(socketPath);
-    assertControlSocket(socketPath);
+    socketStats = assertControlSocket(socketPath);
   } catch (err) {
     return setImmediate(cb, err);
   }
@@ -584,7 +655,12 @@ function ensureReachable (socketPath, options, cb) {
   }
 
   socket.once('connect', function () {
-    finish(null);
+    try {
+      assertSameControlSocket(socketPath, socketStats);
+      finish(null);
+    } catch (err) {
+      finish(err);
+    }
   });
 
   socket.setTimeout(options.timeoutMs || SOCKET_TIMEOUT_MS, function () {

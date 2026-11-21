@@ -6,6 +6,7 @@ const path = require('path');
 const sinon = require('sinon');
 
 const ed = require('../../../helpers/ed.js');
+const accounts = require('../../../helpers/accounts.js');
 const forgingControl = require('../../../helpers/forgingControl.js');
 const forgingSecret = require('../../../helpers/forgingSecret.js');
 const jobsQueue = require('../../../helpers/jobsQueue.js');
@@ -15,6 +16,7 @@ const Delegates = require('../../../modules/delegates.js');
 const slots = require('../../../helpers/slots.js');
 
 const PASSPHRASE = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+const PENDING_PLAINTEXT_PASSPHRASE = 'weather play vibrant large edge clean notable april fire smoke drift hidden';
 const PASSWORD = 'correct horse battery staple';
 
 describe('encrypted delegate forging lifecycle', function () {
@@ -23,6 +25,7 @@ describe('encrypted delegate forging lifecycle', function () {
   let delegates;
   let delegateFound;
   let delegateEligible;
+  let accountResponses;
   let forgingSequence;
   let generateBlockStub;
   let peerLookupCallback;
@@ -85,6 +88,10 @@ describe('encrypted delegate forging lifecycle', function () {
       delegates.onBind({
         accounts: {
           getAccount: function (query, done) {
+            if (Object.prototype.hasOwnProperty.call(accountResponses, query.publicKey)) {
+              return setImmediate(done, null, accountResponses[query.publicKey]);
+            }
+
             if (query.publicKey !== identity.publicKey) {
               return setImmediate(done, null, null);
             }
@@ -201,6 +208,7 @@ describe('encrypted delegate forging lifecycle', function () {
     });
     delegateEligible = true;
     delegateFound = true;
+    accountResponses = {};
     registerStub = sinon.stub(jobsQueue, 'register').callsFake(function (name, job) {
       registeredJob = job;
       resolveRegistered();
@@ -260,7 +268,7 @@ describe('encrypted delegate forging lifecycle', function () {
     expect(lockedAgain.status.loadedKeypairs).to.equal(0);
   });
 
-  it('answers loading before blockchain readiness and rejects unlock until ready', async function () {
+  it('answers loading and accepts unlock before blockchain readiness', async function () {
     await new Promise(function (resolve, reject) {
       startDelegates(function (blob) {
         return [blob];
@@ -279,14 +287,25 @@ describe('encrypted delegate forging lifecycle', function () {
     expect(loading.status.forging).to.equal('loading');
 
     const earlyUnlock = await send('unlock', { password: PASSWORD });
-    expect(earlyUnlock.ok).to.equal(false);
-    expect(earlyUnlock.error).to.match(/still loading/);
+    expect(earlyUnlock.ok).to.equal(true);
+    expect(earlyUnlock.status.forging).to.equal('loading');
+    expect(earlyUnlock.status.encryptedDelegatesLoaded).to.equal(1);
+
+    const earlyLock = await send('lock');
+    expect(earlyLock.ok).to.equal(true);
+    expect(earlyLock.status.forging).to.equal('loading');
+    expect(earlyLock.status.encryptedDelegatesLoaded).to.equal(0);
+
+    const earlyUnlockAgain = await send('unlock', { password: PASSWORD });
+    expect(earlyUnlockAgain.ok).to.equal(true);
+    expect(earlyUnlockAgain.status.forging).to.equal('loading');
+    expect(earlyUnlockAgain.status.encryptedDelegatesLoaded).to.equal(1);
 
     delegates.onBlockchainReady();
     await registeredPromise;
 
-    const locked = await send('status');
-    expect(locked.status.forging).to.equal('locked');
+    const unlocked = await send('status');
+    expect(unlocked.status.forging).to.equal('unlocked');
   });
 
   it('keeps a decrypted key when its delegate account is not on the local chain yet', async function () {
@@ -530,6 +549,55 @@ describe('encrypted delegate forging lifecycle', function () {
     expect(afterPromotion.status.loadedKeypairs).to.equal(1);
   });
 
+  it('retries a pending plaintext delegate after encrypted unlock', async function () {
+    const hash = ed.createPassPhraseHash(PENDING_PLAINTEXT_PASSPHRASE);
+    const keypair = ed.makeKeypair(hash);
+    const publicKey = keypair.publicKey.toString('hex');
+    const address = accounts.getAddressByPublicKey(publicKey);
+
+    hash.fill(0);
+    keypair.privateKey.fill(0);
+    accountResponses[publicKey] = null;
+
+    await new Promise(function (resolve, reject) {
+      startDelegates(function (blob) {
+        return [PENDING_PLAINTEXT_PASSPHRASE, blob];
+      }, function (err) {
+        if (err) {
+          return reject(err);
+        }
+        return resolve();
+      });
+    });
+
+    await registeredPromise;
+    await send('unlock', { password: PASSWORD });
+
+    accountResponses[publicKey] = {
+      address,
+      isDelegate: 1,
+      publicKey
+    };
+
+    await new Promise(function (resolve) {
+      registeredJob(resolve);
+    });
+
+    let status;
+    for (let attempts = 0; attempts < 10; attempts += 1) {
+      status = await send('status');
+      if (status.status.loadedKeypairs === 2) {
+        break;
+      }
+      await new Promise(function (resolve) {
+        setImmediate(resolve);
+      });
+    }
+
+    expect(status.status.loadedKeypairs).to.equal(2);
+    expect(status.status.plaintextDelegates).to.equal(1);
+  });
+
   it('does not forge with a key while a lock request is already queued', async function () {
     await new Promise(function (resolve, reject) {
       startDelegates(function (blob) {
@@ -572,6 +640,112 @@ describe('encrypted delegate forging lifecycle', function () {
 
       expect(locked.status.forging).to.equal('locked');
       expect(generateBlockStub.called).to.equal(false);
+    } finally {
+      getSlotNumberStub.restore();
+      getLastSlotStub.restore();
+      getSlotTimeStub.restore();
+    }
+  });
+
+  it('waits for an active encrypted block generation before clearing its key', async function () {
+    let finishGeneration;
+    let markGenerationStarted;
+    const generationStarted = new Promise(function (resolve) {
+      markGenerationStarted = resolve;
+    });
+
+    generateBlockStub.callsFake(function (keypair, timestamp, done) {
+      finishGeneration = done;
+      markGenerationStarted();
+    });
+
+    await new Promise(function (resolve, reject) {
+      startDelegates(function (blob) {
+        return [blob];
+      }, function (err) {
+        if (err) {
+          return reject(err);
+        }
+        return resolve();
+      });
+    });
+
+    await registeredPromise;
+    await send('unlock', { password: PASSWORD });
+
+    const getSlotNumberStub = sinon.stub(slots, 'getSlotNumber').callsFake(function (timestamp) {
+      return timestamp === -1 ? -1 : 0;
+    });
+    const getLastSlotStub = sinon.stub(slots, 'getLastSlot').returns(1);
+    const getSlotTimeStub = sinon.stub(slots, 'getSlotTime').returns(0);
+
+    try {
+      const forgeFinished = new Promise(function (resolve) {
+        registeredJob(resolve);
+      });
+
+      await generationStarted;
+      const lockPromise = send('lock');
+      let lockResolved = false;
+
+      lockPromise.then(function () {
+        lockResolved = true;
+      });
+
+      await new Promise(function (resolve) {
+        setTimeout(resolve, 20);
+      });
+      expect(lockResolved).to.equal(false);
+
+      finishGeneration();
+      const locked = await lockPromise;
+      await forgeFinished;
+
+      expect(locked.ok).to.equal(true);
+      expect(locked.status.loadedKeypairs).to.equal(0);
+    } finally {
+      getSlotNumberStub.restore();
+      getLastSlotStub.restore();
+      getSlotTimeStub.restore();
+    }
+  });
+
+  it('keeps a plaintext-forged block alive while encrypted keys are locked', async function () {
+    await new Promise(function (resolve, reject) {
+      startDelegates(function (blob) {
+        return [PASSPHRASE, blob];
+      }, function (err) {
+        if (err) {
+          return reject(err);
+        }
+        return resolve();
+      });
+    });
+
+    await registeredPromise;
+    await send('unlock', { password: PASSWORD });
+
+    const getSlotNumberStub = sinon.stub(slots, 'getSlotNumber').callsFake(function (timestamp) {
+      return timestamp === -1 ? -1 : 0;
+    });
+    const getLastSlotStub = sinon.stub(slots, 'getLastSlot').returns(1);
+    const getSlotTimeStub = sinon.stub(slots, 'getSlotTime').returns(0);
+    peerLookupDeferred = true;
+
+    try {
+      const forgeFinished = new Promise(function (resolve) {
+        registeredJob(resolve);
+      });
+
+      await peerLookupStarted;
+      const locked = await send('lock');
+      expect(locked.status.forging).to.equal('partial');
+
+      peerLookupCallback(null, []);
+      await forgeFinished;
+
+      expect(generateBlockStub.calledOnce).to.equal(true);
+      expect(locked.status.loadedKeypairs).to.equal(1);
     } finally {
       getSlotNumberStub.restore();
       getLastSlotStub.restore();

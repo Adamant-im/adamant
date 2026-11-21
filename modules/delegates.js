@@ -32,6 +32,8 @@ __private.encryptedKeypairsLoaded = {};
 __private.encryptedOwnedKeypairs = {};
 __private.plaintextKeypairsLoaded = {};
 __private.plaintextDelegateCount = 0;
+__private.plaintextRetryNeeded = false;
+__private.plaintextLoadInProgress = false;
 __private.invalidEncryptedDelegateCount = 0;
 __private.forgingReady = false;
 __private.unlockInProgress = false;
@@ -81,6 +83,8 @@ function Delegates (cb, scope) {
   __private.encryptedOwnedKeypairs = {};
   __private.plaintextKeypairsLoaded = {};
   __private.plaintextDelegateCount = 0;
+  __private.plaintextRetryNeeded = false;
+  __private.plaintextLoadInProgress = false;
   __private.invalidEncryptedDelegateCount = 0;
   __private.forgingReady = false;
   __private.unlockInProgress = false;
@@ -189,13 +193,24 @@ __private.getBlockSlotData = function (slot, height, cb) {
  * @return {setImmediateCallback}
  */
 __private.forge = function (cb) {
-  if (__private.forgingMutation || __private.shuttingDown) {
+  if (__private.shuttingDown) {
     return setImmediate(cb);
   }
 
   if (!Object.keys(__private.keypairs).length) {
     library.logger.debug('delegates', 'No delegates enabled');
     return __private.loadDelegates(cb);
+  }
+
+  if (
+    __private.plaintextRetryNeeded &&
+    !__private.plaintextLoadInProgress
+  ) {
+    __private.loadPlaintextDelegates(function (err) {
+      if (err) {
+        library.logger.error('delegates', 'Failed to retry plaintext delegates', err);
+      }
+    });
   }
 
   // When client is not loaded, is syncing or round is ticking
@@ -238,13 +253,17 @@ __private.forge = function (cb) {
     var keypair = currentBlockData.keypair;
     var publicKey = keypair.publicKey.toString('hex');
 
-    if (__private.forgingMutation || __private.shuttingDown) {
+    if (
+      __private.shuttingDown ||
+      (
+        __private.forgingMutation &&
+        __private.encryptedKeypairWillBeRemoved(publicKey)
+      )
+    ) {
       return setImmediate(cb);
     }
 
     library.sequence.add(function (sequenceCb) {
-      __private.forgeWorkInProgress = true;
-
       function finishForge (forgeErr, result) {
         __private.forgeWorkInProgress = false;
         __private.completeEncryptedKeyCleanup();
@@ -252,8 +271,11 @@ __private.forge = function (cb) {
       }
 
       if (
-        __private.forgingMutation ||
         __private.shuttingDown ||
+        (
+          __private.forgingMutation &&
+          __private.encryptedKeypairWillBeRemoved(publicKey)
+        ) ||
         __private.keypairs[publicKey] !== keypair
       ) {
         return finishForge(null, { forged: false });
@@ -277,14 +299,18 @@ __private.forge = function (cb) {
         }
 
         if (
-          __private.forgingMutation ||
           __private.shuttingDown ||
+          (
+            __private.forgingMutation &&
+            __private.encryptedKeypairWillBeRemoved(publicKey)
+          ) ||
           __private.keypairs[publicKey] !== keypair
         ) {
           return finishForge(null, { forged: false });
         }
 
         try {
+          __private.forgeWorkInProgress = __private.encryptedKeypairWillBeRemoved(publicKey);
           return modules.blocks.process.generateBlock(keypair, currentBlockData.time, function (generateErr) {
             return finishForge(generateErr, { forged: !generateErr });
           });
@@ -438,6 +464,19 @@ function countPlaintextSecrets (secrets) {
 }
 
 /**
+ * Reports whether lock will remove a keypair selected for forging.
+ * @param {string} publicKey - Selected delegate public key.
+ * @return {boolean} True when encrypted ownership removes this keypair.
+ */
+__private.encryptedKeypairWillBeRemoved = function (publicKey) {
+  return !!(
+    __private.encryptedKeypairsLoaded[publicKey] &&
+    __private.encryptedOwnedKeypairs[publicKey] &&
+    !__private.plaintextKeypairsLoaded[publicKey]
+  );
+};
+
+/**
  * Builds a secret-free snapshot of forging lock state.
  * @return {object} Status safe to print and return over the control socket.
  */
@@ -551,10 +590,6 @@ __private.unlockWithPassword = function (password, cb) {
     return setImmediate(cb, new Error('Node is shutting down.'));
   }
 
-  if (!__private.forgingReady) {
-    return setImmediate(cb, new Error('Node is still loading. Try forging unlock after synchronization completes.'));
-  }
-
   if (!__private.encryptedEntries.length) {
     return setImmediate(cb, new Error('No encrypted delegate passphrases are configured.'));
   }
@@ -620,23 +655,25 @@ __private.unlockWithPassword = function (password, cb) {
         address: entry.address
       });
 
-      modules.accounts.getAccount({
-        publicKey: entry.publicKey
-      }, function (accountErr, account) {
-        if (accountErr) {
-          library.logger.warn(
-              'delegates',
-              'Unable to verify encrypted delegate account state for ' + entry.address
-          );
-        } else if (!account) {
-          library.logger.warn(
-              'delegates',
-              'Encrypted delegate account is not on the local chain yet: ' + entry.address
-          );
-        } else if (!account.isDelegate) {
-          library.logger.warn('delegates', 'Encrypted account is not a delegate yet: ' + account.address);
-        }
-      });
+      if (__private.forgingReady && modules && modules.accounts) {
+        modules.accounts.getAccount({
+          publicKey: entry.publicKey
+        }, function (accountErr, account) {
+          if (accountErr) {
+            library.logger.warn(
+                'delegates',
+                'Unable to verify encrypted delegate account state for ' + entry.address
+            );
+          } else if (!account) {
+            library.logger.warn(
+                'delegates',
+                'Encrypted delegate account is not on the local chain yet: ' + entry.address
+            );
+          } else if (!account.isDelegate) {
+            library.logger.warn('delegates', 'Encrypted account is not a delegate yet: ' + account.address);
+          }
+        });
+      }
 
       return setImmediate(next);
     });
@@ -742,10 +779,6 @@ __private.lockEncryptedDelegates = function (cb) {
     return setImmediate(cb, new Error('No encrypted delegate passphrases are configured.'));
   }
 
-  if (!__private.forgingReady) {
-    return setImmediate(cb, new Error('Node is still loading. Forging lock is not available yet.'));
-  }
-
   if (__private.forgingMutation) {
     return setImmediate(cb, new Error('A forging lock is already in progress.'));
   }
@@ -767,6 +800,14 @@ __private.lockEncryptedDelegates = function (cb) {
  */
 __private.maybeUnlockAtStartup = function (cb) {
   if (!__private.encryptedEntries.length) {
+    return setImmediate(cb);
+  }
+
+  var pending = __private.encryptedEntries.some(function (entry) {
+    return !__private.encryptedKeypairsLoaded[entry.publicKey];
+  });
+
+  if (!pending) {
     return setImmediate(cb);
   }
 
@@ -877,16 +918,23 @@ __private.prepareForging = function (cb) {
  * @return {setImmediateCallback}
  */
 __private.loadPlaintextDelegates = function (cb) {
+  if (__private.plaintextLoadInProgress) {
+    return setImmediate(cb);
+  }
+
   var partitioned = forgingSecret.partitionForgingSecrets(library.config.forging.secret);
   var secrets = partitioned.plaintext.filter(function (secret) {
     return typeof secret === 'string' && secret.length > 0;
   });
   var enabledAddresses = [];
+  var retryNeeded = false;
 
   if (!secrets.length) {
+    __private.plaintextRetryNeeded = false;
     return setImmediate(cb);
   }
 
+  __private.plaintextLoadInProgress = true;
   library.logger.info('delegates', ['Loading', secrets.length, 'delegates from config…'].join(' '));
 
   async.eachSeries(secrets, function (secret, next) {
@@ -909,16 +957,25 @@ __private.loadPlaintextDelegates = function (cb) {
       }
     }
 
+    var publicKey = keypair.publicKey.toString('hex');
+
+    if (__private.plaintextKeypairsLoaded[publicKey]) {
+      wipeKeypair(keypair);
+      return setImmediate(next);
+    }
+
     modules.accounts.getAccount({
-      publicKey: keypair.publicKey.toString('hex')
+      publicKey: publicKey
     }, function (err, account) {
       if (err) {
         wipeKeypair(keypair);
+        retryNeeded = true;
         return setImmediate(next, err);
       }
 
       if (!account) {
         wipeKeypair(keypair);
+        retryNeeded = true;
         library.logger.warn(
             'delegates',
             ['Account with public key:', keypair.publicKey.toString('hex'), 'not found'].join(' ')
@@ -927,8 +984,6 @@ __private.loadPlaintextDelegates = function (cb) {
       }
 
       if (account.isDelegate) {
-        var publicKey = keypair.publicKey.toString('hex');
-
         if (__private.keypairs[publicKey]) {
           wipeKeypair(keypair);
         } else {
@@ -941,6 +996,7 @@ __private.loadPlaintextDelegates = function (cb) {
         }
       } else {
         wipeKeypair(keypair);
+        retryNeeded = true;
         library.logger.warn('delegates', ['Account with public key:', keypair.publicKey.toString('hex'), 'is not a delegate'].join(' '));
       }
 
@@ -959,6 +1015,8 @@ __private.loadPlaintextDelegates = function (cb) {
       __private.forgingSummaryLogged = true;
     }
 
+    __private.plaintextLoadInProgress = false;
+    __private.plaintextRetryNeeded = retryNeeded;
     return setImmediate(cb, err);
   });
 };

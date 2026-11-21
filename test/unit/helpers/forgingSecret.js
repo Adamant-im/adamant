@@ -1,6 +1,7 @@
 'use strict';
 
 const { expect } = require('chai');
+const crypto = require('crypto');
 const fs = require('fs');
 const sinon = require('sinon');
 const os = require('os');
@@ -90,6 +91,54 @@ describe('forgingSecret', () => {
           wrongPassword,
           /Wrong operator password or corrupted encrypted passphrase/
       );
+    });
+
+    it('wipes intermediate plaintext buffers after successful and failed authentication', async () => {
+      const blob = forgingSecret.encrypt(PASSPHRASE, PASSWORD);
+      const createDecipher = crypto.createDecipheriv;
+      const updateFills = [];
+      const finalFills = [];
+      const decipherStub = sinon.stub(crypto, 'createDecipheriv').callsFake(function () {
+        const decipher = createDecipher.apply(crypto, arguments);
+
+        return {
+          setAuthTag: function (tag) {
+            return decipher.setAuthTag(tag);
+          },
+          update: function (ciphertext) {
+            const output = decipher.update(ciphertext);
+            updateFills.push(sinon.spy(output, 'fill'));
+            return output;
+          },
+          final: function () {
+            const output = decipher.final();
+            finalFills.push(sinon.spy(output, 'fill'));
+            return output;
+          }
+        };
+      });
+
+      try {
+        await decrypt(blob, PASSWORD);
+        expect(updateFills[0].calledOnce).to.equal(true);
+        expect(finalFills[0].calledOnce).to.equal(true);
+
+        const header = forgingSecret.parseHeader(blob);
+        const tamperedCt = Buffer.from(header.ct, 'base64');
+        tamperedCt[0] ^= 0xff;
+        header.ct = tamperedCt.toString('base64');
+        const tampered = forgingSecret.ENCRYPTED_PREFIX +
+          Buffer.from(JSON.stringify(header), 'utf8').toString('base64url');
+
+        await expectDecryptError(
+            tampered,
+            PASSWORD,
+            /Wrong operator password or corrupted encrypted passphrase/
+        );
+        expect(updateFills[1].calledOnce).to.equal(true);
+      } finally {
+        decipherStub.restore();
+      }
     });
 
     it('rejects a tampered ciphertext', async () => {

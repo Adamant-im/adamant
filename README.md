@@ -148,7 +148,7 @@ Example:
 }
 ```
 
-An empty `controlSocket` uses `$XDG_RUNTIME_DIR/adamant-node/control-<port>.sock` when `XDG_RUNTIME_DIR` is set. Otherwise it uses `<node checkout>/.run/control-<port>.sock`, which is stable across `TMPDIR`, systemd `PrivateTmp`, `sudo`, and shell changes. The socket is mode `0600`, and the parent is mode `0700`. The default directory is created and repaired by the node. A custom `controlSocket` must point to an existing owner-only `0700` parent; if it is absent, the node creates it as `0700`, but it never changes an existing operator-owned directory. For `/run/adamant`, configure systemd `RuntimeDirectory=adamant` or tmpfiles.d first. If the listen port is overridden on the command line, pass the matching `--socket` or the same config overrides to the CLI.
+An empty `controlSocket` uses `<node checkout>/.run/control-<port>.sock`. This path is stable across `TMPDIR`, `XDG_RUNTIME_DIR`, systemd `PrivateTmp`, `sudo`, and shell changes. The socket is mode `0600`, and the private parent is mode `0700`. The default directory is created and repaired by the node. A custom `controlSocket` must point to an owner-only `0700` parent; if it is absent, the node creates it as `0700`, but it never changes an existing operator-owned directory. The client and server both reject group/world-writable ancestors below a shared sticky root and recheck socket ownership, mode, and inode before sending credentials. For `/run/adamant`, configure systemd `RuntimeDirectory=adamant` or tmpfiles.d first. If the listen port is overridden on the command line, pass the matching `--socket` or the same config overrides to the CLI.
 
 ### Start and unlock
 
@@ -156,7 +156,7 @@ When every configured secret is plaintext, forging behavior is unchanged.
 
 When an encrypted secret is present, the node still syncs, serves the API, and keeps peers and the mempool working. Forging for those delegates stays locked until the password is supplied:
 
-- While the blockchain loads or rebuilds, the control socket reports `loading` and unlock is rejected.
+- While the blockchain loads or rebuilds, the control socket reports `loading`; unlock and lock remain available and only key availability changes. Forging cannot start before blockchain readiness.
 - In a terminal, after blockchain readiness, the node prompts once. Press Enter to stay locked.
 - For service managers, start locked and unlock after the node is up:
 
@@ -180,7 +180,7 @@ For automation, `forging status --json --timeout 2000` prints one line:
 {"state":"locked","encrypted":3,"encryptedLoaded":0,"plaintext":0,"invalidEncrypted":0,"loadedKeypairs":0}
 ```
 
-The JSON form never contains delegate addresses or public keys. A valid node response exits with `0`; a missing socket, timeout, or malformed response exits non-zero and makes a monitoring item unsupported.
+The JSON form never contains delegate addresses or public keys. A valid node response exits with `0`; the standalone CLI exits non-zero for a missing socket, timeout, malformed response, or other local failure. The Zabbix wrapper converts those failures to a deterministic `state: unavailable` JSON value while suppressing stderr.
 
 Ready-to-copy Zabbix examples are in [`tools/zabbix/`](./tools/zabbix/README.md): a fixed-allowlist wrapper, exact sudoers rules, a `UserParameter`, a Zabbix 7.0 forging-state template, and a separate public missed-block/productivity outcome template. Use agent-to-server PSK or certificate transport. Every planned or unattended restart must be followed by `forging unlock`; lock-state monitoring is therefore required for operators that run encrypted delegates.
 

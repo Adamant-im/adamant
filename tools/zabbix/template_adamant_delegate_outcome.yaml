@@ -1,31 +1,47 @@
 zabbix_export:
   version: '7.0'
   template_groups:
-    - uuid: 8b81f6a5b7e94bff915b5f4f7b510011
+    - uuid: 489368941d8648aaaf31421ce14e9a6f
       name: Templates/Applications
   templates:
-    - uuid: 9c3f3bca3ab14c0e8ccce1a14b520011
+    - uuid: 8ec22616788042c6836f6e1fa6899322
       template: ADAMANT Delegate forging outcome by HTTP
       name: ADAMANT Delegate forging outcome by HTTP
       description: Link this template to a separate logical host, not to the forging node host.
       groups:
         - name: Templates/Applications
       items:
-        - uuid: 218d5f72b4ac4c04a3d6b5df8c8a0011
+        - uuid: e696dad4267a430f8fc5b109d1c94371
           name: 'ADAMANT delegate: Public status payload'
           type: HTTP_AGENT
-          key: 'adm.delegate.public-status[{$ADM.DELEGATE.PUBLIC_KEY}]'
+          key: adm.delegate.public-status
           delay: 5m
           history: 7d
           trends: '0'
           value_type: TEXT
-          url: '{$ADM.PUBLIC.API}/api/delegates/get?publicKey={$ADM.DELEGATE.PUBLIC_KEY}'
+          url: '{$ADM.PUBLIC.API}/api/delegates?limit=101'
           timeout: 10s
-          description: 'Public chain outcome for one delegate on a separate logical host.'
+          description: 'Public active-delegate list filtered to one delegate locally on a separate logical host.'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  var payload = JSON.parse(value);
+                  var publicKey = '{$ADM.DELEGATE.PUBLIC_KEY}';
+                  if (payload.success !== true || !Array.isArray(payload.delegates)) {
+                    throw new Error('Invalid public delegate response');
+                  }
+                  var matches = payload.delegates.filter(function (delegate) {
+                    return delegate.publicKey === publicKey;
+                  });
+                  if (matches.length !== 1) {
+                    throw new Error('Configured delegate was not found in the active delegate list');
+                  }
+                  return JSON.stringify({ delegate: matches[0] });
           tags:
             - tag: component
               value: forging-outcome
-        - uuid: b1ef64cfb8c442a5b5a5c4d88b650011
+        - uuid: e73301c36715429aaef68bd972f808e4
           name: 'ADAMANT delegate: Missed blocks'
           type: DEPENDENT
           key: 'adm.delegate.missedblocks[{$ADM.DELEGATE.PUBLIC_KEY}]'
@@ -38,19 +54,19 @@ zabbix_export:
               parameters:
                 - $.delegate.missedblocks
           master_item:
-            key: 'adm.delegate.public-status[{$ADM.DELEGATE.PUBLIC_KEY}]'
+            key: adm.delegate.public-status
           tags:
             - tag: component
               value: forging-outcome
           triggers:
-            - uuid: 3a8e1f6c0f8a4bc6ab6d4b4ea7d20011
-              expression: 'max(/ADAMANT Delegate forging outcome by HTTP/adm.delegate.missedblocks[{$ADM.DELEGATE.PUBLIC_KEY}],{$ADM.DELEGATE.MISSED.WINDOW})>min(/ADAMANT Delegate forging outcome by HTTP/adm.delegate.missedblocks[{$ADM.DELEGATE.PUBLIC_KEY}],{$ADM.DELEGATE.MISSED.WINDOW})'
+            - uuid: 04f660de0e194cb4aae4d2b17a534db5
+              expression: 'changecount(/ADAMANT Delegate forging outcome by HTTP/adm.delegate.missedblocks[{$ADM.DELEGATE.PUBLIC_KEY}],{$ADM.DELEGATE.MISSED.WINDOW},"inc")>0'
               name: 'ADAMANT: Delegate missed a block'
               priority: HIGH
               tags:
                 - tag: scope
                   value: availability
-        - uuid: d7d5a0f5f08b48e4a8c3e1b7b2bc0011
+        - uuid: 6ada8b5190c24e26b6bdbe2964a2529d
           name: 'ADAMANT delegate: Productivity'
           type: DEPENDENT
           key: 'adm.delegate.productivity[{$ADM.DELEGATE.PUBLIC_KEY}]'
@@ -63,12 +79,12 @@ zabbix_export:
               parameters:
                 - $.delegate.productivity
           master_item:
-            key: 'adm.delegate.public-status[{$ADM.DELEGATE.PUBLIC_KEY}]'
+            key: adm.delegate.public-status
           tags:
             - tag: component
               value: forging-outcome
           triggers:
-            - uuid: 2d4a0cb8f2be42cfb89e6f8d4d790011
+            - uuid: 21e9e47924e44901a64cb82c0eb4dfcf
               expression: 'min(/ADAMANT Delegate forging outcome by HTTP/adm.delegate.productivity[{$ADM.DELEGATE.PUBLIC_KEY}],{$ADM.DELEGATE.MISSED.WINDOW})<{$ADM.DELEGATE.PRODUCTIVITY.MIN}'
               name: 'ADAMANT: Delegate productivity is below the threshold'
               priority: WARNING

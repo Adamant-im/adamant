@@ -17,16 +17,15 @@ key:
 Run the command as the node service user. The socket is `0600`, and the
 command checks that the socket and its parent directory belong to that user.
 Use absolute paths rather than `npm run`, because npm can add output that makes
-a Zabbix item unsupported.
+the one-line JSON payload invalid.
 
 ## Privilege boundary
 
 1. Edit `adm-forging-status` and keep only the instances this host runs. Replace
    the example users, interpreter paths, repository paths, ports, and socket
-   paths with the exact values from the running pm2/systemd processes. To use
-   the example `.run` paths, set `forging.controlSocket` to that exact path in
-   the node config. If the default socket is in `XDG_RUNTIME_DIR`, copy that
-   actual path into the wrapper instead.
+   paths with the exact values from the running pm2/systemd processes. The
+   default path is `<node checkout>/.run/control-<port>.sock` and does not depend
+   on `TMPDIR`, `XDG_RUNTIME_DIR`, systemd `PrivateTmp`, or the shell environment.
 2. Install it as a root-owned executable:
 
    ```sh
@@ -68,13 +67,16 @@ only to hosts expected to forge. It defines:
 - the master item `adm.forging.status[{$ADM.FORGING.INSTANCE}]`;
 - dependent counts;
 - numeric state mapping (`loading=0`, `disabled=1`, `unlocked=2`,
-  `partial=3`, `locked=4`);
+  `partial=3`, `locked=4`, `unavailable=5`);
 - locked, loading, invalid-config, unavailable, and plaintext reminders.
 
 Set `{$ADM.FORGING.INSTANCE}` to one allowed wrapper name. The default is
 `mainnet`. A `loading` value distinguishes node rebuild/synchronization from a
-node that does not answer. The master check becomes unsupported when the
-socket is absent, the command times out, or the wrapper fails.
+node that does not answer. The master item uses a passive Zabbix agent check
+and a 5-second item timeout. The wrapper suppresses command stderr and emits a
+deterministic `unavailable` JSON state when the socket is absent, the command
+times out, or the wrapper fails. `nodata()` is retained only for the case where
+the agent itself sends no value at all.
 
 The unavailable trigger has no hard-coded dependency on a host availability
 trigger because that trigger is deployment-specific. After import, add a
@@ -90,11 +92,14 @@ separate logical Zabbix host, not on the forging-node host. Set:
 - `{$ADM.PUBLIC.API}` to a trusted public node base URL;
 - `{$ADM.DELEGATE.PUBLIC_KEY}` to the delegate public key.
 
-That template alerts when `missedblocks` increases inside the configured
-window or `productivity` falls below the configured minimum. This catches
-missed slots caused by lock state as well as sync, fork, or clock problems.
-Keeping it on a separate logical host avoids linking a delegate identity to
-the forging node's host/address in Zabbix inventory and events.
+That template requests the generic active-delegate list, selects the configured
+delegate only in Zabbix preprocessing, and alerts after `missedblocks`
+increases inside the configured window or `productivity` falls below the
+configured minimum. The public node therefore does not receive a query naming
+the watched delegate. This catches missed slots caused by lock state as well as
+sync, fork, or clock problems. Keeping it on a separate logical host avoids
+linking a delegate identity to the forging node's host/address in Zabbix
+inventory and events.
 
 ## Operations
 
