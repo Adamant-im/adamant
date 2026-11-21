@@ -1,5 +1,6 @@
-'use strict'
+'use strict';
 
-module.exports = {  
+module.exports = {
+  require: ['test/common/globalAfter.js'],
   timeout: '1200s'
-}
+};
