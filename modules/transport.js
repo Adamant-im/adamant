@@ -21,8 +21,8 @@ const MAX_PEER_REQUEST_BODY_BYTES = 2 * 1024 * 1024;
 const MAX_PEER_SMALL_RESPONSE_BYTES = 64 * 1024;
 const MAX_PEER_LIST_RESPONSE_BYTES = 256 * 1024;
 const MAX_PEER_SIGNATURES_RESPONSE_BYTES = 2 * 1024 * 1024;
-const MAX_PEER_TRANSACTIONS_RESPONSE_BYTES = 8 * 1024 * 1024;
-const MAX_PEER_BLOCKS_RESPONSE_BYTES = 48 * 1024 * 1024;
+const MAX_PEER_TRANSACTIONS_RESPONSE_BYTES = 32 * 1024 * 1024;
+const MAX_PEER_BLOCKS_RESPONSE_BYTES = 256 * 1024 * 1024;
 const SYNC_ABSOLUTE_TIMEOUT_MS = 60000;
 
 __private.headers = {};
@@ -535,9 +535,14 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
 
 /**
  * Returns the maximum allowed decompressed response size for a peer request.
- * Sync caps are derived from protocol maxima (34 blocks x 25 max-size chat/state txs
- * for /peer/blocks, maxSharedTxs = 100 for /peer/transactions and /peer/signatures),
- * while status and broadcast ack responses stay tightly bounded.
+ * Sync caps are derived from the JSON-serialized protocol worst case: because
+ * consensus does not currently enforce hex on chat `message`/`own_message`
+ * (or state `value`), each 20,480-char field can expand up to 6x in JSON when
+ * control characters are escaped (`\u000x`), yielding ~248 KiB per row:
+ * - /peer/blocks: 34 blocks x 25 txs x ~248 KiB ~= 201 MiB -> 256 MiB cap
+ * - /peer/transactions: maxSharedTxs (100) x ~248 KiB ~= 24 MiB -> 32 MiB cap
+ * - /peer/signatures: maxSharedTxs (100) hex-validated sig sets -> 2 MiB cap
+ * Status and broadcast ack responses stay tightly bounded.
  * @private
  * @param {string} method - HTTP method.
  * @param {string} url - Peer request path (may include query string).
