@@ -415,7 +415,7 @@ Configure peer discovery, HTTP rate limits, outbound verification, and peer-tabl
 - `access.blackList`: Blocked peer IPs (e.g., `["198.51.100.10"]`).
 - `options.limits`: Peer HTTP (`/peer/*`) anti-abuse limits. Field semantics and legacy `max: 0` migration match [API Configuration](#api-configuration), with two peer-specific rules:
   - Hard-limit status code is fixed to `429` (not overridable).
-  - **Mixed-version rollout negotiation**: Upgraded outbound peers send `X-Adamant-Rate-Limit: 1`. Peer requests without that header are not hard-limited, so older nodes are not evicted during upgrades. Outbound peers treat `429` as scoped, bounded temporary backpressure (capped at 60 seconds via `Retry-After`) without banning the peer or changing its health score, deferring only the reported `RateLimit-Scope` (`status`, `sync`, `broadcast`, or `all`).
+  - **Mixed-version rollout negotiation**: Upgraded outbound peers send `X-Adamant-Rate-Limit: 1`. In `v0.11.0`, peer requests without that header skip both hard limits and slow-down so older `v0.10.x` nodes are not evicted during upgrades. Because callers control this header, it is a rollout-compatibility mechanism rather than protection against hostile clients omitting the header — enforce outer rate limits on `/peer/*` at your reverse proxy or firewall (see [Security Recommendations](./security.md#node-exposure)). Outbound peers treat `429` as scoped, bounded temporary backpressure (capped at 60 seconds via `Retry-After`) without banning the peer or changing its health score, deferring only the reported `RateLimit-Scope` (`status`, `sync`, `broadcast`, or `all`).
   - Route classes (budgets per IP over `windowMs`, `OPTIONS` skipped):
     - `status`: `GET /peer/ping`, `GET /peer/height`, `GET /peer/list` (default cap `20000`, no slow-down).
     - `sync`: `GET /peer/blocks`, `GET /peer/blocks/common`, `GET /peer/transactions`, `GET /peer/signatures` (default cap `12000`, slow-down after `8000`, `5` ms/request, max `200` ms).
@@ -430,7 +430,7 @@ Configure peer discovery, HTTP rate limits, outbound verification, and peer-tabl
   :::
 
 - **Peer Probing, Backoff, and Table Bounds (v0.11.0)**:
-  - `options.timeout`: Peer HTTP request timeout in ms (default: `5000`).
+  - `options.timeout`: Peer HTTP socket inactivity timeout in ms (default: `5000`); also acts as the absolute deadline for `status` and `broadcast` requests, while streaming `sync` requests allow up to `max(timeout, 60000)` ms.
   - `options.allowPrivatePeers`: Optional boolean; allow private/loopback peer addresses (used in isolated localnets; default `false` on mainnet).
   - `options.updateConcurrency`: Maximum concurrent outbound peer update probes (default: `8`).
   - `options.probeSpacingMs`: Minimum spacing in ms between outbound peer probes (default: `50`).

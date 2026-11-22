@@ -40,7 +40,7 @@ See [Transactions Query Language](/api/transactions-query-language.md#combine-fi
 `v0.11.0` enables production HTTP and WebSocket anti-abuse limits by default in `config.default.json`:
 
 - Public REST (`/api/*`): aggregate cap `15300`/min with per-class caps `status` (`12000`), `read` (`3000`), and `publish` (`300`).
-- Peer HTTP (`/peer/*`): aggregate cap `44000`/min with per-class caps `status` (`20000`), `sync` (`12000`), and `broadcast` (`12000`), fixed HTTP `429` status, and mixed-version negotiation via `X-Adamant-Rate-Limit: 1`.
+- Peer HTTP (`/peer/*`): aggregate cap `44000`/min with per-class caps `status` (`20000`), `sync` (`12000`), and `broadcast` (`12000`), fixed HTTP `429` status, and mixed-version negotiation via `X-Adamant-Rate-Limit: 1`. Note that in `v0.11.0`, `/peer/*` requests omitting `X-Adamant-Rate-Limit: 1` are skipped for mixed-version rollout compatibility with `v0.10.x` peers — hostile clients omitting that header are not throttled in-node, so enforce outer rate limits on `/peer/*` at your reverse proxy or firewall (see [Security Recommendations](./security.md#node-exposure)).
 - Client WebSocket (`wsClient.limits`) and Node WebSocket (`wsNode`): active and pending connection pools, connection-attempt windows, per-socket subscription caps, subscription rate windows, and peer event caps.
 
 **Action required for existing configs:**

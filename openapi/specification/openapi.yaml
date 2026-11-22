@@ -93,9 +93,10 @@ x-peer-http-rate-limit:
     hard-limit responses always use HTTP 429 (not operator-overridable) with a JSON
     `{"success": false, "error": "..."}` body, `Retry-After`, standard `RateLimit-*` headers, and
     `RateLimit-Scope`. Outbound peer requests send `X-Adamant-Rate-Limit: 1` to advertise support;
-    callers without this header are not hard-limited during mixed-version rollout. Outbound peers
-    treat 429 as scoped, bounded temporary backpressure (capped at 60 seconds) without banning the
-    peer or changing its health score.
+    in v0.11.0, callers without this header skip both hard limits and slow-down for mixed-version
+    rollout compatibility, so operators exposing `/peer/*` should still apply reverse-proxy or
+    firewall rate limits. Outbound peers treat 429 as scoped, bounded temporary backpressure
+    (capped at 60 seconds) without banning the peer or changing its health score.
   capabilityHeader:
     name: X-Adamant-Rate-Limit
     value: '1'

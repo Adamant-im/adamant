@@ -2,6 +2,7 @@
 
 var expect = require('chai').expect;
 var http = require('node:http');
+var zlib = require('node:zlib');
 var sinon = require('sinon');
 var randomString = require('randomstring');
 var _ = require('lodash');
@@ -625,7 +626,7 @@ describe('peers', function () {
     it('should reject oversized peer responses', function (done) {
       var server = http.createServer(function (req, res) {
         setValidHeaders(res, server.address().port);
-        res.end(Buffer.alloc((2 * 1024 * 1024) + 1));
+        res.end(Buffer.alloc((64 * 1024) + 1));
       });
 
       listen(server, function (port) {
@@ -640,6 +641,136 @@ describe('peers', function () {
           expect(err).to.contain('ERR_BAD_RESPONSE');
           expect(modulesLoader.scope.logic.peers.get(peer)).to.equal(undefined);
           closeServer(server, done);
+        });
+      });
+    });
+
+    it('should accept a /peer/blocks sync response larger than 2 MiB and keep the peer', function (done) {
+      var payload = JSON.stringify({
+        blocks: [{
+          b_id: '1',
+          c_message: 'a'.repeat(3 * 1024 * 1024)
+        }]
+      });
+      var compressed = zlib.gzipSync(Buffer.from(payload));
+      var server = http.createServer(function (req, res) {
+        setValidHeaders(res, server.address().port);
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Encoding', 'gzip');
+        res.end(compressed);
+      });
+
+      listen(server, function (port) {
+        var peer = { ip: '127.0.0.1', port: port };
+        peers.recordInboundPeer(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/blocks?lastBlockId=1',
+          method: 'GET'
+        }, function (err, res) {
+          expect(err).to.not.exist;
+          expect(res.body.blocks).to.have.lengthOf(1);
+          expect(res.body.blocks[0].c_message.length).to.equal(3 * 1024 * 1024);
+          expect(modulesLoader.scope.logic.peers.get(peer)).to.exist;
+          forceRemove(peer);
+          closeServer(server, done);
+        });
+      });
+    });
+
+    it('should accept a /peer/transactions sync response larger than 2 MiB and keep the peer', function (done) {
+      var payload = JSON.stringify({
+        success: true,
+        transactions: [{
+          id: '1',
+          asset: { chat: { message: 'b'.repeat((2 * 1024 * 1024) + 512 * 1024) } }
+        }]
+      });
+      var server = http.createServer(function (req, res) {
+        setValidHeaders(res, server.address().port);
+        res.setHeader('Content-Type', 'application/json');
+        res.end(payload);
+      });
+
+      listen(server, function (port) {
+        var peer = { ip: '127.0.0.1', port: port };
+        peers.recordInboundPeer(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/transactions',
+          method: 'GET'
+        }, function (err, res) {
+          expect(err).to.not.exist;
+          expect(res.body.transactions).to.have.lengthOf(1);
+          expect(modulesLoader.scope.logic.peers.get(peer)).to.exist;
+          forceRemove(peer);
+          closeServer(server, done);
+        });
+      });
+    });
+
+    it('should keep the peer when a sync response exceeds its local maxContentLength cap', function (done) {
+      var server = http.createServer(function (req, res) {
+        setValidHeaders(res, server.address().port);
+        res.end(Buffer.alloc((64 * 1024) + 1));
+      });
+
+      listen(server, function (port) {
+        var peer = { ip: '127.0.0.1', port: port };
+        peers.recordInboundPeer(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/blocks/common?ids=1',
+          method: 'GET'
+        }, function (err) {
+          expect(err).to.contain('ERR_BAD_RESPONSE');
+          expect(modulesLoader.scope.logic.peers.get(peer)).to.exist;
+          forceRemove(peer);
+          closeServer(server, done);
+        });
+      });
+    });
+
+    it('should allow streaming /peer/blocks sync responses beyond peers.options.timeout', function (done) {
+      var previousTimeout = config.peers.options.timeout;
+      var chunks = ['{"blocks":[', '{"b_id":"1"},', '{"b_id":"2"},', '{"b_id":"3"}', ']}'];
+      var server = http.createServer(function (req, res) {
+        setValidHeaders(res, server.address().port);
+        res.setHeader('Content-Type', 'application/json');
+
+        var index = 0;
+        var timer = setInterval(function () {
+          res.write(chunks[index++]);
+          if (index === chunks.length) {
+            clearInterval(timer);
+            res.end();
+          }
+        }, 30);
+
+        res.on('close', function () {
+          clearInterval(timer);
+        });
+      });
+
+      config.peers.options.timeout = 80;
+
+      listen(server, function (port) {
+        var peer = { ip: '127.0.0.1', port: port };
+        peers.recordInboundPeer(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/blocks?lastBlockId=1',
+          method: 'GET'
+        }, function (err, res) {
+          config.peers.options.timeout = previousTimeout;
+          try {
+            expect(err).to.not.exist;
+            expect(res.body.blocks).to.have.lengthOf(3);
+            expect(modulesLoader.scope.logic.peers.get(peer)).to.exist;
+          } finally {
+            forceRemove(peer);
+            closeServer(server, done);
+          }
         });
       });
     });

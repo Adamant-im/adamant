@@ -17,6 +17,13 @@ var modules, library, self, __private = {};
 
 const DEFAULT_RATE_LIMIT_RETRY_MS = 1000;
 const MAX_RATE_LIMIT_RETRY_MS = 60000;
+const MAX_PEER_REQUEST_BODY_BYTES = 2 * 1024 * 1024;
+const MAX_PEER_SMALL_RESPONSE_BYTES = 64 * 1024;
+const MAX_PEER_LIST_RESPONSE_BYTES = 256 * 1024;
+const MAX_PEER_SIGNATURES_RESPONSE_BYTES = 2 * 1024 * 1024;
+const MAX_PEER_TRANSACTIONS_RESPONSE_BYTES = 8 * 1024 * 1024;
+const MAX_PEER_BLOCKS_RESPONSE_BYTES = 48 * 1024 * 1024;
+const SYNC_ABSOLUTE_TIMEOUT_MS = 60000;
 
 __private.headers = {};
 __private.loaded = false;
@@ -46,9 +53,7 @@ function Transport (cb, scope) {
     },
     config: {
       peers: {
-        options: {
-          timeout: scope.config.peers.options.timeout
-        }
+        options: scope.config.peers.options
       }
     }
   };
@@ -388,9 +393,14 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
 
   var host = ip.isV6Format(peer.ip) ? '[' + peer.ip + ']' : peer.ip;
   var configuredTimeout = library.config.peers.options.timeout;
-  var requestTimeout = Number.isFinite(options.timeout) && options.timeout > 0 ?
+  var hasExplicitTimeout = Number.isFinite(options.timeout) && options.timeout > 0;
+  var requestTimeout = hasExplicitTimeout ?
     Math.min(options.timeout, configuredTimeout) :
     configuredTimeout;
+  var absoluteTimeout = (!hasExplicitTimeout && requestScope === 'sync') ?
+    Math.max(configuredTimeout, SYNC_ABSOLUTE_TIMEOUT_MS) :
+    requestTimeout;
+  var maxContentLength = __private.maxResponseBytes(options.method, url);
 
   var req = {
     url: 'http://' + host + ':' + peer.port + url,
@@ -401,14 +411,14 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
     timeout: requestTimeout,
     proxy: false,
     maxRedirects: 0,
-    maxBodyLength: 2 * 1024 * 1024,
-    maxContentLength: 2 * 1024 * 1024,
+    maxBodyLength: MAX_PEER_REQUEST_BODY_BYTES,
+    maxContentLength: maxContentLength,
     validateStatus: function () { return true; }
   };
   var controller = new AbortController();
   var absoluteTimeoutId = setTimeout(function () {
     controller.abort();
-  }, requestTimeout);
+  }, absoluteTimeout);
 
   req.signal = controller.signal;
 
@@ -511,12 +521,58 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
           maybeRecordRequest(errorCode || 'EUNKNOWN');
         }
 
-        if (errorCode === 'ERR_BAD_RESPONSE' && /maxContentLength.*exceeded/i.test(err.message)) {
+        if (
+          requestScope !== 'sync' &&
+          errorCode === 'ERR_BAD_RESPONSE' &&
+          /maxContentLength.*exceeded/i.test(err.message)
+        ) {
           __private.removePeer({ peer: peer, code: 'ERESPONSE' }, req.method + ' ' + req.url);
         }
 
         return setImmediate(cb, [errorCode || err.code, 'Request failed', req.method, req.url].join(' '));
       });
+};
+
+/**
+ * Returns the maximum allowed decompressed response size for a peer request.
+ * Sync caps are derived from protocol maxima (34 blocks x 25 max-size chat/state txs
+ * for /peer/blocks, maxSharedTxs = 100 for /peer/transactions and /peer/signatures),
+ * while status and broadcast ack responses stay tightly bounded.
+ * @private
+ * @param {string} method - HTTP method.
+ * @param {string} url - Peer request path (may include query string).
+ * @return {number} Maximum response byte length.
+ */
+__private.maxResponseBytes = function (method, url) {
+  var normalizedMethod = String(method || 'GET').toUpperCase();
+
+  if (normalizedMethod !== 'GET') {
+    return MAX_PEER_SMALL_RESPONSE_BYTES;
+  }
+
+  var path = String(url || '').split('?')[0].toLowerCase();
+
+  if (path.length > 1 && path.endsWith('/')) {
+    path = path.slice(0, -1);
+  }
+
+  if (path === '/peer/blocks') {
+    return MAX_PEER_BLOCKS_RESPONSE_BYTES;
+  }
+
+  if (path === '/peer/transactions') {
+    return MAX_PEER_TRANSACTIONS_RESPONSE_BYTES;
+  }
+
+  if (path === '/peer/signatures') {
+    return MAX_PEER_SIGNATURES_RESPONSE_BYTES;
+  }
+
+  if (path === '/peer/list') {
+    return MAX_PEER_LIST_RESPONSE_BYTES;
+  }
+
+  return MAX_PEER_SMALL_RESPONSE_BYTES;
 };
 
 /**
