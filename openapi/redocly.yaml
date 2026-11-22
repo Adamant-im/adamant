@@ -1,0 +1,8 @@
+extends:
+  - recommended
+
+rules:
+  # Operations in this specification rely on description + operationId rather than summary.
+  operation-summary: off
+  # ADAMANT Node public REST endpoints are unauthenticated (transactions are signed client-side).
+  security-defined: off

@@ -442,7 +442,7 @@ GET /api/blocks/getFees
 
   All values are integer amounts of 1/10^8 ADM tokens (1 ADM = 100000000).
 
-  More information about blockchain fees: [Transaction Fees](/index.md#transaction-fees).
+  More information about blockchain fees: [Transaction Fees](/core-concepts.md#transaction-fees).
 
 - **Example**
 
@@ -509,7 +509,7 @@ GET /api/blocks/getMilestone
 
   Endpoint `/api/blocks/getMilestone` returns `milestone` — current slot height, which determines the reward a delegate will get for forging a block.
 
-  More information about blockchain milestones: [Milestones](/index.md#milestones).
+  More information about blockchain milestones: [Milestones](/core-concepts.md#milestones).
 
 - **Example**
 

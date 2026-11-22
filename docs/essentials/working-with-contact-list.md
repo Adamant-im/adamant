@@ -6,7 +6,7 @@
 
 ## Storing Contacts List
 
-The contacts list is stored as a JSON object using the ADAMANT KVS. This object must be [encrypted](/essentials/encrypting-messages.md#encrypting-a-kvs-records) and passed as `value` with `key` = `contact_list`.
+The contacts list is stored as a JSON object using the ADAMANT KVS. This object must be [encrypted](/essentials/encrypting-messages.md#encrypting-kvs-records) and passed as `value` with `key` = `contact_list`.
 
 The keys of this JSON object are ADAMANT addresses, and the values are objects where aliases are stored in the `displayName` property. Example `value` object for storing a contacts list:
 

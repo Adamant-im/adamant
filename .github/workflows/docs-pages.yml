@@ -8,6 +8,7 @@ on:
     paths:
       - 'docs/**'
       - 'openapi/**'
+      - 'package.json'
       - '.github/workflows/docs-pages.yml'
       - 'scripts/checkDependencyQuarantine.js'
       - '.npmrc'
@@ -19,6 +20,7 @@ on:
     paths:
       - 'docs/**'
       - 'openapi/**'
+      - 'package.json'
       - '.github/workflows/docs-pages.yml'
       - 'scripts/checkDependencyQuarantine.js'
       - '.npmrc'
@@ -65,24 +67,41 @@ jobs:
         working-directory: docs
         run: npm audit --audit-level=moderate
 
-      - name: Build VitePress docs and assemble OpenAPI schema
+      - name: Build VitePress docs, lint and assemble OpenAPI schema
         working-directory: docs
         run: npm run site:build
 
       - name: Verify built Pages output
         run: |
           test -f docs/.vitepress/dist/index.html
+          test ! -f docs/.vitepress/dist/README.html
           test -f docs/.vitepress/dist/schema/index.html
+          test -f docs/.vitepress/dist/schema/swagger-ui.css
+          test -f docs/.vitepress/dist/schema/swagger-ui-bundle.js
+          test -f docs/.vitepress/dist/schema/swagger-ui-standalone-preset.js
           node -e "const s = require('./docs/.vitepress/dist/schema/schema.json'); if (!s.openapi || !s.paths) process.exit(1);"
 
+      - name: Verify OpenAPI version matches node package.json on master
+        if: github.ref == 'refs/heads/master'
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            const spec = require('./docs/.vitepress/dist/schema/schema.json');
+            if (spec.info.version !== pkg.version) {
+              console.error('Version mismatch on master: openapi info.version=' + spec.info.version + ', package.json=' + pkg.version);
+              process.exit(1);
+            }
+            console.log('Verified master version alignment:', pkg.version);
+          "
+
       - name: Upload Pages artifact
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/master')
+        if: github.ref == 'refs/heads/master' && (github.event_name == 'workflow_dispatch' || github.event_name == 'push')
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/.vitepress/dist
 
   deploy:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/master')
+    if: github.ref == 'refs/heads/master' && (github.event_name == 'workflow_dispatch' || github.event_name == 'push')
     needs: build
     runs-on: ubuntu-latest
     permissions:

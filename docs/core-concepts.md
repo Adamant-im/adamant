@@ -2,9 +2,9 @@
 
 Basic concepts of the ADAMANT blockchain you need to know if you're interacting with the blockchain or just running a node.
 
-## Native Token
+## Native Coin
 
-**ADM** is the native token of the ADAMANT blockchain. It's used to pay transaction fees and can be transferred between accounts. For consistency and precision, ADM amounts and **fees** are stored as strings in transactions and measured in 1/10<sup>8</sup> ADM (1 ADM = 100,000,000).
+**ADM** is the native coin of the ADAMANT blockchain. It's used to pay transaction fees and can be transferred between accounts. For consistency and precision, ADM amounts and **fees** are stored as strings in transactions and measured in 1/10<sup>8</sup> ADM (1 ADM = 100,000,000).
 
 ## Transaction Fees
 
@@ -60,9 +60,9 @@ Each block slot has a fixed duration of **5 seconds**. If a delegate misses thei
 
 ## Delegates and Voting
 
-ADAMANT uses **Delegated Proof of Stake (DPoS)**. There are exactly **101 active delegates** at any given time. They are selected by token-holder votes and take turns forging blocks in each round.
+ADAMANT uses **Delegated Proof of Stake (DPoS)**. There are exactly **101 active delegates** at any given time. They are selected by coin-holder votes and take turns forging blocks in each round.
 
-Any ADAMANT account can register as a delegate and receive votes. Token holders can vote for up to **33 delegates** at once. Each vote is weighted by the voter's ADM balance.
+Any ADAMANT account can register as a delegate and receive votes. Coin holders can vote for up to **33 delegates** at once. Each vote is weighted by the voter's ADM balance.
 
 After the [`fairSystem`](/own-node/consensus.md#fairsystem) consensus upgrade, vote weight is also adjusted by each delegate's **productivity** (the fraction of block slots they successfully forged). This discourages inactive delegates from maintaining their position purely through accumulated votes.
 

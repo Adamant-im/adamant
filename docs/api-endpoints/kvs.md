@@ -95,7 +95,7 @@ POST /api/states/store
   - `type` is set to `9`
   - `asset` is filled with `key`, `value`, and `type`
 
-  If needed, `asset` can be [encrypted](/essentials/encrypting-messages.md#encrypting-a-kvs-records).
+  If needed, `asset` can be [encrypted](/essentials/encrypting-messages.md#encrypting-kvs-records).
 
   See also: [Storing Data in KVS](/essentials/storing-data-in-kvs.md).
 

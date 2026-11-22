@@ -4,6 +4,7 @@ import urlLang from './langs/url.json';
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: 'ADAMANT Docs',
+  srcExclude: ['README.md'],
   description: 'ADAMANT Documentation',
   /* prettier-ignore */
   head: [

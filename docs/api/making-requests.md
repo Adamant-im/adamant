@@ -44,7 +44,7 @@ To avoid duplication, we’ve created [a dedicated guide](./transactions-query-l
 All responses return a JSON object with the following structure:
 
 - `success` (Boolean) — Indicates whether the request was successful
-- `nodeTimestamp` — The node's [ADAMANT timestamp](/#timestamps) after processing the request. It may not match the timestamp you passed in the parameters.
+- `nodeTimestamp` — The node's [ADAMANT timestamp](/core-concepts.md#timestamps) after processing the request. It may not match the timestamp you passed in the parameters.
 - `error` (String, optional) — A human-readable error message, present only if `success` is `false`
 
 Examples:

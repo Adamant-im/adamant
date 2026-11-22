@@ -20,8 +20,9 @@ npm run dev             # VitePress dev server with hot reload
 npm run docs:build      # Build VitePress site into docs/.vitepress/dist
 npm run docs:preview    # Preview built site locally
 npm run openapi:bundle  # Bundle ../openapi/specification/openapi.yaml into ../openapi/dist/schema.json
-npm run openapi:serve   # Bundle and preview Swagger UI at http://127.0.0.1:3000
-npm run site:build      # Build VitePress + bundle OpenAPI + assemble combined Pages output
+npm run openapi:lint    # Lint bundled ../openapi/dist/schema.json with ../openapi/redocly.yaml
+npm run openapi:serve   # Bundle and preview Swagger UI offline at http://127.0.0.1:3000
+npm run site:build      # Build VitePress + bundle & lint OpenAPI + assemble combined Pages output
 ```
 
 ## Links

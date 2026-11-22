@@ -113,7 +113,13 @@ describe('dependency quarantine', () => {
       'native-addon@2.0.0': true
     })).to.be.empty;
     expect(findUnreviewedInstallScripts(records, {
+      'native-addon@2.0.0': false
+    })).to.be.empty;
+    expect(findUnreviewedInstallScripts(records, {
       'native-addon': true
+    })).to.have.length(1);
+    expect(findUnreviewedInstallScripts(records, {
+      'native-addon': false
     })).to.have.length(1);
   });
 
@@ -198,12 +204,21 @@ describe('dependency quarantine', () => {
     );
   });
 
+  it('reads an existing lockfile at baseRef', () => {
+    const lockfile = readLockfileAtRef('HEAD', 'package-lock.json');
+    expect(lockfile).to.be.an('object');
+    expect(lockfile.packages).to.be.an('object');
+    expect(lockfile.packages).to.have.property('');
+  });
+
   it('returns an empty lockfile when a new lockfile path is absent at baseRef', () => {
     const missing = readLockfileAtRef('HEAD', 'nonexistent-dir/package-lock.json');
     expect(missing).to.deep.equal({ packages: {} });
   });
 
   it('throws when baseRef itself does not exist', () => {
-    expect(() => readLockfileAtRef('nonexistent-ref-0000000000', 'package-lock.json')).to.throw();
+    expect(() => readLockfileAtRef('nonexistent-ref-0000000000', 'package-lock.json')).to.throw(
+        /git rev-parse --verify nonexistent-ref-0000000000/
+    );
   });
 });

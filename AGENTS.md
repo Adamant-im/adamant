@@ -126,9 +126,9 @@ When behavior/spec/docs drift is detected or when shipping user-, operator-, or 
 
 - **Dependency isolation**: Keep VitePress and `@redocly/cli` strictly inside `docs/package.json` and `docs/package-lock.json`. Never add documentation or OpenAPI tooling to root `package.json`.
 - **Quarantine coverage**: Changes to `docs/package-lock.json` must pass `node scripts/checkDependencyQuarantine.js --base-ref dev --lockfile docs/package-lock.json` and `npm audit` with zero unreviewed install scripts.
-- **Validation**: After editing `docs/` or `openapi/`, run `cd docs && npm run site:build` to confirm VitePress builds, Redocly bundles `openapi/dist/schema.json`, and the combined Pages output (`docs/.vitepress/dist/` + `docs/.vitepress/dist/schema/`) succeeds without errors.
+- **Validation**: After editing `docs/` or `openapi/`, run `cd docs && npm run site:build` to confirm VitePress builds, Redocly bundles and lints `openapi/dist/schema.json`, and the combined Pages output (`docs/.vitepress/dist/` + `docs/.vitepress/dist/schema/`) succeeds without errors.
 - **Sidebar & links**: Register any new page in `docs/.vitepress/config.mts`, use relative links between docs pages, and link to `https://docs.adamant.im/schema/` for Swagger UI.
-- **Terminology**: Use **ADAMANT** (all caps) for the protocol/network, **ADM** for the coin/token, **DPoS** for Delegated Proof of Stake, and lowercase **node** and **delegate**.
+- **Terminology**: Use **ADAMANT** (all caps) for the protocol/network, **ADM** for the native coin (never "token"), **DPoS** for Delegated Proof of Stake, and lowercase **node** and **delegate**.
 - **Deployment cadence**: GitHub Pages deploys from `master` so published docs track the released node version. For urgent documentation-only fixes between node releases, open a docs-only PR targeting `master` and merge `master` back into `dev`.
 
 ## AIP Usage Rules for Protocol Changes
