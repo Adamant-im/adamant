@@ -469,8 +469,8 @@ __private.getOutsiders = function (scope, cb) {
 };
 
 /**
- * Gets rows from `round_blocks` and calculates rewards. Loads into scope
- * variable fees, rewards and delegates.
+ * Gets persisted blocks for the current round up to `scope.block.height` and
+ * calculates fees, rewards and delegates. Loads them into `scope`.
  * @param {scope} scope
  * @param {Function} cb
  * @private
@@ -478,9 +478,16 @@ __private.getOutsiders = function (scope, cb) {
  * @return {setImmediateCallback} err When failed to sum round | cb
  */
 __private.sumRound = function (scope, cb) {
-  library.logger.debug('rounds', 'Summing round', scope.round);
+  library.logger.debug('rounds', 'Summing round', {
+    round: scope.round,
+    height: scope.block.height
+  });
 
-  library.db.query(sql.summedRound, { round: scope.round, activeDelegates: constants.activeDelegates }).then(function (rows) {
+  library.db.query(sql.summedRound, {
+    round: scope.round,
+    activeDelegates: constants.activeDelegates,
+    height: scope.block.height
+  }).then(function (rows) {
     var rewards = [];
 
     rows[0].rewards.forEach(function (reward) {
