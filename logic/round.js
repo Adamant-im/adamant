@@ -194,13 +194,14 @@ Round.prototype.applyRound = function () {
   var roundChanges = new RoundChanges(this.scope);
   var queries = [];
 
-  // Reverse delegates if going backwards
-  var delegates = (this.scope.backwards) ? this.scope.roundDelegates.reverse() : this.scope.roundDelegates;
+  // Reverse a copy of delegates when going backwards without mutating scope
+  var delegates = (this.scope.backwards) ? this.scope.roundDelegates.slice().reverse() : this.scope.roundDelegates;
 
   // Apply round changes to each delegate
-  for (var i = 0; i < this.scope.roundDelegates.length; i++) {
-    var delegate = this.scope.roundDelegates[i];
-    var changes = roundChanges.at(i);
+  for (var i = 0; i < delegates.length; i++) {
+    var delegate = delegates[i];
+    var changeIndex = (this.scope.backwards) ? (delegates.length - 1 - i) : i;
+    var changes = roundChanges.at(changeIndex);
 
     this.scope.library.logger.trace('rounds', 'Delegate changes', { delegate: delegate, changes: changes });
 
@@ -220,11 +221,11 @@ Round.prototype.applyRound = function () {
   var remainderDelegate = delegates[remainderIndex];
 
   // Get round changes for chosen delegate
-  var changes = roundChanges.at(remainderIndex);
+  var remainderChanges = roundChanges.at(delegates.length - 1);
 
   // Apply fees remaining to chosen delegate
-  if (changes.feesRemaining > 0) {
-    var feesRemaining = (this.scope.backwards ? -changes.feesRemaining : changes.feesRemaining);
+  if (remainderChanges.feesRemaining > 0) {
+    var feesRemaining = (this.scope.backwards ? -remainderChanges.feesRemaining : remainderChanges.feesRemaining);
 
     this.scope.library.logger.trace('rounds', 'Fees remaining', { index: remainderIndex, delegate: remainderDelegate, fees: feesRemaining });
 

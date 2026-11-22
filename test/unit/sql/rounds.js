@@ -531,11 +531,17 @@ describe('rounds SQL and replay settlement', function () {
     });
   });
 
-  it('preserves state across round-boundary rollback and re-apply at heights 101 and 202', function () {
+  it('preserves state across round-boundary rollback and re-apply with mixed rewards at heights 101 and 202', function () {
     const publicKeys = makePublicKeys(ACTIVE_DELEGATES);
     const blocks = buildFixtureBlocks(publicKeys, {
-      round1Reward: 0,
+      round1Reward: 50000000,
       round2Reward: 45000000
+    });
+    // Also exercise a mid-round reward milestone transition inside round 2 (50M -> 45M at position 22).
+    blocks.forEach(function (block) {
+      if (block.height > ACTIVE_DELEGATES && block.height <= ACTIVE_DELEGATES + 21) {
+        block.reward = 50000000;
+      }
     });
     const snapshots = {};
 
