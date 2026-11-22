@@ -833,6 +833,72 @@ describe('peers', function () {
       });
     });
 
+    it('should not record a network failure or back off a peer when a streaming /peer/blocks sync hits its deadline', function (done) {
+      var server = http.createServer(function (req, res) {
+        setValidHeaders(res, server.address().port);
+        res.setHeader('Content-Type', 'application/json');
+        res.write('{"blocks":[');
+
+        var timer = setInterval(function () {
+          res.write('{"b_id":"1"},');
+        }, 20);
+
+        res.on('close', function () {
+          clearInterval(timer);
+        });
+      });
+
+      listen(server, function (port) {
+        var peer = { ip: '127.0.0.1', port: port };
+        peers.recordInboundPeer(peer);
+        var live = modulesLoader.scope.logic.peers.get(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/blocks?lastBlockId=1',
+          method: 'GET',
+          timeout: 120
+        }, function (err) {
+          try {
+            expect(err).to.contain('ETIMEDOUT');
+            expect(modulesLoader.scope.logic.peers.get(peer)).to.equal(live);
+            expect(live.consecutiveNetworkFailures || 0).to.equal(0);
+            expect(peers.isBackedOff(peer, 'status')).to.equal(false);
+            expect(peers.isBackedOff(peer, 'sync')).to.equal(false);
+          } finally {
+            forceRemove(peer);
+            closeServer(server, done);
+          }
+        });
+      });
+    });
+
+    it('should still record a network failure and back off when a /peer/blocks sync times out before sending body bytes', function (done) {
+      var server = http.createServer(function () {
+        // Intentionally never respond to simulate an unresponsive peer.
+      });
+
+      listen(server, function (port) {
+        var peer = { ip: '127.0.0.1', port: port };
+        peers.recordInboundPeer(peer);
+        var live = modulesLoader.scope.logic.peers.get(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/blocks?lastBlockId=1',
+          method: 'GET',
+          timeout: 80
+        }, function (err) {
+          try {
+            expect(err).to.contain('ETIMEDOUT');
+            expect(live.consecutiveNetworkFailures).to.equal(1);
+            expect(peers.isBackedOff(peer, 'status')).to.equal(true);
+          } finally {
+            forceRemove(peer);
+            closeServer(server, done);
+          }
+        });
+      });
+    });
+
     it('should return normalized peer snapshots without transient request state', function (done) {
       var peer = addPeerForOutboundList();
       peer.consecutiveNetworkFailures = 3;

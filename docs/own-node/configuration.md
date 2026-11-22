@@ -430,7 +430,7 @@ Configure peer discovery, HTTP rate limits, outbound verification, and peer-tabl
   :::
 
 - **Peer Probing, Backoff, and Table Bounds (v0.11.0)**:
-  - `options.timeout`: Peer HTTP socket inactivity timeout in ms (default: `5000`); also acts as the absolute deadline for `status` and `broadcast` requests, while streaming `sync` requests allow up to `max(timeout, 60000)` ms.
+  - `options.timeout`: Peer HTTP socket inactivity timeout in ms (default: `5000`); also acts as the absolute deadline for `status` and `broadcast` requests, while streaming `sync` requests allow up to `max(timeout, 300000)` ms for `/peer/blocks` and `max(timeout, 60000)` ms for other `sync` endpoints.
   - `options.allowPrivatePeers`: Optional boolean; allow private/loopback peer addresses (used in isolated localnets; default `false` on mainnet).
   - `options.updateConcurrency`: Maximum concurrent outbound peer update probes (default: `8`).
   - `options.probeSpacingMs`: Minimum spacing in ms between outbound peer probes (default: `50`).

@@ -24,6 +24,7 @@ const MAX_PEER_SIGNATURES_RESPONSE_BYTES = 2 * 1024 * 1024;
 const MAX_PEER_TRANSACTIONS_RESPONSE_BYTES = 32 * 1024 * 1024;
 const MAX_PEER_BLOCKS_RESPONSE_BYTES = 256 * 1024 * 1024;
 const SYNC_ABSOLUTE_TIMEOUT_MS = 60000;
+const SYNC_BLOCKS_ABSOLUTE_TIMEOUT_MS = 300000;
 
 __private.headers = {};
 __private.loaded = false;
@@ -397,10 +398,11 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
   var requestTimeout = hasExplicitTimeout ?
     Math.min(options.timeout, configuredTimeout) :
     configuredTimeout;
-  var absoluteTimeout = (!hasExplicitTimeout && requestScope === 'sync') ?
-    Math.max(configuredTimeout, SYNC_ABSOLUTE_TIMEOUT_MS) :
-    requestTimeout;
+  var absoluteTimeout = hasExplicitTimeout ?
+    requestTimeout :
+    __private.absoluteTimeoutMs(requestScope, options.method, url, configuredTimeout);
   var maxContentLength = __private.maxResponseBytes(options.method, url);
+  var receivedBodyBytes = false;
 
   var req = {
     url: 'http://' + host + ':' + peer.port + url,
@@ -415,6 +417,15 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
     maxContentLength: maxContentLength,
     validateStatus: function () { return true; }
   };
+
+  if (requestScope === 'sync') {
+    req.onDownloadProgress = function (progressEvent) {
+      if (progressEvent && progressEvent.loaded > 0) {
+        receivedBodyBytes = true;
+      }
+    };
+  }
+
   var controller = new AbortController();
   var absoluteTimeoutId = setTimeout(function () {
     controller.abort();
@@ -518,7 +529,13 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
         }
 
         if (peer) {
-          maybeRecordRequest(errorCode || 'EUNKNOWN');
+          var recordedError = (
+            requestScope === 'sync' &&
+            controller.signal.aborted &&
+            receivedBodyBytes
+          ) ? 'ESYNCTIMEOUT' : (errorCode || 'EUNKNOWN');
+
+          maybeRecordRequest(recordedError);
         }
 
         if (
@@ -531,6 +548,48 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
 
         return setImmediate(cb, [errorCode || err.code, 'Request failed', req.method, req.url].join(' '));
       });
+};
+
+/**
+ * Normalizes a peer request path without query string or trailing slash.
+ * @private
+ * @param {string} url - Peer request path (may include query string).
+ * @return {string} Lower-cased normalized path.
+ */
+__private.normalizePeerPath = function (url) {
+  var path = String(url || '').split('?')[0].toLowerCase();
+
+  if (path.length > 1 && path.endsWith('/')) {
+    path = path.slice(0, -1);
+  }
+
+  return path;
+};
+
+/**
+ * Returns the absolute AbortController deadline for an outbound peer request
+ * when the caller did not specify an explicit timeout override.
+ * `/peer/blocks` allows up to 300 s (matching `constants.syncStallTimeout`) so
+ * low-bandwidth nodes can finish downloading large, poorly compressible windows,
+ * while other `sync` endpoints allow 60 s and `status`/`broadcast` stay tightly
+ * bounded by `configuredTimeout`. Socket inactivity remains bounded by `configuredTimeout`.
+ * @private
+ * @param {string} requestScope - Peer request scope (`status`, `sync`, `broadcast`, `all`).
+ * @param {string} method - HTTP method.
+ * @param {string} url - Peer request path.
+ * @param {number} configuredTimeout - Configured `peers.options.timeout` in ms.
+ * @return {number} Absolute transfer deadline in ms.
+ */
+__private.absoluteTimeoutMs = function (requestScope, method, url, configuredTimeout) {
+  if (requestScope !== 'sync') {
+    return configuredTimeout;
+  }
+
+  if (String(method || 'GET').toUpperCase() === 'GET' && __private.normalizePeerPath(url) === '/peer/blocks') {
+    return Math.max(configuredTimeout, SYNC_BLOCKS_ABSOLUTE_TIMEOUT_MS);
+  }
+
+  return Math.max(configuredTimeout, SYNC_ABSOLUTE_TIMEOUT_MS);
 };
 
 /**
@@ -555,11 +614,7 @@ __private.maxResponseBytes = function (method, url) {
     return MAX_PEER_SMALL_RESPONSE_BYTES;
   }
 
-  var path = String(url || '').split('?')[0].toLowerCase();
-
-  if (path.length > 1 && path.endsWith('/')) {
-    path = path.slice(0, -1);
-  }
+  var path = __private.normalizePeerPath(url);
 
   if (path === '/peer/blocks') {
     return MAX_PEER_BLOCKS_RESPONSE_BYTES;
