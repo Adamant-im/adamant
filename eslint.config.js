@@ -9,6 +9,8 @@ module.exports = [
     ignores: [
       'node_modules/',
       'dapps/',
+      'docs/',
+      'openapi/',
       'logs/*.log',
       'nodejs/',
       'npm-debug.log',

@@ -1,0 +1,7 @@
+name: maxFee
+in: query
+description: Filter by `fee`
+schema:
+  type: integer
+  example: 100000
+required: false

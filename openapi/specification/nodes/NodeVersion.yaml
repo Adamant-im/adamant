@@ -1,0 +1,15 @@
+required:
+  - build
+  - commit
+  - version
+properties:
+  build:
+    type: string
+  commit:
+    type: string
+  version:
+    type: string
+example:
+  build: ''
+  commit: b07aaf9580dffb5cc95cc65f303f6f1e5fca7d9c
+  version: 0.5.2

@@ -1,0 +1,37 @@
+required:
+  - address
+  - unconfirmedBalance
+  - balance
+  - publicKey
+  - unconfirmedSignature
+  - secondSignature
+  - secondPublicKey
+  - multisignatures
+  - u_multisignatures
+properties:
+  address:
+    type: string
+  unconfirmedBalance:
+    type: string
+    format: int64
+  balance:
+    type: string
+    format: int64
+  publicKey:
+    $ref: '../common/properties/PublicKey.yaml'
+  unconfirmedSignature:
+    type: number
+  secondSignature:
+    type: number
+  secondPublicKey:
+    type: [string, 'null']
+  multisignatures:
+    type: array
+    items:
+      type: string
+    example: []
+  u_multisignatures:
+    type: array
+    items:
+      type: string
+    'example': []

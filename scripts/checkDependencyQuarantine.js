@@ -207,9 +207,9 @@ function findUnreviewedInstallScripts (records, allowScripts) {
 
   return records
       .filter((record) => record.hasInstallScript)
-      .filter((record) => reviewed[`${record.name}@${record.version}`] !== true)
+      .filter((record) => typeof reviewed[`${record.name}@${record.version}`] !== 'boolean')
       .map((record) =>
-        `${record.name}@${record.version} at ${record.path}: install script is not explicitly allowed`
+        `${record.name}@${record.version} at ${record.path}: install script is not explicitly reviewed in allowScripts`
       );
 }
 
@@ -343,6 +343,23 @@ function readJson (file) {
 }
 
 function readLockfileAtRef (gitRef, lockfile) {
+  execFileSync(
+      'git',
+      ['rev-parse', '--verify', `${gitRef}^{commit}`],
+      { cwd: process.cwd(), stdio: 'ignore' }
+  );
+
+  const treeEntry = execFileSync(
+      'git',
+      ['ls-tree', '--name-only', gitRef, '--', lockfile],
+      { cwd: process.cwd(), encoding: 'utf8' }
+  ).trim();
+
+  if (!treeEntry) {
+    console.log(`Base lockfile ${lockfile} is absent at ${gitRef}; treating all entries as new.`);
+    return { packages: {} };
+  }
+
   const contents = execFileSync(
       'git',
       ['show', `${gitRef}:${lockfile}`],
@@ -422,5 +439,6 @@ module.exports = {
   parseArguments,
   parseExceptions,
   parseMinimumReleaseAge,
+  readLockfileAtRef,
   verifyReleaseAges
 };

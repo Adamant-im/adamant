@@ -1,0 +1,35 @@
+allOf:
+  - $ref: './BaseTransaction.yaml'
+  - type: object
+    required:
+      - asset
+      - type
+    properties:
+      type:
+        type: integer
+        enum: [8]
+        example: 8
+        description: Always equal to `8`
+      asset:
+        $ref: './assets/ChatMessageAsset.yaml'
+example:
+  id: 17242227802580636436
+  height: 7583081
+  blockId: 10363608465961389592
+  type: 8
+  block_timestamp: 64874935
+  timestamp: 64874929
+  senderPublicKey: b34d48d8d70b3a91f766df34789abf0cad62da7207e171d997508a460217c5d3
+  senderId: U13267906643444995032
+  recipientId: U9203183357885757380
+  recipientPublicKey: 741d3d1f52e609eef981e9ab370ec1e7c3ff70cafad94691937a2bb6d84bbff2
+  amount: 0
+  fee: 100000
+  signature: 8803346cf43457aba3480311ee489706ec66493fa043c4d1732682eb86e88d96f36a7e87c1d0d00dd3963f75e763e5554df402ee0aa79bd59bd55185a6e49a03
+  signatures: []
+  confirmations: 23229462
+  asset:
+    chat:
+      message: 2f045f1d4a5198843999e2948b0cc78806
+      own_message: a7cd3fa21e543dcc9f0564387d83c4d862137a2da37f29d4
+      type: 1

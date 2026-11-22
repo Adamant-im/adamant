@@ -1,0 +1,52 @@
+###############################
+####### Common filters ########
+###############################
+
+# All filters on /api/states/get combine with AND.
+# `and:`-prefixed aliases are supported; `or:` filters are rejected.
+
+# fromHeight
+- $ref: '../../common/params/filters/fromHeight/fromHeight.yaml'
+- $ref: '../../common/params/filters/fromHeight/andFromHeight.yaml'
+
+# toHeight
+- $ref: '../../common/params/filters/toHeight/toHeight.yaml'
+- $ref: '../../common/params/filters/toHeight/andToHeight.yaml'
+
+# senderId
+- $ref: '../../common/params/filters/senderId/senderId.yaml'
+- $ref: '../../common/params/filters/senderId/andSenderId.yaml'
+
+# senderIds
+- $ref: '../../common/params/filters/senderIds/senderIds.yaml'
+- $ref: '../../common/params/filters/senderIds/andSenderIds.yaml'
+
+###############################
+######## Common params ########
+###############################
+
+# offset
+- $ref: '../../common/params/offset.yaml'
+
+# orderBy
+- $ref: '../../common/params/orderBy.yaml'
+
+# returnUnconfirmed
+- $ref: '../../common/params/returnUnconfirmed.yaml'
+
+###############################
+## Endpoint specific filters ##
+###############################
+
+- $ref: './params/filters/key.yaml'
+- $ref: './params/filters/andKey.yaml'
+- $ref: './params/filters/keyIds.yaml'
+- $ref: './params/filters/andKeyIds.yaml'
+- $ref: './params/filters/type.yaml'
+- $ref: './params/filters/andType.yaml'
+
+###############################
+### Endpoint specific params ##
+###############################
+
+- $ref: '../../common/params/limit.yaml'

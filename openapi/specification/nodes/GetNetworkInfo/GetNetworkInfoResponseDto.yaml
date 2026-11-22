@@ -1,0 +1,11 @@
+allOf:
+  - $ref: '../NetworkStatus.yaml'
+  - type: object
+    required:
+      - success
+      - nodeTimestamp
+    properties:
+      success:
+        type: boolean
+      nodeTimestamp:
+        type: number

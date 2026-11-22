@@ -1,0 +1,32 @@
+{
+  "displayName": "URL",
+  "name": "url",
+  "scopeName": "source.url",
+  "patterns": [
+    {
+      "include": "#url"
+    }
+  ],
+  "repository": {
+    "url": {
+      "patterns": [
+        {
+          "match": "\\b(https?|ftp|file)(?=:\\/\\/)",
+          "name": "comment.protocol.url"
+        },
+        {
+          "match": "://",
+          "name": "comment.protocol.separator.url"
+        },
+        {
+          "match": "/",
+          "name": "comment.separator.url"
+        },
+        {
+          "match": "(?<=://[^\\s/:]+:)[0-9]+",
+          "name": "comment.port.url"
+        }
+      ]
+    }
+  }
+}

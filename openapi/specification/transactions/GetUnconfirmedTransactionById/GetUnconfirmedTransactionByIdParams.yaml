@@ -1,0 +1,7 @@
+- name: id
+  in: query
+  description: Transaction ID
+  schema:
+    type: string
+    example: '12154642911137703318'
+  required: false

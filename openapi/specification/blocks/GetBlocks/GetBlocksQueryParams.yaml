@@ -1,0 +1,90 @@
+- name: limit
+  in: query
+  description: Number of blocks to retrieve. Default is `100`.
+  required: false
+  schema:
+    type: integer
+    format: int32
+    minimum: 1
+    maximum: 100
+    default: 100
+- name: offset
+  in: query
+  description: Number of rows to skip after applying the requested order. Default is `0`.
+  required: false
+  schema:
+    type: integer
+    format: int32
+    minimum: 0
+    default: 0
+- name: orderBy
+  in: query
+  description: >-
+    Sort expression in `field:direction` form. Supported fields are `id`, `timestamp`, `height`,
+    `previousBlock`, `totalAmount`, `totalFee`, `reward`, `numberOfTransactions`, and
+    `generatorPublicKey`. Supported directions are `asc` and `desc`.
+  required: false
+  schema:
+    type: string
+    default: height:desc
+    example: timestamp:asc
+- name: generatorPublicKey
+  in: query
+  description: Public key of the delegate who generated the block.
+  required: false
+  schema:
+    type: string
+    minLength: 64
+    maxLength: 64
+    pattern: '^[0-9a-fA-F]{64}$'
+    example: 134a5de88c7da1ec71e75b5250d24168c6c6e3965ff16bd71497bd015d40ea6a
+- name: numberOfTransactions
+  in: query
+  description: Exact number of transactions in the block.
+  required: false
+  schema:
+    type: integer
+    minimum: 0
+- name: previousBlock
+  in: query
+  description: ID of the preceding block.
+  required: false
+  schema:
+    type: string
+    minLength: 1
+    maxLength: 20
+    pattern: '^[0-9]+$'
+    example: '11483763337863654141'
+- name: height
+  in: query
+  description: Exact block height.
+  required: false
+  schema:
+    type: integer
+    minimum: 1
+- name: totalAmount
+  in: query
+  description: Exact total amount transferred by the block's transactions, in 1/10^8 ADM.
+  required: false
+  schema:
+    type: integer
+    format: int64
+    minimum: 0
+    maximum: 9800000000000000
+- name: totalFee
+  in: query
+  description: Exact total transaction fee in the block, in 1/10^8 ADM.
+  required: false
+  schema:
+    type: integer
+    format: int64
+    minimum: 0
+    maximum: 9800000000000000
+- name: reward
+  in: query
+  description: Exact forging reward for the block, in 1/10^8 ADM.
+  required: false
+  schema:
+    type: integer
+    format: int64
+    minimum: 0

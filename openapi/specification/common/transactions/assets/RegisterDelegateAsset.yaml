@@ -1,0 +1,22 @@
+type: object
+required:
+  - delegate
+properties:
+  delegate:
+    type: object
+    required:
+      - address
+      - username
+      - publicKey
+    properties:
+      address:
+        $ref: '../../properties/AdamantAddress.yaml'
+      username:
+        type: string
+      publicKey:
+        $ref: '../../properties/PublicKey.yaml'
+example:
+  delegate:
+    address: 'U3031563782805250428'
+    username: kpeo
+    publicKey: a339974effc141f302bd3589c603bdc9468dd66bcc424b60025b36999eb69ca3

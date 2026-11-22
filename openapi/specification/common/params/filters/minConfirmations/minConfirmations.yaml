@@ -1,0 +1,7 @@
+name: minConfirmations
+in: query
+description: Filter by `confirmations` property
+schema:
+  type: integer
+  example: 10
+required: false

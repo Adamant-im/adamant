@@ -1,5 +1,7 @@
 dapps/
-docs/jsdoc/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+openapi/dist/schema.json
 release
 ssl/
 

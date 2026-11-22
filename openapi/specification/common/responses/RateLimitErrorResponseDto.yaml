@@ -1,0 +1,18 @@
+type: object
+description: >-
+  Error body returned when a request exceeds an active node HTTP anti-abuse limit (HTTP 429).
+  Unlike ordinary validation errors, this response omits `nodeTimestamp`. The `error` string is
+  operator-configurable via `api.options.limits.message` or `peers.options.limits.message`.
+  Treat HTTP 429 as bounded temporary backpressure and wait for `Retry-After` or `RateLimit-Reset`
+  before retrying, rather than treating the request as permanently invalid.
+properties:
+  success:
+    type: boolean
+    enum: [false]
+    example: false
+  error:
+    type: string
+    example: Too many requests, please try again later.
+required:
+  - success
+  - error

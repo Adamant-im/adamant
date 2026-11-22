@@ -1,0 +1,27 @@
+- name: q
+  in: query
+  description: Partial or full username of a delegate
+  schema:
+    type: string
+    minLength: 1
+    maxLength: 20
+  required: true
+- name: limit
+  in: query
+  description: Maximum number of matching delegates. Default is `101`.
+  required: false
+  schema:
+    type: integer
+    format: int32
+    minimum: 1
+    maximum: 1000
+    default: 101
+- name: orderBy
+  in: query
+  description: >-
+    Sort by `username`, `address`, `publicKey`, `vote`, `missedblocks`, `producedblocks`, `approval`,
+    `productivity`, `voters_cnt`, or `register_timestamp`. Append `:asc` or `:desc` to select the direction.
+  required: false
+  schema:
+    type: string
+    example: username:asc

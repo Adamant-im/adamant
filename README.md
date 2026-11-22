@@ -19,181 +19,33 @@ Additional information:
 
 ## Node and API Documentation
 
-Comprehensive [node documentation](https://docs.adamant.im) is available.
+Full node and API documentation is maintained in [`docs/`](./docs/) and published at **[docs.adamant.im](https://docs.adamant.im)**:
 
-It covers the Fair dPoS consensus algorithm, decentralization principles, node installation and configuration, and other core concepts. The documentation also describes API endpoints for managing accounts, transactions, chats, and key-value storage (KVS), along with account creation, message encryption and decryption, and API data types.
+- **Operators**: [Installation](https://docs.adamant.im/own-node/installation.html), [Configuration](https://docs.adamant.im/own-node/configuration.html), [Security Recommendations](https://docs.adamant.im/own-node/security.html), [Monitoring (Zabbix)](https://docs.adamant.im/own-node/monitoring.html), and [Upgrading to v0.11.0](https://docs.adamant.im/own-node/upgrading.html)
+- **API & Protocol**: [Making Requests](https://docs.adamant.im/api/making-requests.html), [Transactions Query Language](https://docs.adamant.im/api/transactions-query-language.html), [WebSocket API](https://docs.adamant.im/api/websocket.html), [Interactive OpenAPI Schema (Swagger UI)](https://docs.adamant.im/schema/) ([`openapi/`](./openapi/)), and [ADAMANT Improvement Proposals (AIPs)](https://aips.adamant.im)
+- **Testing**: [Testnet](https://docs.adamant.im/own-node/testnet.html), [Localnet](https://docs.adamant.im/own-node/localnet.html), and [Testing & Live Scenarios](https://docs.adamant.im/own-node/testing.html)
 
-See also:
+## Quick Start
 
-- [ADAMANT Improvement Proposals (AIPs)](https://aips.adamant.im)
+ADAMANT Node requires **Node.js `22.22.2+`** (on the `22.x` line) or **`24.15.0+`**. The bundled Linux installers support Ubuntu 20.04–26.04 LTS (`tools/install_node.sh`) and RHEL-compatible releases 8–10 (`tools/install_node_centos.sh`), defaulting to Node.js `24`.
 
-### Removed Legacy Control APIs
-
-Forging is configured only through `forging.secret`. Changing the configured
-forging set requires editing the configuration and gracefully restarting the
-node. The legacy `forging.access` setting is deprecated, accepted for backward
-compatibility, and ignored.
-
-The legacy forging enable, disable, and status routes, the DApp install,
-launch, stop, uninstall, and server-side signing routes, and the legacy DApp
-peer runtime routes are no longer available. DApp registration and in/out
-transfers remain consensus-supported transaction types; clients must sign those
-transactions locally and submit them through the standard transaction API.
-Existing `dapp` configuration is deprecated, accepted for backward
-compatibility, and ignored. This is a breaking HTTP API change and does not
-change DApp transaction validation, serialization, fees, or replay behavior.
-
-## Installing, Configuring, and Running an ADAMANT Node
-
-ADAMANT Node requires Node.js 22.22.2 or newer on the 22.x line, or Node.js 24.15.0 or newer. The installation scripts support Node.js 22, 24, and 26, with Node.js 24 selected by default.
-
-Refer to the [ADAMANT Node installation documentation](https://docs.adamant.im/own-node/installation.html) for hardware requirements and complete setup instructions for Linux, macOS, and Windows.
-
-### Linux Installation Scripts
-
-The bundled installers support:
-
-- Ubuntu 20.04, 22.04, 24.04, and 26.04 LTS: `tools/install_node.sh`
-- RHEL-compatible releases 8-10, including CentOS Stream, Rocky Linux, AlmaLinux, and RHEL: `tools/install_node_centos.sh`
-- Ubuntu repair from a published blockchain image: `tools/fix_node.sh`
-
-Ubuntu 20.04 is supported by the script, but its standard security maintenance has ended. Use Ubuntu Pro or upgrade the operating system for continued security updates.
-
-The installers share `tools/lib/adamant_node_common.sh`. Run them from a Git checkout so that library is the file you reviewed. Cloning the repository and recording the commit is the verified download path:
+Clone the repository, record the reviewed commit, and run the installer:
 
 ```sh
-git clone --branch dev https://github.com/Adamant-im/adamant.git
+git clone --branch master https://github.com/Adamant-im/adamant.git
 cd adamant
 git rev-parse HEAD
-sudo bash tools/install_node.sh -b dev -n mainnet -j 24
+sudo bash tools/install_node.sh -b master -n mainnet -j 24
 ```
 
-Use `tools/install_node_centos.sh` on RHEL-compatible hosts. Add `-f` only when you accept a restart while the node is syncing or rebuilding. The default Node.js major is 24. Supported majors are 22, 24, and 26 (`jod` is 22, `krypton` is 24).
+For manual installation, verified snapshot bootstrapping, database repair (`tools/fix_node.sh`), anti-abuse rate limits, encrypted delegate passphrases (`npm run adm-node -- forging encrypt|unlock|lock|status`), and v0.11.0 breaking API changes (removal of legacy forging and DApp runtime control routes), see the guides in [`docs/own-node/`](./docs/own-node/).
 
-Both installers update system packages, preserve existing ADAMANT configuration files and local Git changes, and reuse existing users and databases. Dependencies are installed with `npm ci` from the lockfile. PM2 is started from an ecosystem file with a 120 second `kill_timeout`, and a systemd drop-in gives the PM2 service a longer stop timeout, disables core dumps, and orders it before PostgreSQL and Redis stop. Existing PM2 processes are reconciled with that ecosystem and stopped before package updates; the final stop sends one `SIGINT` and waits for cleanup, and a timeout aborts without another signal. A re-run refuses to restart a node with unknown process state and permits `-f` only after confirming sync or rebuild activity.
-
-A blockchain image is loaded only after the operator supplies a local SHA-256 file from a trust channel independent of the image host. The file must contain the normal `sha256sum` line (`<64 hex>  <filename>`), and the downloaded file must match it. Gzip integrity is checked after the digest, then the SQL restore runs in a single transaction. The scripts never trust a checksum downloaded beside the image. An image is skipped when the selected database already contains tables; decline the image prompt to synchronize from height 1. Installation logs are mode `0600` at `/var/log/adamant_<network>_install.log`.
-
-To replace an Ubuntu node database with a newly downloaded blockchain image:
-
-```sh
-sudo bash tools/fix_node.sh -n mainnet
-```
-
-By default the repair tool verifies the image against the operator-provided, independently trusted checksum before it drops the database. If there is not enough free space for that download, it stops and leaves the database in place. `-d` drops the database first; use it only when a failed download is an acceptable outcome. Back up any required data first. Repair logs are mode `0600` at `/var/log/adamant_<network>_fix.log`.
-
-After PostgreSQL or Redis maintenance, restart the node with the saved ecosystem file and wait until the log contains `Cleaned up successfully`. Keep PostgreSQL and Redis server packages out of unattended upgrades on node hosts. The node does not recover by itself from a database restart.
-
-### Critical Shutdown Notice
-
-Always stop the node gracefully. When running it in the foreground, press `Ctrl+C` and wait for cleanup to finish. Do not use `kill -9`, forced terminal termination, or any other uncatchable process kill unless the process is already unrecoverably stuck.
-
-The node stores derived consensus state in memory mirror tables such as `mem_accounts` and `mem_round`. A forced kill can interrupt block, transaction, or round writes and leave those tables inconsistent with the persisted blockchain. On the next startup this may force a full memory-state rebuild from the beginning of the chain:
-
-```text
-[WRN] loader Detected unapplied rounds in mem_round
-[WRN] loader Recreating memory tables…
-[inf] loader Rebuilding blockchain, current block height: 1…
-```
-
-If this happens, do not try to repair `mem_*` tables with manual SQL edits. The reliable recovery options are restoring a trusted database snapshot or letting the node rebuild/replay derived state from the blockchain.
-
-## Anti-abuse Limits
-
-`config.default.json` enables separate limits for public REST, peer HTTP, client WebSocket subscriptions, and node-to-node WebSocket handshakes. The numbers are in that file. `limit` is the preferred hard cap. Existing configs that still set legacy `max` keep that value: `limit` overrides `max` only when `limit` is present. Set the resolved cap to `0` to disable one HTTP surface, including its route policies. Delete an existing `api.options.limits` or `peers.options.limits` block to inherit the current defaults.
-
-The top-level `limit` is an aggregate per-IP cap for the complete HTTP surface. Each configured route class has its own stricter cap, so overriding the parent limit through a config file or `--config-set` still applies when route policies are inherited.
-
-HTTP classes use separate per-IP budgets over `windowMs`:
-
-- Public REST: `status` (cheap node and fee reads), `read` (lists and lookups), and `publish` (transaction submission).
-- Peer HTTP: `status` (`/peer/ping`, `/peer/height`, `/peer/list`), `sync` (block and transaction reads), and `broadcast` (block, transaction, and signature posts).
-
-Peer caps are high so normal sync and relay stay on the fast path. A hard limit responds with `429`, a JSON `success: false` body, standard `RateLimit-*` headers, `RateLimit-Scope`, and `Retry-After`. Current outbound peers advertise rate-limit support with `X-Adamant-Rate-Limit: 1`; peer requests without that signal are not hard-limited, so mixed-version rollout does not evict older callers. CORS is applied before the limiter and exposes the response headers to browsers. Outbound peer requests treat `429` as scoped, bounded temporary backpressure: the peer remains in the table and its health score is unchanged, while `Retry-After` defers only the reported status, sync, broadcast, or aggregate scope for at most one minute. Slow-down starts after `delayAfter` and is capped by `maxDelayMs`. Client WebSocket limits cap total transport sessions plus a smaller pending pool before Engine.IO session promotion, and subscriptions per socket and subscription changes per window. Node WebSocket limits use a separate short-lived pending pool with per-IP bounds, then promote validated nonce/IP peers into the independent live broadcast pool. Raw Engine.IO sessions that never reach the namespace expire after `pendingTimeoutMs`. The event cap applies to accepted peer sockets. IPv6 abuse keys use a /56 allocation boundary, while peer authorization still compares the exact normalized IP. Nonce, address, and banned-peer checks still run for attempts under the IP cap.
-
-Set `trustProxy` to `true` only when the node is reachable exclusively through one immediate reverse proxy. The node trusts the rightmost `X-Forwarded-For` value and the single closest hop, so a proxy that appends the real client address is safe from a caller-controlled prefix. Do not expose the node directly when this setting is enabled. With `trustProxy: false`, every client behind one proxy shares that proxy's address.
-
-These counters are process-local. A deployment with multiple node processes or externally load-balanced replicas applies the configured limits independently in each process and must enforce a shared outer limit when required.
-
-## Encrypting delegate passphrases
-
-`forging.secret` still accepts plaintext delegate passphrases. Encryption is optional until a separate deprecation notice. A leaked config then no longer contains the forging keys.
-
-Encrypted values use the prefix `admnode-enc-v1.`. The node treats a secret as encrypted only when it starts with that prefix. The blob is AES-256-GCM with a key derived from one operator password by scrypt (N=131072, r=8, p=1). It also stores the delegate public key and address, which are already public on chain, so a locked node can name the delegate without decrypting. The version freezes these KDF parameters; a later cost or format change requires a new prefix version and explicit migration.
-
-All encrypted delegates on one node share that single operator password. The CLI requires at least 12 characters and rejects an operator password equal to the delegate passphrase. The password and the decrypted passphrases stay in process memory only long enough to derive keypairs. Restarting the node requires the password again. The node never writes the password or the decrypted passphrases back to `config.json`, and it does not log them. Temporary key/hash buffers are overwritten after use; JavaScript strings are immutable, so their backing memory can remain until garbage collection and should not be treated as instantly erased. Decryption uses async scrypt so live unlock does not block peer, API, or block processing.
-
-### Migrate a plaintext config
-
-1. Encrypt each delegate passphrase:
-
-   ```sh
-   npm run adm-node -- forging encrypt
-   ```
-
-   The command prompts for the passphrase and the operator password. Copy the single `admnode-enc-v1.` line it prints.
-
-2. Replace the plaintext entry in `forging.secret` with that line. Repeat for every delegate, using the same operator password. Leave `forging.secret` as an array.
-3. Restart the node.
-
-Example:
-
-```json
-"forging": {
-  "force": false,
-  "secret": [
-    "admnode-enc-v1...."
-  ],
-  "controlSocket": ""
-}
-```
-
-An empty `controlSocket` uses `<node checkout>/.run/control-<port>.sock`. This path is stable across `TMPDIR`, `XDG_RUNTIME_DIR`, systemd `PrivateTmp`, `sudo`, and shell changes. The socket is mode `0600`, and the private parent is mode `0700`. The default directory is created and repaired by the node. A custom `controlSocket` must point to an owner-only `0700` parent; if it is absent, the node creates it as `0700`, but it never changes an existing operator-owned directory. The client and server both reject group/world-writable ancestors below a shared sticky root and recheck socket ownership, mode, and inode before sending credentials. For `/run/adamant`, configure systemd `RuntimeDirectory=adamant` or tmpfiles.d first. If the listen port is overridden on the command line, pass the matching `--socket` or the same config overrides to the CLI.
-
-Before you switch an existing node to encrypted secrets, check that the checkout and its parent directories are not group- or world-writable. Older installers cloned the repository from a login shell, where a `002` umask can leave the checkout at mode `0775`. The node then cannot open the default control socket and stays locked after every restart. `forging encrypt` warns about this before it asks for any secret. To check and fix manually:
-
-```sh
-stat -c '%a %U:%G %n' /home/adamant/adamant /home/adamant
-chmod g-w,o-w /home/adamant/adamant
-```
-
-### Start and unlock
-
-When every configured secret is plaintext, forging behavior is unchanged.
-
-When an encrypted secret is present, the node still syncs, serves the API, and keeps peers and the mempool working. Forging for those delegates stays locked until the password is supplied:
-
-- While the blockchain loads or rebuilds, the control socket reports `loading`; unlock and lock remain available and only key availability changes. Forging cannot start before blockchain readiness.
-- In a terminal, after blockchain readiness, the node prompts once. Press Enter to stay locked.
-- For service managers, start locked and unlock after the node is up:
-
-  ```sh
-  npm run adm-node -- forging status
-  npm run adm-node -- forging unlock
-  npm run adm-node -- forging lock
-  ```
-
-The operator password is deliberately not accepted through a command-line option or environment variable because those values can be exposed by process inspection. Use the hidden terminal prompt or the local control socket instead.
-
-`forging lock` clears only keypairs that were unlocked from encrypted config entries. A delegate that is also configured in plaintext stays loaded after lock, because the plaintext config independently enables it. `forging unlock` asks for the operator password and atomically loads valid encrypted delegates. A transient account lookup failure or a delegate registration not yet present in the local chain does not abort the unlocked batch; the key remains loaded for that public key and the active delegate schedule controls whether it can forge. Plaintext delegates keep forging while encrypted key derivation is in progress.
-
-Run `adm-node` as the node service user. Use `--config` when the node was not started from `./config.json`. The CLI accepts the node's `--config-overrides`, repeatable `--config-set`, and `--port` options, so socket resolution matches node startup. `--socket` bypasses config loading and is required for a Zabbix command with an operator-selected path.
-
-Forging lock state is intentionally not exposed by the public HTTP or peer APIs. The control socket opens at module initialization when at least one encrypted entry or an explicit `controlSocket` is configured, so local monitoring can distinguish `loading`, `disabled`, `locked`, `partial`, and `unlocked`. Nodes with no encrypted secrets and no explicit socket do not create an extra local control surface.
-
-For automation, `forging status --json --timeout 2000` prints one line:
-
-```json
-{"state":"locked","encrypted":3,"encryptedLoaded":0,"plaintext":0,"invalidEncrypted":0,"loadedKeypairs":0}
-```
-
-The JSON form never contains delegate addresses or public keys. A valid node response exits with `0`; the standalone CLI exits non-zero for a missing socket, timeout, malformed response, or other local failure. The Zabbix wrapper converts those failures to a deterministic `state: unavailable` JSON value while suppressing stderr.
-
-Ready-to-copy Zabbix examples are in [`tools/zabbix/`](./tools/zabbix/README.md): a fixed-allowlist wrapper, exact sudoers rules, a `UserParameter`, a Zabbix 7.0 forging-state template, and a separate public missed-block/productivity outcome template. Use agent-to-server PSK or certificate transport. Every planned or unattended restart must be followed by `forging unlock`; lock-state monitoring is therefore required for operators that run encrypted delegates.
+> [!WARNING]
+> **Graceful Shutdown Required:** Always stop a running node with a catchable termination signal (`Ctrl+C` / `SIGINT` / `SIGTERM`) and wait until the log prints `Cleaned up successfully`. Never use `kill -9` or short PM2 timeouts — forced termination can leave derived `mem_*` mirror tables inconsistent with the blockchain and trigger a rebuild. See [Installation — Graceful Shutdown](https://docs.adamant.im/own-node/installation.html#graceful-shutdown-and-database-maintenance).
 
 ## Development and Tests
 
-Refer to [CONTRIBUTING.md](./.github/CONTRIBUTING.md).
+See [CONTRIBUTING.md](./.github/CONTRIBUTING.md) for contribution rules and [Testing & Live Scenarios](./docs/own-node/testing.md) for full test, localnet, and live-scenario instructions.
 
 ## Authors
 

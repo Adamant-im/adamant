@@ -1,0 +1,16 @@
+- name: ip
+  in: query
+  description: The peer's IPv4 address.
+  required: true
+  schema:
+    type: string
+    format: ipv4
+    example: 194.32.79.175
+- name: port
+  in: query
+  description: The peer's port number.
+  required: true
+  schema:
+    type: integer
+    format: int32
+    example: 36666

@@ -1,0 +1,13 @@
+required:
+  - transaction
+  - success
+  - nodeTimestamp
+properties:
+  transaction:
+    $ref: './RegisterDelegateTransactionDto.yaml'
+  success:
+    type: boolean
+    example: true
+  nodeTimestamp:
+    type: number
+    example: 61762271

@@ -1,0 +1,16 @@
+required:
+  - success
+  - nodeTimestamp
+  - broadhash
+properties:
+  success:
+    type: boolean
+  nodeTimestamp:
+    type: number
+  broadhash:
+    type: string
+    description: Broadhash is established as an aggregated rolling hash of the past five blocks present in the database
+example:
+  success: true
+  nodeTimestamp: 58052355
+  broadhash: e1aedd2818679c174e3f6e31891c34f4069927f33f145e1b81fe5d978733e794

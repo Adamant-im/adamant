@@ -1,0 +1,18 @@
+- name: senderPublicKey
+  in: query
+  description: Filter pooled transactions by the sender's public key.
+  required: false
+  schema:
+    type: string
+    pattern: '^[0-9a-fA-F]{64}$'
+    example: a9407418dafb3c8aeee28f3263fd55bae0f528a5697a9df0e77e6568b19dfe34
+- name: address
+  in: query
+  description: Filter pooled transactions by recipient ADAMANT address.
+  required: false
+  schema:
+    type: string
+    pattern: '^[Uu][0-9]{1,21}$'
+    minLength: 1
+    maxLength: 22
+    example: U8916295525136600565

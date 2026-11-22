@@ -1,0 +1,8 @@
+required:
+  - address
+  - publicKey
+properties:
+  address:
+    $ref: '../common/properties/AdamantAddress.yaml'
+  publicKey:
+    $ref: '../common/properties/PublicKey.yaml'

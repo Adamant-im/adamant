@@ -1,0 +1,6 @@
+name: and:fromHeight
+in: query
+description: Filter starting from specific height (`and` operator)
+schema:
+  type: integer
+required: false

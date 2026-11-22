@@ -1,0 +1,7 @@
+name: or:recipientIds
+in: query
+description: Filter by list of recipients (`or` operator). Separated by comma
+schema:
+  type: string
+  example: U18132012621449491414,U15881344309699504778
+required: false

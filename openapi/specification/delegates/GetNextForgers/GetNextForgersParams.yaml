@@ -1,0 +1,10 @@
+- name: limit
+  in: query
+  description: Number of upcoming-slot public keys to return. Default is `10`.
+  required: false
+  schema:
+    type: integer
+    format: int32
+    minimum: 1
+    maximum: 101
+    default: 10

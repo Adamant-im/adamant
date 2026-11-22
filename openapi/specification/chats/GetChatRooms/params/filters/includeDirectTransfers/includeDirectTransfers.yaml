@@ -1,0 +1,8 @@
+name: includeDirectTransfers
+in: query
+description: When set to `1`, includes type `0` transactions (direct token transfers) in results. Default is `1`.
+schema:
+  type: integer
+  enum: [0, 1]
+  default: 1
+required: false

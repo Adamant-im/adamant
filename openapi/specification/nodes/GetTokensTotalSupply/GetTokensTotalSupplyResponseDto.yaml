@@ -1,0 +1,16 @@
+required:
+  - success
+  - nodeTimestamp
+  - supply
+properties:
+  success:
+    type: boolean
+  nodeTimestamp:
+    type: number
+  supply:
+    type: integer
+    description: Total current supply of ADM tokens in the network. Integer amount of 1/10^8 ADM tokens (1 ADM = 100000000). Total supply increases with every new forged block.
+example:
+  success: true
+  nodeTimestamp: 58646306
+  supply: 10198038140000000

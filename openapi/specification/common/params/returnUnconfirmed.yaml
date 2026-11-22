@@ -1,0 +1,8 @@
+name: returnUnconfirmed
+in: query
+description: Whether to include unconfirmed transactions in the response. Default is `0`.
+schema:
+  type: integer
+  enum: [0, 1]
+  default: 0
+required: false

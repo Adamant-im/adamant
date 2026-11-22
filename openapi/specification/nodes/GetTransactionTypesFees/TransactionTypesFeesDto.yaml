@@ -1,0 +1,41 @@
+required:
+  - send
+  - vote
+  - delegate
+  - old_chat_message
+  - chat_message
+  - state_store
+  - profile_update
+  - avatar_upload
+properties:
+  send:
+    type: integer
+    description: Token transfer, type 0
+  vote:
+    type: integer
+    description: Voting for delegate, type 3
+  delegate:
+    type: integer
+    description: Registration of a new delegate, type 2
+  old_chat_message:
+    type: integer
+    description: Sending a message (not used for now)
+  chat_message:
+    type: integer
+    description: Sending a message, type 8
+  state_store:
+    type: integer
+    description: Storing data in KVS, type 9
+  profile_update:
+    type: integer
+  avatar_upload:
+    type: integer
+example:
+  send: 50000000
+  vote: 5000000000
+  delegate: 300000000000
+  old_chat_message: 500000
+  chat_message: 100000
+  state_store: 100000
+  profile_update: 5000000
+  avatar_upload: 10000000

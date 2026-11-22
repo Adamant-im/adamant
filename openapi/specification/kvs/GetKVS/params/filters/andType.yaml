@@ -1,0 +1,12 @@
+name: and:type
+in: query
+description: >-
+  Equivalent to `type` (all `/api/states/get` filters combine with AND). Passing both `type` and
+  `and:type` with different values is rejected. See
+  [AIP 11: Behavior for KVS data](https://aips.adamant.im/AIPS/aip-11).
+schema:
+  type: integer
+  example: 0
+  default: 0
+  enum: [0, 1]
+required: false

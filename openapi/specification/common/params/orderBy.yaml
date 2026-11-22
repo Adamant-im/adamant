@@ -1,0 +1,8 @@
+name: orderBy
+in: query
+description: Order results by field name.
+schema:
+  type: string
+  example: timestamp:desc
+  default: timestamp:desc
+required: false

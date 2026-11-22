@@ -1,0 +1,1159 @@
+openapi: 3.2.0
+
+info:
+  title: ADAMANT Node API
+  description: |
+    OpenAPI 3.2 specification for the [ADAMANT](https://adamant.im) Node API.
+
+    ADAMANT is a decentralized messenger built on its own blockchain. This specification covers
+    accounts, transactions, chats, delegates, blocks, nodes, and key-value storage endpoints.
+
+    **Rate limits (`429 Too Many Requests`)**
+    Public REST endpoints enforce per-IP aggregate (`all`) and route-class (`status`, `read`,
+    `publish`) budgets. Exceeding a cap returns HTTP `429` with
+    `{"success": false, "error": "..."}` (without `nodeTimestamp`), `Retry-After`, standard
+    `RateLimit-*` headers (including `RateLimit-Scope`), and optional legacy `X-RateLimit-*`
+    headers when configured. CORS middleware exposes these headers to browser clients. Treat
+    `429` as temporary backpressure rather than a permanent validation error. Peer HTTP routes
+    (`/peer/*`) use fixed status `429`, `RateLimit-Scope` (`status`, `sync`, `broadcast`, `all`),
+    and mixed-version negotiation via `X-Adamant-Rate-Limit: 1`.
+
+    **Useful links**
+    - [ADAMANT Node](https://github.com/Adamant-im/adamant) — blockchain node implementation
+    - [AIPs](https://aips.adamant.im) — ADAMANT Improvement Proposals
+    - [API Docs](https://docs.adamant.im) — reference documentation
+    - [OpenAPI JSON](schema.json) — bundled specification
+    - [OpenAPI Source](https://github.com/Adamant-im/adamant/tree/dev/openapi) — source of this specification
+  version: 0.11.0
+
+servers:
+  - url: https://lake.adamant.im/api
+    description: Mainnet Lake
+  - url: https://debate.adamant.im/api
+    description: Mainnet Debate
+  - url: https://bid.adamant.im/api
+    description: Mainnet Bid
+  - url: https://sunshine.adamant.im/api
+    description: Mainnet Sunshine
+  - url: https://endless.adamant.im/api
+    description: Mainnet Endless
+  - url: https://ahead.adamant.im/api
+    description: Mainnet Dev
+  - url: https://testnode1.adamant.im/api
+    description: Testnet 1
+  - url: https://testnode3.adm.im/api
+    description: Testnet 3
+
+x-client-websocket:
+  protocol: Socket.IO
+  description: >-
+    Opt-in live events exposed by the node's client WebSocket server. Discover availability and
+    the client port through GET /node/status. Subscriptions are scoped to one socket and must be
+    restored after reconnecting. Starting in v0.11.0, nodes enforce per-node and per-IP active and
+    pending connection caps, connection-attempt rate windows, per-socket address/type/chat-subtype
+    caps, and subscription-event rate windows (`wsClient.limits`).
+  clientEvents:
+    address:
+      description: Adds addresses used by transaction filters and balance subscriptions.
+      payload:
+        $ref: '#/components/schemas/ClientWebSocketAddressSubscription'
+    types:
+      description: Adds transaction types used by newTrans filtering.
+      payload:
+        $ref: '#/components/schemas/ClientWebSocketTransactionTypeSubscription'
+    assetChatTypes:
+      description: Adds asset.chat.type values used by chat transaction filtering.
+      payload:
+        $ref: '#/components/schemas/ClientWebSocketChatTypeSubscription'
+    balances:
+      description: Adds public account fields emitted by balances/change.
+      payload:
+        $ref: '#/components/schemas/ClientWebSocketBalanceSubscription'
+    blocks:
+      description: Enables or disables newBlock events for the socket.
+      payload:
+        $ref: '#/components/schemas/ClientWebSocketBlockSubscription'
+  serverEvents:
+    newTrans:
+      description: A transaction applied to the node's unconfirmed pool.
+      payload:
+        $ref: '#/components/schemas/ClientWebSocketNewTransaction'
+    balances/change:
+      description: Current requested balance fields after an account balance mutation.
+      payload:
+        $ref: '#/components/schemas/ClientWebSocketBalanceChange'
+    newBlock:
+      description: Compact header of a successfully applied and saved block.
+      payload:
+        $ref: '#/components/schemas/ClientWebSocketNewBlock'
+
+x-peer-http-rate-limit:
+  description: >-
+    Anti-abuse contract for node-to-node `/peer/*` HTTP routes (introduced in v0.11.0). Peer
+    hard-limit responses always use HTTP 429 (not operator-overridable) with a JSON
+    `{"success": false, "error": "..."}` body, `Retry-After`, standard `RateLimit-*` headers, and
+    `RateLimit-Scope`. Outbound peer requests send `X-Adamant-Rate-Limit: 1` to advertise support;
+    callers without this header are not hard-limited during mixed-version rollout. Outbound peers
+    treat 429 as scoped, bounded temporary backpressure (capped at 60 seconds) without banning the
+    peer or changing its health score.
+  capabilityHeader:
+    name: X-Adamant-Rate-Limit
+    value: '1'
+  statusCode: 429
+  scopes:
+    - status
+    - sync
+    - broadcast
+    - all
+
+components:
+  responses:
+    TooManyRequests:
+      $ref: 'common/responses/TooManyRequestsResponse.yaml'
+  schemas:
+    # Common Errors
+    RateLimitErrorResponseDto:
+      $ref: 'common/responses/RateLimitErrorResponseDto.yaml'
+
+    # Client WebSocket
+    ClientWebSocketAddressSubscription:
+      $ref: 'websocket/AddressSubscription.yaml'
+    ClientWebSocketTransactionTypeSubscription:
+      $ref: 'websocket/TransactionTypeSubscription.yaml'
+    ClientWebSocketChatTypeSubscription:
+      $ref: 'websocket/ChatTypeSubscription.yaml'
+    ClientWebSocketBalanceSubscription:
+      $ref: 'websocket/BalanceSubscription.yaml'
+    ClientWebSocketBlockSubscription:
+      $ref: 'websocket/BlockSubscription.yaml'
+    ClientWebSocketNewTransaction:
+      $ref: 'common/transactions/UnconfirmedTransaction.yaml'
+    ClientWebSocketBalanceChange:
+      $ref: 'websocket/BalanceChangeEvent.yaml'
+    ClientWebSocketNewBlock:
+      $ref: 'websocket/NewBlockEvent.yaml'
+
+    # Account
+    GetAccountInfoResponseDto:
+      $ref: 'accounts/GetAccountInfo/GetAccountInfoResponseDto.yaml'
+    GetAccountBalanceResponseDto:
+      $ref: 'accounts/GetAccountBalance/GetAccountBalanceResponseDto.yaml'
+    GetAccountPublicKeyResponseDto:
+      $ref: 'accounts/GetAccountPublicKey/GetAccountPublicKeyResponseDto.yaml'
+    GetTopAccountsResponseDto:
+      $ref: 'accounts/GetTopAccounts/GetTopAccountsResponseDto.yaml'
+    CreateNewAccountRequestBody:
+      $ref: 'accounts/CreateNewAccount/CreateNewAccountRequestBody.yaml'
+    CreateNewAccountResponseDto:
+      $ref: 'accounts/CreateNewAccount/CreateNewAccountResponseDto.yaml'
+
+    # Blocks
+    GetBlockInfoResponseDto:
+      $ref: 'blocks/GetBlockInfo/GetBlockInfoResponseDto.yaml'
+    GetBlocksResponseDto:
+      $ref: 'blocks/GetBlocks/GetBlocksResponseDto.yaml'
+
+    # Chats and Chatrooms
+    GetChatRoomsResponseDto:
+      $ref: 'chats/GetChatRooms/GetChatRoomsResponseDto.yaml'
+    GetChatMessagesResponseDto:
+      $ref: 'chats/GetChatMessages/GetChatMessagesResponseDto.yaml'
+    GetChatTransactionsResponseDto:
+      $ref: 'chats/GetChatTransactions/GetChatTransactionsResponseDto.yaml'
+    CreateNewChatMessageRequestBody:
+      $ref: 'chats/CreateNewChatMessage/CreateNewChatMessageRequestBody.yaml'
+    CreateNewChatMessageResponseDto:
+      $ref: 'chats/CreateNewChatMessage/CreateNewChatMessageResponseDto.yaml'
+
+    # Delegates and Voting
+    GetDelegatesResponseDto:
+      $ref: 'delegates/GetDelegates/GetDelegatesResponseDto.yaml'
+    GetDelegateResponseDto:
+      $ref: 'delegates/GetDelegate/GetDelegateResponseDto.yaml'
+    RegisterDelegateRequestBody:
+      $ref: 'delegates/RegisterDelegate/RegisterDelegateRequestBody.yaml'
+    RegisterDelegateResponseDto:
+      $ref: 'delegates/RegisterDelegate/RegisterDelegateResponseDto.yaml'
+    SearchDelegateResponseDto:
+      $ref: 'delegates/SearchDelegate/SearchDelegateResponseDto.yaml'
+    GetDelegatesCountResponseDto:
+      $ref: 'delegates/GetDelegatesCount/GetDelegatesCountResponseDto.yaml'
+    GetDelegateStatsResponseDto:
+      $ref: 'delegates/GetDelegateStats/GetDelegateStatsResponseDto.yaml'
+    GetNextForgersResponseDto:
+      $ref: 'delegates/GetNextForgers/GetNextForgersResponseDto.yaml'
+    GetVotersResponseDto:
+      $ref: 'delegates/GetVoters/GetVotersResponseDto.yaml'
+    GetAccountVotesResponseDto:
+      $ref: 'delegates/GetAccountVotes/GetAccountVotesResponseDto.yaml'
+    RegisterVotesRequestBody:
+      $ref: 'delegates/RegisterVotes/RegisterVotesRequestBody.yaml'
+    RegisterVotesResponseDto:
+      $ref: 'delegates/RegisterVotes/RegisterVotesResponseDto.yaml'
+
+    # Nodes and Blockchain
+    GetPeersResponseDto:
+      $ref: 'nodes/GetPeers/GetPeersResponseDto.yaml'
+    GetPeerInfoResponseDto:
+      $ref: 'nodes/GetPeerInfo/GetPeerInfoResponseDto.yaml'
+    GetLoadingStatusResponseDto:
+      $ref: 'nodes/GetLoadingStatus/GetLoadingStatusResponseDto.yaml'
+    GetSyncStatusResponseDto:
+      $ref: 'nodes/GetSyncStatus/GetSyncStatusResponseDto.yaml'
+    GetPingStatusResponseDto:
+      $ref: 'nodes/GetPingStatus/GetPingStatusResponseDto.yaml'
+    GetNodeVersionResponseDto:
+      $ref: 'nodes/GetNodeVersion/GetNodeVersionResponseDto.yaml'
+    GetBroadhashResponseDto:
+      $ref: 'nodes/GetBroadhash/GetBroadhashResponseDto.yaml'
+    GetEpochResponseDto:
+      $ref: 'nodes/GetEpoch/GetEpochResponseDto.yaml'
+    GetHeightResponseDto:
+      $ref: 'nodes/GetHeight/GetHeightResponseDto.yaml'
+    GetTokenTransferFeeResponseDto:
+      $ref: 'nodes/GetTokenTransferFee/GetTokenTransferFeeResponseDto.yaml'
+    GetTransactionTypesFeesResponseDto:
+      $ref: 'nodes/GetTransactionTypesFees/GetTransactionTypesFeesResponseDto.yaml'
+    GetNethashResponseDto:
+      $ref: 'nodes/GetNethash/GetNethashResponseDto.yaml'
+    GetMilestoneResponseDto:
+      $ref: 'nodes/GetMilestone/GetMilestoneResponseDto.yaml'
+    GetRewardResponseDto:
+      $ref: 'nodes/GetReward/GetRewardResponseDto.yaml'
+    GetTokensTotalSupplyResponseDto:
+      $ref: 'nodes/GetTokensTotalSupply/GetTokensTotalSupplyResponseDto.yaml'
+    GetNetworkInfoResponseDto:
+      $ref: 'nodes/GetNetworkInfo/GetNetworkInfoResponseDto.yaml'
+    GetNodeStatusResponseDto:
+      $ref: 'nodes/GetNodeStatus/GetNodeStatusResponseDto.yaml'
+
+    # KVS
+    GetKVSRequestBody:
+      $ref: 'kvs/GetKVS/GetKVSRequestBody.yaml'
+    GetKVSResponseDto:
+      $ref: 'kvs/GetKVS/GetKVSResponseDto.yaml'
+    SetKVSRequestBody:
+      $ref: 'kvs/SetKVS/SetKVSRequestBody.yaml'
+    SetKVSResponseDto:
+      $ref: 'kvs/SetKVS/SetKVSResponseDto.yaml'
+
+    # Transactions
+    GetTransactionsResponseDto:
+      $ref: 'transactions/GetTransactions/GetTransactionsResponseDto.yaml'
+    GetTransactionByIdResponseDto:
+      $ref: 'transactions/GetTransactionById/GetTransactionByIdResponseDto.yaml'
+    GetTransactionsCountResponseDto:
+      $ref: 'transactions/GetTransactionsCount/GetTransactionsCountResponseDto.yaml'
+    GetQueuedTransactionsResponseDto:
+      $ref: 'transactions/GetQueuedTransactions/GetQueuedTransactionsResponseDto.yaml'
+    GetQueuedTransactionByIdResponseDto:
+      $ref: 'transactions/GetQueuedTransactionById/GetQueuedTransactionByIdResponseDto.yaml'
+    GetUnconfirmedTransactionsResponseDto:
+      $ref: 'transactions/GetUnconfirmedTransactions/GetUnconfirmedTransactionsResponseDto.yaml'
+    GetUnconfirmedTransactionByIdResponseDto:
+      $ref: 'transactions/GetUnconfirmedTransactionById/GetUnconfirmedTransactionByIdResponseDto.yaml'
+    TransferTokenRequestBody:
+      $ref: 'transactions/TransferToken/TransferTokenRequestBody.yaml'
+    TransferTokenResponseDto:
+      $ref: 'transactions/TransferToken/TransferTokenResponseDto.yaml'
+    RegisterTransactionRequestBody:
+      $ref: 'transactions/RegisterTransaction/RegisterTransactionRequestBody.yaml'
+    RegisterTransactionResponseDto:
+      $ref: 'transactions/RegisterTransaction/RegisterTransactionResponseDto.yaml'
+tags:
+  - name: Account
+    description: Endpoints intended to interact with ADAMANT accounts
+    externalDocs:
+      description: Find out more
+      url: https://docs.adamant.im/api-endpoints/accounts.html
+  - name: Blocks
+    description: List of endpoints giving information of blocks in ADAMANT blockchain
+    externalDocs:
+      description: Find out more
+      url: https://docs.adamant.im/api-endpoints/blocks.html
+  - name: Chats
+    description: List of endpoints intended to work with chats and chatrooms in ADAMANT blockchain
+    externalDocs:
+      description: Find out more
+      url: https://docs.adamant.im/api-endpoints/chatrooms.html
+  - name: Delegates and Voting
+    description: Endpoints useful in working with delegate system of ADAMANT blockchain
+    externalDocs:
+      description: Find out more
+      url: https://docs.adamant.im/api-endpoints/delegates.html
+  - name: Nodes and Blockchain
+    description: List of endpoints useful in work with ADAMANT blockchain in general
+    externalDocs:
+      description: Find out more
+      url: https://docs.adamant.im/api-endpoints/blockchain.html
+  - name: KVS
+    description: Endpoints intended to store data in ADAMANT Key-Value Storage (KVS)
+    externalDocs:
+      description: Find out more
+      url: https://docs.adamant.im/api-endpoints/kvs.html
+  - name: Transactions
+    description: Contains endpoints useful to interact with transactions of ADAMANT blockchain
+    externalDocs:
+      description: Find out more
+      url: https://docs.adamant.im/api-endpoints/transactions.html
+paths:
+  # Accounts
+  '/accounts':
+    get:
+      tags:
+        - Account
+      operationId: getAccountInfo
+      description: Get account information by ADAMANT address or by Public Key
+      parameters:
+        $ref: 'accounts/GetAccountInfo/GetAccountInfoParams.yaml'
+      responses:
+        200:
+          description: Account information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetAccountInfoResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/accounts/getBalance':
+    get:
+      tags:
+        - Account
+      operationId: getAccountBalance
+      description: Get account balance
+      parameters:
+        $ref: 'accounts/GetAccountBalance/GetAccountBalanceParams.yaml'
+      responses:
+        200:
+          description: Account balance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetAccountBalanceResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/accounts/getPublicKey':
+    get:
+      tags:
+        - Account
+      operationId: getAccountPublicKey
+      description: Get account Public Key
+      parameters:
+        $ref: 'accounts/GetAccountPublicKey/GetAccountPublicKeyParams.yaml'
+      responses:
+        200:
+          description: Account Public Key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetAccountPublicKeyResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/accounts/top':
+    get:
+      tags:
+        - Account
+      operationId: getTopAccounts
+      description: Get non-zero-balance accounts sorted by confirmed balance with pagination metadata.
+      parameters:
+        $ref: 'accounts/GetTopAccounts/GetTopAccountsParams.yaml'
+      responses:
+        200:
+          description: Top accounts page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTopAccountsResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/accounts/new':
+    post:
+      tags:
+        - Account
+      operationId: createNewAccount
+      description: Create new account
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNewAccountRequestBody'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateNewAccountResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  # Blocks
+  '/blocks/get':
+    get:
+      tags:
+        - Blocks
+      operationId: getBlockInfo
+      description: Get block information by ID
+      parameters:
+        $ref: 'blocks/GetBlockInfo/GetBlockInfoParams.yaml'
+      responses:
+        200:
+          description: Block information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetBlockInfoResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/blocks':
+    get:
+      tags:
+        - Blocks
+      operationId: getBlocks
+      description: Get list of blocks
+      parameters:
+        $ref: 'blocks/GetBlocks/GetBlocksQueryParams.yaml'
+      responses:
+        200:
+          description: List of blocks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetBlocksResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  # Chats and Chatrooms
+  '/chatrooms/{address}':
+    get:
+      tags:
+        - Chats
+      operationId: getChatRooms
+      description: Get list of Chats
+      parameters:
+        $ref: 'chats/GetChatRooms/GetChatRoomsParams.yaml'
+      responses:
+        200:
+          description: Chat rooms
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetChatRoomsResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/chatrooms/{ownAddress}/{partnerAddress}':
+    get:
+      tags:
+        - Chats
+      operationId: getChatroomMessages
+      description: Get messages between two accounts
+      parameters:
+        $ref: 'chats/GetChatMessages/GetChatMessagesParams.yaml'
+      responses:
+        200:
+          description: Chat messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetChatMessagesResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/chats/get':
+    get:
+      tags:
+        - Chats
+      operationId: getChatMessages
+      description: Returns list of transactions with `type = 8` (deprecated, use `/chatrooms` instead)
+      parameters:
+        $ref: 'chats/GetChatTransactions/GetChatTransactionsParams.yaml'
+      responses:
+        200:
+          description: Messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetChatTransactionsResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/chats/process':
+    post:
+      tags:
+        - Chats
+      operationId: sendMessage
+      description: Broadcast transactions of `type 8 — Chat/Message`
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNewChatMessageRequestBody'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateNewChatMessageResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  # Delegates
+  '/delegates':
+    get:
+      tags:
+        - Delegates and Voting
+      operationId: getDelegates
+      description: Retrieves list of registered ADAMANT delegates
+      parameters:
+        $ref: 'delegates/GetDelegates/GetDelegatesParams.yaml'
+      responses:
+        200:
+          description: List of delegates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetDelegatesResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags:
+        - Delegates and Voting
+      operationId: registerNewDelegate
+      description: Register new delegate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterDelegateRequestBody'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterDelegateResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/delegates/get':
+    get:
+      tags:
+        - Delegates and Voting
+      operationId: getDelegateInfo
+      description: Get delegate info by `username`, `publicKey`, or `address`
+      parameters:
+        $ref: 'delegates/GetDelegate/GetDelegateParams.yaml'
+      responses:
+        200:
+          description: Delegate info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetDelegateResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/delegates/search':
+    get:
+      tags:
+        - Delegates and Voting
+      operationId: searchDelegate
+      description: Search delegates by `username`
+      parameters:
+        $ref: 'delegates/SearchDelegate/SearchDelegateParams.yaml'
+      responses:
+        200:
+          description: Delegate info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchDelegateResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/delegates/count':
+    get:
+      tags:
+        - Delegates and Voting
+      operationId: getDelegatesCount
+      description: Get total count of delegates
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetDelegatesCountResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/delegates/forging/getForgedByAccount':
+    get:
+      tags:
+        - Delegates and Voting
+      operationId: getDelegateForgingActivity
+      description: Get forging activity of a delegate
+      parameters:
+        $ref: 'delegates/GetDelegateStats/GetDelegateStatsParams.yaml'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetDelegateStatsResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/delegates/getNextForgers':
+    get:
+      tags:
+        - Delegates and Voting
+      operationId: getNextForgers
+      description: >-
+        Returns a snapshot of public keys ordered by upcoming slots using the delegate schedule for the next block
+        height (`currentBlock + 1`). All entries use this next-block schedule; request a new snapshot after the node
+        accepts another block.
+      parameters:
+        $ref: 'delegates/GetNextForgers/GetNextForgersParams.yaml'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetNextForgersResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/delegates/voters':
+    get:
+      tags:
+        - Delegates and Voting
+      operationId: getDelegateVoters
+      description: Get list of delegate's voters
+      parameters:
+        $ref: 'delegates/GetVoters/GetVotersParams.yaml'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetVotersResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/accounts/delegates':
+    get:
+      tags:
+        - Delegates and Voting
+      operationId: getDelegateVotes
+      description: Current votes of specific ADAMANT account
+      parameters:
+        $ref: 'delegates/GetAccountVotes/GetAccountVotesParams.yaml'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetAccountVotesResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags:
+        - Delegates and Voting
+      operationId: voteForDelegates
+      description: Vote for delegates
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterVotesRequestBody'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterVotesResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  # Nodes and Blockchain
+  '/peers':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getPeers
+      description: Get list of connected peer nodes
+      parameters:
+        $ref: 'nodes/GetPeers/GetPeersParams.yaml'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetPeersResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/peers/get':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getPeer
+      description: Finds and returns the known peer of the node.
+      parameters:
+        $ref: 'nodes/GetPeerInfo/GetPeerInfoParams.yaml'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetPeerInfoResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/loader/status':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getNodeLoadingStatus
+      description: Returns information of node's loading process
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetLoadingStatusResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/loader/status/sync':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getNodeSyncStatus
+      description: Returns information of the node sync process with other peers
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetSyncStatusResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/loader/status/ping':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getNodePingStatus
+      description: Get ping status
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetPingStatusResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/peers/version':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getNodeVersion
+      description: Returns node software information
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetNodeVersionResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/blocks/getBroadhash':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getBroadhash
+      description: Broadhash is established as an aggregated rolling hash of the past five blocks present in the database.
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetBroadhashResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/blocks/getEpoch':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getEpoch
+      description: Returns time when blockchain epoch starts. Value `2017-09-02T17:00:00.000Z` is for mainnet.
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetEpochResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/blocks/getHeight':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getHeight
+      description: Returns current node's blockchain height
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetHeightResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/blocks/getFee':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getTokenTransferFee
+      description: Returns current fee value for `type 0` (token transfer) transactions. Integer amount of 1/10^8 ADM tokens (1 ADM = 100000000).
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTokenTransferFeeResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/blocks/getFees':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getFees
+      description: Returns current fee values for different transaction types
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTransactionTypesFeesResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/blocks/getNethash':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getNethash
+      description: The nethash describes e.g. the Mainnet or the Testnet, that the node is connecting to.
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetNethashResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/blocks/getMilestone':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getMilestone
+      description: Return current slot height, which determines reward a delegate will get for forging a block.
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetMilestoneResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/blocks/getReward':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getReward
+      description: Returns reward — the reward a delegate will get for forging a block. Integer amount of 1/10^8 ADM tokens (1 ADM = 100000000). Depends on the slot height.
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetRewardResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/blocks/getSupply':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getTokenTotalSupply
+      description: Returns total current supply of ADM tokens in network. Integer amount of 1/10^8 ADM tokens (1 ADM = 100000000). Total supply increases with every new forged block.
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTokensTotalSupplyResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/blocks/getStatus':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getNetworkInfo
+      description: Returns blockchain network information in a single request
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetNetworkInfoResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/node/status':
+    get:
+      tags:
+        - Nodes and Blockchain
+      operationId: getNodeStatus
+      description: Returns both ADAMANT blockchain network information and Node information in a single request.
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetNodeStatusResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/states/get':
+    get:
+      tags:
+        - KVS
+      operationId: getKVS
+      description: >-
+        Fetch data from KVS. Returns a list of transactions of `type = 9` with KVS data stored in
+        `asset.state`. All filters combine with AND; `and:`-prefixed aliases are accepted while
+        `or:` filters, unknown parameters, and conflicting plain/`and:` values are rejected.
+      parameters:
+        $ref: 'kvs/GetKVS/GetKVSParams.yaml'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetKVSResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags:
+        - KVS
+      operationId: postGetKVS
+      description: >-
+        Fetch data from KVS using a JSON request body (useful when query-string length limits are
+        exceeded for large `keyIds` or `senderIds` lists). All filters combine with AND;
+        `and:`-prefixed aliases are accepted while `or:` filters, unknown parameters, and
+        conflicting plain/`and:` values are rejected.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetKVSRequestBody'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetKVSResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/states/store':
+    post:
+      tags:
+        - KVS
+      operationId: setKVS
+      description: Creates a KVS transaction (`type 9`)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetKVSRequestBody'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetKVSResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  # Transactions
+  '/transactions':
+    get:
+      tags:
+        - Transactions
+      operationId: getTransactions
+      description: |
+        Returns list of transactions
+
+        You can filter by single parameter, or by multiple parameters using logical operator `and` or `or`.
+        For more details check [Transactions Query Language](https://docs.adamant.im/api/transactions-query-language.html)
+
+        Params act by default as `or` operator.
+      parameters:
+        $ref: 'transactions/GetTransactions/GetTransactionsParams.yaml'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTransactionsResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags:
+        - Transactions
+      operationId: sendTransaction
+      description: Broadcast [any type](https://docs.adamant.im/api-types/transaction-types.html) of transaction
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterTransactionRequestBody'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterTransactionResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/transactions/get':
+    get:
+      tags:
+        - Transactions
+      operationId: getTransaction
+      description: Get transaction by ID
+      parameters:
+        $ref: 'transactions/GetTransactionById/GetTransactionByIdParams.yaml'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTransactionByIdResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/transactions/count':
+    get:
+      tags:
+        - Transactions
+      operationId: getTransactionsCount
+      description: Get `confirmed`, `unconfirmed` and `queued` transactions count
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTransactionsCountResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/transactions/queued':
+    get:
+      tags:
+        - Transactions
+      operationId: getQueuedTransactions
+      description: Get queued transactions
+      parameters:
+        $ref: 'transactions/GetPooledTransactions/GetPooledTransactionsParams.yaml'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetQueuedTransactionsResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/transactions/queued/get':
+    get:
+      tags:
+        - Transactions
+      operationId: getQueuedTransaction
+      description: Get queued transaction by ID
+      parameters:
+        $ref: 'transactions/GetQueuedTransactionById/GetQueuedTransactionByIdParams.yaml'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetQueuedTransactionsResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/transactions/unconfirmed':
+    get:
+      tags:
+        - Transactions
+      operationId: getUnconfirmedTransactions
+      description: Get unconfirmed transactions
+      parameters:
+        $ref: 'transactions/GetPooledTransactions/GetPooledTransactionsParams.yaml'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetUnconfirmedTransactionsResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/transactions/unconfirmed/get':
+    get:
+      tags:
+        - Transactions
+      operationId: getUnconfirmedTransaction
+      description: Get unconfirmed transaction by ID
+      parameters:
+        $ref: 'transactions/GetUnconfirmedTransactionById/GetUnconfirmedTransactionByIdParams.yaml'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetUnconfirmedTransactionByIdResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  '/transactions/process':
+    post:
+      tags:
+        - Transactions
+      operationId: sendTokens
+      description:
+        Broadcast transactions of `type 0 — Token transfer` or `type 8 — Chat/Message`.
+        See [Transaction Types](https://docs.adamant.im/api-types/transaction-types.html)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferTokenRequestBody'
+      responses:
+        200:
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferTokenResponseDto'
+        429:
+          $ref: '#/components/responses/TooManyRequests'

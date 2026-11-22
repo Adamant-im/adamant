@@ -1,0 +1,55 @@
+allOf:
+  - $ref: './BaseTransaction.yaml'
+  - type: object
+    required:
+      - votes
+      - asset
+      - type
+    properties:
+      votes:
+        type: object
+        properties:
+          added:
+            type: array
+            items:
+              type: string
+              description: Delegate public key
+              example: c0c580c3fb89409f32181fef58935f286f0c1bbf61bd727084ed915b3a4bc95b
+            description: List of Upvoted delegates
+          deleted:
+            type: array
+            items:
+              type: string
+              description: Delegate public key
+              example: c0c580c3fb89409f32181fef58935f286f0c1bbf61bd727084ed915b3a4bc95b
+            description: List of Downvoted delegates
+      type:
+        type: integer
+        enum: [3]
+        example: 3
+        description: Always equal to `3`
+      asset:
+        $ref: './assets/VoteForDelegateAsset.yaml'
+example:
+  id: 9888167852341777698
+  height: 10488572
+  blockId: 16481510969712463150
+  type: 3
+  block_timestamp: 59782601
+  timestamp: 59782601
+  senderPublicKey: 9560562121cdc41112a0b288101079346d9c67f5bbff1f4d5a29483258c9477a
+  senderId: U9221911598904803004
+  recipientId: U9221911598904803004
+  recipientPublicKey: 9560562121cdc41112a0b288101079346d9c67f5bbff1f4d5a29483258c9477a
+  amount: 0
+  fee: 5000000000
+  signature: fe199a4a5790186c1c482c6f5c0de5b7baa0a66e4b97abcb96f47e197880ea8333dc57e1b497e32eabdb157ac834dbd85d58d7c550e8aabe208af79026279c04
+  signatures: []
+  confirmations: 745088
+  asset:
+    votes:
+      - '-c0c580c3fb89409f32181fef58935f286f0c1bbf61bd727084ed915b3a4bc95b'
+  votes:
+    added: []
+    deleted:
+      - 'c0c580c3fb89409f32181fef58935f286f0c1bbf61bd727084ed915b3a4bc95b'

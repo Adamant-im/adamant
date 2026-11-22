@@ -1,0 +1,14 @@
+required:
+  - count
+  - success
+  - nodeTimestamp
+properties:
+  count:
+    type: integer
+    example: 255
+  success:
+    type: boolean
+    example: true
+  nodeTimestamp:
+    type: integer
+    example: 61762271

@@ -1,0 +1,9 @@
+name: and:key
+in: query
+required: false
+schema:
+  type: string
+  example: eth:address
+  description: >-
+    Equivalent to `key` (all `/api/states/get` filters combine with AND). Passing both `key` and
+    `and:key` with different values is rejected.

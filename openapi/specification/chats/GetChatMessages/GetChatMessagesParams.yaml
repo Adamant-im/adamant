@@ -1,0 +1,71 @@
+- name: ownAddress
+  in: path
+  description: Your ADAMANT address
+  required: true
+  schema:
+    type: string
+    example: U8916295525136600565
+- name: partnerAddress
+  in: path
+  description: Partner ADAMANT address
+  required: true
+  schema:
+    type: string
+    example: U2707535059340134112
+- name: limit
+  in: query
+  description: Limit number of messages.
+  required: false
+  schema:
+    type: integer
+    format: int32
+    maximum: 100
+    default: 100
+- name: offset
+  in: query
+  description: Skips **n** messages. Used for pagination
+  required: false
+  schema:
+    type: integer
+    format: int32
+    default: 0
+- name: orderBy
+  in: query
+  description: Order by field
+  required: false
+  schema:
+    type: string
+    example: timestamp:desc
+    default: timestamp:desc
+- name: type
+  in: query
+  description: Filter by `asset.chat.type`. See [Message Types](https://docs.adamant.im/api-types/message-types.html)
+  required: false
+  schema:
+    type: integer
+    example: 1
+    enum: [1, 2]
+- name: and:type
+  in: query
+  description: >-
+    Equivalent to `type` (all `/api/chatrooms` filters combine with AND; `or:` filters are rejected).
+    See [Message Types](https://docs.adamant.im/api-types/message-types.html)
+  required: false
+  schema:
+    type: integer
+    example: 1
+    enum: [1, 2]
+
+# senderId
+- $ref: '../../common/params/filters/senderId/senderId.yaml'
+- $ref: '../../common/params/filters/senderId/andSenderId.yaml'
+
+# recipientId
+- $ref: '../../common/params/filters/recipientId/recipientId.yaml'
+- $ref: '../../common/params/filters/recipientId/andRecipientId.yaml'
+
+# includeDirectTransfers
+- $ref: '../GetChatRooms/params/filters/includeDirectTransfers/includeDirectTransfers.yaml'
+
+# returnUnconfirmed
+- $ref: '../../common/params/returnUnconfirmed.yaml'

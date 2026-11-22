@@ -1,0 +1,32 @@
+required:
+  - type
+  - amount
+  - senderId
+  - senderPublicKey
+  - signature
+  - timestamp
+properties:
+  type:
+    type: integer
+  amount:
+    type: integer
+  senderId:
+    type: string
+  senderPublicKey:
+    type: string
+  signature:
+    type: string
+  timestamp:
+    type: integer
+    description: Transaction time measured in seconds since the ADAMANT epoch.
+  timestampMs:
+    type: integer
+    description: Optional transaction time measured in milliseconds since the ADAMANT epoch. Supported by upgraded nodes and stored in consensus-sensitive transaction data after the `spaceship` activation. If provided, clients should derive `timestamp` from the same value using `Math.floor(timestampMs / 1000)`; `round` or `ceil` can create an invalid timestamp pair.
+example:
+  type: 0
+  amount: 0
+  senderId: U14236667426471084862
+  senderPublicKey: 8cd9631f9f634a361ea3b85cbd0df882633e39e7d26d7bc615bbcf75e41524ef
+  signature: b3982d603be8f0246fa663e9f012bf28b198cd28f82473db1eb4a342d890f7a2a2c1845db8d256bb5bce1e64a9425822a91e10bf960a2e0b55e20b4841e4ae0b
+  timestamp: 63228852
+  timestampMs: 63228852123

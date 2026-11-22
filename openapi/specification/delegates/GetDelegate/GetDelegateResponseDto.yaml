@@ -1,0 +1,13 @@
+required:
+  - delegate
+  - success
+  - nodeTimestamp
+properties:
+  delegate:
+    $ref: '../DelegateDto.yaml'
+  success:
+    type: boolean
+    example: true
+  nodeTimestamp:
+    type: number
+    example: 61762271

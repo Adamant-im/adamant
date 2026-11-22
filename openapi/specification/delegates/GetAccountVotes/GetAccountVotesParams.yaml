@@ -1,0 +1,6 @@
+- name: address
+  in: query
+  required: true
+  schema:
+    type: string
+    example: U777355171330060015

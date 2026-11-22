@@ -1,0 +1,72 @@
+description: >-
+  Too Many Requests — the caller exceeded an active per-IP HTTP anti-abuse budget (either the
+  surface aggregate `all` budget or a route class such as `status`, `read`, or `publish` on `/api/*`,
+  or `status`, `sync`, or `broadcast` on `/peer/*`).
+
+  This response signals bounded temporary backpressure rather than a permanent request validation
+  error. Clients should honor `Retry-After` (or `RateLimit-Reset`) and retry with jittered backoff
+  instead of tight-looping. Node CORS middleware runs before the limiter and exposes `RateLimit`,
+  `RateLimit-Policy`, `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`,
+  `RateLimit-Scope`, `Retry-After`, and legacy `X-RateLimit-*` headers to browser clients.
+headers:
+  Retry-After:
+    description: Number of seconds to wait before retrying the request.
+    schema:
+      type: integer
+      example: 60
+  RateLimit-Scope:
+    description: >-
+      Effective rate-limit budget that triggered the response (`status`, `read`, `publish`, or `all`
+      on public `/api/*` routes; `status`, `sync`, `broadcast`, or `all` on `/peer/*` routes).
+    schema:
+      type: string
+      enum:
+        - status
+        - read
+        - publish
+        - sync
+        - broadcast
+        - all
+      example: read
+  RateLimit-Policy:
+    description: Standard policy string (`<limit>;w=<windowSeconds>`), sent when `standardHeaders` is enabled (default `true`).
+    schema:
+      type: string
+      example: 3000;w=60
+  RateLimit-Limit:
+    description: Hard request cap for the effective limiting window, sent when `standardHeaders` is enabled (default `true`).
+    schema:
+      type: integer
+      example: 3000
+  RateLimit-Remaining:
+    description: Remaining requests in the effective limiting window (0 on HTTP 429), sent when `standardHeaders` is enabled.
+    schema:
+      type: integer
+      example: 0
+  RateLimit-Reset:
+    description: Remaining seconds until the effective limiting window resets, sent when `standardHeaders` is enabled.
+    schema:
+      type: integer
+      example: 42
+  X-RateLimit-Limit:
+    description: Legacy hard cap header, sent only when `legacyHeaders` is enabled (default `false`).
+    required: false
+    schema:
+      type: integer
+      example: 3000
+  X-RateLimit-Remaining:
+    description: Legacy remaining count header, sent only when `legacyHeaders` is enabled (default `false`).
+    required: false
+    schema:
+      type: integer
+      example: 0
+  X-RateLimit-Reset:
+    description: Legacy Unix timestamp (seconds) when the window resets, sent only when `legacyHeaders` is enabled (default `false`).
+    required: false
+    schema:
+      type: integer
+      example: 1795353600
+content:
+  application/json:
+    schema:
+      $ref: './RateLimitErrorResponseDto.yaml'

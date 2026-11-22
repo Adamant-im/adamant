@@ -1,0 +1,70 @@
+required:
+  - id
+  - version
+  - timestamp
+  - height
+  - previousBlock
+  - numberOfTransactions
+  - totalAmount
+  - totalFee
+  - reward
+  - payloadLength
+  - payloadHash
+  - generatorPublicKey
+  - generatorId
+  - blockSignature
+  - confirmations
+  - totalForged
+properties:
+  id:
+    type: string
+    format: int64
+  version:
+    type: number
+  timestamp:
+    type: number
+  height:
+    type: number
+  previousBlock:
+    type: string
+    format: int64
+  numberOfTransactions:
+    type: number
+  totalAmount:
+    type: number
+  totalFee:
+    type: number
+  reward:
+    type: number
+  payloadLength:
+    type: number
+  payloadHash:
+    type: string
+  generatorPublicKey:
+    type: string
+  generatorId:
+    type: string
+  blockSignature:
+    type: string
+  confirmations:
+    type: number
+  totalForged:
+    type: string
+    format: int64
+example:
+  id: '11114690216332606721'
+  version: 0
+  timestamp: 61741820
+  height: 10873829
+  previousBlock: '11483763337863654141'
+  numberOfTransactions: 1
+  totalAmount: 10000000
+  totalFee: 50000000
+  reward: 45000000
+  payloadLength: 117
+  payloadHash: 'f7c0fa338a3a848119cad999d8035ab3fcb3d274a4555e141ebeb86205e41345'
+  generatorPublicKey: '134a5de88c7da1ec71e75b5250d24168c6c6e3965ff16bd71497bd015d40ea6a'
+  generatorId: 'U3238410389688281135'
+  blockSignature: '18607b15417a6b0a56b4c74cacd713ad7a10df16ec3ab45a697fa72b6f811f9213d895b7e0fbca71cf74323d60148d0991668e5368386408f4d841496ed2280d'
+  confirmations: 1093
+  totalForged: '95000000'

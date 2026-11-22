@@ -1,0 +1,31 @@
+required:
+  - success
+  - nodeTimestamp
+  - syncing
+  - blocks
+  - height
+  - broadhash
+  - consensus
+properties:
+  success:
+    type: boolean
+  nodeTimestamp:
+    type: number
+  syncing:
+    type: boolean
+  blocks:
+    type: integer
+  height:
+    type: integer
+  broadhash:
+    type: string
+  consensus:
+    type: number
+example:
+  success: true
+  nodeTimestamp: 58052355
+  syncing: false
+  blocks: 0
+  height: 10146332
+  broadhash: 09f2f5614cf7209979dc1df2dd92d16aade904dae6c9b68bccaeb234647b3c18
+  consensus: 94.32

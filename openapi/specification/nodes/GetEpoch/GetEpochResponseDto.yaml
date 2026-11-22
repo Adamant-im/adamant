@@ -1,0 +1,16 @@
+required:
+  - success
+  - nodeTimestamp
+  - epoch
+properties:
+  success:
+    type: boolean
+  nodeTimestamp:
+    type: number
+  epoch:
+    type: string
+    description: Time when blockchain epoch starts. Value `2017-09-02T17:00:00.000Z` is for mainnet.
+example:
+  success: true
+  nodeTimestamp: 58646306
+  epoch: 2017-09-02T17:00:00.000Z

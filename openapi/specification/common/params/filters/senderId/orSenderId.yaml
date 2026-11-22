@@ -1,0 +1,6 @@
+name: or:senderId
+in: query
+description: Filter by senderId (`or` operator)
+schema:
+  type: string
+required: false
