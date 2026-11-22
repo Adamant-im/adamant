@@ -1,0 +1,11 @@
+required:
+  - block
+  - success
+  - nodeTimestamp
+properties:
+  block:
+    $ref: '../BlockInfoDto.yaml'
+  success:
+    type: boolean
+  nodeTimestamp:
+    type: number

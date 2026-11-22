@@ -1,0 +1,16 @@
+required:
+  - delegates
+  - success
+  - nodeTimestamp
+properties:
+  delegates:
+    type: array
+    items:
+      $ref: '../DelegateDto.yaml'
+    description: List of delegates account voted for.
+  success:
+    type: boolean
+    example: true
+  nodeTimestamp:
+    type: number
+    example: 61762271

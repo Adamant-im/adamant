@@ -1,0 +1,37 @@
+{
+  "name": "adamant-docs",
+  "version": "0.11.0",
+  "private": true,
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "fsevents@2.3.3": true
+  },
+  "description": "Documentation and OpenAPI tooling for ADAMANT Node",
+  "author": "ADAMANT community developers <devs@adamant.im>",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Adamant-im/adamant.git",
+    "directory": "docs"
+  },
+  "homepage": "https://docs.adamant.im",
+  "engines": {
+    "node": "^22.22.2 || >=24.15.0"
+  },
+  "scripts": {
+    "dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview",
+    "openapi:bundle": "redocly bundle ../openapi/specification/openapi.yaml -o ../openapi/dist/schema.json --component-renaming-conflicts-severity=off",
+    "openapi:serve": "npm run openapi:bundle && node ../openapi/serve.js",
+    "site:build": "npm run docs:build && npm run openapi:bundle && node scripts/assemble-site.js"
+  },
+  "dependencies": {
+    "@redocly/cli": "^2.78.0",
+    "vitepress": "^1.6.4"
+  },
+  "overrides": {
+    "esbuild": "~0.25.0",
+    "vite": "6.4.6"
+  }
+}

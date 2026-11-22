@@ -1,0 +1,1 @@
+$ref: './QueuedTransaction.yaml' # @todo What is the difference between Queued and Unconfirmed?

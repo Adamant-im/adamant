@@ -1,0 +1,19 @@
+- name: generatorPublicKey
+  in: query
+  description: Delegate's publicKey
+  schema:
+    type: string
+    example: a9407418dafb3c8aeee28f3263fd55bae0f528a5697a9df0e77e6568b19dfe34
+  required: true
+- name: start
+  in: query
+  description: Inclusive start of the forging interval as a Unix timestamp in seconds.
+  required: false
+  schema:
+    type: integer
+- name: end
+  in: query
+  description: Inclusive end of the forging interval as a Unix timestamp in seconds.
+  required: false
+  schema:
+    type: integer

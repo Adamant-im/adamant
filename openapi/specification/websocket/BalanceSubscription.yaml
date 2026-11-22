@@ -1,0 +1,19 @@
+description: >-
+  One public balance field or a list of fields to add to the socket subscription. At least one
+  address subscription is required before balance changes can be delivered.
+oneOf:
+  - type: string
+    enum:
+      - balance
+      - unconfirmedBalance
+  - type: array
+    minItems: 1
+    uniqueItems: true
+    items:
+      type: string
+      enum:
+        - balance
+        - unconfirmedBalance
+example:
+  - balance
+  - unconfirmedBalance

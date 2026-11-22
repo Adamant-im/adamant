@@ -1,0 +1,48 @@
+required:
+  - broadhash
+  - epoch
+  - height
+  - consensusCodeName
+  - fee
+  - milestone
+  - nethash
+  - reward
+  - supply
+properties:
+  broadhash:
+    type: string
+    description: Broadhash is established as an aggregated rolling hash of the past five blocks present in the database
+  epoch:
+    type: string
+    description: Time when blockchain epoch starts. Value `2017-09-02T17:00:00.000Z` is for mainnet.
+  height:
+    type: integer
+  consensusCodeName:
+    type: [string, 'null']
+    description: >-
+      Latest cumulative consensus upgrade active at `height`, or `null` before the first configured activation.
+      An upgrade configured for height H is active starting at block H.
+  fee:
+    type: integer
+  milestone:
+    type: integer
+    description: Current slot height, which determines reward a delegate will get for forging a block.
+  nethash:
+    type: string
+    description: The `nethash` describes e.g. the Mainnet or the Testnet, that the node is connecting to.
+  reward:
+    type: integer
+    description: The reward a delegate will get for forging a block. Integer amount of 1/10^8 ADM tokens (1 ADM = 100000000).
+  supply:
+    type: integer
+    description: Total current supply of ADM tokens in the network. Integer amount of 1/10^8 ADM tokens (1 ADM = 100000000).
+example:
+  broadhash: 4a28272c915f74d118120bb47db547a18a7512e1d48092c48be86939a6d45b89
+  epoch: 2017-09-02T17:00:00.000Z
+  height: 10145334
+  consensusCodeName: fairSystem
+  fee: 50000000
+  milestone: 1
+  nethash: bd330166898377fb28743ceef5e43a5d9d0a3efd9b3451fb7bc53530bb0a6d64
+  reward: 45000000
+  supply: 10198040075000000

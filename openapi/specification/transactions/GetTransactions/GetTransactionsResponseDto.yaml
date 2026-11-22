@@ -1,0 +1,19 @@
+required:
+  - transactions
+  - count
+  - success
+  - nodeTimestamp
+properties:
+  transactions:
+    type: array
+    items:
+      $ref: '../../common/transactions/AnyTransaction.yaml'
+  count:
+    type: integer
+    example: 1
+  success:
+    type: boolean
+    example: true
+  nodeTimestamp:
+    type: number
+    example: 63647706

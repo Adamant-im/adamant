@@ -1,0 +1,13 @@
+required:
+  - transaction
+  - success
+  - nodeTimestamp
+properties:
+  transaction:
+    $ref: '../../common/transactions/AnyTransaction.yaml'
+  success:
+    type: boolean
+    example: true
+  nodeTimestamp:
+    type: number
+    example: 63647706

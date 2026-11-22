@@ -1,0 +1,10 @@
+name: isIn
+in: query
+description: |
+  Alias for `inId` — filter by recipientId/senderId `("recipientId" = ${isIn} OR "senderId" = ${isIn})`.
+
+  `isIn` and `inId` are interchangeable (available since ADAMANT Node v0.8.0).
+schema:
+  type: string
+  example: U14236667426471084862
+required: false

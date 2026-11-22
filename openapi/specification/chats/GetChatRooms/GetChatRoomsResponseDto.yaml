@@ -1,0 +1,26 @@
+required:
+  - chats
+  - count
+  - success
+  - nodeTimestamp
+properties:
+  chats:
+    type: array
+    items:
+      type: object
+      properties:
+        lastTransaction:
+          oneOf:
+            - $ref: '../../common/transactions/TokenTransferTransaction.yaml'
+            - $ref: '../../common/transactions/ChatMessageTransaction.yaml'
+        participants:
+          type: array
+          items:
+            $ref: '../ChatParticipant.yaml'
+  count:
+    type: integer
+    description: Total number of chatrooms available for the address (independent of `limit`/`offset`).
+  success:
+    type: boolean
+  nodeTimestamp:
+    type: number

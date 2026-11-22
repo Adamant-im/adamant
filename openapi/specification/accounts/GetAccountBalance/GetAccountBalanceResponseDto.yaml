@@ -1,0 +1,21 @@
+required:
+  - balance
+  - unconfirmedBalance
+  - success
+  - nodeTimestamp
+properties:
+  balance:
+    type: string
+    format: int64
+  unconfirmedBalance:
+    type: string
+    format: int64
+  success:
+    type: boolean
+  nodeTimestamp:
+    type: number
+example:
+  balance: '4509718944753'
+  unconfirmedBalance: '4509718944753'
+  success: true
+  nodeTimestamp: 58043820

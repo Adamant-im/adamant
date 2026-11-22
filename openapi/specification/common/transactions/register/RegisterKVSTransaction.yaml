@@ -1,0 +1,14 @@
+allOf:
+  - $ref: './RegisterTransactionBase.yaml'
+  - type: object
+    required:
+      - type
+      - asset
+    properties:
+      type:
+        type: integer
+        enum: [9]
+        example: 9
+        description: Should be always equal to `9` (Store in KVS transaction type)
+      asset:
+        $ref: '../assets/KVSTransactionAsset.yaml'

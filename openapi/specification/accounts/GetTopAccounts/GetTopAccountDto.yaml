@@ -1,0 +1,29 @@
+required:
+  - address
+  - balance
+  - publicKey
+  - username
+  - isDelegate
+properties:
+  address:
+    $ref: '../../common/properties/AdamantAddress.yaml'
+  balance:
+    type: string
+    format: int64
+    description: Confirmed ADM balance in 1/10^8 ADM units.
+  publicKey:
+    type: [string, 'null']
+    description: 256 bit public key of the ADAMANT address in hex format, or `null` when the account has not published it yet.
+  username:
+    type: [string, 'null']
+    description: Delegate username, or `null` when the account is not a delegate.
+  isDelegate:
+    type: integer
+    enum: [0, 1]
+    description: Whether the account is registered as a delegate.
+example:
+  address: U777355171330060015
+  balance: '4509718944753'
+  publicKey: a9407418dafb3c8aeee28f3263fd55bae0f528a5697a9df0e77e6568b19dfe34
+  username: adamant_delegate
+  isDelegate: 1

@@ -1,0 +1,23 @@
+type: object
+required:
+  - state
+properties:
+  state:
+    type: object
+    required:
+      - key
+      - value
+      - type
+    properties:
+      key:
+        type: string
+      value:
+        type: string
+      type:
+        type: integer
+        enum: [0]
+example:
+  state:
+    key: eth:address
+    value: '0x2391EEaEc07B927D2BA4Fa5cB3cE4b490Fa6fffC'
+    type: 0

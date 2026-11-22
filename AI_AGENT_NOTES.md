@@ -103,13 +103,13 @@ Data shape is tightly coupled across:
 
 - JS model readers/writers (`dbRead`, `dbSave`, `objectNormalize`)
 - SQL tables/views/migrations (`sql/*`, `sql/migrations/*`)
-- API response contracts and external schema repo.
+- API response contracts, OpenAPI spec (`openapi/`), and VitePress docs (`docs/`).
 
 Recommendations:
 
 - Treat SQL and JS shape edits as one change-set.
 - If you alter fields used in `trs_list`/`trs_list_full`/`full_trs_list`, verify all callers.
-- For protocol/API-visible changes, align this repo + `adamant-schema` + `docs`.
+- For protocol/API-visible changes, align node code, `openapi/`, and `docs/` in the same PR and verify with `cd docs && npm run site:build`.
 
 ## 8) Refactoring Strategy That Fits This Repo
 
@@ -214,10 +214,10 @@ Environment bootstrap checklist:
    - `pg_isready -h localhost -p 5432`
    - `redis-cli -h 127.0.0.1 -p 6379 ping`
 3. If services are installed but stopped (macOS/Homebrew):
-   - `brew services start postgresql@14`
+   - `brew services start postgresql@18`
    - `brew services start redis`
 4. If binaries are missing (macOS/Homebrew):
-   - `brew install postgresql@14 redis`
+   - `brew install postgresql@18 redis`
 5. Ensure local DB credentials expected by tests are available:
    - DB: `adamant_test`
    - User: `adamanttest`

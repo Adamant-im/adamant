@@ -1,0 +1,19 @@
+allOf:
+  - $ref: '../../common/transactions/QueuedTransaction.yaml'
+  - type: object
+    required:
+      - asset
+      - type
+    properties:
+      asset:
+        $ref: '../../common/transactions/assets/RegisterDelegateAsset.yaml'
+      type:
+        type: integer
+        enum: [2]
+        example: 2
+        description: Always equal to `2`
+      fee:
+        type: integer
+        enum: [300000000000]
+        example: 300000000000
+        description: Always equal to `300000000000`

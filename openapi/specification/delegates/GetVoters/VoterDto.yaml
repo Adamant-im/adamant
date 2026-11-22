@@ -1,0 +1,23 @@
+required:
+  - username
+  - address
+  - publicKey
+  - balance
+properties:
+  username:
+    type: [string, 'null']
+    description: Voter's delegate username. `null` if address is not a delegate.
+  address:
+    type: string
+    description: Voter's ADAMANT address
+  publicKey:
+    type: string
+    description: Voter's ADAMANT public key
+  balance:
+    type: string
+    description: ADM balance of voter's ADAMANT wallet. Integer amount of 1/10^8 ADM tokens (1 ADM = 100000000)
+example:
+  username: leg
+  address: U12609717384103730908
+  publicKey: 559418798f67a81b7f893aa8eab1218b9838a6b0bcd2bc8968c6d490ae0d5d77
+  balance: '506697'

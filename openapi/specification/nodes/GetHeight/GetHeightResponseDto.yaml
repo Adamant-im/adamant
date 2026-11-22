@@ -1,0 +1,16 @@
+required:
+  - success
+  - nodeTimestamp
+  - height
+properties:
+  success:
+    type: boolean
+  nodeTimestamp:
+    type: number
+  height:
+    type: integer
+    description: Current node height.
+example:
+  success: true
+  nodeTimestamp: 58646306
+  height: 10145318

@@ -343,6 +343,22 @@ function readJson (file) {
 }
 
 function readLockfileAtRef (gitRef, lockfile) {
+  execFileSync(
+      'git',
+      ['rev-parse', '--verify', `${gitRef}^{commit}`],
+      { cwd: process.cwd(), stdio: 'ignore' }
+  );
+
+  try {
+    execFileSync(
+        'git',
+        ['cat-file', '-e', `${gitRef}:${lockfile}`],
+        { cwd: process.cwd(), stdio: 'ignore' }
+    );
+  } catch (error) {
+    return { packages: {} };
+  }
+
   const contents = execFileSync(
       'git',
       ['show', `${gitRef}:${lockfile}`],
@@ -422,5 +438,6 @@ module.exports = {
   parseArguments,
   parseExceptions,
   parseMinimumReleaseAge,
+  readLockfileAtRef,
   verifyReleaseAges
 };

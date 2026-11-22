@@ -1,0 +1,19 @@
+description: >-
+  One asset.chat.type value or a list of values to add to the socket subscription. This WebSocket
+  contract follows the node's complete chat transaction type range (0-3), independently of REST
+  chat endpoints that expose narrower query filters.
+oneOf:
+  - type: integer
+    minimum: 0
+    maximum: 3
+  - type: array
+    minItems: 1
+    uniqueItems: true
+    items:
+      type: integer
+      minimum: 0
+      maximum: 3
+example:
+  - 1
+  - 2
+  - 3

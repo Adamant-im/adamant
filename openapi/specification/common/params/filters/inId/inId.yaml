@@ -1,0 +1,7 @@
+name: inId
+in: query
+description: Filter by recipientId/senderId `("recipientId" = ${inId} OR "senderId" = ${inId})`
+schema:
+  type: string
+  example: U14236667426471084862
+required: false

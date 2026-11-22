@@ -1,0 +1,61 @@
+###############################
+####### Common filters ########
+###############################
+
+# All filters on /api/chats/get combine with AND.
+# `and:`-prefixed aliases are supported; `or:` filters are rejected.
+
+# fromHeight
+- $ref: '../../common/params/filters/fromHeight/fromHeight.yaml'
+- $ref: '../../common/params/filters/fromHeight/andFromHeight.yaml'
+
+# toHeight
+- $ref: '../../common/params/filters/toHeight/toHeight.yaml'
+- $ref: '../../common/params/filters/toHeight/andToHeight.yaml'
+
+# senderId
+- $ref: '../../common/params/filters/senderId/senderId.yaml'
+- $ref: '../../common/params/filters/senderId/andSenderId.yaml'
+
+# recipientId
+- $ref: '../../common/params/filters/recipientId/recipientId.yaml'
+- $ref: '../../common/params/filters/recipientId/andRecipientId.yaml'
+
+# inId
+- $ref: '../../common/params/filters/inId/inId.yaml'
+- $ref: '../../common/params/filters/inId/andInId.yaml'
+
+# isIn (alias for inId, since v0.8.0)
+- $ref: '../../common/params/filters/isIn/isIn.yaml'
+- $ref: '../../common/params/filters/isIn/andIsIn.yaml'
+
+# type
+- $ref: '../../common/params/filters/messageType/type.yaml'
+- $ref: '../../common/params/filters/messageType/andType.yaml'
+
+###############################
+######## Common params ########
+###############################
+
+# offset
+- $ref: '../../common/params/offset.yaml'
+
+# orderBy
+- $ref: '../../common/params/orderBy.yaml'
+
+# returnUnconfirmed
+- $ref: '../../common/params/returnUnconfirmed.yaml'
+
+###############################
+### Endpoint specific params ##
+###############################
+
+# limit
+- $ref: '../../common/params/limit.yaml'
+
+###############################
+## Endpoint specific filters ##
+###############################
+
+# includeDirectTransfers
+- $ref: './params/filters/includeDirectTransfers/includeDirectTransfers.yaml'

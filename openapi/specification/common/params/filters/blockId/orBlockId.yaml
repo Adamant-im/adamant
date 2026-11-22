@@ -1,0 +1,6 @@
+name: or:blockId
+in: query
+description: Filter by specific block (`or` condition)
+schema:
+  type: number
+required: false

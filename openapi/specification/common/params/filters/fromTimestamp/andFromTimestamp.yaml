@@ -1,0 +1,7 @@
+name: and:fromTimestamp
+in: query
+description: Filter by timestamp (`and` operator)
+schema:
+  type: number
+  example: 37059538
+required: false

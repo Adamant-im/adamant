@@ -1,0 +1,15 @@
+description: One transaction type or a list of transaction types to add to the socket subscription.
+oneOf:
+  - type: integer
+    minimum: 0
+    maximum: 9
+  - type: array
+    minItems: 1
+    uniqueItems: true
+    items:
+      type: integer
+      minimum: 0
+      maximum: 9
+example:
+  - 0
+  - 8

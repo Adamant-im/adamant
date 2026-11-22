@@ -1,0 +1,10 @@
+- name: address
+  in: query
+  schema:
+    type: string
+  required: false
+- name: publicKey
+  in: query
+  schema:
+    type: string
+  required: false

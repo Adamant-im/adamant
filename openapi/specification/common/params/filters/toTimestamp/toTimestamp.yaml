@@ -1,0 +1,7 @@
+name: toTimestamp
+in: query
+description: Filter by timestamp
+schema:
+  type: number
+  example: 37059538
+required: false

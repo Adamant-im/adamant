@@ -1,0 +1,38 @@
+allOf:
+  - $ref: './RegisterTransactionBase.yaml'
+  - type: object
+    required:
+      - asset
+      - type
+    properties:
+      type:
+        type: integer
+        enum: [2]
+        example: 2
+        description: Should be always equal to `2`
+      asset:
+        type: object
+        required:
+          - delegate
+        properties:
+          delegate:
+            type: object
+            required:
+              - username
+              - publicKey
+            properties:
+              username:
+                type: string
+              publicKey:
+                $ref: '../../properties/PublicKey.yaml'
+example:
+  type: 2
+  amount: 0
+  senderId: 'U3031563782805250428'
+  senderPublicKey: 'a339974effc141f302bd3589c603bdc9468dd66bcc424b60025b36999eb69ca3'
+  signature: 'c2e4a3ef7f0d363611a2b22b96feff269f1a0cbb61741a2ce55756bb9324826092fd9bff6348145e3cc384c097f101a493b9136da5236292ecf8b1ed6657dd01'
+  timestamp: 166805250
+  asset:
+    delegate:
+      username: kpeo
+      publicKey: a339974effc141f302bd3589c603bdc9468dd66bcc424b60025b36999eb69ca3

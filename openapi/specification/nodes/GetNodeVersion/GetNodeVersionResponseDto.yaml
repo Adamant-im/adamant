@@ -1,0 +1,13 @@
+allOf:
+  - $ref: '../NodeVersion.yaml'
+  - type: object
+    required:
+      - success
+      - nodeTimestamp
+    properties:
+      success:
+        type: boolean
+        example: true
+      nodeTimestamp:
+        type: number
+        example: 58052984

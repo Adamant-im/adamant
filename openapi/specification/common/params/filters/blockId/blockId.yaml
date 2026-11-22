@@ -1,0 +1,7 @@
+name: blockId
+in: query
+description: Filter by specific block
+schema:
+  type: number
+  example: 7917597195203393333
+required: false

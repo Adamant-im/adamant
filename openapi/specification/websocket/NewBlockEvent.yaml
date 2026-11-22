@@ -1,0 +1,56 @@
+type: object
+description: >-
+  Compact header of a successfully applied and saved block. Historical database replay does not
+  produce this event.
+required:
+  - id
+  - height
+  - timestamp
+  - generatorPublicKey
+  - numberOfTransactions
+  - totalAmount
+  - totalFee
+  - reward
+additionalProperties: false
+properties:
+  id:
+    type: string
+    minLength: 1
+    maxLength: 20
+    pattern: '^[0-9]+$'
+  height:
+    type: integer
+    minimum: 1
+  timestamp:
+    type: integer
+    minimum: 0
+    description: Seconds since the ADAMANT epoch.
+  generatorPublicKey:
+    $ref: '../common/properties/PublicKey.yaml'
+  numberOfTransactions:
+    type: integer
+    minimum: 0
+  totalAmount:
+    type: integer
+    format: int64
+    minimum: 0
+    description: Total transferred amount in 1/10^8 ADM units.
+  totalFee:
+    type: integer
+    format: int64
+    minimum: 0
+    description: Total transaction fee in 1/10^8 ADM units.
+  reward:
+    type: integer
+    format: int64
+    minimum: 0
+    description: Forging reward in 1/10^8 ADM units.
+example:
+  id: '1739739671268673627'
+  height: 53532078
+  timestamp: 278966175
+  generatorPublicKey: 24636735d64711f91f7680bb348662bc74f7b3446e66702369527e3882dd30d6
+  numberOfTransactions: 2
+  totalAmount: 10000000
+  totalFee: 100000
+  reward: 10000000

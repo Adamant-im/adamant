@@ -1,0 +1,10 @@
+- name: id
+  in: query
+  description: Block ID
+  required: true
+  schema:
+    type: string
+    minLength: 1
+    maxLength: 20
+    pattern: '^[0-9]+$'
+    example: '11114690216332606721'

@@ -1,0 +1,43 @@
+allOf:
+  - $ref: './BaseTransaction.yaml'
+  - type: object
+    required:
+      - type
+      - asset
+    properties:
+      type:
+        type: integer
+        enum: [2]
+        example: 2
+        description: Always equal to `2`
+      recipientId:
+        type: [string, 'null']
+        description: There is no recipient for this type of transaction
+      recipientPublicKey:
+        type: [string, 'null']
+        description: There is no recipient for this type of transaction
+      asset:
+        $ref: './assets/RegisterDelegateAsset.yaml'
+
+example:
+  id: 14674137414602658194
+  height: 31536741
+  blockId: 15921349202793791460
+  type: 2
+  block_timestamp: 166805152
+  timestamp: 166805152
+  senderPublicKey: a339974effc141f302bd3589c603bdc9468dd66bcc424b60025b36999eb69ca3
+  senderId: U3031563782805250428
+  recipientId: null
+  recipientPublicKey: null
+  amount: 0
+  fee: 300000000000
+  relays: 1
+  signature: 1833a86e24d57ad6dbd30c47924500a03096fd06076fafe5bca4f23ab4629268f3b1a58a1ce275356bc0b79f64a11b8abe9bec6c3d55202d6393327f9278910b
+  signatures: []
+  confirmations: 427
+  asset:
+    delegate:
+      username: kpeo
+      publicKey: a339974effc141f302bd3589c603bdc9468dd66bcc424b60025b36999eb69ca3
+      address: U3031563782805250428

@@ -1,0 +1,100 @@
+name: Docs and OpenAPI Pages
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - master
+    paths:
+      - 'docs/**'
+      - 'openapi/**'
+      - '.github/workflows/docs-pages.yml'
+      - 'scripts/checkDependencyQuarantine.js'
+      - '.npmrc'
+      - '.github/dependency-quarantine-exceptions.json'
+  push:
+    branches:
+      - master
+      - dev
+    paths:
+      - 'docs/**'
+      - 'openapi/**'
+      - '.github/workflows/docs-pages.yml'
+      - 'scripts/checkDependencyQuarantine.js'
+      - '.npmrc'
+      - '.github/dependency-quarantine-exceptions.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Check newly locked docs/OpenAPI dependency release ages
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        env:
+          PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BASE_SHA: ${{ github.event.before }}
+        run: |
+          BASE_REF="${PULL_REQUEST_BASE_SHA:-$PUSH_BASE_SHA}"
+          if [ -n "$BASE_REF" ] && [ "$BASE_REF" != "0000000000000000000000000000000000000000" ]; then
+            node scripts/checkDependencyQuarantine.js --base-ref "$BASE_REF" --lockfile docs/package-lock.json
+          fi
+
+      - name: Install isolated docs and OpenAPI tooling
+        working-directory: docs
+        run: npm ci --ignore-scripts
+
+      - name: Audit docs and OpenAPI dependencies
+        working-directory: docs
+        run: npm audit --audit-level=moderate
+
+      - name: Build VitePress docs and assemble OpenAPI schema
+        working-directory: docs
+        run: npm run site:build
+
+      - name: Verify built Pages output
+        run: |
+          test -f docs/.vitepress/dist/index.html
+          test -f docs/.vitepress/dist/schema/index.html
+          node -e "const s = require('./docs/.vitepress/dist/schema/schema.json'); if (!s.openapi || !s.paths) process.exit(1);"
+
+      - name: Upload Pages artifact
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/master')
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/master')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

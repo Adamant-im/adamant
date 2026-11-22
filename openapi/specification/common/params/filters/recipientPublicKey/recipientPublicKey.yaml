@@ -1,0 +1,7 @@
+name: recipientPublicKey
+in: query
+description: Filter by recipient publicKey
+schema:
+  type: string
+  example: 125a9b8304ef885053c630041f57493343d7f6023107c5dc8b8148147e732c93
+required: false

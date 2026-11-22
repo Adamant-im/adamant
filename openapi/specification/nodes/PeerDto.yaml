@@ -1,0 +1,63 @@
+required:
+  - ip
+  - port
+  - state
+  - os
+  - version
+  - broadhash
+  - height
+  - clock
+  - updated
+  - nonce
+  - isBroadcastingViaSocket
+  - syncProtocol
+properties:
+  ip:
+    type: string
+    description: IPv4 address of node
+  port:
+    type: string
+    description: Port number of ADAMANT node. `36666` for mainnet or `36667` for testnet
+  state:
+    type: integer
+    description: 'State of the peer. Available values: Connected (2), Disconnected, Banned'
+  os:
+    type: string
+    description: Node's operating system
+  version:
+    type: string
+    description: ADAMANT node software version
+  broadhash:
+    type: string
+    description: Broadhash on the peer node. Broadhash is established as an aggregated rolling hash of the past five blocks present in the database.
+  height:
+    type: integer
+    description: Current node's blockchain height
+  clock:
+    type: [string, 'null']
+  updated:
+    type: integer
+    description: Unix timestamp based in ms, when peer updated
+  nonce:
+    type: string
+    description: Unique Identifier for the peer. Random string.
+  isBroadcastingViaSocket:
+    type: boolean
+    description: Indicates whether the node can send transactions to the peer over WebSocket.
+  syncProtocol:
+    type: string
+    enum: ['http', 'ws']
+    description: "Indicates the protocol used to subscribe to the peer: 'http' if using HTTP only, or 'ws' if using WebSocket, which also allows receiving transactions via both WebSocket and HTTP."
+example:
+  ip: 194.32.79.175
+  port: 36666
+  state: 2
+  os: linux4.15.0-36-generic
+  version: 0.4.0
+  broadhash: 3dfdf6c7bbaf7537eac9c70432f7ba1cae835b9b15e4ecd97e147616dde67e62
+  height: 10146365
+  clock: null
+  updated: 1562424199553
+  nonce: jxXV6g0sHJhmDubq
+  isBroadcastingViaSocket: false
+  syncProtocol: ws

@@ -1,0 +1,27 @@
+required:
+  - success
+  - nodeTimestamp
+  - confirmed
+  - unconfirmed
+  - queued
+  - multisignature
+properties:
+  success:
+    type: boolean
+  nodeTimestamp:
+    type: number
+  confirmed:
+    type: integer
+  unconfirmed:
+    type: integer
+  queued:
+    type: integer
+  multisignature:
+    type: integer
+example:
+  success: true
+  nodeTimestamp: 59979539
+  confirmed: 256953
+  unconfirmed: 44
+  queued: 4
+  multisignature: 0

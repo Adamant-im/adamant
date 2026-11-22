@@ -1,0 +1,28 @@
+type: object
+description: >-
+  Current values for the subscribed public balance fields that changed. No initial snapshot is
+  emitted. Values are decimal strings in 1/10^8 ADM units.
+required:
+  - address
+minProperties: 2
+additionalProperties: false
+properties:
+  address:
+    $ref: '../common/properties/AdamantAddress.yaml'
+  balance:
+    type: string
+    pattern: '^[0-9]+$'
+    description: Confirmed account balance.
+  unconfirmedBalance:
+    type: string
+    pattern: '^[0-9]+$'
+    description: Account balance after applying the node's current unconfirmed pool.
+anyOf:
+  - required:
+      - balance
+  - required:
+      - unconfirmedBalance
+example:
+  address: U1234567890123456
+  balance: '100000000'
+  unconfirmedBalance: '99900000'

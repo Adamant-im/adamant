@@ -41,9 +41,9 @@ Use these sources when implementing or reviewing changes:
 
 - Node repository overview: `README.md` and `.github/CONTRIBUTING.md` in this repo.
 - Node documentation site: https://docs.adamant.im
-- Node documentation source: https://github.com/Adamant-im/docs (branch `dev`)
-- API schema site: https://schema.adamant.im
-- API schema source: https://github.com/Adamant-im/adamant-schema (branch `dev`)
+- Node documentation source: `docs/` in this repository (VitePress; deployed from `master`).
+- API schema site (Swagger UI): https://docs.adamant.im/schema/ (bundled JSON: https://docs.adamant.im/schema/schema.json)
+- API schema source: `openapi/` in this repository (`openapi/specification/openapi.yaml`; deployed alongside docs from `master`).
 - AIP index and rendered pages: https://aips.adamant.im
 - AIP source and process: https://github.com/Adamant-im/AIPs (`AIPS/aip-1.md`)
 - Org-wide issue/label governance: https://github.com/Adamant-im/.github
@@ -54,7 +54,7 @@ Use these sources when implementing or reviewing changes:
 If sources disagree:
 
 1. Treat current node code and passing tests as implementation truth for current behavior.
-2. Treat `adamant-schema` and `docs` as required companion artifacts that must be aligned.
+2. Treat `openapi/` and `docs/` in this repository as required companion artifacts that must be aligned in the same PR.
 3. Do not silently ignore mismatch; raise it and propose a synchronized fix.
 
 ## Issue, Label, and PR Conventions
@@ -111,19 +111,25 @@ Use one or two prefixes maximum:
 - This PR-title convention is repository-specific and only inspired by Conventional Commits concepts
 - Include testing/verification steps and mention risk areas (security, privacy, protocol, storage)
 
-## Documentation Drift Policy
+## Documentation and OpenAPI Policy
 
-AI agents are allowed and expected to propose documentation updates when mismatches are found.
+Node documentation (`docs/`) and the OpenAPI 3.2 specification (`openapi/`) are co-located in this repository so code, schema, and docs stay synchronized atomically.
 
-When behavior/spec/docs drift is detected:
+When behavior/spec/docs drift is detected or when shipping user-, operator-, or API-visible changes:
 
 1. Document the mismatch with exact file/endpoint references.
-2. Propose synchronized updates across:
-   - node code in this repo
-   - API schema in `Adamant-im/adamant-schema`
-   - docs in `Adamant-im/docs`
-   - AIP text when change is protocol-level
-3. If cross-repo changes cannot be done immediately, create linked issues with clear scope and dependency order.
+2. Update node code, `openapi/specification/*`, and `docs/*` together in the same PR.
+3. For protocol-level changes, also update the corresponding AIP in `Adamant-im/AIPs` (or open a linked issue).
+4. Note downstream consumer impact (for example `Adamant-im/adamant-api-jsclient`) in the PR description when OpenAPI response shapes or parameters change.
+
+### Docs and OpenAPI Tooling Rules
+
+- **Dependency isolation**: Keep VitePress and `@redocly/cli` strictly inside `docs/package.json` and `docs/package-lock.json`. Never add documentation or OpenAPI tooling to root `package.json`.
+- **Quarantine coverage**: Changes to `docs/package-lock.json` must pass `node scripts/checkDependencyQuarantine.js --base-ref dev --lockfile docs/package-lock.json` and `npm audit` with zero unreviewed install scripts.
+- **Validation**: After editing `docs/` or `openapi/`, run `cd docs && npm run site:build` to confirm VitePress builds, Redocly bundles `openapi/dist/schema.json`, and the combined Pages output (`docs/.vitepress/dist/` + `docs/.vitepress/dist/schema/`) succeeds without errors.
+- **Sidebar & links**: Register any new page in `docs/.vitepress/config.mts`, use relative links between docs pages, and link to `https://docs.adamant.im/schema/` for Swagger UI.
+- **Terminology**: Use **ADAMANT** (all caps) for the protocol/network, **ADM** for the coin/token, **DPoS** for Delegated Proof of Stake, and lowercase **node** and **delegate**.
+- **Deployment cadence**: GitHub Pages deploys from `master` so published docs track the released node version. For urgent documentation-only fixes between node releases, open a docs-only PR targeting `master` and merge `master` back into `dev`.
 
 ## AIP Usage Rules for Protocol Changes
 
@@ -145,6 +151,8 @@ For protocol, consensus, serialization, or interoperability changes:
 - State and balances (mem tables): `logic/account.js`, `modules/accounts.js`, `sql/*`
 - Crypto primitives: `helpers/ed.js`, `helpers/accounts.js`
 - Config and schema validation: `helpers/config.js`, `schema/*`, `helpers/z_schema.js`
+- Documentation site (VitePress) and isolated tooling: `docs/`
+- OpenAPI 3.2 specification and static Swagger UI: `openapi/`
 
 ## Current Activation Switches
 

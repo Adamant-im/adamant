@@ -1,0 +1,23 @@
+required:
+  - loaded
+  - now
+  - blocksCount
+  - success
+  - nodeTimestamp
+properties:
+  loaded:
+    type: boolean
+  now:
+    type: integer
+  blocksCount:
+    type: integer
+  success:
+    type: boolean
+  nodeTimestamp:
+    type: number
+example:
+  loaded: true
+  now: 10144343
+  blocksCount: 0
+  success: true
+  nodeTimestamp: 58052355

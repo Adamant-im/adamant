@@ -1,0 +1,15 @@
+allOf:
+  - $ref: '../DelegateBaseDto.yaml'
+  - type: object
+    required:
+      - voters_cnt
+      - register_timestamp
+    properties:
+      voters_cnt:
+        type: integer
+        description: Number of accounts who voted for delegate
+        example: 12
+      register_timestamp:
+        type: integer
+        description: Epoch timestamp of when delegate was registered
+        example: 45523238

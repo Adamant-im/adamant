@@ -1,0 +1,7 @@
+name: senderPublicKeys
+in: query
+description: Filter by sender publicKeys. Separated by comma
+schema:
+  type: string
+  example: 801846655523f5e21f2d454b2f98f70aaf5d3887c806463100a1764a4e7c1457,125a9b8304ef885053c630041f57493343d7f6023107c5dc8b8148147e732c93
+required: false

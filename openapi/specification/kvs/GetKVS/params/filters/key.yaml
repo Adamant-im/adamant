@@ -1,0 +1,7 @@
+name: key
+in: query
+required: false
+schema:
+  type: string
+  example: eth:address
+  description: Get transactions of specified KVS key

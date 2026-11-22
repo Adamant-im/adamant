@@ -21,7 +21,12 @@ jobs:
         env:
           PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PUSH_BASE_SHA: ${{ github.event.before }}
-        run: npm run check:dependency-age -- --base-ref "${PULL_REQUEST_BASE_SHA:-$PUSH_BASE_SHA}"
+        run: |
+          BASE_REF="${PULL_REQUEST_BASE_SHA:-$PUSH_BASE_SHA}"
+          npm run check:dependency-age -- --base-ref "$BASE_REF"
+          if [ -f docs/package-lock.json ]; then
+            node scripts/checkDependencyQuarantine.js --base-ref "$BASE_REF" --lockfile docs/package-lock.json
+          fi
 
   shellcheck:
     runs-on: ubuntu-latest

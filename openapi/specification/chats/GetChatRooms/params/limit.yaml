@@ -1,0 +1,8 @@
+name: limit
+in: query
+description: Limit number of transactions in the result
+schema:
+  type: integer
+  example: 10
+  default: 25
+required: false

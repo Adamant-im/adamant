@@ -1,0 +1,8 @@
+name: withoutDirectTransfers
+in: query
+description: When set to `1`, excludes type `0` transactions (direct token transfers) from results. Default is `0`.
+schema:
+  type: integer
+  enum: [0, 1]
+  default: 0
+required: false

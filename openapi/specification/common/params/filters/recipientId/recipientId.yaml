@@ -1,0 +1,6 @@
+name: recipientId
+in: query
+description: Filter by recipientId
+schema:
+  type: string
+required: false

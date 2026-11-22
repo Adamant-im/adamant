@@ -1,0 +1,107 @@
+required:
+  - success
+  - nodeTimestamp
+  - nodeTimestampMs
+  - unixTimestampMs
+  - loader
+  - network
+  - consensusSchedule
+  - milestoneSchedule
+  - version
+  - wsClient
+properties:
+  success:
+    type: boolean
+    example: true
+  nodeTimestamp:
+    type: number
+    example: 58052984
+    description: Current node time measured in seconds since the ADAMANT epoch.
+  nodeTimestampMs:
+    type: number
+    example: 58052984123
+    description: Current node time measured in milliseconds since the ADAMANT epoch. This is node clock metadata and is not consensus data.
+  unixTimestampMs:
+    type: number
+    example: 1562424584123
+    description: Current node time measured in Unix milliseconds. This is node clock metadata and is not consensus data.
+  loader:
+    required:
+      - loaded
+      - now
+      - syncing
+      - consensus
+      - blocks
+      - blocksCount
+    properties:
+      loaded:
+        type: boolean
+      now:
+        type: number
+      syncing:
+        type: boolean
+      consensus:
+        type: number
+      blocks:
+        type: number
+      blocksCount:
+        type: number
+    example:
+      loaded: true
+      now: 4819
+      syncing: true
+      consensus: 0
+      blocks: 15145334
+      blocksCount: 0
+  network:
+    $ref: '../NetworkStatus.yaml'
+  consensusSchedule:
+    type: object
+    required:
+      - activationHeights
+    properties:
+      activationHeights:
+        type: object
+        description: >-
+          Effective runtime activation heights after configuration defaults, the selected configuration file,
+          and startup overrides are merged. Values are network- and configuration-specific.
+        additionalProperties:
+          type: integer
+          minimum: 1
+        example:
+          fairSystem: 4359465
+          spaceship: 100000000
+  milestoneSchedule:
+    type: object
+    required:
+      - offset
+      - distance
+      - milestones
+    properties:
+      offset:
+        type: integer
+        description: First block height that receives a block reward.
+        example: 2000000
+      distance:
+        type: integer
+        description: Number of block heights between reward milestones.
+        example: 6300000
+      milestones:
+        type: array
+        description: Block rewards by milestone in base units (1 ADM = 100000000).
+        items:
+          type: integer
+        example:
+          - 50000000
+          - 45000000
+          - 40000000
+          - 35000000
+          - 30000000
+          - 25000000
+          - 20000000
+          - 15000000
+          - 10000000
+  version:
+    $ref: '../NodeVersion.yaml'
+  wsClient:
+    $ref: '../WsClient.yaml'

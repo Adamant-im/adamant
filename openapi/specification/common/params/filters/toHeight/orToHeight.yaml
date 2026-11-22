@@ -1,0 +1,6 @@
+name: or:toHeight
+in: query
+description: Filter results till block with specific height (`or` operator)
+schema:
+  type: integer
+required: false

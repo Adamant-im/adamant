@@ -10,6 +10,7 @@ const {
   findUnreviewedInstallScripts,
   parseExceptions,
   parseMinimumReleaseAge,
+  readLockfileAtRef,
   verifyReleaseAges
 } = require('../../../scripts/checkDependencyQuarantine.js');
 
@@ -195,5 +196,14 @@ describe('dependency quarantine', () => {
     expect(() => parseMinimumReleaseAge('min-release-age=0')).to.throw(
         'min-release-age must be a positive integer'
     );
+  });
+
+  it('returns an empty lockfile when a new lockfile path is absent at baseRef', () => {
+    const missing = readLockfileAtRef('HEAD', 'nonexistent-dir/package-lock.json');
+    expect(missing).to.deep.equal({ packages: {} });
+  });
+
+  it('throws when baseRef itself does not exist', () => {
+    expect(() => readLockfileAtRef('nonexistent-ref-0000000000', 'package-lock.json')).to.throw();
   });
 });

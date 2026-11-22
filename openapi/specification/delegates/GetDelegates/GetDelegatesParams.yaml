@@ -1,0 +1,27 @@
+- name: limit
+  in: query
+  description: Number of delegates to retrieve, integer. Default is `101` (active delegates).
+  required: false
+  schema:
+    type: integer
+    format: int32
+    minimum: 1
+    default: 101
+- name: offset
+  in: query
+  description: Height offset value for results. Default is `0`.
+  required: false
+  schema:
+    type: integer
+    format: int32
+    minimum: 0
+    default: 0
+- name: orderBy
+  in: query
+  description: >-
+    Sort by `approval`, `productivity`, `rate`, `rank`, `vote`, `username`, `address`, or `publicKey`.
+    Append `:asc` or `:desc` to select the direction, for example `rank:asc`.
+  required: false
+  schema:
+    type: string
+    example: rank:asc

@@ -1,0 +1,6 @@
+name: toHeight
+in: query
+description: Filter results till block with specific height
+schema:
+  type: integer
+required: false

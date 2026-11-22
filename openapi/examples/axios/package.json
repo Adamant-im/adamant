@@ -1,0 +1,13 @@
+{
+  "name": "axios-example",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "openapi:generate": "node bin/openapi-generate.js"
+  },
+  "author": "bludnic",
+  "license": "ISC",
+  "dependencies": {
+    "@openapitools/openapi-generator-cli": "^2.5.2"
+  }
+}

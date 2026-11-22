@@ -1,0 +1,6 @@
+name: and:senderPublicKey
+in: query
+description: Filter by sender publicKey (`and` operator)
+schema:
+  type: string
+required: false

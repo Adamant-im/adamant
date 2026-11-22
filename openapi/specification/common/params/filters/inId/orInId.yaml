@@ -1,0 +1,6 @@
+name: or:inId
+in: query
+description: Filter by recipientId/senderId `("recipientId" = ${inId} OR "senderId" = ${inId})` with `or` operator
+schema:
+  type: string
+required: false

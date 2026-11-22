@@ -1,0 +1,7 @@
+name: and:maxAmount
+in: query
+description: |
+  Filter results with `amount` not more than specified Integer value of 1/10^8 tokens (1 ADM = 100000000).
+schema:
+  type: integer
+required: false
