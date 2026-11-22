@@ -82,7 +82,7 @@ jobs:
           node -e "const s = require('./docs/.vitepress/dist/schema/schema.json'); if (!s.openapi || !s.paths) process.exit(1);"
 
       - name: Verify OpenAPI version matches node package.json on master
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/master' || github.base_ref == 'master'
         run: |
           node -e "
             const pkg = require('./package.json');
