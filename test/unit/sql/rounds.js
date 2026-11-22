@@ -117,6 +117,8 @@ function createIsolatedSchema (t) {
     'CREATE SCHEMA ' + schemaName + ';',
     'SET LOCAL search_path TO ' + schemaName + ';',
     'CREATE TABLE blocks (LIKE public.blocks INCLUDING DEFAULTS);',
+    // Drop the copied serial default so fixture inserts never advance public."blocks_rowId_seq".
+    'ALTER TABLE blocks ALTER COLUMN "rowId" DROP DEFAULT;',
     'CREATE TABLE mem_accounts (LIKE public.mem_accounts INCLUDING DEFAULTS);',
     'ALTER TABLE mem_accounts ADD PRIMARY KEY ("address");',
     'CREATE TABLE mem_round (LIKE public.mem_round INCLUDING DEFAULTS);',
@@ -141,8 +143,8 @@ function createIsolatedSchema (t) {
  */
 function insertBlock (t, block) {
   return t.none(
-      'INSERT INTO blocks ("id", "version", "timestamp", "height", "previousBlock", "numberOfTransactions", "totalAmount", "totalFee", "reward", "payloadLength", "payloadHash", "generatorPublicKey", "blockSignature") ' +
-      'VALUES (${id}, ${version}, ${timestamp}, ${height}, ${previousBlock}, ${numberOfTransactions}, ${totalAmount}, ${totalFee}, ${reward}, ${payloadLength}, ${payloadHash}, DECODE(${generatorPublicKey}, \'hex\'), ${blockSignature});',
+      'INSERT INTO blocks ("id", "rowId", "version", "timestamp", "height", "previousBlock", "numberOfTransactions", "totalAmount", "totalFee", "reward", "payloadLength", "payloadHash", "generatorPublicKey", "blockSignature") ' +
+      'VALUES (${id}, ${height}, ${version}, ${timestamp}, ${height}, ${previousBlock}, ${numberOfTransactions}, ${totalAmount}, ${totalFee}, ${reward}, ${payloadLength}, ${payloadHash}, DECODE(${generatorPublicKey}, \'hex\'), ${blockSignature});',
       block
   );
 }
@@ -166,11 +168,17 @@ function seedGenesisAccounts (t, publicKeys, genesisBlock) {
     'DROP TABLE IF EXISTS mem_votes_snapshot;'
   ];
 
-  return statements.reduce(function (chain, statement) {
-    return chain.then(function () {
-      return t.none(statement);
-    });
-  }, Promise.resolve()).then(function () {
+  return t.one('SELECT current_schema() AS schema_name').then(function (row) {
+    if (!row.schema_name || !row.schema_name.startsWith('round_test_')) {
+      throw new Error('seedGenesisAccounts must run inside createIsolatedSchema (got schema: ' + row.schema_name + ')');
+    }
+
+    return statements.reduce(function (chain, statement) {
+      return chain.then(function () {
+        return t.none(statement);
+      });
+    }, Promise.resolve());
+  }).then(function () {
     return publicKeys.reduce(function (chain, pk, index) {
       const address = accountsHelper.getAddressByPublicKey(pk);
       const initialBalance = 10000000000 + (index * 100000000);
