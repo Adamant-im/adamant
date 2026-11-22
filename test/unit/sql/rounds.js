@@ -16,8 +16,9 @@ const ACTIVE_DELEGATES = constants.activeDelegates;
 const ROLLBACK_SENTINEL = Symbol('rollback-test-tx');
 
 /**
- * Runs a callback inside a PostgreSQL transaction that always rolls back so
- * temporary tables and snapshot DDL cannot leak into the shared test database.
+ * Runs a callback inside a PostgreSQL transaction that always rolls back.
+ * Combined with a transaction-scoped private schema (`SET LOCAL search_path`),
+ * all table data and snapshot DDL stay isolated from shared `public` tables.
  * @param {object} db - pg-promise database connection.
  * @param {Function} fn - Transaction body receiving `t`.
  * @return {Promise<void>}
@@ -103,21 +104,26 @@ function buildFixtureBlocks (publicKeys, options) {
 }
 
 /**
- * Creates isolated session-scoped temporary copies of the round/account tables
- * inside a transaction so tests never mutate shared database tables.
+ * Creates a private transaction-scoped schema and sets `search_path` to it so
+ * every unqualified table and snapshot DDL (`mem_round_snapshot`,
+ * `mem_votes_snapshot`) resolves inside the isolated schema without touching
+ * or locking shared `public` tables.
  * @param {object} t - pg-promise transaction task.
  * @return {Promise<void>}
  */
-function createTempTables (t) {
+function createIsolatedSchema (t) {
+  const schemaName = 'round_test_' + process.pid;
   const statements = [
-    'CREATE TEMP TABLE blocks (LIKE public.blocks INCLUDING DEFAULTS) ON COMMIT DROP;',
-    'CREATE TEMP TABLE mem_accounts (LIKE public.mem_accounts INCLUDING DEFAULTS) ON COMMIT DROP;',
-    'ALTER TABLE pg_temp.mem_accounts ADD PRIMARY KEY ("address");',
-    'CREATE TEMP TABLE mem_round (LIKE public.mem_round INCLUDING DEFAULTS) ON COMMIT DROP;',
-    'CREATE TEMP TABLE mem_accounts2delegates (LIKE public.mem_accounts2delegates INCLUDING DEFAULTS) ON COMMIT DROP;',
-    'CREATE TEMP TABLE mem_accounts2u_delegates (LIKE public.mem_accounts2u_delegates INCLUDING DEFAULTS) ON COMMIT DROP;',
-    'CREATE TEMP TABLE mem_accounts2multisignatures (LIKE public.mem_accounts2multisignatures INCLUDING DEFAULTS) ON COMMIT DROP;',
-    'CREATE TEMP TABLE mem_accounts2u_multisignatures (LIKE public.mem_accounts2u_multisignatures INCLUDING DEFAULTS) ON COMMIT DROP;'
+    'CREATE SCHEMA ' + schemaName + ';',
+    'SET LOCAL search_path TO ' + schemaName + ';',
+    'CREATE TABLE blocks (LIKE public.blocks INCLUDING DEFAULTS);',
+    'CREATE TABLE mem_accounts (LIKE public.mem_accounts INCLUDING DEFAULTS);',
+    'ALTER TABLE mem_accounts ADD PRIMARY KEY ("address");',
+    'CREATE TABLE mem_round (LIKE public.mem_round INCLUDING DEFAULTS);',
+    'CREATE TABLE mem_accounts2delegates (LIKE public.mem_accounts2delegates INCLUDING DEFAULTS);',
+    'CREATE TABLE mem_accounts2u_delegates (LIKE public.mem_accounts2u_delegates INCLUDING DEFAULTS);',
+    'CREATE TABLE mem_accounts2multisignatures (LIKE public.mem_accounts2multisignatures INCLUDING DEFAULTS);',
+    'CREATE TABLE mem_accounts2u_multisignatures (LIKE public.mem_accounts2u_multisignatures INCLUDING DEFAULTS);'
   ];
 
   return statements.reduce(function (chain, statement) {
@@ -128,7 +134,7 @@ function createTempTables (t) {
 }
 
 /**
- * Inserts a fixture block into the temporary blocks table.
+ * Inserts a fixture block into the isolated blocks table.
  * @param {object} t - pg-promise transaction task.
  * @param {object} block
  * @return {Promise<void>}
@@ -142,7 +148,7 @@ function insertBlock (t, block) {
 }
 
 /**
- * Seeds genesis delegate accounts and initial votes in the temporary mem_* tables.
+ * Seeds genesis delegate accounts and initial votes in the isolated mem_* tables.
  * @param {object} t - pg-promise transaction task.
  * @param {string[]} publicKeys
  * @param {object} genesisBlock
@@ -273,7 +279,7 @@ function createTxRounds (t, activeDelegateKeys) {
     warn: function () {}
   };
 
-  // Route nested db.tx calls onto the outer test transaction so pg_temp tables remain visible.
+  // Route nested db.tx calls onto the outer test transaction so the isolated schema remains active.
   const txDb = {
     query: function (query, values) {
       return t.query(query, values);
@@ -353,9 +359,24 @@ describe('rounds SQL and replay settlement', function () {
       }
     });
 
+    // Insert blocks out of height order (even heights descending, then odd heights descending)
+    // so the test fails if `ORDER BY b.height ASC` is removed from `sql.summedRound`.
+    const interleavedBlocks = blocks
+        .filter(function (block) {
+          return block.height % 2 === 0;
+        })
+        .reverse()
+        .concat(
+            blocks
+                .filter(function (block) {
+                  return block.height % 2 !== 0;
+                })
+                .reverse()
+        );
+
     return withRolledBackTx(db, function (t) {
-      return createTempTables(t).then(function () {
-        return blocks.reduce(function (chain, block) {
+      return createIsolatedSchema(t).then(function () {
+        return interleavedBlocks.reduce(function (chain, block) {
           return chain.then(function () {
             return insertBlock(t, block);
           });
@@ -447,7 +468,7 @@ describe('rounds SQL and replay settlement', function () {
     return withRolledBackTx(db, function (t) {
       let rounds;
 
-      return createTempTables(t).then(function () {
+      return createIsolatedSchema(t).then(function () {
         return createTxRounds(t, publicKeys);
       }).then(function (roundsInstance) {
         rounds = roundsInstance;
@@ -548,7 +569,7 @@ describe('rounds SQL and replay settlement', function () {
     return withRolledBackTx(db, function (t) {
       let rounds;
 
-      return createTempTables(t).then(function () {
+      return createIsolatedSchema(t).then(function () {
         return createTxRounds(t, publicKeys);
       }).then(function (roundsInstance) {
         rounds = roundsInstance;
