@@ -1,0 +1,15 @@
+required:
+  - accounts
+  - success
+  - nodeTimestamp
+properties:
+  accounts:
+    type: array
+    items:
+      $ref: './VoterDto.yaml'
+  success:
+    type: boolean
+    example: true
+  nodeTimestamp:
+    type: number
+    example: 61762271

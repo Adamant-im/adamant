@@ -1,6 +1,8 @@
 'use strict';
 
 var expect = require('chai').expect;
+var http = require('node:http');
+var zlib = require('node:zlib');
 var sinon = require('sinon');
 var randomString = require('randomstring');
 var _ = require('lodash');
@@ -57,6 +59,16 @@ describe('peers', function () {
     });
   });
 
+  function forceRemove (peer) {
+    var live = modulesLoader.scope.logic.peers.get(peer);
+
+    if (live && live.state === Peer.STATE.BANNED) {
+      live.state = Peer.STATE.DISCONNECTED;
+    }
+
+    return peers.remove(peer.ip, peer.port);
+  }
+
   // Remove stub functions
   afterEach(() => sinon.restore());
 
@@ -80,9 +92,124 @@ describe('peers', function () {
         var inserted = __peers.find(function (p) {
           return p.ip + ':' + p.port === validPeer.ip + ':' + validPeer.port;
         });
+
         expect(inserted).to.be.an('object');
         expect(inserted).not.to.be.empty;
         done();
+      });
+    });
+
+    describe('recordInboundPeer()', function () {
+      var inboundPeer = {
+        ip: '40.41.40.60',
+        port: 46666,
+        state: Peer.STATE.CONNECTED,
+        version: validPeer.version,
+        nonce: 'inbound-peer-001'
+      };
+
+      afterEach(function () {
+        forceRemove(inboundPeer);
+      });
+
+      it('should keep a new inbound-only peer disconnected until outbound success', function () {
+        peers.recordInboundPeer(_.clone(inboundPeer));
+
+        var live = modulesLoader.scope.logic.peers.get(inboundPeer);
+        expect(live.state).to.equal(Peer.STATE.DISCONNECTED);
+        expect(live.lastOutboundSuccessAt).to.equal(undefined);
+      });
+
+      it('should preserve verified state and update age for an existing peer', function () {
+        peers.update(_.clone(inboundPeer), true);
+        var live = modulesLoader.scope.logic.peers.get(inboundPeer);
+        live.updated = 1;
+        live.lastOutboundSuccessAt = 10;
+
+        peers.recordInboundPeer(Object.assign({}, inboundPeer, { height: 7 }));
+
+        expect(live.state).to.equal(Peer.STATE.CONNECTED);
+        expect(live.updated).to.equal(1);
+        expect(live.lastOutboundSuccessAt).to.equal(10);
+        expect(live.height).to.equal(7);
+      });
+
+      it('should preserve a ban on repeated inbound contact', function () {
+        peers.update(_.clone(inboundPeer));
+        var live = modulesLoader.scope.logic.peers.get(inboundPeer);
+        live.state = Peer.STATE.BANNED;
+        live.updated = 1;
+
+        peers.recordInboundPeer(_.clone(inboundPeer));
+
+        expect(live.state).to.equal(Peer.STATE.BANNED);
+        expect(live.updated).to.equal(1);
+        expect(peers.update(_.clone(inboundPeer), true)).to.equal(false);
+        expect(peers.remove(inboundPeer.ip, inboundPeer.port)).to.equal(false);
+        expect(live.state).to.equal(Peer.STATE.BANNED);
+      });
+
+      it('should preserve bans across canonical IPv6 and mapped IPv4 aliases', function () {
+        var ipv6 = { ip: '2606:4700:0004:0001::1', port: 47001 };
+        var ipv6Alias = { ip: '2606:4700:4:1::1', port: 47001 };
+        var mapped = { ip: '::ffff:40.41.40.61', port: 47002 };
+
+        peers.recordInboundPeer(ipv6);
+        modulesLoader.scope.logic.peers.get(ipv6).state = Peer.STATE.BANNED;
+        peers.recordInboundPeer(ipv6Alias);
+        expect(modulesLoader.scope.logic.peers.get(ipv6Alias).state).to.equal(Peer.STATE.BANNED);
+
+        peers.recordInboundPeer(mapped);
+        expect(modulesLoader.scope.logic.peers.get({
+          ip: '40.41.40.61',
+          port: mapped.port
+        })).to.not.equal(undefined);
+
+        expect(peers.isFrozen('::ffff:' + config.peers.list[0].ip, config.peers.list[0].port)).to.equal(true);
+        forceRemove(ipv6);
+        forceRemove(mapped);
+      });
+
+      it('should not remove a ban after an invalid handshake', function (done) {
+        modules.transport.onBind(modules);
+        peers.recordInboundPeer(_.clone(inboundPeer));
+        var live = modulesLoader.scope.logic.peers.get(inboundPeer);
+        live.state = Peer.STATE.BANNED;
+
+        modules.transport.internal.handshake(
+            inboundPeer.ip,
+            inboundPeer.port,
+            { port: inboundPeer.port },
+            function (headers, cb) {
+              cb('invalid handshake');
+            },
+            function (err) {
+              expect(err).to.deep.equal({ success: false, error: 'invalid handshake' });
+              expect(modulesLoader.scope.logic.peers.get(inboundPeer)).to.equal(live);
+              expect(live.state).to.equal(Peer.STATE.BANNED);
+              done();
+            }
+        );
+      });
+
+      it('should not evict a ban after repeated network failures', function () {
+        var previousThreshold = config.peers.options.unreachableEvictAfter;
+
+        peers.recordInboundPeer(_.clone(inboundPeer));
+        var live = modulesLoader.scope.logic.peers.get(inboundPeer);
+        live.state = Peer.STATE.BANNED;
+        config.peers.options.unreachableEvictAfter = 1;
+
+        try {
+          peers.recordRequest(inboundPeer.ip, inboundPeer.port, 'ECONNRESET');
+          peers.recordRequest(inboundPeer.ip, inboundPeer.port, 'ECONNRESET');
+        } finally {
+          config.peers.options.unreachableEvictAfter = previousThreshold;
+        }
+
+        expect(modulesLoader.scope.logic.peers.get(inboundPeer)).to.equal(live);
+        expect(live.state).to.equal(Peer.STATE.BANNED);
+        expect(live.consecutiveNetworkFailures || 0).to.equal(0);
       });
     });
 
@@ -261,12 +388,21 @@ describe('peers', function () {
 
     it('should disconnect from the peer after 10 failed requests', (done) => {
       const targetPeer = currentPeers[0];
+      const previousThreshold = config.peers.options.unreachableEvictAfter;
+      config.peers.options.unreachableEvictAfter = 100;
 
       Array.from({ length: 10 }).forEach(() => {
         peers.recordRequest(targetPeer.ip, targetPeer.port, 'ECONNRESET');
       });
 
-      expectState(targetPeer, Peer.STATE.DISCONNECTED, done);
+      expectState(targetPeer, Peer.STATE.DISCONNECTED, () => {
+        var live = modulesLoader.scope.logic.peers.get(targetPeer);
+        if (live) {
+          live.nextAttemptAt = 0;
+        }
+        config.peers.options.unreachableEvictAfter = previousThreshold;
+        done();
+      });
     });
 
     it('should reconnect to the peer after 10 success requests', (done) => {
@@ -287,18 +423,19 @@ describe('peers', function () {
     });
 
     it('should remove added peer', function (done) {
-      getPeers(function (err, __peers) {
-        currentPeers = __peers;
-        var peerToRemove = currentPeers.find(function (p) {
-          return p.ip + ':' + p.port === validPeer.ip + ':' + validPeer.port;
-        });
-        expect(peerToRemove).to.be.an('object').and.not.to.be.empty;
-        expect(peerToRemove.state).that.equals(2);
+      peers.shared.getPeer({
+        body: { ip: validPeer.ip, port: validPeer.port }
+      }, function (error, response) {
+        expect(error).to.not.exist;
+        expect(response.success).to.be.true;
+        expect(response.peer).to.be.an('object').and.not.to.be.empty;
+        expect(response.peer.state).that.equals(2);
 
-        expect(peers.remove(peerToRemove.ip, peerToRemove.port)).to.be.true;
-        getPeers(function (err, __peers) {
-          expect(currentPeers.length - 1).that.equals(__peers.length);
-          currentPeers = __peers;
+        expect(peers.remove(validPeer.ip, validPeer.port)).to.be.true;
+        peers.shared.getPeer({
+          body: { ip: validPeer.ip, port: validPeer.port }
+        }, function (errorAfter) {
+          expect(errorAfter).to.equal('Peer not found');
           done();
         });
       });
@@ -382,6 +519,716 @@ describe('peers', function () {
     });
   });
 
+  describe('outbound transport bounds', function () {
+    var previousAllowPrivate;
+
+    before(function () {
+      modules.transport.onBind(modules);
+      previousAllowPrivate = config.peers.options.allowPrivatePeers;
+      config.peers.options.allowPrivatePeers = true;
+    });
+
+    after(function () {
+      config.peers.options.allowPrivatePeers = previousAllowPrivate;
+    });
+
+    function listen (server, done) {
+      server.listen(0, '127.0.0.1', function () {
+        done(server.address().port);
+      });
+    }
+
+    function setValidHeaders (response, port) {
+      response.setHeader('port', port);
+      response.setHeader('version', modules.system.getVersion());
+      response.setHeader('nethash', modules.system.getNethash());
+    }
+
+    function closeServer (server, done) {
+      server.close(done);
+    }
+
+    it('should not follow peer redirects', function (done) {
+      var redirected = 0;
+      var target = http.createServer(function (req, res) {
+        redirected++;
+        res.end('redirected');
+      });
+
+      listen(target, function (targetPort) {
+        var redirector = http.createServer(function (req, res) {
+          res.statusCode = 302;
+          res.setHeader('location', 'http://127.0.0.1:' + targetPort + '/internal');
+          res.end();
+        });
+
+        listen(redirector, function (redirectPort) {
+          var peer = { ip: '127.0.0.1', port: redirectPort };
+          peers.recordInboundPeer(peer);
+
+          modules.transport.getFromPeer(peer, {
+            api: '/height',
+            method: 'GET',
+            timeout: 500
+          }, function (err) {
+            expect(err).to.contain('Received bad response code 302');
+            expect(redirected).to.equal(0);
+            expect(modulesLoader.scope.logic.peers.get(peer)).to.equal(undefined);
+            closeServer(redirector, function () {
+              closeServer(target, done);
+            });
+          });
+        });
+      });
+    });
+
+    it('should enforce an absolute deadline for a trickling response', function (done) {
+      var server = http.createServer(function (req, res) {
+        setValidHeaders(res, server.address().port);
+        res.write('a');
+
+        var timer = setInterval(function () {
+          res.write('a');
+        }, 20);
+
+        res.on('close', function () {
+          clearInterval(timer);
+        });
+      });
+
+      listen(server, function (port) {
+        var peer = { ip: '127.0.0.1', port: port };
+        var started = Date.now();
+
+        modules.transport.getFromPeer(peer, {
+          api: '/height',
+          method: 'GET',
+          timeout: 100
+        }, function (err) {
+          expect(err).to.contain('ETIMEDOUT');
+          expect(Date.now() - started).to.be.below(1000);
+
+          expect(modulesLoader.scope.logic.peers.get(peer)).to.equal(undefined);
+          expect(peers.isBackedOff(peer)).to.equal(true);
+
+          modules.transport.getFromPeer(peer, {
+            api: '/height',
+            method: 'GET',
+            timeout: 100
+          }, function (backoffErr) {
+            expect(backoffErr).to.contain('still in backoff');
+            closeServer(server, done);
+          });
+        });
+      });
+    });
+
+    it('should reject oversized peer responses', function (done) {
+      var server = http.createServer(function (req, res) {
+        setValidHeaders(res, server.address().port);
+        res.end(Buffer.alloc((64 * 1024) + 1));
+      });
+
+      listen(server, function (port) {
+        var peer = { ip: '127.0.0.1', port: port };
+        peers.recordInboundPeer(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/height',
+          method: 'GET',
+          timeout: 1000
+        }, function (err) {
+          expect(err).to.contain('ERR_BAD_RESPONSE');
+          expect(modulesLoader.scope.logic.peers.get(peer)).to.equal(undefined);
+          closeServer(server, done);
+        });
+      });
+    });
+
+    it('should accept a JSON-expanded /peer/blocks sync response above 48 MiB and keep the peer', function (done) {
+      var escapedField = '\u0001'.repeat(20480);
+      var rows = [];
+
+      for (var i = 0; i < 210; i++) {
+        rows.push({
+          b_id: String(i + 1),
+          c_message: escapedField,
+          c_own_message: escapedField
+        });
+      }
+
+      var payload = JSON.stringify({ blocks: rows });
+      var decompressedBytes = Buffer.byteLength(payload, 'utf8');
+      expect(decompressedBytes).to.be.above(48 * 1024 * 1024);
+
+      var compressed = zlib.gzipSync(Buffer.from(payload));
+      var server = http.createServer(function (req, res) {
+        setValidHeaders(res, server.address().port);
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Encoding', 'gzip');
+        res.end(compressed);
+      });
+
+      listen(server, function (port) {
+        var peer = { ip: '127.0.0.1', port: port };
+        peers.recordInboundPeer(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/blocks?lastBlockId=1',
+          method: 'GET'
+        }, function (err, res) {
+          expect(err).to.not.exist;
+          expect(res.body.blocks).to.have.lengthOf(210);
+          expect(res.body.blocks[0].c_message.length).to.equal(20480);
+          expect(modulesLoader.scope.logic.peers.get(peer)).to.exist;
+          forceRemove(peer);
+          closeServer(server, done);
+        });
+      });
+    });
+
+    it('should accept a JSON-expanded /peer/transactions sync response above 8 MiB and keep the peer', function (done) {
+      var escapedField = '\u0001'.repeat(20480);
+      var transactions = [];
+
+      for (var i = 0; i < 40; i++) {
+        transactions.push({
+          id: String(i + 1),
+          asset: {
+            chat: {
+              message: escapedField,
+              own_message: escapedField
+            }
+          }
+        });
+      }
+
+      var payload = JSON.stringify({
+        success: true,
+        transactions: transactions
+      });
+      var decompressedBytes = Buffer.byteLength(payload, 'utf8');
+      expect(decompressedBytes).to.be.above(8 * 1024 * 1024);
+
+      var compressed = zlib.gzipSync(Buffer.from(payload));
+      var server = http.createServer(function (req, res) {
+        setValidHeaders(res, server.address().port);
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Encoding', 'gzip');
+        res.end(compressed);
+      });
+
+      listen(server, function (port) {
+        var peer = { ip: '127.0.0.1', port: port };
+        peers.recordInboundPeer(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/transactions',
+          method: 'GET'
+        }, function (err, res) {
+          expect(err).to.not.exist;
+          expect(res.body.transactions).to.have.lengthOf(40);
+          expect(modulesLoader.scope.logic.peers.get(peer)).to.exist;
+          forceRemove(peer);
+          closeServer(server, done);
+        });
+      });
+    });
+
+    it('should keep the peer when a sync response exceeds its local maxContentLength cap', function (done) {
+      var server = http.createServer(function (req, res) {
+        setValidHeaders(res, server.address().port);
+        res.end(Buffer.alloc((64 * 1024) + 1));
+      });
+
+      listen(server, function (port) {
+        var peer = { ip: '127.0.0.1', port: port };
+        peers.recordInboundPeer(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/blocks/common?ids=1',
+          method: 'GET'
+        }, function (err) {
+          expect(err).to.contain('ERR_BAD_RESPONSE');
+          expect(modulesLoader.scope.logic.peers.get(peer)).to.exist;
+          forceRemove(peer);
+          closeServer(server, done);
+        });
+      });
+    });
+
+    it('should allow streaming /peer/blocks sync responses beyond peers.options.timeout', function (done) {
+      var previousTimeout = config.peers.options.timeout;
+
+      function createSlowStreamServer (chunks) {
+        return http.createServer(function (req, res) {
+          setValidHeaders(res, this.address().port);
+          res.setHeader('Content-Type', 'application/json');
+
+          var index = 0;
+          var timer = setInterval(function () {
+            res.write(chunks[index++]);
+            if (index === chunks.length) {
+              clearInterval(timer);
+              res.end();
+            }
+          }, 30);
+
+          res.on('close', function () {
+            clearInterval(timer);
+          });
+        });
+      }
+
+      var statusServer = createSlowStreamServer(['{"success":', 'true,', '"height":', '123', '}']);
+      var syncServer = createSlowStreamServer(['{"blocks":[', '{"b_id":"1"},', '{"b_id":"2"},', '{"b_id":"3"}', ']}']);
+
+      config.peers.options.timeout = 80;
+
+      function finish (err, syncPeer) {
+        config.peers.options.timeout = previousTimeout;
+        if (syncPeer) {
+          forceRemove(syncPeer);
+        }
+        closeServer(statusServer, function () {
+          closeServer(syncServer, function () {
+            done(err);
+          });
+        });
+      }
+
+      listen(statusServer, function (statusPort) {
+        listen(syncServer, function (syncPort) {
+          var statusPeer = { ip: '127.0.0.1', port: statusPort };
+          var syncPeer = { ip: '127.0.0.1', port: syncPort };
+
+          modules.transport.getFromPeer(statusPeer, {
+            api: '/height',
+            method: 'GET'
+          }, function (statusErr) {
+            try {
+              expect(statusErr).to.contain('ETIMEDOUT');
+            } catch (assertionErr) {
+              return finish(assertionErr);
+            }
+
+            peers.recordInboundPeer(syncPeer);
+
+            modules.transport.getFromPeer(syncPeer, {
+              api: '/blocks?lastBlockId=1',
+              method: 'GET'
+            }, function (syncErr, res) {
+              try {
+                expect(syncErr).to.not.exist;
+                expect(res.body.blocks).to.have.lengthOf(3);
+                expect(modulesLoader.scope.logic.peers.get(syncPeer)).to.exist;
+              } catch (assertionErr) {
+                return finish(assertionErr, syncPeer);
+              }
+
+              finish(null, syncPeer);
+            });
+          });
+        });
+      });
+    });
+
+    it('should defer only the sync scope without network failure when a streaming /peer/blocks sync hits its deadline', function (done) {
+      var server = http.createServer(function (req, res) {
+        setValidHeaders(res, server.address().port);
+        res.setHeader('Content-Type', 'application/json');
+        res.write('{"blocks":[');
+
+        var timer = setInterval(function () {
+          res.write('{"b_id":"1"},');
+        }, 20);
+
+        res.on('close', function () {
+          clearInterval(timer);
+        });
+      });
+
+      listen(server, function (port) {
+        var peer = { ip: '127.0.0.1', port: port };
+        peers.recordInboundPeer(peer);
+        var live = modulesLoader.scope.logic.peers.get(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/blocks?lastBlockId=1',
+          method: 'GET',
+          timeout: 120
+        }, function (err) {
+          try {
+            expect(err).to.contain('ETIMEDOUT');
+            expect(modulesLoader.scope.logic.peers.get(peer)).to.equal(live);
+            expect(live.consecutiveNetworkFailures || 0).to.equal(0);
+            expect(peers.isBackedOff(peer, 'status')).to.equal(false);
+            expect(peers.isBackedOff(peer, 'broadcast')).to.equal(false);
+            expect(peers.isBackedOff(peer, 'sync')).to.equal(true);
+          } finally {
+            forceRemove(peer);
+            closeServer(server, done);
+          }
+        });
+      });
+    });
+
+    it('should select 270s for /peer/blocks, 60s for other sync endpoints, and configured timeout for status', function (done) {
+      var server = http.createServer(function (req, res) {
+        setValidHeaders(res, server.address().port);
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ success: true, blocks: [], transactions: [], height: 1 }));
+      });
+
+      listen(server, function (port) {
+        var peer = { ip: '127.0.0.1', port: port };
+        var setTimeoutSpy = sinon.spy(global, 'setTimeout');
+
+        function scheduledDelays () {
+          return setTimeoutSpy.getCalls().map(function (call) {
+            return call.args[1];
+          });
+        }
+
+        function finish (err) {
+          setTimeoutSpy.restore();
+          forceRemove(peer);
+          closeServer(server, function () {
+            done(err);
+          });
+        }
+
+        peers.recordInboundPeer(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/blocks?lastBlockId=1',
+          method: 'GET'
+        }, function (blocksErr) {
+          try {
+            expect(blocksErr).to.not.exist;
+            expect(scheduledDelays()).to.include(270000);
+          } catch (assertionErr) {
+            return finish(assertionErr);
+          }
+
+          setTimeoutSpy.resetHistory();
+
+          modules.transport.getFromPeer(peer, {
+            api: '/transactions',
+            method: 'GET'
+          }, function (txErr) {
+            try {
+              expect(txErr).to.not.exist;
+              expect(scheduledDelays()).to.include(60000);
+              expect(scheduledDelays()).to.not.include(270000);
+            } catch (assertionErr) {
+              return finish(assertionErr);
+            }
+
+            setTimeoutSpy.resetHistory();
+
+            modules.transport.getFromPeer(peer, {
+              api: '/height',
+              method: 'GET'
+            }, function (heightErr) {
+              try {
+                expect(heightErr).to.not.exist;
+                expect(scheduledDelays()).to.include(config.peers.options.timeout);
+                expect(scheduledDelays()).to.not.include(60000);
+                expect(scheduledDelays()).to.not.include(270000);
+              } catch (assertionErr) {
+                return finish(assertionErr);
+              }
+
+              finish();
+            });
+          });
+        });
+      });
+    });
+
+    it('should still record a network failure and back off when a /peer/blocks sync times out before sending body bytes', function (done) {
+      var server = http.createServer(function () {
+        // Intentionally never respond to simulate an unresponsive peer.
+      });
+
+      listen(server, function (port) {
+        var peer = { ip: '127.0.0.1', port: port };
+        peers.recordInboundPeer(peer);
+        var live = modulesLoader.scope.logic.peers.get(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/blocks?lastBlockId=1',
+          method: 'GET',
+          timeout: 80
+        }, function (err) {
+          try {
+            expect(err).to.contain('ETIMEDOUT');
+            expect(live.consecutiveNetworkFailures).to.equal(1);
+            expect(peers.isBackedOff(peer, 'status')).to.equal(true);
+          } finally {
+            forceRemove(peer);
+            closeServer(server, done);
+          }
+        });
+      });
+    });
+
+    it('should return normalized peer snapshots without transient request state', function (done) {
+      var peer = addPeerForOutboundList();
+      peer.consecutiveNetworkFailures = 3;
+      peer.nextAttemptAt = 0;
+      peer.lastOutboundSuccessAt = 1;
+      peer.broadhash = modules.system.getBroadhash();
+
+      peers.list({
+        limit: 100,
+        broadhash: peer.broadhash
+      }, function (err, listed) {
+        var snapshot = listed.find(function (item) {
+          return item.ip === peer.ip && item.port === peer.port;
+        });
+
+        expect(err).to.not.exist;
+        expect(snapshot).to.be.an('object').and.not.instanceof(Peer);
+        expect(snapshot).to.not.have.property('nextAttemptAt');
+        expect(snapshot).to.not.have.property('consecutiveNetworkFailures');
+        expect(snapshot).to.not.have.property('lastOutboundSuccessAt');
+        expect(snapshot).to.have.property('isBroadcastingViaSocket', false);
+        expect(snapshot).to.have.property('syncProtocol', 'http');
+        peers.remove(peer.ip, peer.port);
+        done();
+      });
+    });
+
+    function addPeerForOutboundList () {
+      var peer = {
+        ip: '40.41.40.62',
+        port: 48001,
+        state: Peer.STATE.CONNECTED
+      };
+      var logicPeers = modulesLoader.scope.logic.peers;
+
+      logicPeers.upsert(peer);
+      return logicPeers.get(peer);
+    }
+
+    it('should reject private outbound targets unless explicitly allowed', function (done) {
+      var previousEnv = process.env['NODE_ENV'];
+      var previousAllowPrivate = config.peers.options.allowPrivatePeers;
+      var requests = 0;
+      var server = http.createServer(function (req, res) {
+        requests++;
+        res.end();
+      });
+
+      process.env['NODE_ENV'] = 'DEV';
+      config.peers.options.allowPrivatePeers = false;
+
+      listen(server, function (port) {
+        modules.transport.getFromPeer({ ip: '127.0.0.1', port: port }, {
+          api: '/height',
+          method: 'GET',
+          timeout: 100
+        }, function (err) {
+          try {
+            expect(err).to.contain('not acceptable');
+            expect(requests).to.equal(0);
+          } finally {
+            if (previousEnv === undefined) {
+              delete process.env['NODE_ENV'];
+            } else {
+              process.env['NODE_ENV'] = previousEnv;
+            }
+            config.peers.options.allowPrivatePeers = previousAllowPrivate;
+            closeServer(server, done);
+          }
+        });
+      });
+    });
+
+    it('should reject an invalid direct request path', function (done) {
+      modules.transport.getFromPeer({ ip: '40.40.40.40', port: 4000 }, {
+        url: 'http://127.0.0.1/internal',
+        method: 'GET'
+      }, function (err) {
+        expect(err).to.equal('Invalid peer request path');
+        done();
+      });
+    });
+
+    it('should keep a peer reachable outside the throttled route scope', function (done) {
+      var peer = { ip: '127.0.0.1', port: 0 };
+      var requests = 0;
+      var server = http.createServer(function (req, res) {
+        requests++;
+        expect(req.headers['x-adamant-rate-limit']).to.equal('1');
+        if (req.method === 'POST' && req.url === '/peer/transactions') {
+          res.statusCode = 429;
+          res.setHeader('Retry-After', '86400');
+          res.setHeader('RateLimit-Scope', 'broadcast');
+          return res.end();
+        }
+
+        setValidHeaders(res, server.address().port);
+        res.end(JSON.stringify({ success: true }));
+      });
+
+      listen(server, function (port) {
+        peer.port = port;
+        peers.recordInboundPeer(peer);
+        var live = modulesLoader.scope.logic.peers.get(peer);
+        var previousSuccessRate = live.successRequestCount;
+
+        modules.transport.getFromPeer(peer, {
+          api: '/transactions',
+          method: 'POST',
+          data: {},
+          timeout: 500
+        }, function (err) {
+          expect(err).to.contain('ERATELIMIT 429');
+          expect(modulesLoader.scope.logic.peers.get(peer)).to.equal(live);
+          expect(live.successRequestCount).to.equal(previousSuccessRate);
+          expect(live.nextAttemptAt).to.not.exist;
+          expect(peers.isBackedOff(peer, 'broadcast')).to.equal(true);
+          expect(peers.isBackedOff(peer, 'sync')).to.equal(false);
+          expect(peers.isBackedOff(peer, 'status')).to.equal(false);
+
+          modules.transport.getFromPeer(peer, {
+            api: '/blocks',
+            method: 'GET',
+            timeout: 500
+          }, function (syncErr) {
+            expect(syncErr).to.not.exist;
+            expect(requests).to.equal(2);
+            forceRemove(peer);
+            closeServer(server, done);
+          });
+        });
+      });
+    });
+
+    it('should preserve a scoped throttle after an unrelated success', function () {
+      var peer = { ip: '40.41.40.65', port: 50002 };
+
+      peers.recordInboundPeer(peer);
+      peers.deferRequest(peer.ip, peer.port, 'broadcast', 1000);
+      peers.recordRequest(peer.ip, peer.port);
+
+      expect(peers.isBackedOff(peer, 'broadcast')).to.equal(true);
+      expect(peers.isBackedOff(peer, 'sync')).to.equal(false);
+      forceRemove(peer);
+    });
+
+    it('should apply an aggregate throttle to every peer request scope', function (done) {
+      var peer = { ip: '127.0.0.1', port: 0 };
+      var server = http.createServer(function (req, res) {
+        res.statusCode = 429;
+        res.setHeader('Retry-After', '1');
+        res.setHeader('RateLimit-Scope', 'all');
+        res.end();
+      });
+
+      listen(server, function (port) {
+        peer.port = port;
+        peers.recordInboundPeer(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/transactions',
+          method: 'POST',
+          data: {},
+          timeout: 500
+        }, function (err) {
+          expect(err).to.contain('ERATELIMIT 429 all');
+
+          modules.transport.getFromPeer(peer, {
+            api: '/height',
+            method: 'GET',
+            timeout: 500
+          }, function (statusErr) {
+            expect(statusErr).to.contain('still in backoff');
+            forceRemove(peer);
+            closeServer(server, done);
+          });
+        });
+      });
+    });
+
+    it('should reject outbound requests to a tracked banned peer', function (done) {
+      var peer = { ip: '40.41.40.64', port: 50001 };
+      peers.recordInboundPeer(peer);
+      var live = modulesLoader.scope.logic.peers.get(peer);
+      live.state = Peer.STATE.BANNED;
+
+      modules.transport.getFromPeer(peer, {
+        api: '/height',
+        method: 'GET',
+        timeout: 100
+      }, function (err) {
+        expect(err).to.contain('Peer is banned');
+        expect(live.state).to.equal(Peer.STATE.BANNED);
+        forceRemove(peer);
+        done();
+      });
+    });
+
+    it('should preserve a ban set while a valid peer request is in flight', function (done) {
+      var peer = { ip: '127.0.0.1', port: 0 };
+      var live;
+      var server = http.createServer(function (req, res) {
+        live.state = Peer.STATE.BANNED;
+        setValidHeaders(res, server.address().port);
+        res.end(JSON.stringify({ success: true }));
+      });
+
+      listen(server, function (port) {
+        peer.port = port;
+        peers.recordInboundPeer(peer);
+        live = modulesLoader.scope.logic.peers.get(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/height',
+          method: 'GET',
+          timeout: 500
+        }, function (err) {
+          expect(err).to.contain('Peer is banned');
+          expect(modulesLoader.scope.logic.peers.get(peer)).to.equal(live);
+          expect(live.state).to.equal(Peer.STATE.BANNED);
+          forceRemove(peer);
+          closeServer(server, done);
+        });
+      });
+    });
+
+    it('should preserve a ban set while an invalid peer response is in flight', function (done) {
+      var peer = { ip: '127.0.0.1', port: 0 };
+      var live;
+      var server = http.createServer(function (req, res) {
+        live.state = Peer.STATE.BANNED;
+        res.statusCode = 500;
+        res.end();
+      });
+
+      listen(server, function (port) {
+        peer.port = port;
+        peers.recordInboundPeer(peer);
+        live = modulesLoader.scope.logic.peers.get(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/height',
+          method: 'GET',
+          timeout: 500
+        }, function (err) {
+          expect(err).to.contain('Received bad response code 500');
+          expect(modulesLoader.scope.logic.peers.get(peer)).to.equal(live);
+          expect(live.state).to.equal(Peer.STATE.BANNED);
+          forceRemove(peer);
+          closeServer(server, done);
+        });
+      });
+    });
+  });
+
   describe('onBlockchainReady', function () {
     before(function () {
       modules.transport.onBind(modules);
@@ -398,6 +1245,37 @@ describe('peers', function () {
         done();
       }, 1000);
     });
+
+    it('should restore persisted bans for new and configured peers', function (done) {
+      var logicPeers = modulesLoader.scope.logic.peers;
+      var storedPeer = { ip: '40.41.40.63', port: 49001, state: Peer.STATE.BANNED };
+      var seed = config.peers.list[0];
+      var existingSeed = logicPeers.get(seed);
+      var originalSeedState = existingSeed ? existingSeed.state : Peer.STATE.DISCONNECTED;
+
+      logicPeers.remove(storedPeer);
+      sinon.stub(modulesLoader.db, 'any').resolves([
+        storedPeer,
+        { ip: seed.ip, port: seed.port, state: Peer.STATE.BANNED }
+      ]);
+      sinon.stub(peers, 'ping').callsArgWith(1, null);
+      sinon.stub(peers, 'discover').callsArgWith(0, null);
+
+      peers.onBlockchainReady();
+      setTimeout(function () {
+        try {
+          expect(logicPeers.get(storedPeer).state).to.equal(Peer.STATE.BANNED);
+          expect(logicPeers.get(seed).state).to.equal(Peer.STATE.BANNED);
+          expect(peers.ping.getCalls().some(function (call) {
+            return call.args[0].ip === seed.ip && call.args[0].port === seed.port;
+          })).to.equal(false);
+        } finally {
+          forceRemove(storedPeer);
+          logicPeers.get(seed).state = originalSeedState;
+          done();
+        }
+      }, 1000);
+    });
   });
 
   describe('onPeersReady', function () {
@@ -407,12 +1285,458 @@ describe('peers', function () {
 
     it('should update peers during onBlockchainReady', function (done) {
       sinon.stub(peers, 'discover').callsArgWith(0, null);
+      sinon.stub(peers, 'runPeerUpdate').callsArg(0);
       peers.onPeersReady();
       setTimeout(function () {
         expect(peers.discover.calledOnce).to.be.true;
+        expect(peers.runPeerUpdate.calledOnce).to.be.true;
         peers.discover.restore();
+        peers.runPeerUpdate.restore();
         done();
       }, 1000);
+    });
+  });
+
+  describe('bounded peer update', function () {
+    var logicPeers;
+    var optionKeys = [
+      'updateConcurrency',
+      'probeSpacingMs',
+      'maxProbeTargets',
+      'unverifiedProbeLimit',
+      'minUpdateAgeMs',
+      'unreachableBackoffInitialMs',
+      'unreachableBackoffMaxMs',
+      'unreachableEvictAfter',
+      'unreachableEvictAfterMs',
+      'minConnectedPeers',
+      'maxPeers',
+      'maxPeersPerIp',
+      'maxPeersPerSubnet',
+      'subnetMaskIpv4',
+      'subnetMaskIpv6'
+    ];
+    var savedOptions = {};
+    var nextPort = 25000;
+
+    function applyProbeOptions (overrides) {
+      var values = Object.assign({
+        updateConcurrency: 4,
+        probeSpacingMs: 0,
+        maxProbeTargets: 20,
+        unverifiedProbeLimit: 20,
+        minUpdateAgeMs: 0,
+        unreachableBackoffInitialMs: 0,
+        unreachableBackoffMaxMs: 0,
+        unreachableEvictAfter: 6,
+        unreachableEvictAfterMs: 0,
+        minConnectedPeers: 0,
+        maxPeers: 500,
+        maxPeersPerIp: 0,
+        maxPeersPerSubnet: 0,
+        subnetMaskIpv4: 24,
+        subnetMaskIpv6: 64
+      }, overrides);
+
+      optionKeys.forEach(function (key) {
+        config.peers.options[key] = values[key];
+      });
+      logicPeers.setMaxPeers(values.maxPeers);
+      logicPeers.setAdmissionPolicy({
+        maxPeersPerIp: values.maxPeersPerIp,
+        maxPeersPerSubnet: values.maxPeersPerSubnet,
+        subnetMaskIpv4: values.subnetMaskIpv4,
+        subnetMaskIpv6: values.subnetMaskIpv6
+      });
+    }
+
+    function holdSeeds () {
+      logicPeers.list().forEach(function (peer) {
+        if (peers.isFrozen(peer.ip, peer.port)) {
+          peer.nextAttemptAt = Date.now() + (60 * 60 * 1000);
+        }
+      });
+    }
+
+    function removeAddedPeers () {
+      logicPeers.list().slice().forEach(function (peer) {
+        if (!peers.isFrozen(peer.ip, peer.port)) {
+          if (peer.state === Peer.STATE.BANNED) {
+            logicPeers.remove(peer);
+          } else {
+            peers.remove(peer.ip, peer.port);
+          }
+        }
+      });
+    }
+
+    function addPeer (fields) {
+      var data = Object.assign({
+        ip: '50.2.' + ((nextPort % 200) + 1) + '.10',
+        port: nextPort++,
+        state: Peer.STATE.DISCONNECTED
+      }, fields);
+      var inserted = logicPeers.upsert({
+        ip: data.ip,
+        port: data.port,
+        state: data.state
+      });
+      var peer = logicPeers.get({ ip: data.ip, port: data.port });
+
+      if (!inserted || !peer) {
+        throw new Error('Failed to insert test peer ' + data.ip + ':' + data.port);
+      }
+
+      peer.state = data.state;
+      peer.updated = Object.prototype.hasOwnProperty.call(fields, 'updated') ? fields.updated : 1;
+      peer.nextAttemptAt = fields.nextAttemptAt || 0;
+      peer.consecutiveNetworkFailures = fields.consecutiveNetworkFailures || 0;
+      peer.lastOutboundSuccessAt = fields.lastOutboundSuccessAt || 0;
+
+      return peer;
+    }
+
+    before(function () {
+      logicPeers = modulesLoader.scope.logic.peers;
+      optionKeys.forEach(function (key) {
+        savedOptions[key] = config.peers.options[key];
+      });
+    });
+
+    beforeEach(function () {
+      applyProbeOptions();
+      removeAddedPeers();
+      holdSeeds();
+    });
+
+    after(function () {
+      removeAddedPeers();
+      optionKeys.forEach(function (key) {
+        if (savedOptions[key] === undefined) {
+          delete config.peers.options[key];
+        } else {
+          config.peers.options[key] = savedOptions[key];
+        }
+      });
+      logicPeers.setMaxPeers(__privateMaxPeers());
+      logicPeers.setAdmissionPolicy({
+        maxPeersPerIp: savedOptions.maxPeersPerIp || 0,
+        maxPeersPerSubnet: savedOptions.maxPeersPerSubnet || 0,
+        subnetMaskIpv4: savedOptions.subnetMaskIpv4 || 24,
+        subnetMaskIpv6: savedOptions.subnetMaskIpv6 || 64
+      });
+      logicPeers.list().forEach(function (peer) {
+        if (peers.isFrozen(peer.ip, peer.port)) {
+          peer.nextAttemptAt = 0;
+        }
+      });
+    });
+
+    function __privateMaxPeers () {
+      return savedOptions.maxPeers > 0 ? savedOptions.maxPeers : 500;
+    }
+
+    function networkError (peer) {
+      return 'ECONNREFUSED Request failed GET http://' + peer.ip + ':' + peer.port + '/peer/height';
+    }
+
+    it('should not open an outbound probe to every known peer', function (done) {
+      applyProbeOptions({ maxProbeTargets: 8, unverifiedProbeLimit: 3 });
+
+      for (var index = 0; index < 30; index++) {
+        addPeer({ state: Peer.STATE.DISCONNECTED });
+      }
+
+      var verified = addPeer({
+        state: Peer.STATE.CONNECTED,
+        lastOutboundSuccessAt: 1
+      });
+      sinon.stub(modules.transport, 'getFromPeer').callsFake(function (peer, request, cb) {
+        setImmediate(cb, networkError(peer));
+      });
+
+      peers.runPeerUpdate(function () {
+        var calledIps = modules.transport.getFromPeer.getCalls().map(function (call) {
+          return call.args[0].ip;
+        });
+
+        expect(modules.transport.getFromPeer.callCount).to.equal(4);
+        expect(calledIps).to.include(verified.ip);
+        expect(calledIps.filter(function (ip) {
+          return ip !== verified.ip;
+        })).to.have.length(3);
+        done();
+      });
+    });
+
+    it('should skip banned peers and peers that are still backed off', function (done) {
+      var due = addPeer({});
+      var banned = addPeer({ state: Peer.STATE.BANNED });
+      var waiting = addPeer({ nextAttemptAt: Date.now() + 60_000 });
+
+      sinon.stub(modules.transport, 'getFromPeer').callsFake(function (peer, request, cb) {
+        setImmediate(cb, networkError(peer));
+      });
+
+      peers.runPeerUpdate(function () {
+        var called = modules.transport.getFromPeer.getCalls().map(function (call) {
+          return call.args[0].ip + ':' + call.args[0].port;
+        });
+
+        expect(called).to.deep.equal([due.ip + ':' + due.port]);
+        expect(called).to.not.include(banned.ip + ':' + banned.port);
+        expect(called).to.not.include(waiting.ip + ':' + waiting.port);
+        done();
+      });
+    });
+
+    it('should skip peers in backoff when selecting random outbound peers', function (done) {
+      var ready = addPeer({ state: Peer.STATE.DISCONNECTED, nextAttemptAt: 0 });
+      var waiting = addPeer({ state: Peer.STATE.DISCONNECTED, nextAttemptAt: Date.now() + 120_000 });
+      var broadhash = modules.system.getBroadhash();
+      ready.broadhash = broadhash;
+      waiting.broadhash = broadhash;
+
+      peers.list({
+        limit: 10,
+        allowedStates: [Peer.STATE.DISCONNECTED, Peer.STATE.CONNECTED],
+        broadhash: broadhash
+      }, function (err, listed) {
+        expect(err).to.not.exist;
+        expect(listed.map(function (peer) { return peer.ip + ':' + peer.port; })).to.include(ready.string);
+        expect(listed.map(function (peer) { return peer.ip + ':' + peer.port; })).to.not.include(waiting.string);
+        done();
+      });
+    });
+
+    it('should prioritize outbound-verified peers for random outbound selection', function (done) {
+      var verified = addPeer({
+        state: Peer.STATE.CONNECTED,
+        lastOutboundSuccessAt: 1
+      });
+      var unverified = addPeer({
+        state: Peer.STATE.DISCONNECTED
+      });
+      var broadhash = modules.system.getBroadhash();
+      verified.broadhash = broadhash;
+      unverified.broadhash = broadhash;
+
+      peers.list({
+        limit: 2,
+        allowedStates: [Peer.STATE.DISCONNECTED, Peer.STATE.CONNECTED],
+        broadhash: broadhash
+      }, function (err, listed) {
+        expect(err).to.not.exist;
+        expect(listed).to.have.length(2);
+        expect(listed[0].ip + ':' + listed[0].port).to.equal(verified.string);
+        done();
+      });
+    });
+
+    it('should back off a network failure and clear it after a later success', function (done) {
+      applyProbeOptions({
+        unreachableBackoffInitialMs: 60_000,
+        unreachableBackoffMaxMs: 60_000
+      });
+      var peer = addPeer({});
+      var stub = sinon.stub(modules.transport, 'getFromPeer').callsFake(function (target, request, cb) {
+        setImmediate(cb, networkError(target));
+      });
+
+      peers.runPeerUpdate(function () {
+        expect(peer.consecutiveNetworkFailures).to.equal(1);
+        expect(peer.nextAttemptAt).to.be.above(Date.now());
+        stub.resetHistory();
+
+        peers.runPeerUpdate(function () {
+          expect(stub.called).to.equal(false);
+          peer.nextAttemptAt = 0;
+          stub.callsFake(function (target, request, cb) {
+            setImmediate(cb, null);
+          });
+
+          peers.runPeerUpdate(function () {
+            expect(peer.consecutiveNetworkFailures).to.equal(0);
+            expect(peer.nextAttemptAt).to.equal(0);
+            expect(peer.lastOutboundSuccessAt).to.be.above(0);
+            done();
+          });
+        });
+      });
+    });
+
+    it('should keep a peer that fails the nethash check on the existing remove path', function (done) {
+      var peer = addPeer({ state: Peer.STATE.CONNECTED });
+
+      sinon.stub(modules.transport, 'getFromPeer').callsFake(function (target, request, cb) {
+        setImmediate(cb, 'Peer is not on the same network abcdef GET http://' + target.ip);
+      });
+
+      peers.runPeerUpdate(function () {
+        expect(logicPeers.get(peer)).to.equal(peer);
+        expect(peer.consecutiveNetworkFailures || 0).to.equal(0);
+        expect(peer.nextAttemptAt || 0).to.equal(0);
+        done();
+      });
+    });
+
+    it('should remove a non-seed peer after repeated network failures', function (done) {
+      applyProbeOptions({ unreachableEvictAfter: 2, minConnectedPeers: 0 });
+      var peer = addPeer({});
+      var deleted = [];
+      var deletePeer = modulesLoader.db.none.bind(modulesLoader.db);
+
+      sinon.stub(modulesLoader.db, 'none').callsFake(function (query, params) {
+        if (typeof query === 'string' && query.indexOf('DELETE FROM peers WHERE') === 0) {
+          deleted.push(params);
+        }
+
+        return deletePeer(query, params);
+      });
+      sinon.stub(modules.transport, 'getFromPeer').callsFake(function (target, request, cb) {
+        setImmediate(cb, networkError(target));
+      });
+
+      peers.runPeerUpdate(function () {
+        expect(logicPeers.get(peer)).to.equal(peer);
+
+        peers.runPeerUpdate(function () {
+          expect(logicPeers.get(peer)).to.equal(undefined);
+          expect(deleted).to.deep.equal([{ ip: peer.ip, port: peer.port }]);
+          done();
+        });
+      });
+    });
+
+    it('should keep a configured seed peer after repeated network failures', function (done) {
+      var seed = config.peers.list[0];
+
+      applyProbeOptions({ unreachableEvictAfter: 1, minConnectedPeers: 0 });
+      var peer = addPeer({ ip: seed.ip, port: seed.port });
+      peer.nextAttemptAt = 0;
+
+      sinon.stub(modules.transport, 'getFromPeer').callsFake(function (target, request, cb) {
+        setImmediate(cb, networkError(target));
+      });
+
+      peers.runPeerUpdate(function () {
+        expect(peers.isFrozen(seed.ip, seed.port)).to.equal(true);
+        expect(logicPeers.get(seed)).to.equal(peer);
+        expect(peer.consecutiveNetworkFailures).to.be.at.least(1);
+        done();
+      });
+    });
+
+    it('should evict never-verified peers even when verified-peer floor is not reached', function (done) {
+      applyProbeOptions({ unreachableEvictAfter: 1, minConnectedPeers: 2 });
+      var peer = addPeer({});
+
+      sinon.stub(modules.transport, 'getFromPeer').callsFake(function (target, request, cb) {
+        setImmediate(cb, networkError(target));
+      });
+
+      peers.runPeerUpdate(function () {
+        expect(logicPeers.get(peer)).to.equal(undefined);
+        done();
+      });
+    });
+
+    it('should keep previously verified unreachable peers while too few verified peers are connected', function (done) {
+      applyProbeOptions({ unreachableEvictAfter: 1, minConnectedPeers: 2 });
+      var peer = addPeer({ lastOutboundSuccessAt: Date.now() - (2 * 24 * 60 * 60 * 1000) });
+
+      sinon.stub(modules.transport, 'getFromPeer').callsFake(function (target, request, cb) {
+        setImmediate(cb, networkError(target));
+      });
+
+      peers.runPeerUpdate(function () {
+        expect(logicPeers.get(peer)).to.equal(peer);
+        expect(peer.consecutiveNetworkFailures).to.equal(1);
+        done();
+      });
+    });
+
+    it('should wait out the unreachable window after a peer has answered once', function (done) {
+      var now = Date.now();
+
+      applyProbeOptions({
+        unreachableEvictAfter: 1,
+        unreachableEvictAfterMs: 24 * 60 * 60 * 1000,
+        minConnectedPeers: 0
+      });
+      var peer = addPeer({
+        state: Peer.STATE.DISCONNECTED,
+        lastOutboundSuccessAt: now
+      });
+
+      sinon.stub(modules.transport, 'getFromPeer').callsFake(function (target, request, cb) {
+        setImmediate(cb, networkError(target));
+      });
+
+      peers.runPeerUpdate(function () {
+        expect(logicPeers.get(peer)).to.equal(peer);
+        peer.lastOutboundSuccessAt = now - (25 * 60 * 60 * 1000);
+        peer.nextAttemptAt = 0;
+
+        peers.runPeerUpdate(function () {
+          expect(logicPeers.get(peer)).to.equal(undefined);
+          done();
+        });
+      });
+    });
+
+    it('should keep at most the configured number of probes in flight', function (done) {
+      applyProbeOptions({ updateConcurrency: 2, maxProbeTargets: 5, unverifiedProbeLimit: 5 });
+
+      for (var index = 0; index < 5; index++) {
+        addPeer({});
+      }
+
+      var active = 0;
+      var maxActive = 0;
+      sinon.stub(modules.transport, 'getFromPeer').callsFake(function (target, request, cb) {
+        active++;
+        if (active > maxActive) {
+          maxActive = active;
+        }
+        setImmediate(function () {
+          active--;
+          cb(networkError(target));
+        });
+      });
+
+      peers.runPeerUpdate(function () {
+        expect(modules.transport.getFromPeer.callCount).to.equal(5);
+        expect(maxActive).to.equal(2);
+        done();
+      });
+    });
+
+    it('should space the start of outbound probes', function (done) {
+      this.timeout(5000);
+      applyProbeOptions({
+        probeSpacingMs: 40,
+        updateConcurrency: 4,
+        maxProbeTargets: 3,
+        unverifiedProbeLimit: 3
+      });
+
+      addPeer({});
+      addPeer({});
+      addPeer({});
+
+      var startedAt = [];
+      sinon.stub(modules.transport, 'getFromPeer').callsFake(function (target, request, cb) {
+        startedAt.push(Date.now());
+        setImmediate(cb, networkError(target));
+      });
+
+      peers.runPeerUpdate(function () {
+        expect(startedAt).to.have.length(3);
+        expect(startedAt[1] - startedAt[0]).to.be.at.least(30);
+        expect(startedAt[2] - startedAt[1]).to.be.at.least(30);
+        done();
+      });
     });
   });
 });

@@ -1,0 +1,40 @@
+name: Shell scripts
+
+on:
+  pull_request:
+  push:
+    branches:
+      - dev
+      - master
+
+jobs:
+  dependency-quarantine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Check newly locked dependency release ages
+        env:
+          PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BASE_SHA: ${{ github.event.before }}
+        run: |
+          BASE_REF="${PULL_REQUEST_BASE_SHA:-$PUSH_BASE_SHA}"
+          npm run check:dependency-age -- --base-ref "$BASE_REF"
+          if [ -f docs/package-lock.json ]; then
+            node scripts/checkDependencyQuarantine.js --base-ref "$BASE_REF" --lockfile docs/package-lock.json
+          fi
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Check installer and repair scripts
+        run: bash test/tools/adamant_node_common_test.sh
+      - name: Run ShellCheck
+        run: shellcheck -x -P SCRIPTDIR tools/install_node.sh tools/install_node_centos.sh tools/fix_node.sh tools/lib/adamant_node_common.sh test/tools/adamant_node_common_test.sh

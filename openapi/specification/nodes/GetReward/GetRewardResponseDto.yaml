@@ -1,0 +1,16 @@
+required:
+  - success
+  - nodeTimestamp
+  - reward
+properties:
+  success:
+    type: boolean
+  nodeTimestamp:
+    type: number
+  reward:
+    type: integer
+    description: The reward a delegate will get for forging a block. Integer amount of 1/10^8 ADM tokens (1 ADM = 100000000). Depends on the slot height.
+example:
+  success: true
+  nodeTimestamp: 58646306
+  reward: 45000000

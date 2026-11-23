@@ -1,0 +1,15 @@
+name: type
+in: query
+description: |
+  When sending KVS transaction, type field of state object must be as follows:
+
+  - `0` for full re-writing of contents by specified key value
+  - `1` for incremental appending contents
+
+  For more details see [AIP 11: Behavior for KVS data](https://aips.adamant.im/AIPS/aip-11)
+schema:
+  type: integer
+  example: 1
+  default: 0
+  enum: [0, 1]
+required: false

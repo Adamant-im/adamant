@@ -1,0 +1,7 @@
+name: or:toTimestamp
+in: query
+description: Filter by timestamp (`or` operator)
+schema:
+  type: number
+  example: 37059538
+required: false

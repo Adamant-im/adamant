@@ -1,0 +1,22 @@
+allOf:
+  - $ref: '../../common/transactions/QueuedTransaction.yaml'
+  - type: object
+    required:
+      - asset
+      - type
+      - success
+      - nodeTimestamp
+    properties:
+      asset:
+        $ref: '../../common/transactions/assets/VoteForDelegateAsset.yaml'
+      type: # overrides QueuedTransaction.yaml
+        type: integer
+        enum: [3]
+        example: 3
+        description: Always equal to `3`
+      success:
+        type: boolean
+        example: true
+      nodeTimestamp:
+        type: number
+        example: 61762271

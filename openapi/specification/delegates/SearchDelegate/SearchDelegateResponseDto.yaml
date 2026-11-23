@@ -1,0 +1,15 @@
+required:
+  - delegates
+  - success
+  - nodeTimestamp
+properties:
+  delegates:
+    type: array
+    items:
+      $ref: './SearchDelegateDto.yaml'
+  success:
+    type: boolean
+    example: true
+  nodeTimestamp:
+    type: number
+    example: 61762271

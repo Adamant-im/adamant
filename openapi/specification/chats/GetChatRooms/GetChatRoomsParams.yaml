@@ -1,0 +1,57 @@
+###############################
+######## Path params ##########
+###############################
+
+- name: address
+  in: path
+  description: ADAMANT address
+  required: true
+  schema:
+    type: string
+    example: U839357947177758191
+
+###############################
+####### Common filters ########
+###############################
+
+# All filters on /api/chatrooms/{address} combine with AND.
+# `and:`-prefixed aliases are supported; `or:` filters and unknown query fields are rejected.
+
+# type
+- $ref: '../../common/params/filters/messageType/type.yaml'
+- $ref: '../../common/params/filters/messageType/andType.yaml'
+
+# senderId
+- $ref: '../../common/params/filters/senderId/senderId.yaml'
+- $ref: '../../common/params/filters/senderId/andSenderId.yaml'
+
+# recipientId
+- $ref: '../../common/params/filters/recipientId/recipientId.yaml'
+- $ref: '../../common/params/filters/recipientId/andRecipientId.yaml'
+
+###############################
+######## Common params ########
+###############################
+
+# offset
+- $ref: '../../common/params/offset.yaml'
+
+# orderBy
+- $ref: '../../common/params/orderBy.yaml'
+
+# returnUnconfirmed
+- $ref: '../../common/params/returnUnconfirmed.yaml'
+
+###############################
+## Endpoint specific filters ##
+###############################
+
+# includeDirectTransfers
+- $ref: './params/filters/includeDirectTransfers/includeDirectTransfers.yaml'
+
+###############################
+### Endpoint specific params ##
+###############################
+
+# limit
+- $ref: './params/limit.yaml'

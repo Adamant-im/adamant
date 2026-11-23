@@ -1,0 +1,13 @@
+name: keyIds
+in: query
+required: false
+schema:
+  type: array
+  items:
+    type: string
+  example:
+    - eth:address
+    - doge:address
+    - dash:address
+    - btc:address
+  description: Get transactions of specified KVS keys. Array of keys, comma-separated.

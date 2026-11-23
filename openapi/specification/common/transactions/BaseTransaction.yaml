@@ -1,0 +1,65 @@
+required:
+  - id
+  - height
+  - blockId
+  - type
+  - block_timestamp
+  - timestamp
+  - senderPublicKey
+  - senderId
+  - recipientId
+  - recipientPublicKey
+  - amount
+  - fee
+  - signature
+  - signatures
+  - confirmations
+  - asset
+properties:
+  id:
+    type: string
+  height:
+    type: number
+  blockId:
+    type: string
+  type:
+    type: integer
+    minimum: 0
+    maximum: 9
+    example: 0
+    description: Type of transaction. See [Transaction Types](https://docs.adamant.im/api-types/transaction-types.html).
+  block_timestamp:
+    type: number
+  timestamp:
+    type: number
+    description: Transaction time specified by the sender, measured in seconds since the ADAMANT epoch.
+  timestampMs:
+    type: [number, 'null']
+    description: Optional transaction time specified by the sender, measured in milliseconds since the ADAMANT epoch. Returned when a node has stored it; for blockchain consensus-sensitive data this works after the `spaceship` activation. When present, it belongs to the same second as `timestamp`, so clients should prefer it for timestamp ordering and fall back to `timestamp * 1000` when it is absent.
+  senderPublicKey:
+    type: string
+  senderId:
+    type: string
+  recipientId:
+    type: string
+  recipientPublicKey:
+    type: string
+  amount:
+    type: number
+    format: int64
+    description: Amount to transfer, 8 decimal points (100000000 equals to 1 ADM). For non-transfer transactions must be `0`
+  fee:
+    type: number
+    description: Fee for operation. Depends on [Transaction Type](https://docs.adamant.im/api-types/transaction-types.html)
+  signature:
+    type: string
+  signatures:
+    type: array
+    items:
+      type: string
+      example: []
+  confirmations:
+    type: number
+  asset:
+    type: object
+    example: {}

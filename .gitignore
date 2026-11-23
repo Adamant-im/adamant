@@ -1,5 +1,7 @@
 dapps/
-docs/jsdoc/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+openapi/dist/schema.json
 release
 ssl/
 
@@ -36,6 +38,7 @@ test/.nyc_output
 # Temporary data
 tmp
 .localnet/
+.run/
 *.swp
 *.swo
 
@@ -49,3 +52,6 @@ nodejs
 .ai-tasks/
 .claude/
 .cursor/
+
+# Private docs
+.security/

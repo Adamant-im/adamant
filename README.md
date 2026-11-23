@@ -19,63 +19,33 @@ Additional information:
 
 ## Node and API Documentation
 
-Comprehensive [node documentation](https://docs.adamant.im) is available.
+Full node and API documentation is maintained in [`docs/`](./docs/) and published at **[docs.adamant.im](https://docs.adamant.im)**:
 
-It covers the Fair dPoS consensus algorithm, decentralization principles, node installation and configuration, and other core concepts. The documentation also describes API endpoints for managing accounts, transactions, chats, and key-value storage (KVS), along with account creation, message encryption and decryption, and API data types.
+- **Operators**: [Installation](https://docs.adamant.im/own-node/installation.html), [Configuration](https://docs.adamant.im/own-node/configuration.html), [Security Recommendations](https://docs.adamant.im/own-node/security.html), [Monitoring (Zabbix)](https://docs.adamant.im/own-node/monitoring.html), and [Upgrading to v0.11.0](https://docs.adamant.im/own-node/upgrading.html)
+- **API & Protocol**: [Making Requests](https://docs.adamant.im/api/making-requests.html), [Transactions Query Language](https://docs.adamant.im/api/transactions-query-language.html), [WebSocket API](https://docs.adamant.im/api/websocket.html), [Interactive OpenAPI Schema (Swagger UI)](https://docs.adamant.im/schema/) ([`openapi/`](./openapi/)), and [ADAMANT Improvement Proposals (AIPs)](https://aips.adamant.im)
+- **Testing**: [Testnet](https://docs.adamant.im/own-node/testnet.html), [Localnet](https://docs.adamant.im/own-node/localnet.html), and [Testing & Live Scenarios](https://docs.adamant.im/own-node/testing.html)
 
-See also:
+## Quick Start
 
-- [ADAMANT Improvement Proposals (AIPs)](https://aips.adamant.im)
+ADAMANT Node requires **Node.js `22.22.2+`** (on the `22.x` line) or **`24.15.0+`**. The bundled Linux installers support Ubuntu 20.04–26.04 LTS (`tools/install_node.sh`) and RHEL-compatible releases 8–10 (`tools/install_node_centos.sh`), defaulting to Node.js `24`.
 
-## Installing, Configuring, and Running an ADAMANT Node
-
-ADAMANT Node requires Node.js 22.13.0 or newer. The installation scripts support Node.js 22, 24, and 26, with Node.js 24 selected by default.
-
-Refer to the [ADAMANT Node installation documentation](https://docs.adamant.im/own-node/installation.html) for hardware requirements and complete setup instructions for Linux, macOS, and Windows.
-
-### Linux Installation Scripts
-
-The bundled installers support:
-
-- Ubuntu 20.04, 22.04, 24.04, and 26.04 LTS: `tools/install_node.sh`
-- RHEL-compatible releases 8-10, including CentOS Stream, Rocky Linux, AlmaLinux, and RHEL: `tools/install_node_centos.sh`
-
-Ubuntu 20.04 is supported by the script, but its standard security maintenance has ended. Use Ubuntu Pro or upgrade the operating system for continued security updates.
-
-Run an installer as root from the official download URL and select the network, Git branch, and Node.js major version as needed:
+Clone the repository, record the reviewed commit, and run the installer:
 
 ```sh
-sudo bash -c "$(wget -O - https://adamant.im/install_node.sh)" -O -b dev -n mainnet -j 24
-sudo bash -c "$(wget -O - https://adamant.im/install_node_centos.sh)" -O -b dev -n mainnet -j 24
+git clone --branch master https://github.com/Adamant-im/adamant.git
+cd adamant
+git rev-parse HEAD
+sudo bash tools/install_node.sh -b master -n mainnet -j 24
 ```
 
-Both installers update system packages, preserve existing ADAMANT configuration files and local Git changes, and reuse existing users and databases. A blockchain image is skipped when the selected database already contains tables. Installation logs are written to `/var/log/adamant_<network>_install.log`.
+For manual installation, verified snapshot bootstrapping, database repair (`tools/fix_node.sh`), anti-abuse rate limits, encrypted delegate passphrases (`npm run adm-node -- forging encrypt|unlock|lock|status`), and v0.11.0 breaking API changes (removal of legacy forging and DApp runtime control routes), see the guides in [`docs/own-node/`](./docs/own-node/).
 
-To replace an Ubuntu node database with a newly downloaded blockchain image, use:
-
-```sh
-sudo bash tools/fix_node.sh -n mainnet
-```
-
-The repair tool drops the database to free disk space, downloads and validates the replacement image, then recreates the database and restores it from the snapshot. Back up any required data first. Repair logs are written to `/var/log/adamant_<network>_fix.log`.
-
-### Critical Shutdown Notice
-
-Always stop the node gracefully. When running it in the foreground, press `Ctrl+C` and wait for cleanup to finish. Do not use `kill -9`, forced terminal termination, or any other uncatchable process kill unless the process is already unrecoverably stuck.
-
-The node stores derived consensus state in memory mirror tables such as `mem_accounts` and `mem_round`. A forced kill can interrupt block, transaction, or round writes and leave those tables inconsistent with the persisted blockchain. On the next startup this may force a full memory-state rebuild from the beginning of the chain:
-
-```text
-[WRN] loader Detected unapplied rounds in mem_round
-[WRN] loader Recreating memory tables…
-[inf] loader Rebuilding blockchain, current block height: 1…
-```
-
-If this happens, do not try to repair `mem_*` tables with manual SQL edits. The reliable recovery options are restoring a trusted database snapshot or letting the node rebuild/replay derived state from the blockchain.
+> [!WARNING]
+> **Graceful Shutdown Required:** Always stop a running node with a catchable termination signal (`Ctrl+C` / `SIGINT` / `SIGTERM`) and wait until the log prints `Cleaned up successfully`. Never use `kill -9` or short PM2 timeouts — forced termination can leave derived `mem_*` mirror tables inconsistent with the blockchain and trigger a rebuild. See [Installation — Graceful Shutdown](https://docs.adamant.im/own-node/installation.html#graceful-shutdown-and-database-maintenance).
 
 ## Development and Tests
 
-Refer to [CONTRIBUTING.md](./.github/CONTRIBUTING.md).
+See [CONTRIBUTING.md](./.github/CONTRIBUTING.md) for contribution rules and [Testing & Live Scenarios](./docs/own-node/testing.md) for full test, localnet, and live-scenario instructions.
 
 ## Authors
 

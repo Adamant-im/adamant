@@ -1,0 +1,52 @@
+type: object
+description: >-
+  Filter payload for `POST /api/states/get`. All filters combine with AND; `and:`-prefixed field
+  names are accepted as aliases for plain field names, while `or:` filters, unknown fields, and
+  conflicting plain/`and:` values are rejected.
+properties:
+  type:
+    type: integer
+    enum: [0, 1]
+    example: 0
+  senderId:
+    type: string
+    example: U14236667426471084862
+  senderIds:
+    oneOf:
+      - type: array
+        items:
+          type: string
+      - type: string
+    description: Array of ADAMANT sender addresses or a comma-separated string.
+  key:
+    type: string
+    example: eth:address
+  keyIds:
+    oneOf:
+      - type: array
+        items:
+          type: string
+      - type: string
+    description: Array of KVS keys or a comma-separated string.
+  fromHeight:
+    type: integer
+    minimum: 1
+  toHeight:
+    type: integer
+    minimum: 1
+  orderBy:
+    type: string
+    example: timestamp:desc
+  limit:
+    type: integer
+    minimum: 1
+    maximum: 1000
+    default: 100
+  offset:
+    type: integer
+    minimum: 0
+    default: 0
+  returnUnconfirmed:
+    type: integer
+    enum: [0, 1]
+    default: 0

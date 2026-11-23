@@ -1,0 +1,8 @@
+name: or:type
+in: query
+description: |
+  Get messages of specified type. See [Message Types](https://docs.adamant.im/api-types/message-types.html).
+  If `type` is not set, all types of transactions will be returned.
+schema:
+  type: integer
+required: false

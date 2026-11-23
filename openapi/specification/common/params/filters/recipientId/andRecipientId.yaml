@@ -1,0 +1,6 @@
+name: and:recipientId
+in: query
+description: Filter by recipientId (`and` operator)
+schema:
+  type: string
+required: false

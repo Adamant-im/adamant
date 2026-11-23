@@ -101,6 +101,50 @@ describe('live scenario runner utilities', () => {
     });
   });
 
+  it('should reject a missing DApp observation peer before publishing transactions', async () => {
+    const scenario = scenarios.SCENARIOS.find((candidate) => {
+      return candidate.id === 'transactions.happy-path';
+    });
+    const primaryNode = {
+      id: 'node-1',
+      apiUrl: 'http://127.0.0.1:36670'
+    };
+    let submissions = 0;
+    let failure;
+
+    try {
+      await scenario.run({
+        fixtureAccounts: {
+          transfer: {
+            secret: 'not-used-before-peer-check'
+          }
+        },
+        primaryNode,
+        target: {
+          nodes: [primaryNode]
+        },
+        clientFor: function () {
+          return {
+            post: function () {
+              submissions += 1;
+            }
+          };
+        },
+        assert: function (condition, message) {
+          if (!condition) {
+            throw Error(message);
+          }
+        }
+      });
+    } catch (error) {
+      failure = error;
+    }
+
+    expect(failure).to.be.an('error');
+    expect(failure.message).to.include('at least two distinct target nodes');
+    expect(submissions).to.equal(0);
+  });
+
   it('should use the third configured testnet peer for transaction observation', () => {
     const recipient = target.normalizeEndpoint('127.0.0.1:36667', { id: 'node-recipient' });
     const peer = target.resolveTestnetObservationPeer(testDefaultConfig, recipient, 'test/config.default.json');
@@ -122,6 +166,14 @@ describe('live scenario runner utilities', () => {
     );
 
     expect(distinctPeer.apiUrl).not.to.equal(explicitThirdPeer.apiUrl);
+  });
+
+  it('should not attribute test config forging to explicit localnet targets', () => {
+    const explicitTarget = target.resolveLocalnetTarget({
+      nodes: ['127.0.0.1:36670']
+    });
+
+    expect(explicitTarget.nodes[0].configuration.forging.configuredDelegateCount).to.equal(null);
   });
 
   it('should build target inventory from every unique configured testnet node', () => {
@@ -153,6 +205,7 @@ describe('live scenario runner utilities', () => {
     );
     expect(inventory[0].roles).to.include('node-recipient');
     expect(inventory[2].roles).to.include('node-peer');
+    expect(inventory[1].configuration.forging.configuredDelegateCount).to.equal(null);
     expect(inventory[0].configuration).to.deep.include({
       api: {
         enabled: true,
@@ -161,7 +214,8 @@ describe('live scenario runner utilities', () => {
       },
       wsClient: {
         enabled: true,
-        port: 36665
+        port: 36665,
+        limits: testDefaultConfig.wsClient.limits
       },
       wsServer: testDefaultConfig.wsNode
     });
@@ -1319,7 +1373,7 @@ describe('live scenario runner utilities', () => {
             nodes: [
               {
                 id: 'node-recipient',
-                apiUrl: 'http://162.55.32.80:36667',
+                apiUrl: 'http://167.86.99.198:36667',
                 ready: true,
                 detailsComplete: true,
                 error: null,
@@ -1381,7 +1435,7 @@ describe('live scenario runner utilities', () => {
         '| Node | API | ADM version | Height | Registered delegates | Public API | wsClient | wsServer / wsNode |'
     );
     expect(markdown).to.include(
-        '| node-recipient | http://162.55.32.80:36667 | 0.9.0, commit abc | 10288000 | 101 |'
+        '| node-recipient | http://167.86.99.198:36667 | 0.9.0, commit abc | 10288000 | 101 |'
     );
     expect(markdown).to.include(
         'runner config enabled=true, public=true; observed reachable=true, denied=false'
@@ -1695,8 +1749,9 @@ describe('live scenario runner utilities', () => {
                           multisignature: 0
                         },
                         forging: {
-                          enabled: true,
-                          configuredDelegates: 34
+                          configuredDelegates: 34,
+                          observed: true,
+                          lastForgedAt: '2026-06-12T00:00:00.000Z'
                         }
                       });
                     }),
@@ -1716,8 +1771,9 @@ describe('live scenario runner utilities', () => {
                           multisignature: 0
                         },
                         forging: {
-                          enabled: true,
-                          configuredDelegates: 34
+                          configuredDelegates: 34,
+                          observed: true,
+                          lastForgedAt: '2026-06-12T00:00:00.000Z'
                         }
                       });
                     }),
@@ -1841,9 +1897,9 @@ describe('live scenario runner utilities', () => {
                 apiUrl: 'http://127.0.0.1:36670',
                 delegateSecretsCount: 34,
                 forging: {
-                  enabled: true,
                   configuredDelegateCount: 2,
-                  configuredDelegatePublicKeys: ['public-key-1', 'public-key-2']
+                  observed: true,
+                  lastForgedAt: '2026-06-06T00:00:30.000Z'
                 },
                 delegates: {
                   returnedCount: 101,
@@ -1890,7 +1946,6 @@ describe('live scenario runner utilities', () => {
                   id: 'block-id',
                   generatorPublicKey: 'generator-public-key',
                   generatorId: 'U123',
-                  generatorNodeIds: ['node-3'],
                   confirmations: 1,
                   rewardAdm: '0',
                   totalFeeAdm: '0.5',
@@ -1916,10 +1971,13 @@ describe('live scenario runner utilities', () => {
     expect(markdown).to.include('Reward stage: pre-reward; active false; protocol milestone 0');
     expect(markdown).to.include('Next reward stage: height 2000000; reward 0.5 ADM');
     expect(markdown).to.include(
-        'Latest block: height 4444; id block-id; generator generator-public-key (U123); configured on node-3'
+        'Forging status: configured delegates 2; observed forging true; last forged 2026-06-06T00:00:30.000Z'
+    );
+    expect(markdown).to.include(
+        'Latest block: height 4444; id block-id; generator generator-public-key (U123); confirmations 1'
     );
     expect(markdown).to.include('Latest generator totals: rewards 0 ADM; fees 61.24269306 ADM');
-    expect(markdown).to.include('Configured forging public keys: public-key-1, public-key-2');
+    expect(markdown).not.to.include('public-key-1');
   });
 
   it('should render exact normal and stress load details', () => {

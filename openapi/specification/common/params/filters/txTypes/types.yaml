@@ -1,0 +1,9 @@
+name: types
+in: query
+description: |
+  Get transactions of specified list of types, separated by commas.
+  See [Transaction Types](https://docs.adamant.im/api-types/transaction-types.html).
+schema:
+  type: integer
+  example: 9,0
+required: false

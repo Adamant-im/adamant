@@ -4,23 +4,31 @@ var _ = require('lodash');
 var async = require('async');
 var Broadcaster = require('../logic/broadcaster.js');
 var Peer = require('../logic/peer.js');
-var bignum = require('../helpers/bignum.js');
+var requestLimiter = require('../helpers/request-limiter.js');
 var constants = require('../helpers/constants.js');
-var crypto = require('crypto');
-var extend = require('extend');
 var ip = require('neoip');
 var axios = require('axios').default;
 var schema = require('../schema/transport.js');
-var sandboxHelper = require('../helpers/sandbox.js');
 var sql = require('../sql/transport.js');
 var zlib = require('zlib');
 
 // Private fields
-var modules, library, self, __private = {}, shared = {};
+var modules, library, self, __private = {};
+
+const DEFAULT_RATE_LIMIT_RETRY_MS = 1000;
+const MAX_RATE_LIMIT_RETRY_MS = 60000;
+const MAX_PEER_REQUEST_BODY_BYTES = 2 * 1024 * 1024;
+const MAX_PEER_SMALL_RESPONSE_BYTES = 64 * 1024;
+const MAX_PEER_LIST_RESPONSE_BYTES = 256 * 1024;
+const MAX_PEER_SIGNATURES_RESPONSE_BYTES = 2 * 1024 * 1024;
+const MAX_PEER_TRANSACTIONS_RESPONSE_BYTES = 32 * 1024 * 1024;
+const MAX_PEER_BLOCKS_RESPONSE_BYTES = 256 * 1024 * 1024;
+const SYNC_ABSOLUTE_TIMEOUT_MS = 60000;
+const SYNC_BLOCKS_ABSOLUTE_TIMEOUT_MS = 270000;
+const SYNC_TIMEOUT_DEFER_MS = 30000;
 
 __private.headers = {};
 __private.loaded = false;
-__private.messages = {};
 
 /**
  * Initializes library with scope content and generates a Broadcaster instance.
@@ -47,9 +55,7 @@ function Transport (cb, scope) {
     },
     config: {
       peers: {
-        options: {
-          timeout: scope.config.peers.options.timeout
-        }
+        options: scope.config.peers.options
       }
     }
   };
@@ -67,25 +73,6 @@ function Transport (cb, scope) {
 }
 
 // Private methods
-/**
- * Creates a sha256 hash based on input object.
- * @private
- * @implements {crypto.createHash}
- * @implements {bignum.fromBuffer}
- * @param {object} obj
- * @return {string} Buffer array to string
- */
-__private.hashsum = function (obj) {
-  var buf = Buffer.from(JSON.stringify(obj), 'utf8');
-  var hashdig = crypto.createHash('sha256').update(buf).digest();
-  var temp = Buffer.alloc(8);
-  for (var i = 0; i < 8; i++) {
-    temp[i] = hashdig[7 - i];
-  }
-
-  return bignum.fromBuffer(temp).toString();
-};
-
 /**
  * Removes a peer based on ip and port.
  * @private
@@ -378,27 +365,116 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
 
   if (options.api) {
     url = '/peer' + options.api;
-  } else {
+  } else if (typeof options.url === 'string' && options.url.charAt(0) === '/') {
     url = options.url;
+  } else {
+    return setImmediate(cb, 'Invalid peer request path');
   }
 
-  peer = library.logic.peers.create(peer);
+  var candidate = library.logic.peers.create(peer);
+  peer = new Peer(candidate.object());
+
+  if (_.isEmpty(modules.peers.acceptable([peer]))) {
+    return setImmediate(cb, 'Peer is not acceptable for outbound requests: ' + peer.string);
+  }
+
+  var trackedPeer = library.logic.peers.get(peer);
+
+  if (trackedPeer && trackedPeer.state === Peer.STATE.BANNED) {
+    return setImmediate(cb, 'Peer is banned: ' + peer.string);
+  }
+
+  var requestScope = requestLimiter.classifyPeerRequest({
+    method: options.method,
+    originalUrl: url
+  }) || 'all';
+
+  if (modules.peers.isBackedOff(peer, requestScope)) {
+    return setImmediate(cb, 'Peer outbound request is still in backoff: ' + peer.string);
+  }
+
+  var host = ip.isV6Format(peer.ip) ? '[' + peer.ip + ']' : peer.ip;
+  var configuredTimeout = library.config.peers.options.timeout;
+  var hasExplicitTimeout = Number.isFinite(options.timeout) && options.timeout > 0;
+  var requestTimeout = hasExplicitTimeout ?
+    Math.min(options.timeout, configuredTimeout) :
+    configuredTimeout;
+  var absoluteTimeout = hasExplicitTimeout ?
+    requestTimeout :
+    __private.absoluteTimeoutMs(requestScope, options.method, url, configuredTimeout);
+  var maxContentLength = __private.maxResponseBytes(options.method, url);
+  var receivedBodyBytes = false;
 
   var req = {
-    url: 'http://' + peer.ip + ':' + peer.port + url,
+    url: 'http://' + host + ':' + peer.port + url,
     method: options.method,
-    headers: __private.headers,
-    timeout: library.config.peers.options.timeout
+    headers: Object.assign({}, __private.headers, {
+      [requestLimiter.peerRateLimitHeader]: requestLimiter.peerRateLimitVersion
+    }),
+    timeout: requestTimeout,
+    proxy: false,
+    maxRedirects: 0,
+    maxBodyLength: MAX_PEER_REQUEST_BODY_BYTES,
+    maxContentLength: maxContentLength,
+    validateStatus: function () { return true; }
   };
+
+  if (requestScope === 'sync') {
+    req.onDownloadProgress = function (progressEvent) {
+      if (progressEvent && progressEvent.loaded > 0) {
+        receivedBodyBytes = true;
+      }
+    };
+  }
+
+  var controller = new AbortController();
+  var absoluteTimeoutId = setTimeout(function () {
+    controller.abort();
+  }, absoluteTimeout);
+
+  req.signal = controller.signal;
 
   if (options.data) {
     req.data = options.data;
   }
 
+  function maybeRecordRequest (errorCode) {
+    if (options.recordRequest === false) {
+      return;
+    }
+
+    __private.recordRequest({
+      peer: peer,
+      error: errorCode
+    });
+  }
+
   axios(req)
       .then((res) => {
+        clearTimeout(absoluteTimeoutId);
+        if (res.status === 429) {
+          var retryAfterMs = __private.retryAfterMs(res.headers['retry-after']);
+          var limitedScope = String(
+              res.headers['ratelimit-scope'] ||
+              requestScope
+          ).trim().toLowerCase();
+
+          modules.peers.deferRequest(
+              peer.ip,
+              peer.port,
+              limitedScope,
+              retryAfterMs
+          );
+          return setImmediate(
+              cb,
+              'ERATELIMIT 429 ' + limitedScope + ' ' + req.method + ' ' + req.url +
+                ' retry in ' + retryAfterMs + 'ms'
+          );
+        }
+
         if (res.status !== 200) {
-        // Remove peer
+          maybeRecordRequest('ERESPONSE');
+          // Remove peer
           __private.removePeer({ peer: peer, code: 'ERESPONSE ' + res.status }, req.method + ' ' + req.url);
 
           return setImmediate(cb, ['Received bad response code', res.status, req.method, req.url].join(' '));
@@ -407,50 +483,190 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
 
           var report = library.schema.validate(headers, schema.headers);
           if (!report) {
-          // Remove peer
+            maybeRecordRequest('EHEADERS');
+            // Remove peer
             __private.removePeer({ peer: peer, code: 'EHEADERS' }, req.method + ' ' + req.url);
 
             return setImmediate(cb, ['Invalid response headers', JSON.stringify(headers), req.method, req.url].join(' '));
           }
 
           if (!modules.system.networkCompatible(headers.nethash)) {
-          // Remove peer
+            maybeRecordRequest('ENETHASH');
+            // Remove peer
             __private.removePeer({ peer: peer, code: 'ENETHASH' }, req.method + ' ' + req.url);
 
             return setImmediate(cb, ['Peer is not on the same network', headers.nethash, req.method, req.url].join(' '));
           }
 
           if (!modules.system.versionCompatible(headers.version)) {
-          // Remove peer
+            maybeRecordRequest('EVERSION');
+            // Remove peer
             __private.removePeer({ peer: peer, code: 'EVERSION:' + headers.version }, req.method + ' ' + req.url);
 
             return setImmediate(cb, ['Peer is using incompatible version', headers.version, req.method, req.url].join(' '));
           }
 
-          modules.peers.update(peer);
-          __private.recordRequest({ peer });
+          var live = library.logic.peers.get(peer);
+
+          if (live && live.state === Peer.STATE.BANNED) {
+            return setImmediate(cb, 'Peer is banned: ' + peer.string);
+          }
+
+          modules.peers.update(peer, true);
+          maybeRecordRequest();
 
           return setImmediate(cb, null, { body: res.data, peer: peer });
         }
       })
       .catch((err) => {
-        if (peer) {
-          __private.recordRequest({ peer: peer, error: err.code });
+        clearTimeout(absoluteTimeoutId);
+
+        var errorCode = err && err.code;
+
+        if (controller.signal.aborted && (!errorCode || errorCode === 'ERR_CANCELED')) {
+          errorCode = 'ETIMEDOUT';
+        } else if (errorCode === 'ERR_BAD_RESPONSE' && /stream has been aborted/i.test(err.message)) {
+          errorCode = 'ECONNRESET';
         }
 
-        return setImmediate(cb, [err.code, 'Request failed', req.method, req.url].join(' '));
+        var syncStreamTimeout = Boolean(
+            requestScope === 'sync' &&
+            controller.signal.aborted &&
+            receivedBodyBytes
+        );
+
+        if (peer) {
+          maybeRecordRequest(syncStreamTimeout ? 'ESYNCTIMEOUT' : (errorCode || 'EUNKNOWN'));
+
+          if (syncStreamTimeout) {
+            modules.peers.deferRequest(
+                peer.ip,
+                peer.port,
+                'sync',
+                SYNC_TIMEOUT_DEFER_MS
+            );
+          }
+        }
+
+        if (
+          requestScope !== 'sync' &&
+          errorCode === 'ERR_BAD_RESPONSE' &&
+          /maxContentLength.*exceeded/i.test(err.message)
+        ) {
+          __private.removePeer({ peer: peer, code: 'ERESPONSE' }, req.method + ' ' + req.url);
+        }
+
+        return setImmediate(cb, [errorCode || err.code, 'Request failed', req.method, req.url].join(' '));
       });
 };
 
 /**
- * Calls helpers.sandbox.callMethod().
- * @implements module:helpers#callMethod
- * @param {function} call - Method to call.
- * @param {*} args - List of arguments.
- * @param {function} cb - Callback function.
+ * Normalizes a peer request path without query string or trailing slash.
+ * @private
+ * @param {string} url - Peer request path (may include query string).
+ * @return {string} Lower-cased normalized path.
  */
-Transport.prototype.sandboxApi = function (call, args, cb) {
-  sandboxHelper.callMethod(shared, call, args, cb);
+__private.normalizePeerPath = function (url) {
+  var path = String(url || '').split('?')[0].toLowerCase();
+
+  if (path.length > 1 && path.endsWith('/')) {
+    path = path.slice(0, -1);
+  }
+
+  return path;
+};
+
+/**
+ * Returns the absolute AbortController deadline for an outbound peer request
+ * when the caller did not specify an explicit timeout override.
+ * `/peer/blocks` allows up to 270 s (just below `constants.syncStallTimeout`
+ * of 300 s so the loader can rotate to another peer within the same sync run
+ * while still letting low-bandwidth nodes finish large, poorly compressible
+ * windows), while other `sync` endpoints allow 60 s and `status`/`broadcast`
+ * stay tightly bounded by `configuredTimeout`. Socket inactivity remains
+ * bounded by `configuredTimeout`.
+ * @private
+ * @param {string} requestScope - Peer request scope (`status`, `sync`, `broadcast`, `all`).
+ * @param {string} method - HTTP method.
+ * @param {string} url - Peer request path.
+ * @param {number} configuredTimeout - Configured `peers.options.timeout` in ms.
+ * @return {number} Absolute transfer deadline in ms.
+ */
+__private.absoluteTimeoutMs = function (requestScope, method, url, configuredTimeout) {
+  if (requestScope !== 'sync') {
+    return configuredTimeout;
+  }
+
+  if (String(method || 'GET').toUpperCase() === 'GET' && __private.normalizePeerPath(url) === '/peer/blocks') {
+    return Math.max(configuredTimeout, SYNC_BLOCKS_ABSOLUTE_TIMEOUT_MS);
+  }
+
+  return Math.max(configuredTimeout, SYNC_ABSOLUTE_TIMEOUT_MS);
+};
+
+/**
+ * Returns the maximum allowed decompressed response size for a peer request.
+ * Sync caps are derived from the JSON-serialized protocol worst case: because
+ * consensus does not currently enforce hex on chat `message`/`own_message`
+ * (or state `value`), each 20,480-char field can expand up to 6x in JSON when
+ * control characters are escaped (`\u000x`), yielding ~248 KiB per row:
+ * - /peer/blocks: 34 blocks x 25 txs x ~248 KiB ~= 201 MiB -> 256 MiB cap
+ * - /peer/transactions: maxSharedTxs (100) x ~248 KiB ~= 24 MiB -> 32 MiB cap
+ * - /peer/signatures: maxSharedTxs (100) hex-validated sig sets -> 2 MiB cap
+ * Status and broadcast ack responses stay tightly bounded.
+ * @private
+ * @param {string} method - HTTP method.
+ * @param {string} url - Peer request path (may include query string).
+ * @return {number} Maximum response byte length.
+ */
+__private.maxResponseBytes = function (method, url) {
+  var normalizedMethod = String(method || 'GET').toUpperCase();
+
+  if (normalizedMethod !== 'GET') {
+    return MAX_PEER_SMALL_RESPONSE_BYTES;
+  }
+
+  var path = __private.normalizePeerPath(url);
+
+  if (path === '/peer/blocks') {
+    return MAX_PEER_BLOCKS_RESPONSE_BYTES;
+  }
+
+  if (path === '/peer/transactions') {
+    return MAX_PEER_TRANSACTIONS_RESPONSE_BYTES;
+  }
+
+  if (path === '/peer/signatures') {
+    return MAX_PEER_SIGNATURES_RESPONSE_BYTES;
+  }
+
+  if (path === '/peer/list') {
+    return MAX_PEER_LIST_RESPONSE_BYTES;
+  }
+
+  return MAX_PEER_SMALL_RESPONSE_BYTES;
+};
+
+/**
+ * Parses Retry-After as either delay seconds or an HTTP date.
+ * Invalid values use a short default and remote values are capped.
+ * @param {string|string[]} value - Retry-After response header.
+ * @return {number} Bounded delay in milliseconds.
+ */
+__private.retryAfterMs = function (value) {
+  var header = Array.isArray(value) ? value[0] : value;
+  var delay;
+
+  if (typeof header === 'string' && /^\d+$/.test(header.trim())) {
+    delay = parseInt(header, 10) * 1000;
+  } else if (typeof header === 'string') {
+    var retryAt = Date.parse(header);
+    delay = Number.isFinite(retryAt) ? Math.max(0, retryAt - Date.now()) : DEFAULT_RATE_LIMIT_RETRY_MS;
+  } else {
+    delay = DEFAULT_RATE_LIMIT_RETRY_MS;
+  }
+
+  return Math.min(MAX_RATE_LIMIT_RETRY_MS, Math.max(0, delay));
 };
 
 // Events
@@ -463,7 +679,6 @@ Transport.prototype.sandboxApi = function (call, args, cb) {
 Transport.prototype.onBind = function (scope) {
   modules = {
     blocks: scope.blocks,
-    dapps: scope.dapps,
     peers: scope.peers,
     multisignatures: scope.multisignatures,
     transactions: scope.transactions,
@@ -537,19 +752,6 @@ Transport.prototype.onNewBlock = function (block, broadcast) {
       }
       library.network.wsServer.emit('blocks/change', block);
     });
-  }
-};
-
-/**
- * Calls broadcast '/dapp/message'.
- * @implements {Broadcaster.maxRelays}
- * @implements {Broadcaster.broadcast}
- * @param {object} msg
- * @param {object} broadcast
- */
-Transport.prototype.onMessage = function (msg, broadcast) {
-  if (broadcast && !__private.broadcaster.maxRelays(msg)) {
-    __private.broadcaster.broadcast({ limit: constants.maxPeers, dappid: msg.dappid }, { api: '/dapp/message', data: msg, method: 'POST', immediate: true });
   }
 };
 
@@ -716,74 +918,6 @@ Transport.prototype.internal = {
     }
   },
 
-  postDappMessage: function (query, cb) {
-    try {
-      if (!query.dappid) {
-        return setImmediate(cb, null, { success: false, message: 'Missing dappid' });
-      }
-      if (!query.timestamp || !query.hash) {
-        return setImmediate(cb, null, { success: false, message: 'Missing hash sum' });
-      }
-      var newHash = __private.hashsum(query.body, query.timestamp);
-      if (newHash !== query.hash) {
-        return setImmediate(cb, null, { success: false, message: 'Invalid hash sum' });
-      }
-    } catch (e) {
-      library.logger.error('api-transport', e.stack);
-      return setImmediate(cb, null, { success: false, message: e.toString() });
-    }
-
-    if (__private.messages[query.hash]) {
-      return setImmediate(cb, null);
-    }
-
-    __private.messages[query.hash] = true;
-
-    modules.dapps.message(query.dappid, query.body, function (err, body) {
-      if (!err && body.error) {
-        err = body.error;
-      }
-
-      if (err) {
-        return setImmediate(cb, null, { success: false, message: err.toString() });
-      } else {
-        library.bus.message('message', query, true);
-        return setImmediate(cb, null, extend({}, body, { success: true }));
-      }
-    });
-  },
-
-  postDappRequest: function (query, cb) {
-    try {
-      if (!query.dappid) {
-        return setImmediate(cb, null, { success: false, message: 'Missing dappid' });
-      }
-      if (!query.timestamp || !query.hash) {
-        return setImmediate(cb, null, { success: false, message: 'Missing hash sum' });
-      }
-
-      var newHash = __private.hashsum(query.body, query.timestamp);
-      if (newHash !== query.hash) {
-        return setImmediate(cb, null, { success: false, message: 'Invalid hash sum' });
-      }
-    } catch (e) {
-      library.logger.error('api-transport', e.stack);
-      return setImmediate(cb, null, { success: false, message: e.toString() });
-    }
-
-    modules.dapps.request(query.dappid, query.body.method, query.body.path, query.body.query, function (err, body) {
-      if (!err && body.error) {
-        err = body.error;
-      }
-
-      if (err) {
-        return setImmediate(cb, null, { success: false, message: err });
-      } else {
-        return setImmediate(cb, null, extend({}, body, { success: true }));
-      }
-    });
-  },
-
   handshake: function (ip, port, headers, validateHeaders, cb) {
     var peer = library.logic.peers.create(
         {
@@ -829,35 +963,10 @@ Transport.prototype.internal = {
         });
       }
 
-      modules.peers.update(peer);
+      modules.peers.recordInboundPeer(peer);
 
       return setImmediate(cb, null, peer);
     });
-  }
-};
-
-// Shared API
-shared.message = function (msg, cb) {
-  msg.timestamp = Math.floor(Date.now() / 1000);
-  msg.hash = __private.hashsum(msg.body, msg.timestamp);
-
-  __private.broadcaster.enqueue({ dappid: msg.dappid }, { api: '/dapp/message', data: msg, method: 'POST' });
-
-  return setImmediate(cb, null, {});
-};
-
-shared.request = function (msg, cb) {
-  msg.timestamp = Math.floor(Date.now() / 1000);
-  msg.hash = __private.hashsum(msg.body, msg.timestamp);
-
-  if (msg.body.peer) {
-    self.getFromPeer({ ip: msg.body.peer.ip, port: msg.body.peer.port }, {
-      api: '/dapp/request',
-      data: msg,
-      method: 'POST'
-    }, cb);
-  } else {
-    self.getFromRandomPeer({ dappid: msg.dappid }, { api: '/dapp/request', data: msg, method: 'POST' }, cb);
   }
 };
 

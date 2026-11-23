@@ -1,0 +1,11 @@
+required:
+  - enabled
+  - port
+properties:
+  enabled:
+    type: boolean
+  port:
+    type: integer
+example:
+  enabled: true
+  port: 36668

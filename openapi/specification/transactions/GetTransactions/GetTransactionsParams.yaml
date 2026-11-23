@@ -1,0 +1,136 @@
+###############################
+####### Common filters ########
+###############################
+
+# blockId
+- $ref: '../../common/params/filters/blockId/blockId.yaml'
+- $ref: '../../common/params/filters/blockId/andBlockId.yaml'
+- $ref: '../../common/params/filters/blockId/orBlockId.yaml'
+
+# senderPublicKey
+- $ref: '../../common/params/filters/senderPublicKey/senderPublicKey.yaml'
+- $ref: '../../common/params/filters/senderPublicKey/andSenderPublicKey.yaml'
+- $ref: '../../common/params/filters/senderPublicKey/orSenderPublicKey.yaml'
+
+# recipientPublicKey
+- $ref: '../../common/params/filters/recipientPublicKey/recipientPublicKey.yaml'
+- $ref: '../../common/params/filters/recipientPublicKey/andRecipientPublicKey.yaml'
+- $ref: '../../common/params/filters/recipientPublicKey/orRecipientPublicKey.yaml'
+
+# senderId
+- $ref: '../../common/params/filters/senderId/senderId.yaml'
+- $ref: '../../common/params/filters/senderId/andSenderId.yaml'
+- $ref: '../../common/params/filters/senderId/orSenderId.yaml'
+
+# recipientId
+- $ref: '../../common/params/filters/recipientId/recipientId.yaml'
+- $ref: '../../common/params/filters/recipientId/andRecipientId.yaml'
+- $ref: '../../common/params/filters/recipientId/orRecipientId.yaml'
+
+# inId
+- $ref: '../../common/params/filters/inId/inId.yaml'
+- $ref: '../../common/params/filters/inId/andInId.yaml'
+- $ref: '../../common/params/filters/inId/orInId.yaml'
+
+# isIn (alias for inId, since v0.8.0)
+- $ref: '../../common/params/filters/isIn/isIn.yaml'
+- $ref: '../../common/params/filters/isIn/andIsIn.yaml'
+- $ref: '../../common/params/filters/isIn/orIsIn.yaml'
+
+# fromHeight
+- $ref: '../../common/params/filters/fromHeight/fromHeight.yaml'
+- $ref: '../../common/params/filters/fromHeight/andFromHeight.yaml'
+- $ref: '../../common/params/filters/fromHeight/orFromHeight.yaml'
+
+# toHeight
+- $ref: '../../common/params/filters/toHeight/toHeight.yaml'
+- $ref: '../../common/params/filters/toHeight/andToHeight.yaml'
+- $ref: '../../common/params/filters/toHeight/orToHeight.yaml'
+
+# fromTimestamp
+- $ref: '../../common/params/filters/fromTimestamp/fromTimestamp.yaml'
+- $ref: '../../common/params/filters/fromTimestamp/andFromTimestamp.yaml'
+- $ref: '../../common/params/filters/fromTimestamp/orFromTimestamp.yaml'
+
+# toTimestamp
+- $ref: '../../common/params/filters/toTimestamp/toTimestamp.yaml'
+- $ref: '../../common/params/filters/toTimestamp/andToTimestamp.yaml'
+- $ref: '../../common/params/filters/toTimestamp/orToTimestamp.yaml'
+
+# senderIds
+- $ref: '../../common/params/filters/senderIds/senderIds.yaml'
+- $ref: '../../common/params/filters/senderIds/andSenderIds.yaml'
+- $ref: '../../common/params/filters/senderIds/orSenderIds.yaml'
+
+# recipientIds
+- $ref: '../../common/params/filters/recipientIds/recipientIds.yaml'
+- $ref: '../../common/params/filters/recipientIds/andRecipientIds.yaml'
+- $ref: '../../common/params/filters/recipientIds/orRecipientIds.yaml'
+
+# senderPublicKeys
+- $ref: '../../common/params/filters/senderPublicKeys/senderPublicKeys.yaml'
+- $ref: '../../common/params/filters/senderPublicKeys/andSenderPublicKeys.yaml'
+- $ref: '../../common/params/filters/senderPublicKeys/orSenderPublicKeys.yaml'
+
+# recipientPublicKeys
+- $ref: '../../common/params/filters/recipientPublicKeys/recipientPublicKeys.yaml'
+- $ref: '../../common/params/filters/recipientPublicKeys/andRecipientPublicKeys.yaml'
+- $ref: '../../common/params/filters/recipientPublicKeys/orRecipientPublicKeys.yaml'
+
+# minAmount
+- $ref: '../../common/params/filters/minAmount/minAmount.yaml'
+- $ref: '../../common/params/filters/minAmount/andMinAmount.yaml'
+- $ref: '../../common/params/filters/minAmount/orMinAmount.yaml'
+
+# maxAmount
+- $ref: '../../common/params/filters/maxAmount/maxAmount.yaml'
+- $ref: '../../common/params/filters/maxAmount/andMaxAmount.yaml'
+- $ref: '../../common/params/filters/maxAmount/orMaxAmount.yaml'
+
+# minFee
+- $ref: '../../common/params/filters/minFee/minFee.yaml'
+- $ref: '../../common/params/filters/minFee/andMinFee.yaml'
+- $ref: '../../common/params/filters/minFee/orMinFee.yaml'
+
+# maxFee
+- $ref: '../../common/params/filters/maxFee/maxFee.yaml'
+- $ref: '../../common/params/filters/maxFee/andMaxFee.yaml'
+- $ref: '../../common/params/filters/maxFee/orMaxFee.yaml'
+
+# minConfirmations
+- $ref: '../../common/params/filters/minConfirmations/minConfirmations.yaml'
+- $ref: '../../common/params/filters/minConfirmations/andMinConfirmations.yaml'
+- $ref: '../../common/params/filters/minConfirmations/orMinConfirmations.yaml'
+
+# type
+- $ref: '../../common/params/filters/txType/type.yaml'
+- $ref: '../../common/params/filters/txType/andType.yaml'
+- $ref: '../../common/params/filters/txType/orType.yaml'
+
+# types
+- $ref: '../../common/params/filters/txTypes/types.yaml'
+- $ref: '../../common/params/filters/txTypes/andTypes.yaml'
+- $ref: '../../common/params/filters/txTypes/orTypes.yaml'
+
+###############################
+######## Common params ########
+###############################
+
+# offset
+- $ref: '../../common/params/offset.yaml'
+
+# orderBy
+- $ref: '../../common/params/orderBy.yaml'
+
+# returnUnconfirmed
+- $ref: '../../common/params/returnUnconfirmed.yaml'
+
+###############################
+### Endpoint specific params ##
+###############################
+
+# limit
+- $ref: '../../common/params/limit.yaml'
+
+# returnAsset
+- $ref: './params/returnAsset.yaml'

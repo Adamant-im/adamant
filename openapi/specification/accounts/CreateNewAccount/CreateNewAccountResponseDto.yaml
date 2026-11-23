@@ -1,0 +1,24 @@
+required:
+  - account
+  - success
+  - nodeTimestamp
+properties:
+  account:
+    $ref: '../AccountDto.yaml'
+  success:
+    type: boolean
+  nodeTimestamp:
+    type: number
+example:
+  account:
+    address: 'U4697606961271319613'
+    unconfirmedBalance: '0'
+    balance: '0'
+    publicKey: 'bee368cc0ce2974adcbcc97e649ac18a031492a579034abed5f77d667001d450'
+    unconfirmedSignature: 0
+    secondSignature: 0
+    secondPublicKey: null
+    multisignatures: null
+    u_multisignatures: null
+  success: true
+  nodeTimestamp: 63205623

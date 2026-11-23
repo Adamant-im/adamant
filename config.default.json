@@ -58,10 +58,37 @@
     },
     "options": {
       "limits": {
-        "max": 0,
-        "delayMs": 0,
-        "delayAfter": 0,
-        "windowMs": 60000
+        "limit": 15300,
+        "max": 15300,
+        "delayMs": 25,
+        "delayAfter": 1000,
+        "maxDelayMs": 1000,
+        "windowMs": 60000,
+        "standardHeaders": true,
+        "legacyHeaders": false,
+        "statusCode": 429,
+        "message": "Too many requests, please try again later.",
+        "requestPropertyName": "rateLimit",
+        "routes": {
+          "status": {
+            "limit": 12000,
+            "delayMs": 0,
+            "delayAfter": 0,
+            "maxDelayMs": 0
+          },
+          "read": {
+            "limit": 3000,
+            "delayMs": 25,
+            "delayAfter": 1000,
+            "maxDelayMs": 1000
+          },
+          "publish": {
+            "limit": 300,
+            "delayMs": 50,
+            "delayAfter": 120,
+            "maxDelayMs": 1500
+          }
+        }
       }
     }
   },
@@ -73,16 +100,16 @@
         "port": 36666
       },
       {
-        "ip": "149.102.157.15",
+        "ip": "169.58.72.175",
         "port": 36666
       },
       {
-        "ip": "107.161.26.184",
+        "ip": "46.4.37.157",
         "port": 36666
       },
       {
         "ip": "138.201.152.191",
-        "port": 36666
+        "port": 43998
       },
       {
         "ip": "184.94.215.92",
@@ -93,7 +120,7 @@
         "port": 36666
       },
       {
-        "ip": "200.69.21.176",
+        "ip": "167.86.113.240",
         "port": 36666
       }
     ],
@@ -102,12 +129,53 @@
     },
     "options": {
       "limits": {
-        "max": 0,
-        "delayMs": 0,
-        "delayAfter": 0,
-        "windowMs": 60000
+        "limit": 44000,
+        "max": 44000,
+        "delayMs": 5,
+        "delayAfter": 6000,
+        "maxDelayMs": 200,
+        "windowMs": 60000,
+        "standardHeaders": true,
+        "legacyHeaders": false,
+        "statusCode": 429,
+        "message": "Too many requests, please try again later.",
+        "requestPropertyName": "rateLimit",
+        "routes": {
+          "status": {
+            "limit": 20000,
+            "delayMs": 0,
+            "delayAfter": 0,
+            "maxDelayMs": 0
+          },
+          "sync": {
+            "limit": 12000,
+            "delayMs": 5,
+            "delayAfter": 8000,
+            "maxDelayMs": 200
+          },
+          "broadcast": {
+            "limit": 12000,
+            "delayMs": 5,
+            "delayAfter": 6000,
+            "maxDelayMs": 200
+          }
+        }
       },
-      "timeout": 5000
+      "timeout": 5000,
+      "updateConcurrency": 8,
+      "probeSpacingMs": 50,
+      "maxProbeTargets": 20,
+      "unverifiedProbeLimit": 5,
+      "unreachableBackoffInitialMs": 30000,
+      "unreachableBackoffMaxMs": 3600000,
+      "unreachableEvictAfter": 6,
+      "unreachableEvictAfterMs": 86400000,
+      "minConnectedPeers": 10,
+      "maxPeers": 500,
+      "maxPeersPerIp": 6,
+      "maxPeersPerSubnet": 64,
+      "subnetMaskIpv4": 24,
+      "subnetMaskIpv6": 64
     }
   },
   "broadcasts": {
@@ -127,11 +195,7 @@
   "forging": {
     "force": false,
     "secret": [],
-    "access": {
-      "whiteList": [
-        "127.0.0.1"
-      ]
-    }
+    "controlSocket": ""
   },
   "loading": {
     "loadPerIteration": 5000,
@@ -148,19 +212,36 @@
       "cert": "./ssl/adamant.crt"
     }
   },
-  "dapp": {
-    "masterrequired": true,
-    "masterpassword": "",
-    "autoexec": []
-  },
   "wsClient": {
     "portWS": 36668,
-    "enabled": true
+    "enabled": true,
+    "limits": {
+      "maxConnections": 1000,
+      "maxConnectionsPerIp": 30,
+      "maxPendingConnections": 100,
+      "maxPendingConnectionsPerIp": 4,
+      "pendingTimeoutMs": 10000,
+      "maxConnectionAttempts": 120,
+      "connectionWindowMs": 60000,
+      "maxAddresses": 100,
+      "maxTypes": 16,
+      "maxAssetChatTypes": 8,
+      "maxSubscriptionEvents": 60,
+      "windowMs": 10000
+    }
   },
   "wsNode": {
     "enabled": true,
     "maxBroadcastConnections": 15,
-    "maxReceiveConnections": 25
+    "maxReceiveConnections": 25,
+    "handshakeLimit": 60,
+    "handshakeLimitPerNonce": 30,
+    "handshakeWindowMs": 60000,
+    "maxPendingConnections": 16,
+    "maxPendingConnectionsPerIp": 2,
+    "pendingTimeoutMs": 10000,
+    "eventLimit": 12000,
+    "eventWindowMs": 60000
   },
   "nethash": "bd330166898377fb28743ceef5e43a5d9d0a3efd9b3451fb7bc53530bb0a6d64"
 }

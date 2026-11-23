@@ -1,0 +1,8 @@
+name: offset
+in: query
+description: Offset value for results.
+schema:
+  type: integer
+  format: int32
+  default: 0
+required: false

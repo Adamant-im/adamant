@@ -1,0 +1,31 @@
+allOf:
+  - $ref: './BaseTransaction.yaml'
+  - type: object
+    required:
+      - asset
+      - type
+    properties:
+      type:
+        type: integer
+        enum: [0]
+        example: 0
+        description: Always equal to `0`
+      asset:
+        $ref: './assets/TokenTransferAsset.yaml'
+example:
+  id: 16682447412632442981
+  height: 10527806
+  blockId: 2635215585577611518
+  type: 0
+  block_timestamp: 59979295
+  timestamp: 59979276
+  senderPublicKey: 632816f2c44a08f282e85532443d73286cadc6d9820d5d25c9d50d8e01c668e0
+  senderId: U17362714543155685887
+  recipientId: U17819800352812315500
+  recipientPublicKey: 28994b2cd075fd442e6ce78fa8c07966ed122932ff07411fed3c918e495586e2
+  amount: 100000000
+  fee: 50000000
+  signature: 1db7e9111eaca790b73d51c32572739c46fcba3962aff55ca47ecf9a8c9fcb82c323de39ed60bc87d81a1245d43b5351b9dd44ad70128d78536250168b64c408
+  signatures: []
+  confirmations: 18431929
+  asset: {}

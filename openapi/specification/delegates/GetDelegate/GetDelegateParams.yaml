@@ -1,0 +1,18 @@
+- name: username
+  in: query
+  required: false
+  schema:
+    type: string
+    example: lynx
+- name: publicKey
+  in: query
+  required: false
+  schema:
+    type: string
+    example: ef5e78a3d02e6d82f4ac0c5b8923c1b86185bd17c27c9ac027c20ec62db79a84
+- name: address
+  in: query
+  required: false
+  schema:
+    type: string
+    example: U11651572364276578835

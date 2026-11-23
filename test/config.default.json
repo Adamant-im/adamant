@@ -56,10 +56,17 @@
     },
     "options": {
       "limits": {
+        "limit": 0,
         "max": 0,
         "delayMs": 0,
         "delayAfter": 0,
-        "windowMs": 60000
+        "maxDelayMs": 0,
+        "windowMs": 60000,
+        "standardHeaders": true,
+        "legacyHeaders": false,
+        "statusCode": 429,
+        "message": "Too many requests, please try again later.",
+        "requestPropertyName": "rateLimit"
       }
     }
   },
@@ -67,7 +74,7 @@
     "enabled": true,
     "list": [
       {
-        "ip": "162.55.32.80",
+        "ip": "167.86.99.198",
         "port": 36667
       },
       {
@@ -75,7 +82,7 @@
         "port": 36667
       },
       {
-        "ip": "95.217.19.144",
+        "ip": "167.86.113.240",
         "port": 36667
       }
     ],
@@ -84,12 +91,33 @@
     },
     "options": {
       "limits": {
+        "limit": 0,
         "max": 0,
         "delayMs": 0,
         "delayAfter": 0,
-        "windowMs": 60000
+        "maxDelayMs": 0,
+        "windowMs": 60000,
+        "standardHeaders": true,
+        "legacyHeaders": false,
+        "statusCode": 429,
+        "message": "Too many requests, please try again later.",
+        "requestPropertyName": "rateLimit"
       },
-      "timeout": 5000
+      "timeout": 5000,
+      "updateConcurrency": 8,
+      "probeSpacingMs": 50,
+      "maxProbeTargets": 20,
+      "unverifiedProbeLimit": 5,
+      "unreachableBackoffInitialMs": 30000,
+      "unreachableBackoffMaxMs": 3600000,
+      "unreachableEvictAfter": 6,
+      "unreachableEvictAfterMs": 86400000,
+      "minConnectedPeers": 10,
+      "maxPeers": 500,
+      "maxPeersPerIp": 6,
+      "maxPeersPerSubnet": 64,
+      "subnetMaskIpv4": 24,
+      "subnetMaskIpv6": 64
     }
   },
   "broadcasts": {
@@ -110,12 +138,7 @@
     "force": false,
     "secret": [
 
-    ],
-    "access": {
-      "whiteList": [
-        "127.0.0.1"
-      ]
-    }
+    ]
   },
   "loading": {
     "loadPerIteration": 5000
@@ -129,19 +152,36 @@
       "cert": "./ssl/adamant.crt"
     }
   },
-  "dapp": {
-    "masterrequired": false,
-    "masterpassword": "",
-    "autoexec": []
-  },
   "wsClient": {
     "portWS": 36665,
-    "enabled": true
+    "enabled": true,
+    "limits": {
+      "maxConnections": 1000,
+      "maxConnectionsPerIp": 30,
+      "maxPendingConnections": 100,
+      "maxPendingConnectionsPerIp": 4,
+      "pendingTimeoutMs": 10000,
+      "maxConnectionAttempts": 120,
+      "connectionWindowMs": 60000,
+      "maxAddresses": 100,
+      "maxTypes": 16,
+      "maxAssetChatTypes": 8,
+      "maxSubscriptionEvents": 60,
+      "windowMs": 10000
+    }
   },
   "wsNode": {
     "enabled": true,
     "maxBroadcastConnections": 15,
-    "maxReceiveConnections": 25
+    "maxReceiveConnections": 25,
+    "handshakeLimit": 60,
+    "handshakeLimitPerNonce": 30,
+    "handshakeWindowMs": 60000,
+    "maxPendingConnections": 16,
+    "maxPendingConnectionsPerIp": 2,
+    "pendingTimeoutMs": 10000,
+    "eventLimit": 12000,
+    "eventWindowMs": 60000
   },
   "nethash": "38f153a81332dea86751451fd992df26a9249f0834f72f58f84ac31cceb70f43"
 }

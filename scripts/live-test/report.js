@@ -695,10 +695,12 @@ function appendLiveConsensusNetworkState (lines, title, state) {
         ) +
         ' | ' +
         formatMarkdownTableValue(
-            'enabled=' +
-            formatReportValue(forging.enabled) +
-            ', delegates=' +
-            formatReportValue(forging.configuredDelegates)
+            'configured=' +
+            formatReportValue(forging.configuredDelegates) +
+            ', observed=' +
+            formatReportValue(forging.observed) +
+            ', last=' +
+            formatReportValue(forging.lastForgedAt)
         ) +
         ' | ' +
         formatMarkdownTableValue(activations) +
@@ -1815,12 +1817,12 @@ function appendForgingDetails (lines, nodes) {
     lines.push('### ' + node.id);
     lines.push('- API: ' + node.apiUrl);
     lines.push(
-        '- Forging status: ' +
-        (forging.enabled ? 'enabled' : 'disabled') +
-        '; configured fixture passphrases ' +
-        formatReportValue(node.delegateSecretsCount) +
-        '; configured public keys ' +
+        '- Forging status: configured delegates ' +
         formatReportValue(forging.configuredDelegateCount) +
+        '; observed forging ' +
+        formatReportValue(forging.observed) +
+        '; last forged ' +
+        formatReportValue(forging.lastForgedAt) +
         '.'
     );
     lines.push(
@@ -1883,9 +1885,7 @@ function appendForgingDetails (lines, nodes) {
         formatReportValue(latestBlock.generatorPublicKey) +
         ' (' +
         formatReportValue(latestBlock.generatorId) +
-        '); configured on ' +
-        formatList(latestBlock.generatorNodeIds) +
-        '; confirmations ' +
+        '); confirmations ' +
         formatReportValue(latestBlock.confirmations) +
         '.'
     );
@@ -1918,7 +1918,6 @@ function appendForgingDetails (lines, nodes) {
         formatList(nextForgers.publicKeys) +
         '.'
     );
-    lines.push('- Configured forging public keys: ' + formatList(forging.configuredDelegatePublicKeys) + '.');
   });
 }
 

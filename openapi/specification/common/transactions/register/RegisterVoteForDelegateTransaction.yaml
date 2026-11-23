@@ -1,0 +1,24 @@
+allOf:
+  - $ref: './RegisterTransactionBase.yaml'
+  - type: object
+    required:
+      - asset
+      - recipientId
+      - type
+      - senderId
+    properties:
+      asset:
+        $ref: '../assets/VoteForDelegateAsset.yaml'
+      recipientId:
+        type: string
+        description: ADAMANT address of account who votes. Same as `senderId`
+        example: U14236667426471084862
+      type:
+        type: integer
+        enum: [3]
+        example: 3
+        description: Should be always equal to `3`
+      senderId:
+        type: string
+        description: ADAMANT address of account who votes. Same as `recipientId`
+        example: U14236667426471084862

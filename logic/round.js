@@ -193,12 +193,11 @@ Round.prototype.restoreVotesSnapshot = function () {
 Round.prototype.applyRound = function () {
   var roundChanges = new RoundChanges(this.scope);
   var queries = [];
+  var n = this.scope.roundDelegates.length;
 
-  // Reverse delegates if going backwards
-  var delegates = (this.scope.backwards) ? this.scope.roundDelegates.reverse() : this.scope.roundDelegates;
-
-  // Apply round changes to each delegate
-  for (var i = 0; i < this.scope.roundDelegates.length; i++) {
+  // Apply round changes to each delegate (walk blocks from last to first when undoing)
+  for (var k = 0; k < n; k++) {
+    var i = (this.scope.backwards) ? (n - 1 - k) : k;
     var delegate = this.scope.roundDelegates[i];
     var changes = roundChanges.at(i);
 
@@ -215,16 +214,14 @@ Round.prototype.applyRound = function () {
     }));
   }
 
-  // Decide which delegate receives fees remainder
-  var remainderIndex = (this.scope.backwards) ? 0 : delegates.length - 1;
-  var remainderDelegate = delegates[remainderIndex];
-
-  // Get round changes for chosen delegate
-  var changes = roundChanges.at(remainderIndex);
+  // Fees remainder always belongs to the generator of the last block in the round
+  var remainderIndex = n - 1;
+  var remainderDelegate = this.scope.roundDelegates[remainderIndex];
+  var remainderChanges = roundChanges.at(remainderIndex);
 
   // Apply fees remaining to chosen delegate
-  if (changes.feesRemaining > 0) {
-    var feesRemaining = (this.scope.backwards ? -changes.feesRemaining : changes.feesRemaining);
+  if (remainderChanges.feesRemaining > 0) {
+    var feesRemaining = (this.scope.backwards ? -remainderChanges.feesRemaining : remainderChanges.feesRemaining);
 
     this.scope.library.logger.trace('rounds', 'Fees remaining', { index: remainderIndex, delegate: remainderDelegate, fees: feesRemaining });
 

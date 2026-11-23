@@ -1,0 +1,6 @@
+name: or:minConfirmations
+in: query
+description: Filter by `confirmations` property (`or` operator)
+schema:
+  type: integer
+required: false

@@ -1,0 +1,6 @@
+name: and:blockId
+in: query
+description: Filter by specific block (`and` condition)
+schema:
+  type: number
+required: false

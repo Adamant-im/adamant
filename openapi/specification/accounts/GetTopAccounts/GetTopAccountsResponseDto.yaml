@@ -1,0 +1,43 @@
+required:
+  - accounts
+  - count
+  - limit
+  - offset
+  - success
+  - nodeTimestamp
+properties:
+  accounts:
+    type: array
+    items:
+      $ref: './GetTopAccountDto.yaml'
+    description: Non-zero-balance accounts sorted by confirmed balance descending and address ascending for equal balances.
+  count:
+    type: integer
+    description: Total number of non-zero-balance accounts matching the filter before pagination.
+    example: 254
+  limit:
+    type: integer
+    description: Normalized page size used by the node.
+    example: 100
+  offset:
+    type: integer
+    description: Normalized offset used by the node.
+    example: 0
+  success:
+    type: boolean
+    example: true
+  nodeTimestamp:
+    type: number
+    example: 63205623
+example:
+  accounts:
+    - address: U777355171330060015
+      balance: '4509718944753'
+      publicKey: a9407418dafb3c8aeee28f3263fd55bae0f528a5697a9df0e77e6568b19dfe34
+      username: adamant_delegate
+      isDelegate: 1
+  count: 254
+  limit: 100
+  offset: 0
+  success: true
+  nodeTimestamp: 63205623

@@ -1,5 +1,93 @@
 'use strict';
 
+/**
+ * Numeric fields shared by a hard limit and its slow-down policy.
+ * @return {object} JSON schema properties.
+ */
+function ratePolicyProperties () {
+  return {
+    limit: {
+      type: 'integer',
+      minimum: 0
+    },
+    max: {
+      type: 'integer',
+      minimum: 0
+    },
+    delayMs: {
+      type: 'integer',
+      minimum: 0
+    },
+    delayAfter: {
+      type: 'integer',
+      minimum: 0
+    },
+    maxDelayMs: {
+      type: 'integer',
+      minimum: 0
+    },
+    windowMs: {
+      type: 'integer',
+      minimum: 0
+    }
+  };
+}
+
+/**
+ * Schema for one HTTP surface. `limit` is preferred. Legacy configs may set `max` instead.
+ * @param {string[]} routeNames - Endpoint-class policy names.
+ * @param {number} [fixedStatusCode] - Required hard-limit response status.
+ * @return {object} JSON schema.
+ */
+function httpLimitsSchema (routeNames, fixedStatusCode) {
+  const routeProperties = {};
+  const statusCode = {
+    type: 'integer',
+    minimum: 400,
+    maximum: 599
+  };
+
+  if (fixedStatusCode) {
+    statusCode.enum = [fixedStatusCode];
+  }
+
+  routeNames.forEach(function (name) {
+    routeProperties[name] = {
+      type: 'object',
+      properties: ratePolicyProperties()
+    };
+  });
+
+  return {
+    type: 'object',
+    properties: Object.assign(ratePolicyProperties(), {
+      standardHeaders: {
+        type: 'boolean'
+      },
+      legacyHeaders: {
+        type: 'boolean'
+      },
+      message: {
+        type: 'string'
+      },
+      statusCode: statusCode,
+      requestPropertyName: {
+        type: 'string',
+        minLength: 1
+      },
+      routes: {
+        type: 'object',
+        properties: routeProperties
+      }
+    }),
+    anyOf: [
+      { required: ['limit'] },
+      { required: ['max'] }
+    ],
+    required: ['delayMs', 'delayAfter', 'windowMs']
+  };
+}
+
 module.exports = {
   config: {
     id: 'appCon',
@@ -123,6 +211,9 @@ module.exports = {
           },
           methods: {
             type: ['string', 'array']
+          },
+          exposedHeaders: {
+            type: ['string', 'array']
           }
         }
       },
@@ -194,24 +285,7 @@ module.exports = {
           options: {
             type: 'object',
             properties: {
-              limits: {
-                type: 'object',
-                properties: {
-                  max: {
-                    type: 'integer'
-                  },
-                  delayMs: {
-                    type: 'integer'
-                  },
-                  delayAfter: {
-                    type: 'integer'
-                  },
-                  windowMs: {
-                    type: 'integer'
-                  }
-                },
-                required: ['max', 'delayMs', 'delayAfter', 'windowMs']
-              }
+              limits: httpLimitsSchema(['status', 'read', 'publish'])
             },
             required: ['limits']
           }
@@ -238,29 +312,76 @@ module.exports = {
           },
           options: {
             properties: {
-              limits: {
-                type: 'object',
-                properties: {
-                  max: {
-                    type: 'integer'
-                  },
-                  delayMs: {
-                    type: 'integer'
-                  },
-                  delayAfter: {
-                    type: 'integer'
-                  },
-                  windowMs: {
-                    type: 'integer'
-                  }
-                },
-                required: ['max', 'delayMs', 'delayAfter', 'windowMs']
-              },
+              limits: httpLimitsSchema(['status', 'sync', 'broadcast'], 429),
               timeout: {
-                type: 'integer'
+                type: 'integer',
+                minimum: 1,
+                maximum: 60000
               },
               allowPrivatePeers: {
                 type: 'boolean'
+              },
+              updateConcurrency: {
+                type: 'integer',
+                minimum: 1,
+                maximum: 100
+              },
+              probeSpacingMs: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 60000
+              },
+              maxProbeTargets: {
+                type: 'integer',
+                minimum: 1,
+                maximum: 1000
+              },
+              unverifiedProbeLimit: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 1000
+              },
+              unreachableBackoffInitialMs: {
+                type: 'integer',
+                minimum: 0
+              },
+              unreachableBackoffMaxMs: {
+                type: 'integer',
+                minimum: 0
+              },
+              unreachableEvictAfter: {
+                type: 'integer',
+                minimum: 1
+              },
+              unreachableEvictAfterMs: {
+                type: 'integer',
+                minimum: 0
+              },
+              minConnectedPeers: {
+                type: 'integer',
+                minimum: 0
+              },
+              maxPeers: {
+                type: 'integer',
+                minimum: 1
+              },
+              maxPeersPerIp: {
+                type: 'integer',
+                minimum: 0
+              },
+              maxPeersPerSubnet: {
+                type: 'integer',
+                minimum: 0
+              },
+              subnetMaskIpv4: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 32
+              },
+              subnetMaskIpv6: {
+                type: 'integer',
+                minimum: 0,
+                maximum: 128
               }
             },
             required: ['limits', 'timeout']
@@ -331,19 +452,16 @@ module.exports = {
             type: 'boolean'
           },
           secret: {
-            type: 'array'
+            type: 'array',
+            items: {
+              type: 'string'
+            }
           },
-          access: {
-            type: 'object',
-            properties: {
-              whiteList: {
-                type: 'array'
-              }
-            },
-            required: ['whiteList']
+          controlSocket: {
+            type: 'string'
           }
         },
-        required: ['force', 'secret', 'access']
+        required: ['force', 'secret']
       },
       loading: {
         type: 'object',
@@ -396,21 +514,6 @@ module.exports = {
         },
         required: ['enabled', 'options']
       },
-      dapp: {
-        type: 'object',
-        properties: {
-          masterrequired: {
-            type: 'boolean'
-          },
-          masterpassword: {
-            type: 'string'
-          },
-          autoexec: {
-            type: 'array'
-          }
-        },
-        required: ['masterrequired', 'masterpassword', 'autoexec']
-      },
       wsClient: {
         type: 'object',
         properties: {
@@ -421,6 +524,59 @@ module.exports = {
           },
           enabled: {
             type: 'boolean'
+          },
+          limits: {
+            type: 'object',
+            properties: {
+              maxConnections: {
+                type: 'integer',
+                minimum: 0
+              },
+              maxConnectionsPerIp: {
+                type: 'integer',
+                minimum: 0
+              },
+              maxPendingConnections: {
+                type: 'integer',
+                minimum: 0
+              },
+              maxPendingConnectionsPerIp: {
+                type: 'integer',
+                minimum: 0
+              },
+              pendingTimeoutMs: {
+                type: 'integer',
+                minimum: 1
+              },
+              maxConnectionAttempts: {
+                type: 'integer',
+                minimum: 0
+              },
+              connectionWindowMs: {
+                type: 'integer',
+                minimum: 1
+              },
+              maxAddresses: {
+                type: 'integer',
+                minimum: 0
+              },
+              maxTypes: {
+                type: 'integer',
+                minimum: 0
+              },
+              maxAssetChatTypes: {
+                type: 'integer',
+                minimum: 0
+              },
+              maxSubscriptionEvents: {
+                type: 'integer',
+                minimum: 0
+              },
+              windowMs: {
+                type: 'integer',
+                minimum: 1
+              }
+            }
           }
         },
         required: ['portWS', 'enabled']
@@ -438,6 +594,38 @@ module.exports = {
           },
           enabled: {
             type: 'boolean'
+          },
+          handshakeLimit: {
+            type: 'integer',
+            minimum: 0
+          },
+          handshakeLimitPerNonce: {
+            type: 'integer',
+            minimum: 0
+          },
+          handshakeWindowMs: {
+            type: 'integer',
+            minimum: 1
+          },
+          maxPendingConnections: {
+            type: 'integer',
+            minimum: 0
+          },
+          maxPendingConnectionsPerIp: {
+            type: 'integer',
+            minimum: 0
+          },
+          pendingTimeoutMs: {
+            type: 'integer',
+            minimum: 1
+          },
+          eventLimit: {
+            type: 'integer',
+            minimum: 0
+          },
+          eventWindowMs: {
+            type: 'integer',
+            minimum: 1
           }
         },
         required: ['maxBroadcastConnections', 'maxReceiveConnections', 'enabled']
@@ -447,6 +635,6 @@ module.exports = {
         format: 'hex'
       }
     },
-    required: ['port', 'address', 'generalLog', 'debugLog', 'consoleLog', 'trustProxy', 'cacheEnabled', 'db', 'redis', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'dapp', 'wsClient', 'wsNode', 'nethash']
+    required: ['port', 'address', 'generalLog', 'debugLog', 'consoleLog', 'trustProxy', 'cacheEnabled', 'db', 'redis', 'api', 'peers', 'broadcasts', 'transactions', 'forging', 'loading', 'ssl', 'wsClient', 'wsNode', 'nethash']
   }
 };

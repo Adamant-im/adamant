@@ -307,9 +307,9 @@ describe('delegates', function () {
 
           const originalGetSlotNumber = slots.getSlotNumber;
           const getSlotNumberStub = sinon.stub(slots, 'getSlotNumber').callsFake((timestamp) => {
-            return timestamp === undefined
-              ? currentSlot
-              : originalGetSlotNumber.call(slots, timestamp);
+            return timestamp === undefined ?
+              currentSlot :
+              originalGetSlotNumber.call(slots, timestamp);
           });
           const generateDelegateListSpy = sinon.spy(delegates, 'generateDelegateList');
 

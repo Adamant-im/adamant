@@ -1,0 +1,13 @@
+- name: id
+  in: query
+  description: Transaction ID
+  schema:
+    type: string
+    example: '12154642911137703318'
+  required: false
+- name: returnAsset
+  in: query
+  schema:
+    type: integer
+    example: 1
+  required: false

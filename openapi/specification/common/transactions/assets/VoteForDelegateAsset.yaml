@@ -1,0 +1,14 @@
+type: object
+required:
+  - votes
+properties:
+  votes:
+    type: array
+    items:
+      type: string
+      description: Delegate public key. Leave as is for Upvote or prefix the public key with minus sign (`-`) for Downvote
+      example: -c0c580c3fb89409f32181fef58935f286f0c1bbf61bd727084ed915b3a4bc95b
+example:
+  votes:
+    - '-c0c580c3fb89409f32181fef58935f286f0c1bbf61bd727084ed915b3a4bc95b' # Downvote
+    - 'ac903ab58135cd5f0613a929d876953214d224034b73c33e63bc153d669447f4' # Upvote

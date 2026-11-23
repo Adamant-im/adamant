@@ -1,0 +1,8 @@
+name: returnAsset
+in: query
+description: Get transaction's asset when set to `1`. Default is `0`.
+schema:
+  type: integer
+  example: 1
+  default: 0
+required: false

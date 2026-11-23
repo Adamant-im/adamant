@@ -1,0 +1,6 @@
+name: and:minFee
+in: query
+description: Filter by `fee` (`and` operator)
+schema:
+  type: integer
+required: false

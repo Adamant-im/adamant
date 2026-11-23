@@ -1,0 +1,13 @@
+required:
+  - peers
+  - success
+  - nodeTimestamp
+properties:
+  peers:
+    type: array
+    items:
+      $ref: '../PeerDto.yaml'
+  success:
+    type: boolean
+  nodeTimestamp:
+    type: number

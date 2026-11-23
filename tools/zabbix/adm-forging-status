@@ -1,0 +1,40 @@
+#!/bin/sh
+
+set -eu
+
+unavailable()
+{
+    printf '%s\n' '{"state":"unavailable","encrypted":0,"encryptedLoaded":0,"plaintext":0,"invalidEncrypted":0,"loadedKeypairs":0}'
+}
+
+if [ "$#" -ne 1 ]; then
+    unavailable
+    exit 0
+fi
+
+run_status()
+{
+    if status=$("$@" 2>/dev/null); then
+        printf '%s\n' "$status"
+    else
+        unavailable
+    fi
+}
+
+case "$1" in
+    mainnet)
+        run_status /usr/bin/sudo -n -u adamant -- \
+            /usr/bin/node /home/adamant/adamant/tools/adm-node.js \
+            forging status --json --socket \
+            /home/adamant/adamant/.run/control-36666.sock --timeout 2000
+        ;;
+    testnet)
+        run_status /usr/bin/sudo -n -u adamanttest -- \
+            /usr/bin/node /home/adamanttest/adamant/tools/adm-node.js \
+            forging status --json --socket \
+            /home/adamanttest/adamant/.run/control-36667.sock --timeout 2000
+        ;;
+    *)
+        unavailable
+        ;;
+esac

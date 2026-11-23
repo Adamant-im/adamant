@@ -1,0 +1,41 @@
+allOf:
+  - $ref: './BaseTransaction.yaml'
+  - type: object
+    required:
+      - asset
+      - type
+    properties:
+      type:
+        type: integer
+        enum: [9]
+        example: 9
+        description: Always equal to `9`
+      recipientId:
+        type: [string, 'null']
+        description: There is no recipient for this type of transaction
+      recipientPublicKey:
+        type: [string, 'null']
+        description: There is no recipient for this type of transaction
+      asset:
+        $ref: './assets/KVSTransactionAsset.yaml'
+example:
+  id: 11325216963059857859
+  height: 3377231
+  blockId: 14121859709526400688
+  type: 9
+  block_timestamp: 23943500
+  timestamp: 23943500
+  senderPublicKey: ac903ab58135cd5f0613a929d876953214d224034b73c33e63bc153d669447f4
+  senderId: U5517006347330072401
+  recipientId: null
+  recipientPublicKey: null
+  amount: 0
+  fee: 100000
+  signature: 4c3bcca1f6c921cef7ce07f4e641f668c5c0660bb6432335d5e2117c7a4d8378b352e7fa4fac3126bd7228f5b9ac5d57100bb161da02f7efc16df9f7e602b10d
+  signatures: []
+  confirmations: 7856415
+  asset:
+    state:
+      key: eth:address
+      value: '0x2391EEaEc07B927D2BA4Fa5cB3cE4b490Fa6fffC'
+      type: 0

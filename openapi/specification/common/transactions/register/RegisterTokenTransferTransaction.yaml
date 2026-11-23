@@ -1,0 +1,25 @@
+allOf:
+  - $ref: './RegisterTransactionBase.yaml'
+  - type: object
+    required:
+      - type
+      - amount
+      - recipientId
+    properties:
+      type:
+        type: integer
+        enum: [0, 8]
+        description: Can be `type 0 — Token transfer` or `type 8 — Chat/Message`.
+      recipientId:
+        type: string
+      amount:
+        type: integer
+        description: Amount of token to transfer
+    example:
+      type: 0
+      amount: 100000000
+      senderId: U14236667426471084862
+      senderPublicKey: 8cd9631f9f634a361ea3b85cbd0df882633e39e7d26d7bc615bbcf75e41524ef
+      recipientId: U16655734187932477074
+      timestamp: 63228852
+      signature: b3982d603be8f0246fa663e9f012bf28b198cd28f82473db1eb4a342d890f7a2a2c1845db8d256bb5bce1e64a9425822a91e10bf960a2e0b55e20b4841e4ae0b

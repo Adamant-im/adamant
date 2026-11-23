@@ -1,0 +1,27 @@
+- name: limit
+  in: query
+  description: Number of accounts to retrieve. Use `0` for count-only metadata.
+  required: false
+  schema:
+    type: integer
+    format: int32
+    minimum: 0
+    maximum: 100
+    default: 100
+- name: offset
+  in: query
+  description: Number of sorted accounts to skip before returning the page.
+  required: false
+  schema:
+    type: integer
+    format: int32
+    minimum: 0
+    default: 0
+- name: isDelegate
+  in: query
+  description: Filter accounts by delegate registration status.
+  required: false
+  schema:
+    type: integer
+    enum: [0, 1]
+    example: 1

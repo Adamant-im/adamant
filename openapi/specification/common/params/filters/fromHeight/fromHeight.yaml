@@ -1,0 +1,6 @@
+name: fromHeight
+in: query
+description: Filter starting from specific `height`
+schema:
+  type: integer
+required: false

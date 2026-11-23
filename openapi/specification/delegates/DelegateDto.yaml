@@ -1,0 +1,23 @@
+allOf:
+  - $ref: './DelegateBaseDto.yaml'
+  - type: object
+    required:
+      - forged
+    properties:
+      forged:
+        type: string
+        pattern: '^\d+$'
+        description: Lifetime sum of block fees and rewards as a base-10 integer string in base units (1 ADM = 100000000).
+example:
+  username: galaxy
+  address: U17457189553820283321
+  publicKey: 7e26562594685ba12c0bb99ae80692947828afb71962d54634795d78b3ea7023
+  vote: '248994436803629'
+  votesWeight: '83910064952101'
+  producedblocks: 269879
+  missedblocks: 567
+  rate: 10
+  rank: 10
+  approval: 0.76
+  productivity: 99.79
+  forged: '195607450000000'

@@ -1,0 +1,16 @@
+required:
+  - success
+  - nodeTimestamp
+  - milestone
+properties:
+  success:
+    type: boolean
+  nodeTimestamp:
+    type: number
+  milestone:
+    type: integer
+    description: Current slot height, which determines reward a delegate will get for forging a block.
+example:
+  success: true
+  nodeTimestamp: 58646306
+  milestone: 1

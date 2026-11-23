@@ -1,0 +1,36 @@
+required:
+  - currentBlock
+  - currentBlockSlot
+  - currentSlot
+  - delegates
+  - success
+  - nodeTimestamp
+properties:
+  delegates:
+    type: array
+    description: >-
+      Public keys ordered by upcoming slots using the delegate schedule for `currentBlock + 1`. All entries use this
+      next-block schedule; request a new snapshot after the node accepts another block.
+    items:
+      type: string
+    example:
+      - 677c6db63548c99674fed0571da522a6a9569d0c1da9669734a3625645519641
+      - 150d638714f65845b50f1ff58f3da2c2baa3a1dc8bf59a9884c10da5a8e951c6
+  currentSlot:
+    type: integer
+    description: Current slot number
+    example: 11610423
+  currentBlock:
+    type: integer
+    description: Current blockchain height
+    example: 10146268
+  currentBlockSlot:
+    type: integer
+    description: Current block slot number
+    example: 11610422
+  success:
+    type: boolean
+    example: true
+  nodeTimestamp:
+    type: number
+    example: 61762271

@@ -17,6 +17,41 @@ function postTransactions (transactions, done) {
   }, done);
 }
 
+function waitForTransactionConfirmation (transaction, retries, done) {
+  node.get('/api/transactions/get?id=' + transaction.id, function (err, res) {
+    if (err) {
+      return done(err);
+    }
+
+    if (res.body.success && res.body.transaction) {
+      return done();
+    }
+
+    if (retries === 0) {
+      return done(
+          new Error(
+              'Transaction ' + transaction.id +
+              ' was not confirmed within the retry window'
+          )
+      );
+    }
+
+    return setTimeout(
+        waitForTransactionConfirmation,
+        1000,
+        transaction,
+        retries - 1,
+        done
+    );
+  });
+}
+
+function waitForTransactionsConfirmation (transactions, done) {
+  node.async.eachSeries(transactions, function (transaction, eachSeriesCb) {
+    waitForTransactionConfirmation(transaction, 120, eachSeriesCb);
+  }, done);
+}
+
 describe('POST /peer/transactions', function () {
   describe('sending 100 bundled transfers to random addresses', function () {
     var transactions = [];
@@ -64,13 +99,11 @@ describe('POST /peer/transactions', function () {
     it('should confirm all bundled transactions', function (done) {
       var blocksToWait = Math.ceil(maximum / node.constants.maxTxsPerBlock);
       node.waitForBlocks(blocksToWait, function (err) {
-        node.async.eachSeries(transactions, function (transaction, eachSeriesCb) {
-          node.get('/api/transactions/get?id=' + transaction.id, function (err, res) {
-            node.expect(res.body).to.have.property('success').to.be.true;
-            node.expect(res.body).to.have.property('transaction').that.is.an('object');
-            return setImmediate(eachSeriesCb);
-          });
-        }, done);
+        if (err) {
+          return done(err);
+        }
+
+        waitForTransactionsConfirmation(transactions, done);
       });
     }).timeout(500000);
   });
@@ -114,13 +147,11 @@ describe('POST /peer/transactions', function () {
     it('should confirm all single transactions', function (done) {
       var blocksToWait = Math.ceil(maximum / node.constants.maxTxsPerBlock);
       node.waitForBlocks(blocksToWait, function (err) {
-        node.async.eachSeries(transactions, function (transaction, eachSeriesCb) {
-          node.get('/api/transactions/get?id=' + transaction.id, function (err, res) {
-            node.expect(res.body).to.have.property('success').to.be.true;
-            node.expect(res.body).to.have.property('transaction').that.is.an('object');
-            return setImmediate(eachSeriesCb);
-          });
-        }, done);
+        if (err) {
+          return done(err);
+        }
+
+        waitForTransactionsConfirmation(transactions, done);
       });
     }).timeout(500000);
   });

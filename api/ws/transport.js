@@ -1,9 +1,15 @@
 'use strict';
 
 const { io } = require('socket.io-client');
+const AbuseWindow = require('../../helpers/abuse-window.js');
 const Peer = require('../../logic/peer.js');
 
 const { wsNodeClient: wsConstants } = require('../../helpers/constants.js');
+
+const EVENT_DEFAULTS = {
+  eventLimit: 12000,
+  eventWindowMs: 60000
+};
 
 /**
  * Connects to random peers via WebSocket to receive transactions/blocks/signature changes
@@ -15,6 +21,8 @@ class TransportWsApi {
    * @param {object} library - Bound logic/library scope with logger and system helpers.
    * @param {object} options - WebSocket node configuration.
    * @param {number} options.maxReceiveConnections - Maximum inbound peer sockets to maintain.
+   * @param {number} [options.eventLimit] - Maximum events accepted per peer socket window.
+   * @param {number} [options.eventWindowMs] - Peer event window in milliseconds.
    */
   constructor (modules, library, options) {
     this.modules = modules;
@@ -25,6 +33,13 @@ class TransportWsApi {
     this.logger = library.logger;
 
     this.maxConnections = options.maxReceiveConnections;
+    this.eventLimit = normalizeEventOption(options.eventLimit, EVENT_DEFAULTS.eventLimit);
+    this.eventWindowMs = normalizeEventOption(options.eventWindowMs, EVENT_DEFAULTS.eventWindowMs);
+
+    if (this.eventWindowMs === 0) {
+      this.eventWindowMs = EVENT_DEFAULTS.eventWindowMs;
+    }
+
     this.reconnectionDelay = wsConstants.defaultReconnectionDelay;
 
     this.connections = new Map();
@@ -47,12 +62,10 @@ class TransportWsApi {
 
     self.logger.info('ws-node-client', `Connecting to random peers via WebSocket…`);
 
-    // Clear existing connections
-    self.connections.forEach(({ socket }) => {
-      socket.removeAllListeners();
-      socket.disconnect();
+    // Tear down via cleanupConnection so syncProtocol reset stays in one place.
+    self.connections.forEach(({ peer }) => {
+      self.cleanupConnection(peer);
     });
-    self.connections.clear();
 
     // Connect to multiple peers
     self.getRandomPeers(self.maxConnections, (err, peers) => {
@@ -76,7 +89,8 @@ class TransportWsApi {
    */
   connectToPeer (peer) {
     const self = this;
-    const peerUrl = `ws://${peer.ip}:${peer.port}`;
+    const host = peer.ip.includes(':') ? `[${peer.ip}]` : peer.ip;
+    const peerUrl = `ws://${host}:${peer.port}`;
 
     if (this.connections.has(peerUrl)) {
       return;
@@ -86,6 +100,7 @@ class TransportWsApi {
 
     const socket = io(peerUrl, {
       reconnection: false,
+      timeout: wsConstants.connectionTimeout,
       transports: ['websocket'],
       auth: {
         nonce: this.system.getNonce()
@@ -127,7 +142,11 @@ class TransportWsApi {
     this.logger.debug('ws-node-client', `Connection error with ${peer.ip}:${peer.port}`, err.message);
 
     this.peers.switchToHttp(peer);
-    this.peers.recordRequest(peer.ip, peer.port, err);
+    this.peers.recordRequest(
+        peer.ip,
+        peer.port,
+        err && Peer.isNetworkError(err) ? err : 'ECONNABORTED'
+    );
 
     this.replacePeer(peer);
   }
@@ -140,6 +159,7 @@ class TransportWsApi {
   handleDisconnect (peer, reason) {
     this.logger.info('ws-node-client', `Disconnected from ${peer.ip}:${peer.port}`, reason);
     this.peers.switchToHttp(peer);
+    this.peers.recordRequest(peer.ip, peer.port, 'ECONNRESET');
     this.replacePeer(peer);
   }
 
@@ -151,7 +171,8 @@ class TransportWsApi {
     const self = this;
 
     // Remove the disconnected peer
-    const disconnectedPeer = `ws://${peer.ip}:${peer.port}`;
+    const host = peer.ip.includes(':') ? `[${peer.ip}]` : peer.ip;
+    const disconnectedPeer = `ws://${host}:${peer.port}`;
     self.connections.delete(disconnectedPeer);
 
     // Find a new peer to replace it
@@ -218,8 +239,32 @@ class TransportWsApi {
    */
   setupEventHandlers (socket, peer) {
     const self = this;
+    const eventWindow = new AbuseWindow(this.eventLimit, this.eventWindowMs);
+    let limited = false;
+
+    function allowEvent () {
+      if (limited) {
+        return false;
+      }
+
+      if (eventWindow.allow('event')) {
+        return true;
+      }
+
+      limited = true;
+      self.logger.warn(
+          'ws-node-client',
+          `WebSocket peer ${peer.ip}:${peer.port} exceeded the event limit`
+      );
+      socket.disconnect();
+      return false;
+    }
 
     socket.on('transactions/change', (data) => {
+      if (!allowEvent()) {
+        return;
+      }
+
       self.transportModule.internal.postTransactions({
         transaction: data
       }, peer, 'websocket /transactions', (err) => {
@@ -230,6 +275,10 @@ class TransportWsApi {
     });
 
     socket.on('blocks/change', (data) => {
+      if (!allowEvent()) {
+        return;
+      }
+
       self.transportModule.internal.postBlock(data, peer, 'websocket /blocks', (err) => {
         if (err) {
           self.peers.recordRequest(peer.ip, peer.port, err);
@@ -238,6 +287,10 @@ class TransportWsApi {
     });
 
     socket.on('signature/change', (data) => {
+      if (!allowEvent()) {
+        return;
+      }
+
       self.transportModule.internal.postSignatures({
         signature: data
       }, (err) => {
@@ -287,7 +340,7 @@ class TransportWsApi {
             maxConnections: this.maxConnections
           });
         } else {
-          const reason = err ?? 'Every peer is already connected via WebSocket';
+          const reason = err ?? 'No more suitable HTTP peers available for WebSocket connections';
           self.logger.info('ws-node-client', `${reason}. No peers updated.`, {
             connectedPeers: this.connections.size,
             maxConnections: this.maxConnections
@@ -307,10 +360,14 @@ class TransportWsApi {
    * @param {Peer} peer target peer
    */
   cleanupConnection (peer) {
-    const peerUrl = `ws://${peer.ip}:${peer.port}`;
+    const host = peer.ip.includes(':') ? `[${peer.ip}]` : peer.ip;
+    const peerUrl = `ws://${host}:${peer.port}`;
     const connection = this.connections.get(peerUrl);
 
     if (connection) {
+      // Reset here because removeAllListeners() prevents handleDisconnect from
+      // running switchToHttp, so peers would stay marked ws without a live socket.
+      this.peers.switchToHttp(peer);
       connection.socket.removeAllListeners();
       connection.socket.disconnect();
       this.connections.delete(peerUrl);
@@ -384,3 +441,18 @@ class TransportWsApi {
 }
 
 module.exports = TransportWsApi;
+
+/**
+ * Normalizes one peer event limit while preserving an explicit zero (disabled).
+ * @param {*} value - Operator value.
+ * @param {number} fallback - Production default.
+ * @return {number} Non-negative integer.
+ */
+function normalizeEventOption (value, fallback) {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  const normalized = Math.floor(Number(value));
+  return Number.isFinite(normalized) && normalized >= 0 ? normalized : fallback;
+}

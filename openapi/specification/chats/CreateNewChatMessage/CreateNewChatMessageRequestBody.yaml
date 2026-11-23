@@ -1,0 +1,5 @@
+required:
+  - transaction
+properties:
+  transaction:
+    $ref: '../../common/transactions/register/RegisterChatMessageTransaction.yaml'

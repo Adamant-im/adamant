@@ -1,0 +1,19 @@
+required:
+  - delegates
+  - totalCount
+  - success
+  - nodeTimestamp
+properties:
+  delegates:
+    type: array
+    items:
+      $ref: '../DelegateDto.yaml'
+  totalCount:
+    type: integer
+    example: 254
+  success:
+    type: boolean
+    example: true
+  nodeTimestamp:
+    type: number
+    example: 61762271

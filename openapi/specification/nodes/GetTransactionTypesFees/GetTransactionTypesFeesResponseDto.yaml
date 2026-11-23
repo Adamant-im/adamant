@@ -1,0 +1,13 @@
+required:
+  - success
+  - nodeTimestamp
+  - fees
+properties:
+  success:
+    type: boolean
+    example: true
+  nodeTimestamp:
+    type: number
+    example: 58646306
+  fees:
+    $ref: './TransactionTypesFeesDto.yaml'

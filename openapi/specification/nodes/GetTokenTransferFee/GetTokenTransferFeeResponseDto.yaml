@@ -1,0 +1,16 @@
+required:
+  - success
+  - nodeTimestamp
+  - fee
+properties:
+  success:
+    type: boolean
+  nodeTimestamp:
+    type: number
+  fee:
+    type: integer
+    description: Current fee value for `type 0` (token transfer) transactions. Integer amount of 1/10^8 ADM tokens (1 ADM = 100000000).
+example:
+  success: true
+  nodeTimestamp: 58646306
+  fee: 50000000

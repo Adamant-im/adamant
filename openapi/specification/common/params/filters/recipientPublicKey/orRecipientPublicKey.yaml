@@ -1,0 +1,6 @@
+name: or:recipientPublicKey
+in: query
+description: Filter by recipient publicKey (`or` operator)
+schema:
+  type: string
+required: false

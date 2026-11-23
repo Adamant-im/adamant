@@ -181,8 +181,7 @@ d.run(function () {
   var modules = [];
   async.auto({
     /**
-     * Loads `payloadHash` and generate dapp password if it is empty and required.
-     * Then updates config.json with new random  password.
+     * Loads `payloadHash` and applies runtime config defaults.
      * @method config
      * @param {nodeStyleCallback} cb - Callback function with the mutated `appConfig`.
      * @throws {Error} If failed to assign nethash from genesis block.
@@ -201,24 +200,7 @@ d.run(function () {
 
       appConfig.cors.credentials = true;
 
-      if (appConfig.dapp.masterrequired && !appConfig.dapp.masterpassword) {
-        var randomstring = require('randomstring');
-
-        appConfig.dapp.masterpassword = randomstring.generate({
-          length: 12,
-          readable: true,
-          charset: 'alphanumeric'
-        });
-
-        if (appConfig.loading.snapshot != null) {
-          delete appConfig.loading.snapshot;
-        }
-
-        fs.writeFileSync('./config.json', JSON.stringify(appConfig, null, 4));
-        cb(null, appConfig);
-      } else {
-        cb(null, appConfig);
-      }
+      cb(null, appConfig);
     },
     logger: function (cb) {
       cb(null, logger);
@@ -264,7 +246,10 @@ d.run(function () {
       const ClientWs = require('./modules/clientWs');
 
       const clientWs = new ClientWs(
-          Object.assign(scope.config.wsClient, { cors: appConfig.cors }),
+          Object.assign(scope.config.wsClient, {
+            cors: appConfig.cors,
+            trustProxy: appConfig.trustProxy
+          }),
           logger
       );
 
@@ -278,19 +263,19 @@ d.run(function () {
      * @param {nodeStyleCallback} cb - Callback function with created Object:
      * `{express, app, server, io, https, https_io}`.
      */
-    network: ['config', function (scope, cb) {
+    network: ['config', 'logger', function (scope, cb) {
       var express = require('express');
       var compression = require('compression');
       var cors = require('cors');
+      var corsOptions = require('./helpers/cors-options.js')(appConfig.cors);
       var app = express();
 
-      require('./helpers/request-limiter')(app, appConfig);
-
+      app.use(cors(corsOptions));
+      app.options(/(.*)/, cors(corsOptions));
+      require('./helpers/request-limiter')(app, appConfig, scope.logger);
       app.use(compression({
         level: 9
       }));
-      app.use(cors(appConfig.cors));
-      app.options(/(.*)/, cors(appConfig.cors));
 
       var server = require('http').createServer(app);
 
@@ -310,7 +295,7 @@ d.run(function () {
 
         https_io = new Server(https, {
           allowEIO3: true,
-          cors: appConfig.cors
+          cors: corsOptions
         });
       }
 
@@ -372,6 +357,26 @@ d.run(function () {
       scope.network.app.set('view engine', 'ejs');
       scope.network.app.set('views', path.join(__dirname, 'public'));
       scope.network.app.set('query parser', 'extended');
+      scope.network.app.use(function (req, res, next) {
+        var decodedPath;
+
+        try {
+          decodedPath = decodeURIComponent(req.path);
+        } catch (error) {
+          return res.sendStatus(400);
+        }
+
+        decodedPath = path.posix.normalize(decodedPath.replace(/\\/g, '/'));
+
+        if (
+          decodedPath.toLowerCase() === '/dapps' ||
+          decodedPath.toLowerCase().indexOf('/dapps/') === 0
+        ) {
+          return res.sendStatus(404);
+        }
+
+        return next();
+      });
       scope.network.app.use(scope.network.express.static(path.join(__dirname, 'public')));
       scope.network.app.use(bodyParser.raw({
         limit: '2mb'
@@ -386,7 +391,19 @@ d.run(function () {
       }));
       scope.network.app.use(methodOverride());
 
-      var ignore = ['id', 'name', 'lastBlockId', 'blockId', 'transactionId', 'address', 'recipientId', 'senderId', 'previousBlock'];
+      var ignore = [
+        'id',
+        'name',
+        'lastBlockId',
+        'blockId',
+        'transactionId',
+        'address',
+        'recipientId',
+        'senderId',
+        'previousBlock',
+        'key',
+        'keyIds'
+      ];
 
       scope.network.app.use(queryParser({
         parser: function (value, radix, name) {
@@ -395,7 +412,7 @@ d.run(function () {
           }
 
           // Ignore conditional fields for transactions list
-          if (/^.+?:(blockId|recipientId|senderId)$/.test(name)) {
+          if (/^.+?:(blockId|recipientId|senderId|key|keyIds)$/.test(name)) {
             return value;
           }
 
@@ -776,7 +793,8 @@ d.run(function () {
        * @listens SIGTERM
        */
       process.on('SIGTERM', function () {
-        requestShutdown('SIGTERM', 0);
+        // Keep PM2 clean exits distinct from fatal paths that still exit with 0.
+        requestShutdown('SIGTERM', 143);
       });
 
       /**
@@ -788,7 +806,7 @@ d.run(function () {
        * @listens SIGINT
        */
       process.on('SIGINT', function () {
-        requestShutdown('SIGINT', 0);
+        requestShutdown('SIGINT', 130);
       });
     }
   });
@@ -899,6 +917,35 @@ function parsePeersOption (peers, port) {
  */
 function logConfigEvents (logger, events) {
   (events || []).forEach(function (event) {
+    if (event.type === 'migration') {
+      logger.warn(
+          'config',
+          'Ignored ' +
+          event.path +
+          ' from ' +
+          event.source +
+          ' during legacy DApp config migration; use the dedicated --snapshot option to request snapshot mode explicitly'
+      );
+      return;
+    }
+
+    if (event.type === 'deprecated') {
+      var advice = event.path === 'forging.access' ?
+        '; use forging.secret and restart the node after changing it' :
+        '; the legacy DApp control API is no longer available';
+
+      logger.warn(
+          'config',
+          'Parameter ' +
+          event.path +
+          ' from ' +
+          event.source +
+          ' is deprecated and ignored' +
+          advice
+      );
+      return;
+    }
+
     logger.info(
         'config',
         'Parameter ' +

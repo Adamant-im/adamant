@@ -1,0 +1,13 @@
+name: and:keyIds
+in: query
+required: false
+schema:
+  type: array
+  items:
+    type: string
+  example:
+    - eth:address
+    - doge:address
+  description: >-
+    Equivalent to `keyIds` (all `/api/states/get` filters combine with AND). Array of keys,
+    comma-separated. Passing both `keyIds` and `and:keyIds` with different values is rejected.

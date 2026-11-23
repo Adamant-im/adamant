@@ -1,0 +1,6 @@
+name: senderId
+in: query
+description: Filter by senderId
+schema:
+  type: string
+required: false

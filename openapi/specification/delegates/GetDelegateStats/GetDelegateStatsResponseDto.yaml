@@ -1,0 +1,25 @@
+required:
+  - fees
+  - rewards
+  - forged
+  - success
+  - nodeTimestamp
+properties:
+  fees:
+    type: string
+    description: Total sum of fees forged by delegate
+    example: '586039475511'
+  rewards:
+    type: string
+    description: Total sum of rewards made by delegate
+    example: '3943485000000'
+  forged:
+    type: string
+    description: Total sum of forged tokens
+    example: '4529524475511'
+  success:
+    type: boolean
+    example: true
+  nodeTimestamp:
+    type: number
+    example: 61762271

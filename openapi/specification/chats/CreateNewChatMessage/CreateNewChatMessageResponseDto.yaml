@@ -1,0 +1,15 @@
+required:
+  - success
+  - nodeTimestamp
+  - transactionId
+properties:
+  success:
+    type: boolean
+  nodeTimestamp:
+    type: number
+  transactionId:
+    type: string
+example:
+  success: true
+  nodeTimestamp: 63205623
+  transactionId: '2515012750420367858'
