@@ -24,7 +24,8 @@ const MAX_PEER_SIGNATURES_RESPONSE_BYTES = 2 * 1024 * 1024;
 const MAX_PEER_TRANSACTIONS_RESPONSE_BYTES = 32 * 1024 * 1024;
 const MAX_PEER_BLOCKS_RESPONSE_BYTES = 256 * 1024 * 1024;
 const SYNC_ABSOLUTE_TIMEOUT_MS = 60000;
-const SYNC_BLOCKS_ABSOLUTE_TIMEOUT_MS = 300000;
+const SYNC_BLOCKS_ABSOLUTE_TIMEOUT_MS = 270000;
+const SYNC_TIMEOUT_DEFER_MS = 30000;
 
 __private.headers = {};
 __private.loaded = false;
@@ -528,14 +529,23 @@ Transport.prototype.getFromPeer = function (peer, options, cb) {
           errorCode = 'ECONNRESET';
         }
 
-        if (peer) {
-          var recordedError = (
+        var syncStreamTimeout = Boolean(
             requestScope === 'sync' &&
             controller.signal.aborted &&
             receivedBodyBytes
-          ) ? 'ESYNCTIMEOUT' : (errorCode || 'EUNKNOWN');
+        );
 
-          maybeRecordRequest(recordedError);
+        if (peer) {
+          maybeRecordRequest(syncStreamTimeout ? 'ESYNCTIMEOUT' : (errorCode || 'EUNKNOWN'));
+
+          if (syncStreamTimeout) {
+            modules.peers.deferRequest(
+                peer.ip,
+                peer.port,
+                'sync',
+                SYNC_TIMEOUT_DEFER_MS
+            );
+          }
         }
 
         if (
@@ -569,10 +579,12 @@ __private.normalizePeerPath = function (url) {
 /**
  * Returns the absolute AbortController deadline for an outbound peer request
  * when the caller did not specify an explicit timeout override.
- * `/peer/blocks` allows up to 300 s (matching `constants.syncStallTimeout`) so
- * low-bandwidth nodes can finish downloading large, poorly compressible windows,
- * while other `sync` endpoints allow 60 s and `status`/`broadcast` stay tightly
- * bounded by `configuredTimeout`. Socket inactivity remains bounded by `configuredTimeout`.
+ * `/peer/blocks` allows up to 270 s (just below `constants.syncStallTimeout`
+ * of 300 s so the loader can rotate to another peer within the same sync run
+ * while still letting low-bandwidth nodes finish large, poorly compressible
+ * windows), while other `sync` endpoints allow 60 s and `status`/`broadcast`
+ * stay tightly bounded by `configuredTimeout`. Socket inactivity remains
+ * bounded by `configuredTimeout`.
  * @private
  * @param {string} requestScope - Peer request scope (`status`, `sync`, `broadcast`, `all`).
  * @param {string} method - HTTP method.

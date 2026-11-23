@@ -833,7 +833,7 @@ describe('peers', function () {
       });
     });
 
-    it('should not record a network failure or back off a peer when a streaming /peer/blocks sync hits its deadline', function (done) {
+    it('should defer only the sync scope without network failure when a streaming /peer/blocks sync hits its deadline', function (done) {
       var server = http.createServer(function (req, res) {
         setValidHeaders(res, server.address().port);
         res.setHeader('Content-Type', 'application/json');
@@ -863,11 +863,86 @@ describe('peers', function () {
             expect(modulesLoader.scope.logic.peers.get(peer)).to.equal(live);
             expect(live.consecutiveNetworkFailures || 0).to.equal(0);
             expect(peers.isBackedOff(peer, 'status')).to.equal(false);
-            expect(peers.isBackedOff(peer, 'sync')).to.equal(false);
+            expect(peers.isBackedOff(peer, 'broadcast')).to.equal(false);
+            expect(peers.isBackedOff(peer, 'sync')).to.equal(true);
           } finally {
             forceRemove(peer);
             closeServer(server, done);
           }
+        });
+      });
+    });
+
+    it('should select 270s for /peer/blocks, 60s for other sync endpoints, and configured timeout for status', function (done) {
+      var server = http.createServer(function (req, res) {
+        setValidHeaders(res, server.address().port);
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ success: true, blocks: [], transactions: [], height: 1 }));
+      });
+
+      listen(server, function (port) {
+        var peer = { ip: '127.0.0.1', port: port };
+        var setTimeoutSpy = sinon.spy(global, 'setTimeout');
+
+        function scheduledDelays () {
+          return setTimeoutSpy.getCalls().map(function (call) {
+            return call.args[1];
+          });
+        }
+
+        function finish (err) {
+          setTimeoutSpy.restore();
+          forceRemove(peer);
+          closeServer(server, function () {
+            done(err);
+          });
+        }
+
+        peers.recordInboundPeer(peer);
+
+        modules.transport.getFromPeer(peer, {
+          api: '/blocks?lastBlockId=1',
+          method: 'GET'
+        }, function (blocksErr) {
+          try {
+            expect(blocksErr).to.not.exist;
+            expect(scheduledDelays()).to.include(270000);
+          } catch (assertionErr) {
+            return finish(assertionErr);
+          }
+
+          setTimeoutSpy.resetHistory();
+
+          modules.transport.getFromPeer(peer, {
+            api: '/transactions',
+            method: 'GET'
+          }, function (txErr) {
+            try {
+              expect(txErr).to.not.exist;
+              expect(scheduledDelays()).to.include(60000);
+              expect(scheduledDelays()).to.not.include(270000);
+            } catch (assertionErr) {
+              return finish(assertionErr);
+            }
+
+            setTimeoutSpy.resetHistory();
+
+            modules.transport.getFromPeer(peer, {
+              api: '/height',
+              method: 'GET'
+            }, function (heightErr) {
+              try {
+                expect(heightErr).to.not.exist;
+                expect(scheduledDelays()).to.include(config.peers.options.timeout);
+                expect(scheduledDelays()).to.not.include(60000);
+                expect(scheduledDelays()).to.not.include(270000);
+              } catch (assertionErr) {
+                return finish(assertionErr);
+              }
+
+              finish();
+            });
+          });
         });
       });
     });
