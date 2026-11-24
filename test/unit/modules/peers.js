@@ -1509,6 +1509,30 @@ describe('peers', function () {
       });
     });
 
+    it('should select new HTTP peers as WebSocket client candidates', function (done) {
+      var httpPeer = addPeer({ state: Peer.STATE.CONNECTED });
+      var wsPeer = addPeer({ state: Peer.STATE.CONNECTED });
+      var broadhash = modules.system.getBroadhash();
+      httpPeer.broadhash = broadhash;
+      wsPeer.broadhash = broadhash;
+      peers.switchToWs(wsPeer);
+
+      // Same options as TransportWsApi.getRandomPeers().
+      peers.list({
+        limit: 100,
+        allowedStates: [Peer.STATE.CONNECTED],
+        syncProtocol: 'http',
+        broadhash: broadhash
+      }, function (err, listed) {
+        var listedPeers = listed.map(function (peer) { return peer.ip + ':' + peer.port; });
+
+        expect(err).to.not.exist;
+        expect(listedPeers).to.include(httpPeer.string);
+        expect(listedPeers).to.not.include(wsPeer.string);
+        done();
+      });
+    });
+
     it('should prioritize outbound-verified peers for random outbound selection', function (done) {
       var verified = addPeer({
         state: Peer.STATE.CONNECTED,

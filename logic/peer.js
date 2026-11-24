@@ -379,6 +379,14 @@ Peer.prototype.accept = function (peer) {
     }
   }.bind(this));
 
+  // Live peer objects are filtered directly (for example by syncProtocol in
+  // peers.list()), so defaults must be set on the instance, not only in object().
+  _.each(this.defaultValues, function (value, key) {
+    if (this[key] === null || this[key] === undefined) {
+      this[key] = value;
+    }
+  }.bind(this));
+
   // Adjust properties according to rules
   if (/^[0-9]+$/.test(this.ip)) {
     this.ip = ip.fromLong(this.ip);
