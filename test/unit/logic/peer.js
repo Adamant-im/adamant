@@ -201,6 +201,27 @@ describe('peer', () => {
       });
     });
 
+    it('should initialize live defaults for connection properties', () => {
+      const created = new Peer({ ip: validPeer.ip, port: validPeer.port });
+
+      // Filters such as peers.list({ syncProtocol: 'http' }) read live objects,
+      // so the defaults must exist on the instance, not only in object().
+      expect(created.syncProtocol).to.equal('http');
+      expect(created.isBroadcastingViaSocket).to.equal(false);
+    });
+
+    it('should keep explicitly provided connection properties', () => {
+      const created = new Peer({
+        ip: validPeer.ip,
+        port: validPeer.port,
+        syncProtocol: 'ws',
+        isBroadcastingViaSocket: true
+      });
+
+      expect(created.syncProtocol).to.equal('ws');
+      expect(created.isBroadcastingViaSocket).to.equal(true);
+    });
+
     it('should not update immutable properties', () => {
       const peerBeforeUpdate = _.clone(peer);
       const updateImmutableData = {

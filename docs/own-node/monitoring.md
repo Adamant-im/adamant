@@ -53,6 +53,10 @@ Setup steps:
    sudo visudo -cf /etc/sudoers.d/zabbix-adamant-forging
    ```
 
+   On hosts where `sudo` is `sudo-rs` (the default since Ubuntu 25.10; check with `sudo --version`), remove the `Defaults:zabbix !requiretty` line first. `sudo-rs` rejects it as `unknown setting: 'requiretty'`, and it does not require a TTY anyway.
+
+   If the node runs under an nvm-managed Node.js, use the absolute interpreter path (for example `/home/adamant/.nvm/versions/node/v24.22.3/bin/node`) in both the wrapper and the `sudoers` rule, and update both together whenever the Node.js version changes.
+
 4. Copy `tools/zabbix/userparameter_adamant_forging.conf` into the Zabbix agent include directory. Keep `UnsafeUserParameters=0` (the default); the wrapper rejects any instance name outside its fixed allowlist.
 5. Reload the Zabbix agent and verify execution as the agent account:
 
