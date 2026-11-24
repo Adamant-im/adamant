@@ -1,6 +1,15 @@
 # Upgrading to v0.11.0
 
-This page summarizes breaking changes, configuration migrations, and operational updates introduced in ADAMANT Node `v0.11.0`.
+This page summarizes breaking changes, configuration migrations, and operational updates introduced in ADAMANT Node `v0.11.0`. The patch release `v0.11.1` is listed first.
+
+## v0.11.1 Patch Release
+
+`v0.11.1` fixes a `v0.11.0` regression in which the node made no outbound WebSocket peer connections. The startup logs repeated `No suitable peers found for WebSocket connections` with `connectedPeers: 0` ([#306](https://github.com/Adamant-im/adamant/issues/306)). The node still synchronized over HTTP and inbound WebSocket connections, but real-time block and transaction push over outbound WebSocket did not work.
+
+- **Who should upgrade**: every node running `v0.11.0`. Nodes upgrading from `v0.10.x` should go straight to `v0.11.1`; all `v0.11.0` migration steps below still apply.
+- **Compatibility**: no consensus, serialization, configuration, SQL, or API changes. Upgrade with `npm ci --omit=dev` and a graceful restart.
+- **Encrypted forging**: after the restart, unlock encrypted delegates again with `npm run adm-node -- forging unlock`.
+- **Verification**: within a few minutes of startup, the log should show `ws-node-client | Connecting to WebSocket peer ws://… {"direction":"outbound"}` lines instead of the `No suitable peers found` warning.
 
 ## Breaking HTTP API Changes
 
