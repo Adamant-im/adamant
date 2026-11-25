@@ -60,17 +60,18 @@ zabbix_export:
               value: forging-outcome
           triggers:
             - uuid: 04f660de0e194cb4aae4d2b17a534db5
-              expression: 'changecount(/ADAMANT Delegate forging outcome by HTTP/adm.delegate.missedblocks[{$ADM.DELEGATE.PUBLIC_KEY}],{$ADM.DELEGATE.MISSED.WINDOW},"inc")>0'
-              name: 'ADAMANT: Delegate missed a block'
+              expression: 'last(/ADAMANT Delegate forging outcome by HTTP/adm.delegate.missedblocks[{$ADM.DELEGATE.PUBLIC_KEY}])-min(/ADAMANT Delegate forging outcome by HTTP/adm.delegate.missedblocks[{$ADM.DELEGATE.PUBLIC_KEY}],{$ADM.DELEGATE.MISSED.WINDOW})>={$ADM.DELEGATE.MISSED.MAX}'
+              name: 'ADAMANT: Delegate missed {$ADM.DELEGATE.MISSED.MAX} or more blocks in {$ADM.DELEGATE.MISSED.WINDOW}'
               priority: HIGH
+              description: 'A single missed block (network latency, a planned restart) does not alert. Repeated misses within the window mean the delegate is not forging. missedblocks is a lifetime counter, so the window start is its minimum.'
               tags:
                 - tag: scope
                   value: availability
             - uuid: 70268bc352ba4fc19a61d831eabdb4c3
-              expression: 'nodata(/ADAMANT Delegate forging outcome by HTTP/adm.delegate.missedblocks[{$ADM.DELEGATE.PUBLIC_KEY}],{$ADM.DELEGATE.MISSED.WINDOW})=1'
+              expression: 'nodata(/ADAMANT Delegate forging outcome by HTTP/adm.delegate.missedblocks[{$ADM.DELEGATE.PUBLIC_KEY}],{$ADM.DELEGATE.NODATA})=1'
               name: 'ADAMANT: Delegate outcome is unavailable'
               priority: AVERAGE
-              description: 'The public API failed, returned an invalid payload, or the delegate is not in the active delegate list.'
+              description: 'The public API failed, returned an invalid payload, or the delegate is not in the active delegate list. Every delegate host shares the same public API, so keep {$ADM.DELEGATE.NODATA} long enough that a brief API outage does not alert on every delegate at once.'
               tags:
                 - tag: scope
                   value: availability
@@ -82,6 +83,7 @@ zabbix_export:
           history: 30d
           trends: '0'
           value_type: FLOAT
+          description: 'Lifetime productivity reported by the node. Informational only: it moves too slowly to signal an outage, and a long-running delegate can stay below any fixed threshold for months after the misses that caused it.'
           preprocessing:
             - type: JSONPATH
               parameters:
@@ -91,14 +93,6 @@ zabbix_export:
           tags:
             - tag: component
               value: forging-outcome
-          triggers:
-            - uuid: 21e9e47924e44901a64cb82c0eb4dfcf
-              expression: 'min(/ADAMANT Delegate forging outcome by HTTP/adm.delegate.productivity[{$ADM.DELEGATE.PUBLIC_KEY}],{$ADM.DELEGATE.MISSED.WINDOW})<{$ADM.DELEGATE.PRODUCTIVITY.MIN}'
-              name: 'ADAMANT: Delegate productivity is below the threshold'
-              priority: WARNING
-              tags:
-                - tag: scope
-                  value: performance
       macros:
         - macro: '{$ADM.PUBLIC.API}'
           value: ''
@@ -106,5 +100,7 @@ zabbix_export:
           value: ''
         - macro: '{$ADM.DELEGATE.MISSED.WINDOW}'
           value: 30m
-        - macro: '{$ADM.DELEGATE.PRODUCTIVITY.MIN}'
-          value: '99'
+        - macro: '{$ADM.DELEGATE.MISSED.MAX}'
+          value: '2'
+        - macro: '{$ADM.DELEGATE.NODATA}'
+          value: 1h

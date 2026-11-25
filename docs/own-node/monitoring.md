@@ -98,4 +98,9 @@ Lock state explains why local forging might miss blocks; public chain data measu
 - `{$ADM.PUBLIC.API}` — base URL of a trusted public ADAMANT node (for example `https://node.example.com`)
 - `{$ADM.DELEGATE.PUBLIC_KEY}` — the delegate's public key
 
-The template queries the generic active-delegate list and filters for the configured delegate inside Zabbix preprocessing, so the public node never receives a query naming the watched delegate. It alerts when `missedblocks` increases within the configured window, `productivity` drops below threshold, or no valid outcome payload arrives (API failure, invalid response, or delegate leaving the active list). Keeping this template on a separate logical host prevents linking a delegate identity to the forging node's host or IP in Zabbix inventory and events.
+The template queries the generic active-delegate list and filters for the configured delegate inside Zabbix preprocessing, so the public node never receives a query naming the watched delegate. It alerts when:
+
+- the delegate misses `{$ADM.DELEGATE.MISSED.MAX}` (default `2`) or more blocks within `{$ADM.DELEGATE.MISSED.WINDOW}` (default `30m`). A single missed block, for example during a planned restart, does not alert;
+- no valid outcome payload arrives for `{$ADM.DELEGATE.NODATA}` (default `1h`): API failure, invalid response, or the delegate leaving the active list. All delegate hosts usually share one public API, so a shorter window turns one API outage into an alert per delegate.
+
+`productivity` is collected for graphs but has no trigger: it is a lifetime ratio, so it reacts to an outage far later than `missedblocks`, and a long-running delegate can stay below a fixed threshold for months after the misses that caused it. Keeping this template on a separate logical host prevents linking a delegate identity to the forging node's host or IP in Zabbix inventory and events.
